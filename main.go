@@ -19,11 +19,15 @@ func main() {
 
 func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
-	resp, err := client.Get("http://localhost:4567")
+
+	req, err := http.NewRequest(r.Method, "http://localhost:4567", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	req.Body = r.Body
+
+	resp, err := client.Do(req)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
