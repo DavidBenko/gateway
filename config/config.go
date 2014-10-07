@@ -21,6 +21,8 @@ type Server struct {
 	Port int64
 }
 
+const envPrefix = "APGATEWAY_"
+
 var (
 	config            Configuration
 	defaultConfigFile string
@@ -95,6 +97,6 @@ func setUnsetFlagsFromEnv() {
 }
 
 func envValueForFlag(name string) string {
-	key := "APGATEWAY_" + strings.ToUpper(strings.Replace(name, "-", "_", -1))
+	key := envPrefix + strings.ToUpper(strings.Replace(name, "-", "_", -1))
 	return os.Getenv(key)
 }
