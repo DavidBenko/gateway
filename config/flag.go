@@ -2,7 +2,7 @@ package config
 
 import "flag"
 
-func init() {
+func setupFlags(config *Configuration) {
 	_ = flag.String("config", "/etc/gateway/gateway.conf", "The path to the configuration file")
 
 	// Proxy configuration

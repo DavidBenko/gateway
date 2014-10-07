@@ -30,10 +30,7 @@ type ProxyAdmin struct {
 
 const envPrefix = "APGATEWAY_"
 
-var (
-	config            Configuration
-	defaultConfigFile string
-)
+var defaultConfigFile string
 
 func init() {
 	defaultConfigFile = envValueForFlag("config")
@@ -47,11 +44,14 @@ func init() {
 // Environment variables take precendence over the configuration file,
 // but command line flags take precedence over both.
 func Parse(args []string) (Configuration, error) {
+	config := Configuration{}
+
 	configFile := findConfigFile(args)
-	if err := parseConfigFile(configFile); err != nil {
+	if err := parseConfigFile(&config, configFile); err != nil {
 		return config, err
 	}
 
+	setupFlags(&config)
 	flag.Parse()
 
 	setUnsetFlagsFromEnv()
@@ -78,11 +78,11 @@ func findConfigFile(args []string) string {
 	return ""
 }
 
-func parseConfigFile(configFile string) error {
+func parseConfigFile(config *Configuration, configFile string) error {
 	if configFile == "" {
 		configFile = defaultConfigFile
 	}
-	_, err := toml.DecodeFile(configFile, &config)
+	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
 		return nil
 	}

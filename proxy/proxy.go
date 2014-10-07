@@ -21,9 +21,10 @@ func Run(config config.ProxyServer) {
 	admin.AddRoutes(router, config.Admin)
 
 	// Set up proxy
-	router.HandleFunc("/{path:.*}", proxyHandlerFunc).MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
-		return true
-	})
+	router.HandleFunc("/{path:.*}", proxyHandlerFunc).MatcherFunc(
+		func(r *http.Request, rm *mux.RouteMatch) bool {
+			return true
+		})
 
 	// Run server
 	listen := fmt.Sprintf(":%d", config.Port)
