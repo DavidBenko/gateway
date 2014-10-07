@@ -2,22 +2,28 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
-	"github.com/robertkrimen/otto"
-)
+	"os"
 
-var (
-	listen = flag.String("listen", ":8080", "address to listen on")
+	"github.com/robertkrimen/otto"
+
+	"github.com/AnyPresence/gateway/config"
 )
 
 func main() {
+
+	conf, err := config.Parse(os.Args[1:])
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error parsing config file: %v", err))
+	}
+
 	http.HandleFunc("/", proxyHandlerFunc)
-	log.Fatal(http.ListenAndServe(*listen, nil))
+	listen := fmt.Sprintf(":%d", conf.Proxy.Port)
+	log.Fatal(http.ListenAndServe(listen, nil))
 }
 
 func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
