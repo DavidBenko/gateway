@@ -1,3 +1,4 @@
+// Package config implements configuration parsing for Gateway.
 package config
 
 import (
@@ -9,13 +10,13 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Configuration specifies the complete Gateway configuration
+// Configuration specifies the complete Gateway configuration.
 type Configuration struct {
 	Proxy Server
 	Raft  Server
 }
 
-// Server specifies options that apply to all servers
+// Server specifies configuration options that apply to all servers.
 type Server struct {
 	Port int64
 }
@@ -34,8 +35,8 @@ func init() {
 
 // Parse all configuration.
 //
-// The precedence is:
-//   command line flags > environment > configuration file
+// Environment variables take precendence over the configuration file,
+// but command line flags take precedence over both.
 func Parse(args []string) (Configuration, error) {
 	configFile := findConfigFile(args)
 	if err := parseConfigFile(configFile); err != nil {
