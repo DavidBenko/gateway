@@ -12,13 +12,20 @@ import (
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	Proxy Server
-	Raft  Server
+	Proxy ProxyServer
 }
 
-// Server specifies configuration options that apply to all servers.
-type Server struct {
-	Port int64
+// ProxyServer specifies configuration options that apply to the proxy.
+type ProxyServer struct {
+	Port  int64
+	Admin ProxyAdmin
+}
+
+// ProxyAdmin specifies configuration options that apply to the admin section
+// of the proxy.
+type ProxyAdmin struct {
+	PathPrefix string
+	Host       string
 }
 
 const envPrefix = "APGATEWAY_"

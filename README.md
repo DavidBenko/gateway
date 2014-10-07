@@ -46,3 +46,5 @@ same format, but upcased and prefixed with `APGATEWAY`. For instance, the
 variable.
 
 The configuration file format is [`toml`](https://github.com/toml-lang/toml).
+
+Run the app with the `--help` flag to see all options.
