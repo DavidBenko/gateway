@@ -8,30 +8,63 @@ import (
 	"net/http"
 
 	"github.com/AnyPresence/gateway/config"
+	"github.com/AnyPresence/gateway/db"
+	"github.com/AnyPresence/gateway/model"
 	"github.com/AnyPresence/gateway/proxy/admin"
+	"github.com/goraft/raft"
+	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/robertkrimen/otto"
 )
 
-// Run the proxy server
-func Run(config config.ProxyServer) {
-	router := mux.NewRouter()
+type contextKey int
 
+const (
+	contextEndpointKey contextKey = iota
+)
+
+// Server encapsulates the proxy server.
+type Server struct {
+	conf       config.ProxyServer
+	raftServer raft.Server
+	router     *mux.Router
+}
+
+// NewServer builds a new proxy server.
+func NewServer(conf config.ProxyServer, raft raft.Server) *Server {
+	return &Server{
+		conf:       conf,
+		raftServer: raft,
+		router:     mux.NewRouter(),
+	}
+}
+
+// Run runs the server.
+func (s *Server) Run() {
 	// Set up admin
-	admin.AddRoutes(router, config.Admin)
+	admin.AddRoutes(s.router, s.raftServer, s.conf.Admin)
 
 	// Set up proxy
-	router.HandleFunc("/{path:.*}", proxyHandlerFunc).MatcherFunc(
-		func(r *http.Request, rm *mux.RouteMatch) bool {
-			return true
-		})
+	s.router.HandleFunc("/{path:.*}", proxyHandlerFunc).
+		MatcherFunc(s.hasRegisteredProxyEndpoint)
 
 	// Run server
-	listen := fmt.Sprintf(":%d", config.Port)
-	log.Fatal(http.ListenAndServe(listen, router))
+	listen := fmt.Sprintf("%s:%d", s.conf.Host, s.conf.Port)
+	log.Fatal(http.ListenAndServe(listen, s.router))
+}
+
+func (s *Server) hasRegisteredProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
+	db := s.raftServer.Context().(db.DB)
+	endpoint, err := db.GetProxyEndpointByPath(r.URL.Path[1:])
+	if err != nil {
+		return false
+	}
+	context.Set(r, contextEndpointKey, endpoint)
+	return true
 }
 
 func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	endpoint := context.Get(r, contextEndpointKey).(model.ProxyEndpoint)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -45,9 +78,7 @@ func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	req.Body = ioutil.NopCloser(massageBody(bytes.NewBuffer(body), `
-    body = body.replace("Stan", "Kyle");
-  `))
+	req.Body = ioutil.NopCloser(massageBody(bytes.NewBuffer(body), endpoint.Script))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -60,17 +91,21 @@ func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	newRespBody := massageBody(bytes.NewBuffer(newBody), `
-    body = body.replace("Hello", "Bye bye");
-  `)
+	newRespBody := massageBody(bytes.NewBuffer(newBody), endpoint.Script)
 
 	fmt.Fprint(w, newRespBody.String())
 }
 
 func massageBody(body *bytes.Buffer, src interface{}) *bytes.Buffer {
 	vm := otto.New()
+
 	vm.Set("body", body.String())
-	vm.Run(src)
+
+	_, err := vm.Run(src)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	newBodyRaw, err := vm.Get("body")
 	if err != nil {
 		log.Fatal(err)
