@@ -23,6 +23,19 @@ func NewMemoryStore() *Memory {
 	}
 }
 
+// ListProxyEndpoints returns all the model.ProxyEndpoint instances in
+// the data store.
+func (db *Memory) ListProxyEndpoints() ([]model.ProxyEndpoint, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	list := make([]model.ProxyEndpoint, 0, len(db.proxyEndpoints))
+	for _, value := range db.proxyEndpoints {
+		list = append(list, value)
+	}
+	return list, nil
+}
+
 // CreateProxyEndpoint stores the model.ProxyEndpoint in the data store.
 func (db *Memory) CreateProxyEndpoint(endpoint model.ProxyEndpoint) error {
 	db.mutex.Lock()

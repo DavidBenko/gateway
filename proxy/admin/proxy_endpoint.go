@@ -17,9 +17,17 @@ type proxyEndpoint struct {
 	raft raft.Server
 }
 
-func (p *proxyEndpoint) Index() (resources []interface{}, err error) {
-	fmt.Print("Index of proxy endpoints\n")
-	return nil, nil
+func (p *proxyEndpoint) Name() string {
+	return "proxy_endpoints"
+}
+
+func (p *proxyEndpoint) Index() (resources interface{}, err error) {
+	db := p.raft.Context().(db.DB)
+	list, err := db.ListProxyEndpoints()
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(list, "", "    ")
 }
 
 func (p *proxyEndpoint) Create(data interface{}) (resource interface{}, err error) {

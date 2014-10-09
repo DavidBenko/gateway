@@ -15,11 +15,11 @@ type HTTPResource struct {
 
 // Route adds the RESTful routes for this resource to the provided mux.Router.
 func (h *HTTPResource) Route(router *mux.Router) {
-	router.Handle("/proxy_endpoints", handlers.MethodHandler{
+	router.Handle(fmt.Sprintf("/%s", h.Resource.Name()), handlers.MethodHandler{
 		"GET":  h.IndexHandler(),
 		"POST": h.CreateHandler()},
 	)
-	router.Handle("/proxy_endpoints/{id}",
+	router.Handle(fmt.Sprintf("/%s/{id}", h.Resource.Name()),
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
 			"GET":    h.ShowHandler(),
 			"PATCH":  h.UpdateHandler(),
@@ -36,7 +36,7 @@ func (h *HTTPResource) IndexHandler() http.Handler {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(w, "Index of resources %v\n", resources)
+			fmt.Fprintf(w, "%s\n", resources)
 			return nil
 		})
 }
