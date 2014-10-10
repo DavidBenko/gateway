@@ -1,9 +1,7 @@
 :tddium:
   :golang:
     :golang_version: 1.3.3
- :hooks:
-    # :worker_setup: echo "No per-worker setup in simplest case"
+  :hooks:
     :post_setup: go install gateway
-    # :post_build: echo "Deploy to appengine here"
   :tests:
     - go test ./...
