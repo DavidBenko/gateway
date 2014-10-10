@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"os"
 
@@ -17,6 +19,9 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Error parsing config file: %v", err))
 	}
+
+	// Each server name must be unique
+	rand.Seed(time.Now().UnixNano())
 
 	log.Print("Registering Raft commands")
 	raft.RegisterCommands()
