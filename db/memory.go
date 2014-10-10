@@ -36,6 +36,16 @@ func (db *Memory) ListProxyEndpoints() ([]model.ProxyEndpoint, error) {
 	return list, nil
 }
 
+// GetProxyEndpointByName fetches a model.ProxyEndpoint based on its name.
+func (db *Memory) GetProxyEndpointByName(name string) (model.ProxyEndpoint, error) {
+	return db.getProxyEndpoint(db.proxyEndpoints, name)
+}
+
+// GetProxyEndpointByPath fetches a model.ProxyEndpoint based on its path.
+func (db *Memory) GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error) {
+	return db.getProxyEndpoint(db.proxyEndpointsByPath, path)
+}
+
 // CreateProxyEndpoint stores the model.ProxyEndpoint in the data store.
 func (db *Memory) CreateProxyEndpoint(endpoint model.ProxyEndpoint) error {
 	db.mutex.Lock()
@@ -45,14 +55,27 @@ func (db *Memory) CreateProxyEndpoint(endpoint model.ProxyEndpoint) error {
 	return nil
 }
 
-// GetProxyEndpointByName fetches a model.ProxyEndpoint based on its name.
-func (db *Memory) GetProxyEndpointByName(name string) (model.ProxyEndpoint, error) {
-	return db.getProxyEndpoint(db.proxyEndpoints, name)
+// UpdateProxyEndpoint updates the model.ProxyEndpoint in the data store.
+func (db *Memory) UpdateProxyEndpoint(endpoint model.ProxyEndpoint) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	db.proxyEndpoints[endpoint.Name] = endpoint
+	db.proxyEndpointsByPath[endpoint.Path] = endpoint
+	return nil
 }
 
-// GetProxyEndpointByPath fetches a model.ProxyEndpoint based on its path.
-func (db *Memory) GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error) {
-	return db.getProxyEndpoint(db.proxyEndpointsByPath, path)
+// DeleteProxyEndpointByName deletes the model.ProxyEndpoint from the data store.
+func (db *Memory) DeleteProxyEndpointByName(name string) error {
+	endpoint, err := db.GetProxyEndpointByName(name)
+	if err != nil {
+		return err
+	}
+
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+	delete(db.proxyEndpoints, endpoint.Name)
+	delete(db.proxyEndpointsByPath, endpoint.Path)
+	return nil
 }
 
 func (db *Memory) getProxyEndpoint(m map[string]model.ProxyEndpoint, key string) (model.ProxyEndpoint, error) {

@@ -6,7 +6,6 @@ import (
 
 	"os"
 
-	"github.com/AnyPresence/gateway/command"
 	"github.com/AnyPresence/gateway/config"
 	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/proxy"
@@ -20,15 +19,17 @@ func main() {
 	}
 
 	log.Print("Registering Raft commands")
-	command.RegisterCommands()
+	raft.RegisterCommands()
+
+	db := db.NewMemoryStore()
 
 	log.Print("Starting Raft server")
-	raft := raft.NewServer(conf.Raft, db.NewMemoryStore())
-	raft.Setup()
-	go raft.Run()
+	rServer := raft.NewServer(conf.Raft)
+	rServer.Setup(db)
+	go rServer.Run()
 
 	log.Print("Starting proxy server")
-	proxy := proxy.NewServer(conf.Proxy, raft.RaftServer)
+	proxy := proxy.NewServer(conf.Proxy, raft.NewRaftDB(db, rServer.RaftServer))
 	go proxy.Run()
 
 	select {}

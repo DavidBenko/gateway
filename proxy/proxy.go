@@ -11,7 +11,6 @@ import (
 	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/model"
 	"github.com/AnyPresence/gateway/proxy/admin"
-	"github.com/goraft/raft"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/robertkrimen/otto"
@@ -25,24 +24,24 @@ const (
 
 // Server encapsulates the proxy server.
 type Server struct {
-	conf       config.ProxyServer
-	raftServer raft.Server
-	router     *mux.Router
+	conf   config.ProxyServer
+	db     db.DB
+	router *mux.Router
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.ProxyServer, raft raft.Server) *Server {
+func NewServer(conf config.ProxyServer, db db.DB) *Server {
 	return &Server{
-		conf:       conf,
-		raftServer: raft,
-		router:     mux.NewRouter(),
+		conf:   conf,
+		db:     db,
+		router: mux.NewRouter(),
 	}
 }
 
 // Run runs the server.
 func (s *Server) Run() {
 	// Set up admin
-	admin.AddRoutes(s.router, s.raftServer, s.conf.Admin)
+	admin.AddRoutes(s.router, s.db, s.conf.Admin)
 
 	// Set up proxy
 	s.router.HandleFunc("/{path:.*}", proxyHandlerFunc).
@@ -54,8 +53,7 @@ func (s *Server) Run() {
 }
 
 func (s *Server) hasRegisteredProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
-	db := s.raftServer.Context().(db.DB)
-	endpoint, err := db.GetProxyEndpointByPath(r.URL.Path[1:])
+	endpoint, err := s.db.GetProxyEndpointByPath(r.URL.Path[1:])
 	if err != nil {
 		return false
 	}

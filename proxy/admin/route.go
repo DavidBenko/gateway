@@ -2,8 +2,8 @@ package admin
 
 import (
 	"github.com/AnyPresence/gateway/config"
+	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/rest"
-	"github.com/goraft/raft"
 	"github.com/gorilla/mux"
 )
 
@@ -19,10 +19,10 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 }
 
 // AddRoutes adds the admin routes to the specified router.
-func AddRoutes(router *mux.Router, raft raft.Server, config config.ProxyAdmin) {
+func AddRoutes(router *mux.Router, db db.DB, config config.ProxyAdmin) {
 	admin := subrouter(router, config)
 
-	(&rest.HTTPResource{Resource: &proxyEndpoint{raft: raft}}).Route(admin)
+	(&rest.HTTPResource{Resource: &proxyEndpoint{db: db}}).Route(admin)
 
 	admin.HandleFunc("/", adminHandler)
 }

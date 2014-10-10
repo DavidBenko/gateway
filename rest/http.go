@@ -57,39 +57,39 @@ func (h *HTTPResource) CreateHandler() http.Handler {
 
 // ShowHandler returns an http.Handler that shows the resource.
 func (h *HTTPResource) ShowHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return errorCatchingHandler(func(w http.ResponseWriter, r *http.Request) error {
 		resource, err := h.Resource.Show(mux.Vars(r)["id"])
 		if err != nil {
-			http.Error(w, fmt.Sprintf("An error occurred: %v", err), http.StatusMethodNotAllowed)
-			return
+			return err
 		}
 
 		fmt.Fprintf(w, "%s\n", resource)
+		return nil
 	})
 }
 
 // UpdateHandler returns an http.Handler that updates the resource.
 func (h *HTTPResource) UpdateHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resource, err := h.Resource.Update(r)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("An error occurred: %v", err), http.StatusMethodNotAllowed)
-			return
-		}
+	return errorCatchingHandler(
+		bodyAndIDHandler(func(w http.ResponseWriter, body []byte, id string) error {
+			resource, err := h.Resource.Update(id, body)
+			if err != nil {
+				return err
+			}
 
-		fmt.Fprintf(w, "Update resource %v\n", resource)
-	})
+			fmt.Fprintf(w, "%s\n", resource)
+			return nil
+		}))
 }
 
 // DeleteHandler returns an http.Handler that deletes the resource.
 func (h *HTTPResource) DeleteHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := h.Resource.Delete(r)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("An error occurred: %v", err), http.StatusMethodNotAllowed)
-			return
+	return errorCatchingHandler(func(w http.ResponseWriter, r *http.Request) error {
+		if err := h.Resource.Delete(mux.Vars(r)["id"]); err != nil {
+			return err
 		}
 
-		fmt.Fprintf(w, "Delete resource\n")
+		w.WriteHeader(http.StatusOK)
+		return nil
 	})
 }

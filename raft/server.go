@@ -24,14 +24,12 @@ type Server struct {
 	router     *mux.Router
 	RaftServer raft.Server
 	httpServer *http.Server
-	db         db.DB
 }
 
 // NewServer builds a new Raft server.
-func NewServer(conf config.RaftServer, db db.DB) *Server {
+func NewServer(conf config.RaftServer) *Server {
 	s := &Server{
 		conf:   conf,
-		db:     db,
 		router: mux.NewRouter(),
 	}
 
@@ -50,17 +48,18 @@ func NewServer(conf config.RaftServer, db db.DB) *Server {
 }
 
 // Setup sets up the server.
-func (s *Server) Setup() {
+func (s *Server) Setup(db db.DB) {
 	var err error
 
 	log.Printf("Initializing Raft Server: %s", s.conf.DataPath)
 
 	// Initialize and start Raft server.
 	transporter := raft.NewHTTPTransporter("/raft", 200*time.Millisecond)
-	s.RaftServer, err = raft.NewServer(s.name, s.conf.DataPath, transporter, nil, s.db, "")
+	s.RaftServer, err = raft.NewServer(s.name, s.conf.DataPath, transporter, nil, db, "")
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	transporter.Install(s.RaftServer, s)
 	s.RaftServer.Start()
 

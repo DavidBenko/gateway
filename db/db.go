@@ -10,5 +10,5 @@ type DB interface {
 	GetProxyEndpointByName(name string) (model.ProxyEndpoint, error)
 	GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error)
 	UpdateProxyEndpoint(endpoint model.ProxyEndpoint) error
-	DeleteProxyEndpoint(endpoint model.ProxyEndpoint) error
+	DeleteProxyEndpointByName(name string) error
 }
