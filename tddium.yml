@@ -1,0 +1,5 @@
+:tddium:
+  :golang:
+    :golang_version: 1.3.3
+  :tests:
+    - go test ./...
