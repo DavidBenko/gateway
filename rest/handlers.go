@@ -14,7 +14,7 @@ func errorCatchingHandler(handler errorReturningHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := handler(w, r); err != nil {
 			if err != nil {
-				http.Error(w, fmt.Sprintf("An error occurred: %v\n", err), http.StatusMethodNotAllowed)
+				http.Error(w, fmt.Sprintf("%v\n", err), http.StatusMethodNotAllowed)
 			}
 		}
 	})

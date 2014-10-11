@@ -2,7 +2,7 @@ package admin
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/model"
@@ -16,11 +16,11 @@ type proxyEndpoint struct {
 }
 
 func (p *proxyEndpoint) Name() string {
-	return "proxy_endpoints"
+	return (&model.ProxyEndpoint{}).CollectionName()
 }
 
 func (p *proxyEndpoint) Index() (resources interface{}, err error) {
-	list, err := p.db.ListProxyEndpoints()
+	list, err := p.db.List(&model.ProxyEndpoint{})
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (p *proxyEndpoint) Create(data interface{}) (resource interface{}, err erro
 		return nil, err
 	}
 
-	if err := p.db.CreateProxyEndpoint(instance); err != nil {
+	if err := p.db.Insert(instance); err != nil {
 		return nil, err
 	}
 
@@ -41,7 +41,12 @@ func (p *proxyEndpoint) Create(data interface{}) (resource interface{}, err erro
 }
 
 func (p *proxyEndpoint) Show(id interface{}) (resource interface{}, err error) {
-	instance, err := p.db.GetProxyEndpointByName(id.(string))
+	int64id, err := strconv.ParseInt(id.(string), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	instance, err := p.db.Get(&model.ProxyEndpoint{}, int64id)
 	if err != nil {
 		return nil, err
 	}
@@ -49,18 +54,12 @@ func (p *proxyEndpoint) Show(id interface{}) (resource interface{}, err error) {
 }
 
 func (p *proxyEndpoint) Update(id interface{}, data interface{}) (resource interface{}, err error) {
-	instance, err := p.db.GetProxyEndpointByName(id.(string))
-	if err != nil {
-		return nil, err
-	}
+	var instance model.ProxyEndpoint
 	if err := json.Unmarshal(data.([]byte), &instance); err != nil {
 		return nil, err
 	}
-	if instance.Name != id.(string) {
-		return nil, fmt.Errorf("TODO: Id is a string name right now, should not change. Prolly change to int64 id")
-	}
 
-	if err := p.db.UpdateProxyEndpoint(instance); err != nil {
+	if err := p.db.Update(instance); err != nil {
 		return nil, err
 	}
 
@@ -68,5 +67,11 @@ func (p *proxyEndpoint) Update(id interface{}, data interface{}) (resource inter
 }
 
 func (p *proxyEndpoint) Delete(id interface{}) error {
-	return p.db.DeleteProxyEndpointByName(id.(string))
+	int64id, err := strconv.ParseInt(id.(string), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	return p.db.Delete(&model.ProxyEndpoint{}, int64id)
+
 }

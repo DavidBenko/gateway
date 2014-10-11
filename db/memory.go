@@ -11,80 +11,94 @@ import (
 type Memory struct {
 	mutex sync.RWMutex
 
-	proxyEndpoints       map[string]model.ProxyEndpoint
-	proxyEndpointsByPath map[string]model.ProxyEndpoint
+	storage map[string]map[interface{}]model.Model
 }
 
 // NewMemoryStore creates a new Memory data store.
 func NewMemoryStore() *Memory {
 	return &Memory{
-		proxyEndpoints:       make(map[string]model.ProxyEndpoint),
-		proxyEndpointsByPath: make(map[string]model.ProxyEndpoint),
+		storage: make(map[string]map[interface{}]model.Model),
 	}
 }
 
-// ListProxyEndpoints returns all the model.ProxyEndpoint instances in
-// the data store.
-func (db *Memory) ListProxyEndpoints() ([]model.ProxyEndpoint, error) {
+func (db *Memory) subMap(m model.Model) map[interface{}]model.Model {
+	key := m.CollectionName()
+	subMap, ok := db.storage[key]
+	if !ok {
+		subMap = make(map[interface{}]model.Model)
+		db.storage[key] = subMap
+	}
+	return subMap
+}
+
+// List returns all instances that share the type with the model.
+func (db *Memory) List(instance model.Model) ([]interface{}, error) {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
 
-	list := make([]model.ProxyEndpoint, 0, len(db.proxyEndpoints))
-	for _, value := range db.proxyEndpoints {
+	subMap := db.subMap(instance)
+	list := make([]interface{}, 0, len(subMap))
+	for _, value := range subMap {
 		list = append(list, value)
 	}
 	return list, nil
 }
 
-// GetProxyEndpointByName fetches a model.ProxyEndpoint based on its name.
-func (db *Memory) GetProxyEndpointByName(name string) (model.ProxyEndpoint, error) {
-	return db.getProxyEndpoint(db.proxyEndpoints, name)
-}
+// Insert stores the instance in the data store.
+// Returns an error if the instance is already in the store; Update instead.
+func (db *Memory) Insert(instance model.Model) error {
+	if _, err := db.Get(instance, instance.ID()); err == nil {
+		return fmt.Errorf("There is already a %s with ID() '%s'",
+			instance.CollectionName(), instance.ID())
+	}
 
-// GetProxyEndpointByPath fetches a model.ProxyEndpoint based on its path.
-func (db *Memory) GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error) {
-	return db.getProxyEndpoint(db.proxyEndpointsByPath, path)
-}
-
-// CreateProxyEndpoint stores the model.ProxyEndpoint in the data store.
-func (db *Memory) CreateProxyEndpoint(endpoint model.ProxyEndpoint) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	db.proxyEndpoints[endpoint.Name] = endpoint
-	db.proxyEndpointsByPath[endpoint.Path] = endpoint
+
+	subMap := db.subMap(instance)
+	subMap[instance.ID()] = instance
 	return nil
 }
 
-// UpdateProxyEndpoint updates the model.ProxyEndpoint in the data store.
-func (db *Memory) UpdateProxyEndpoint(endpoint model.ProxyEndpoint) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-	db.proxyEndpoints[endpoint.Name] = endpoint
-	db.proxyEndpointsByPath[endpoint.Path] = endpoint
-	return nil
+// Get fetches an instance based on its ID().
+func (db *Memory) Get(m model.Model, id interface{}) (model.Model, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	subMap := db.subMap(m)
+	instance, ok := subMap[id]
+	if ok {
+		return instance, nil
+	}
+	return m, fmt.Errorf("There are no %s with id '%v'", m.CollectionName(), id)
 }
 
-// DeleteProxyEndpointByName deletes the model.ProxyEndpoint from the data store.
-func (db *Memory) DeleteProxyEndpointByName(name string) error {
-	endpoint, err := db.GetProxyEndpointByName(name)
-	if err != nil {
+// Update updates the instance in the data store.
+// Returns an error if the instance is not already in the store; Insert instead.
+func (db *Memory) Update(instance model.Model) error {
+	if _, err := db.Get(instance, instance.ID()); err != nil {
 		return err
 	}
 
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
-	delete(db.proxyEndpoints, endpoint.Name)
-	delete(db.proxyEndpointsByPath, endpoint.Path)
+
+	subMap := db.subMap(instance)
+	subMap[instance.ID()] = instance
 	return nil
 }
 
-func (db *Memory) getProxyEndpoint(m map[string]model.ProxyEndpoint, key string) (model.ProxyEndpoint, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-	endpoint, ok := m[key]
-	if ok {
-		return endpoint, nil
+// Delete deletes the instance from the data store.
+// Returns an error if the instance is not already in the store.
+func (db *Memory) Delete(m model.Model, id interface{}) error {
+	if _, err := db.Get(m, id); err != nil {
+		return err
 	}
-	return model.ProxyEndpoint{},
-		fmt.Errorf("No proxy endpoint exists for key '%s'", key)
+
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	subMap := db.subMap(m)
+	delete(subMap, id)
+	return nil
 }

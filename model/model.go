@@ -8,10 +8,22 @@ type Library struct {
 
 // ProxyEndpoint represents an endpoint that the Gateway should handle.
 type ProxyEndpoint struct {
-	Name   string `json:"name"`
-	Path   string `json:"path"`
-	Method string `json:"method"`
-	Script string `json:"script"`
+	IDField int64  `json:"id"`
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Method  string `json:"method"`
+	Script  string `json:"script"`
+}
+
+// CollectionName returns a system-unique name that can be used to reference
+// collections of this model, e.g. for URLs or database table names.
+func (p ProxyEndpoint) CollectionName() string {
+	return "proxy_endpoints"
+}
+
+// ID returns the id of the endpoint.
+func (p ProxyEndpoint) ID() interface{} {
+	return p.IDField
 }
 
 // Service represents a remote service the Gateway has access to.

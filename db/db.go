@@ -4,11 +4,9 @@ import "github.com/AnyPresence/gateway/model"
 
 // DB defines the interface of a backing datastore.
 type DB interface {
-	// ProxyEndpoint
-	ListProxyEndpoints() ([]model.ProxyEndpoint, error)
-	CreateProxyEndpoint(endpoint model.ProxyEndpoint) error
-	GetProxyEndpointByName(name string) (model.ProxyEndpoint, error)
-	GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error)
-	UpdateProxyEndpoint(endpoint model.ProxyEndpoint) error
-	DeleteProxyEndpointByName(name string) error
+	List(instance model.Model) ([]interface{}, error)
+	Insert(instance model.Model) error
+	Get(m model.Model, id interface{}) (model.Model, error)
+	Update(instance model.Model) error
+	Delete(m model.Model, id interface{}) error
 }

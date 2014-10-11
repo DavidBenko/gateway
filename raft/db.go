@@ -1,6 +1,10 @@
 package raft
 
 import (
+	"fmt"
+	"log"
+	"reflect"
+
 	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/model"
 	"github.com/goraft/raft"
@@ -20,42 +24,51 @@ func NewRaftDB(backingDB db.DB, server raft.Server) *DB {
 	}
 }
 
-// CreateProxyEndpoint asks the Raft server to create a proxy endpoint.
-func (db *DB) CreateProxyEndpoint(endpoint model.ProxyEndpoint) error {
-	if _, err := db.raft.Do(CreateProxyEndpointCommand(endpoint)); err != nil {
+// List returns all instances in the data store.
+func (db *DB) List(instance model.Model) ([]interface{}, error) {
+	return db.backingDB.List(instance)
+}
+
+// Insert asks the Raft server to insert a persisted instance.
+func (db *DB) Insert(instance model.Model) error {
+	fmt.Println("Trying to insert from DB")
+	if _, err := db.raft.Do(newCommand(Insert, instance)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// ListProxyEndpoints returns all the model.ProxyEndpoint instances in
-// the data store.
-func (db *DB) ListProxyEndpoints() ([]model.ProxyEndpoint, error) {
-	return db.backingDB.ListProxyEndpoints()
+// Get fetches a model.ProxyEndpoint based on its name.
+func (db *DB) Get(m model.Model, id interface{}) (model.Model, error) {
+	return db.backingDB.Get(m, id)
 }
 
-// GetProxyEndpointByName fetches a model.ProxyEndpoint based on its name.
-func (db *DB) GetProxyEndpointByName(name string) (model.ProxyEndpoint, error) {
-	return db.backingDB.GetProxyEndpointByName(name)
-}
-
-// GetProxyEndpointByPath fetches a model.ProxyEndpoint based on its path.
-func (db *DB) GetProxyEndpointByPath(path string) (model.ProxyEndpoint, error) {
-	return db.backingDB.GetProxyEndpointByPath(path)
-}
-
-// UpdateProxyEndpoint asks the Raft server to update a proxy endpoint
-func (db *DB) UpdateProxyEndpoint(endpoint model.ProxyEndpoint) error {
-	if _, err := db.raft.Do(UpdateProxyEndpointCommand(endpoint)); err != nil {
+// Update asks the Raft server to update a persisted instance
+func (db *DB) Update(instance model.Model) error {
+	if _, err := db.raft.Do(newCommand(Update, instance)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// DeleteProxyEndpointByName asks the Raft server to delete a proxy endpoint
-func (db *DB) DeleteProxyEndpointByName(name string) error {
-	if _, err := db.raft.Do(DeleteProxyEndpointByNameCommand(name)); err != nil {
+// Delete asks the Raft server to delete a persisted instance
+func (db *DB) Delete(m model.Model, id interface{}) error {
+	instance, err := db.backingDB.Get(m, id)
+	if err != nil {
+		return err
+	}
+	if _, err := db.raft.Do(newCommand(Delete, instance)); err != nil {
 		return err
 	}
 	return nil
+}
+
+func newCommand(action DBWriteAction, instance model.Model) raft.Command {
+	switch instance := instance.(type) {
+	case model.ProxyEndpoint:
+		return ProxyEndpointDBCommand(action, instance)
+	}
+	log.Fatalf("Could not create DB write command for instance of type %s",
+		reflect.TypeOf(instance))
+	return raft.NOPCommand{}
 }
