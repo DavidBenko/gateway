@@ -23,9 +23,6 @@ func main() {
 	// Each server name must be unique
 	rand.Seed(time.Now().UnixNano())
 
-	log.Print("Registering Raft commands")
-	raft.RegisterCommands()
-
 	db := db.NewMemoryStore()
 
 	log.Print("Starting Raft server")

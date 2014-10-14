@@ -2,11 +2,17 @@ package raft
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/AnyPresence/gateway/db"
 	"github.com/AnyPresence/gateway/model"
 	goraft "github.com/goraft/raft"
 )
+
+func init() {
+	log.Print("Registering Raft commands")
+	goraft.RegisterCommand(&proxyEndpointDBCommand{})
+}
 
 // DBWriteAction is a write action a data store can do.
 type DBWriteAction string
