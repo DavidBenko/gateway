@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/AnyPresence/gateway/db"
@@ -41,7 +42,7 @@ func (p *proxyEndpoint) Create(data interface{}) (resource interface{}, err erro
 }
 
 func (p *proxyEndpoint) Show(id interface{}) (resource interface{}, err error) {
-	int64id, err := strconv.ParseInt(id.(string), 10, 64)
+	int64id, err := p.int64ID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +55,18 @@ func (p *proxyEndpoint) Show(id interface{}) (resource interface{}, err error) {
 }
 
 func (p *proxyEndpoint) Update(id interface{}, data interface{}) (resource interface{}, err error) {
+	int64id, err := p.int64ID(id)
+	if err != nil {
+		return nil, err
+	}
+
 	var instance model.ProxyEndpoint
 	if err := json.Unmarshal(data.([]byte), &instance); err != nil {
 		return nil, err
+	}
+
+	if int64id != instance.IDField {
+		return nil, fmt.Errorf("Cannot change id via update")
 	}
 
 	if err := p.db.Update(instance); err != nil {
@@ -73,5 +83,8 @@ func (p *proxyEndpoint) Delete(id interface{}) error {
 	}
 
 	return p.db.Delete(model.ProxyEndpoint{}, int64id)
+}
 
+func (p *proxyEndpoint) int64ID(id interface{}) (int64, error) {
+	return strconv.ParseInt(id.(string), 10, 64)
 }
