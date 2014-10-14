@@ -4,6 +4,7 @@
 *.so
 
 # Folders
+bin
 _obj
 _test
 
@@ -26,3 +27,9 @@ _testmain.go
 # Tddium
 test/raft.tddium*
 .tddium*
+
+# Bindata
+**/bindata.go
+
+# Test Node Data
+test/node

@@ -11,22 +11,19 @@ On OS X, simply:
     brew update
     brew install go
 
-Now set up your `GOPATH`. For instance, in your `~/.bash_profile`:
-
-	  export GOPATH=~/go
-
-You may also wish to add the `bin` directory to your `PATH`:
-
-    export PATH=$PATH:$GOPATH/bin
-
 ### Fetch this Repo
 
-    go get github.com/AnyPresence/gateway
+    git clone git@github.com:AnyPresence/gateway.git
+	
+### Add `gateway` to your `GOPATH`
+
+In your `~/.bash_profile` or similar:
+
+	export GOPATH=/path/to/gateway:$GOPATH
 
 ### Build and Run
 
-    go install github.com/AnyPresence/gateway
-    $GOPATH/bin/gateway
+    make run
 
 ### IDE
 
