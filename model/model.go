@@ -10,7 +10,7 @@ type Library struct {
 type ProxyEndpoint struct {
 	IDField int64  `json:"id"`
 	Name    string `json:"name"`
-	Path    string `json:"path"`
+	Path    string `json:"path" index:"true"`
 	Method  string `json:"method"`
 	Script  string `json:"script"`
 }

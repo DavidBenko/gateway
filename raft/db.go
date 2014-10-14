@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"log"
 	"reflect"
 
@@ -31,19 +30,23 @@ func (db *DB) List(instance model.Model) ([]interface{}, error) {
 
 // Insert asks the Raft server to insert a persisted instance.
 func (db *DB) Insert(instance model.Model) error {
-	fmt.Println("Trying to insert from DB")
 	if _, err := db.raft.Do(newCommand(Insert, instance)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Get fetches a model.ProxyEndpoint based on its name.
+// Get fetches a model instance based on its name.
 func (db *DB) Get(m model.Model, id interface{}) (model.Model, error) {
 	return db.backingDB.Get(m, id)
 }
 
-// Update asks the Raft server to update a persisted instance
+// Find finds a model instance based on an indexed field.
+func (db *DB) Find(m model.Model, findByFieldName string, id interface{}) (model.Model, error) {
+	return db.backingDB.Find(m, findByFieldName, id)
+}
+
+// Update asks the Raft server to update a persisted instance.
 func (db *DB) Update(instance model.Model) error {
 	if _, err := db.raft.Do(newCommand(Update, instance)); err != nil {
 		return err
@@ -51,7 +54,7 @@ func (db *DB) Update(instance model.Model) error {
 	return nil
 }
 
-// Delete asks the Raft server to delete a persisted instance
+// Delete asks the Raft server to delete a persisted instance.
 func (db *DB) Delete(m model.Model, id interface{}) error {
 	instance, err := db.backingDB.Get(m, id)
 	if err != nil {

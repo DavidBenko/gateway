@@ -53,21 +53,13 @@ func (s *Server) Run() {
 }
 
 func (s *Server) hasRegisteredProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
-	list, err := s.db.List(&model.ProxyEndpoint{})
+	path := r.URL.Path[1:]
+	endpoint, err := s.db.Find(model.ProxyEndpoint{}, "Path", path)
 	if err != nil {
 		return false
 	}
-
-	path := r.URL.Path[1:]
-	for _, e := range list {
-		endpoint := e.(model.ProxyEndpoint)
-		if endpoint.Path == path {
-			context.Set(r, contextEndpointKey, endpoint)
-			return true
-		}
-	}
-
-	return false
+	context.Set(r, contextEndpointKey, endpoint)
+	return true
 }
 
 func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {

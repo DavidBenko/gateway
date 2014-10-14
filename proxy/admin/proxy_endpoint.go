@@ -16,11 +16,11 @@ type proxyEndpoint struct {
 }
 
 func (p *proxyEndpoint) Name() string {
-	return (&model.ProxyEndpoint{}).CollectionName()
+	return (model.ProxyEndpoint{}).CollectionName()
 }
 
 func (p *proxyEndpoint) Index() (resources interface{}, err error) {
-	list, err := p.db.List(&model.ProxyEndpoint{})
+	list, err := p.db.List(model.ProxyEndpoint{})
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (p *proxyEndpoint) Show(id interface{}) (resource interface{}, err error) {
 		return nil, err
 	}
 
-	instance, err := p.db.Get(&model.ProxyEndpoint{}, int64id)
+	instance, err := p.db.Get(model.ProxyEndpoint{}, int64id)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +72,6 @@ func (p *proxyEndpoint) Delete(id interface{}) error {
 		return err
 	}
 
-	return p.db.Delete(&model.ProxyEndpoint{}, int64id)
+	return p.db.Delete(model.ProxyEndpoint{}, int64id)
 
 }

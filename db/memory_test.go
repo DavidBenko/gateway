@@ -9,7 +9,7 @@ import (
 
 type testModel struct {
 	id   int64
-	name string
+	name string `index:"true"`
 }
 
 func (t testModel) ID() interface{} {
@@ -68,7 +68,7 @@ func TestSubMapPerType(t *testing.T) {
 
 func TestList(t *testing.T) {
 	db := NewMemoryStore()
-	list, err := db.List(&testModel{})
+	list, err := db.List(testModel{})
 	if err != nil {
 		t.Error("Error getting list")
 	}
@@ -80,7 +80,7 @@ func TestList(t *testing.T) {
 	db.Insert(foo)
 	db.Insert(bar)
 
-	list, err = db.List(&testModel{})
+	list, err = db.List(testModel{})
 	if err != nil {
 		t.Error("Error getting list")
 	}
@@ -112,14 +112,23 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestInsertIndexed(t *testing.T) {
+	db := NewMemoryStore()
+	db.Insert(foo)
+	submap := db.subMapForFieldName(foo, "name")
+	if len(submap) != 1 {
+		t.Error("Expected Insert() to add one to the indexed submap")
+	}
+}
+
 func TestGet(t *testing.T) {
 	db := NewMemoryStore()
-	_, err := db.Get(&testModel{}, 1)
+	_, err := db.Get(testModel{}, 1)
 	if err == nil {
 		t.Error("Expected Get to return error when instance not present")
 	}
 	db.Insert(foo)
-	instance, err := db.Get(&testModel{}, int64(1))
+	instance, err := db.Get(testModel{}, int64(1))
 	if err != nil {
 		t.Error("Expected Get to not return error when instance is present")
 	}
@@ -128,19 +137,57 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestFind(t *testing.T) {
 	db := NewMemoryStore()
-	if err := db.Update(foo); err == nil {
-		t.Error("Expected Update to return error when instance not present")
+	_, err := db.Find(testModel{}, "name", "foo")
+	if err == nil {
+		t.Error("Expected Find to return error when instance not present")
 	}
 	db.Insert(foo)
-	foo.name = "fii"
-	if err := db.Update(foo); err != nil {
+	instance, err := db.Find(testModel{}, "name", "foo")
+	if err != nil {
+		t.Error("Expected Find to not return error when instance is present")
+	}
+	if instance != foo {
+		t.Error("Expected Find to return instance requested")
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	baz := foo
+
+	db := NewMemoryStore()
+	if err := db.Update(baz); err == nil {
+		t.Error("Expected Update to return error when instance not present")
+	}
+	db.Insert(baz)
+	baz.name = "fii"
+	if err := db.Update(baz); err != nil {
 		t.Error("Expected Update to not return error when instance is present")
 	}
-	fetched, _ := db.Get(&testModel{}, int64(1))
+	fetched, _ := db.Get(testModel{}, int64(1))
 	if fetched.(testModel).name != "fii" {
 		t.Error("Expected Update to update the data in storage")
+	}
+}
+
+func TestUpdateIndexed(t *testing.T) {
+	baz := foo
+
+	db := NewMemoryStore()
+	db.Insert(baz)
+	baz.name = "fii"
+	db.Update(baz)
+	_, err := db.Find(testModel{}, "name", "foo")
+	if err == nil {
+		t.Error("Expected Update to remove old index")
+	}
+	instance, err := db.Find(testModel{}, "name", "fii")
+	if err != nil {
+		t.Error("Expected Update to create new index")
+	}
+	if instance != baz {
+		t.Error("Expected Find to return instance requested")
 	}
 }
 
@@ -153,8 +200,18 @@ func TestDelete(t *testing.T) {
 	if err := db.Delete(foo, int64(1)); err != nil {
 		t.Error("Expected Delete to not return error when instance is present")
 	}
-	if _, err := db.Get(&testModel{}, int64(1)); err == nil {
+	if _, err := db.Get(testModel{}, int64(1)); err == nil {
 		t.Error("Expected Delete to remove the instance from storage")
+	}
+}
+
+func TestDeleteIndexed(t *testing.T) {
+	db := NewMemoryStore()
+	db.Insert(foo)
+	db.Delete(foo, int64(1))
+	_, err := db.Find(testModel{}, "name", "foo")
+	if err == nil {
+		t.Error("Expected Delete to remove old index")
 	}
 }
 
