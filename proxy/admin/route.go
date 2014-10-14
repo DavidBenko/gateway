@@ -3,6 +3,7 @@ package admin
 import (
 	"github.com/AnyPresence/gateway/config"
 	"github.com/AnyPresence/gateway/db"
+	"github.com/AnyPresence/gateway/model"
 	"github.com/AnyPresence/gateway/rest"
 	"github.com/gorilla/mux"
 )
@@ -22,8 +23,8 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 func AddRoutes(router *mux.Router, db db.DB, config config.ProxyAdmin) {
 	admin := subrouter(router, config)
 
-	(&rest.HTTPResource{Resource: &proxyEndpoint{db: db}}).Route(admin)
-	(&rest.HTTPResource{Resource: &library{db: db}}).Route(admin)
+	(&rest.HTTPResource{Resource: &adminResource{backingModel: model.ProxyEndpoint{}, db: db}}).Route(admin)
+	(&rest.HTTPResource{Resource: &adminResource{backingModel: model.Library{}, db: db}}).Route(admin)
 
 	admin.HandleFunc("/", adminHandler)
 }
