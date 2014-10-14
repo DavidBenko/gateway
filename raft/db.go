@@ -70,6 +70,8 @@ func newCommand(action DBWriteAction, instance model.Model) raft.Command {
 	switch instance := instance.(type) {
 	case model.ProxyEndpoint:
 		return ProxyEndpointDBCommand(action, instance)
+	case model.Library:
+		return LibraryDBCommand(action, instance)
 	}
 	log.Fatalf("Could not create DB write command for instance of type %s",
 		reflect.TypeOf(instance))

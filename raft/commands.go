@@ -12,6 +12,7 @@ import (
 func init() {
 	log.Print("Registering Raft commands")
 	goraft.RegisterCommand(&proxyEndpointDBCommand{})
+	goraft.RegisterCommand(&libraryDBCommand{})
 }
 
 // DBWriteAction is a write action a data store can do.
@@ -64,5 +65,26 @@ func (c *proxyEndpointDBCommand) CommandName() string {
 
 // Apply runs the DB action against the data store.
 func (c *proxyEndpointDBCommand) Apply(server goraft.Server) (interface{}, error) {
+	return c.DBCommand.Apply(server, c.Instance)
+}
+
+// LibraryDBCommand is a DBCommand to modify Library instances.
+type libraryDBCommand struct {
+	DBCommand `json:"command"`
+	Instance  model.Library `json:"instance"`
+}
+
+// LibraryDBCommand returns a new command to execute with the proxy endpoint.
+func LibraryDBCommand(action DBWriteAction, instance model.Library) *libraryDBCommand {
+	return &libraryDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
+}
+
+// CommandName is the name of the command in the Raft log.
+func (c *libraryDBCommand) CommandName() string {
+	return "Library"
+}
+
+// Apply runs the DB action against the data store.
+func (c *libraryDBCommand) Apply(server goraft.Server) (interface{}, error) {
 	return c.DBCommand.Apply(server, c.Instance)
 }

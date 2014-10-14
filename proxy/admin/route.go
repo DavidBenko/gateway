@@ -23,6 +23,7 @@ func AddRoutes(router *mux.Router, db db.DB, config config.ProxyAdmin) {
 	admin := subrouter(router, config)
 
 	(&rest.HTTPResource{Resource: &proxyEndpoint{db: db}}).Route(admin)
+	(&rest.HTTPResource{Resource: &library{db: db}}).Route(admin)
 
 	admin.HandleFunc("/", adminHandler)
 }
