@@ -106,7 +106,7 @@ func (s *Server) Setup(db db.DB) {
 
 // Run runs the server.
 func (s *Server) Run() error {
-	log.Println("Listening at:", s.connectionString())
+	log.Println("Raft server listening at:", s.connectionString())
 	return s.httpServer.ListenAndServe()
 }
 

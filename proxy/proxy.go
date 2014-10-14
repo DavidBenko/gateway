@@ -49,6 +49,7 @@ func (s *Server) Run() {
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.conf.Host, s.conf.Port)
+	log.Println("Proxy server listening at:", listen)
 	log.Fatal(http.ListenAndServe(listen, s.router))
 }
 
