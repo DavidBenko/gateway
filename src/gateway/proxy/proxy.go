@@ -11,6 +11,7 @@ import (
 	"gateway/db"
 	"gateway/model"
 	"gateway/proxy/admin"
+
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/robertkrimen/otto"
@@ -24,31 +25,33 @@ const (
 
 // Server encapsulates the proxy server.
 type Server struct {
-	conf   config.ProxyServer
-	db     db.DB
-	router *mux.Router
+	proxyConf config.ProxyServer
+	adminConf config.ProxyAdmin
+	db        db.DB
+	router    *mux.Router
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.ProxyServer, db db.DB) *Server {
+func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db db.DB) *Server {
 	return &Server{
-		conf:   conf,
-		db:     db,
-		router: mux.NewRouter(),
+		proxyConf: proxyConfig,
+		adminConf: adminConfig,
+		db:        db,
+		router:    mux.NewRouter(),
 	}
 }
 
 // Run runs the server.
 func (s *Server) Run() {
 	// Set up admin
-	admin.AddRoutes(s.router, s.db, s.conf.Admin)
+	admin.AddRoutes(s.router, s.db, s.adminConf)
 
 	// Set up proxy
 	s.router.HandleFunc("/{path:.*}", proxyHandlerFunc).
 		MatcherFunc(s.hasRegisteredProxyEndpoint)
 
 	// Run server
-	listen := fmt.Sprintf("%s:%d", s.conf.Host, s.conf.Port)
+	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
 	log.Println("Proxy server listening at:", listen)
 	log.Fatal(http.ListenAndServe(listen, s.router))
 }

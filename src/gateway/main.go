@@ -31,7 +31,7 @@ func main() {
 	go rServer.Run()
 
 	log.Print("Starting proxy server")
-	proxy := proxy.NewServer(conf.Proxy, raft.NewRaftDB(db, rServer.RaftServer))
+	proxy := proxy.NewServer(conf.Proxy, conf.Admin, raft.NewRaftDB(db, rServer.RaftServer))
 	go proxy.Run()
 
 	select {}

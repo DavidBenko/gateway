@@ -26,7 +26,7 @@ fmt:
 	goimports ./src/...
 
 run: build
-	./bin/gateway -raft-data-path=./test/node
+	./bin/gateway -raft-data-path=./test/node -config=./test/gateway.conf
 
 test: assets
 	go test ./src/...

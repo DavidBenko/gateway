@@ -13,13 +13,13 @@ import (
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
 	Proxy ProxyServer
+	Admin ProxyAdmin
 	Raft  RaftServer
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
 	Server
-	Admin ProxyAdmin
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

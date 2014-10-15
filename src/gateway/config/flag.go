@@ -10,8 +10,8 @@ func setupFlags(config *Configuration) {
 	flag.Int64Var(&config.Proxy.Port, "proxy-port", 5000, "The port of the proxy server")
 
 	// Proxy admin configuration
-	flag.StringVar(&config.Proxy.Admin.PathPrefix, "admin-path-prefix", "/admin/", "The path prefix the administrative area is accessible under")
-	flag.StringVar(&config.Proxy.Admin.Host, "admin-host", "", "The host the administrative area is accessible via")
+	flag.StringVar(&config.Admin.PathPrefix, "admin-path-prefix", "/admin/", "The path prefix the administrative area is accessible under")
+	flag.StringVar(&config.Admin.Host, "admin-host", "", "The host the administrative area is accessible via")
 
 	// Raft configuration
 	flag.StringVar(&config.Raft.DataPath, "raft-data-path", "/etc/gateway/data", "The path to the directory where the server data should be stored")
