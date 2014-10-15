@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -20,6 +21,16 @@ func (t testModel) CollectionName() string {
 	return "test_models"
 }
 
+func (t testModel) EmptyInstance() model.Model {
+	return testModel{}
+}
+
+func (t testModel) UnmarshalFromJSON(data []byte) (model.Model, error) {
+	instance := testModel{}
+	err := json.Unmarshal(data, &instance)
+	return instance, err
+}
+
 type testModel2 struct {
 	name string
 }
@@ -30,6 +41,16 @@ func (t testModel2) ID() interface{} {
 
 func (t testModel2) CollectionName() string {
 	return "test_models2"
+}
+
+func (t testModel2) EmptyInstance() model.Model {
+	return testModel2{}
+}
+
+func (t testModel2) UnmarshalFromJSON(data []byte) (model.Model, error) {
+	instance := testModel2{}
+	err := json.Unmarshal(data, &instance)
+	return instance, err
 }
 
 var (
