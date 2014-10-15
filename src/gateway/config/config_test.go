@@ -1,30 +1,30 @@
 package config
 
 import (
-	"strings"
+	"reflect"
 	"testing"
 )
 
-func TestFindConfigFile(t *testing.T) {
-	cases := map[string]string{
-		"":                  "",
-		"-port 4000":        "",
-		"-config":           "",
-		"--config":          "",
-		"-config foo":       "foo",
-		"-config=foo":       "foo",
-		"--config foo":      "foo",
-		"--config=foo":      "foo",
-		"-config=foo -test": "foo",
-		"-test -config=foo": "foo",
-	}
+type testConfig struct {
+	Foo string `flag:"foo" default:""`
+	Bar int64  `flag:"bar" default:"42"`
+	Baz baz
+}
 
-	for line, expectedFileName := range cases {
-		filename := findConfigFile(strings.Split(line, " "))
-		if filename != expectedFileName {
-			t.Errorf("findConfigFile returned '%s' from the command line "+
-				"arguments '%s'; expected '%s'", filename, line, expectedFileName)
-		}
-	}
+type baz struct {
+	Baf string `flag:"baf" default:"doby"`
+}
 
+func TestSetDefaults(t *testing.T) {
+	config := testConfig{}
+	setDefaults(reflect.ValueOf(&config).Elem())
+	if config.Foo != "" {
+		t.Errorf("Expected default foo value to be set.")
+	}
+	if config.Bar != 42 {
+		t.Errorf("Expected default bar value to be set.")
+	}
+	if config.Baz.Baf != "doby" {
+		t.Errorf("Expected default baz value to be set.")
+	}
 }

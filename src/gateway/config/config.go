@@ -3,8 +3,9 @@ package config
 
 import (
 	"flag"
+	"log"
 	"os"
-	"regexp"
+	"reflect"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -12,6 +13,8 @@ import (
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
+	File string `flag:"config" default:"/etc/gateway/gateway.conf" usage:"The path to the configuration file"`
+
 	Proxy ProxyServer
 	Admin ProxyAdmin
 	Raft  RaftServer
@@ -19,39 +22,26 @@ type Configuration struct {
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
-	Server
+	Host string `flag:"proxy-host" default:"localhost" usage:"The hostname of the proxy server"`
+	Port int64  `flag:"proxy-port" default:"5000"      usage:"The port of the proxy server"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
 // of the proxy.
 type ProxyAdmin struct {
-	PathPrefix string
-	Host       string
+	PathPrefix string `flag:"admin-path-prefix" default:"/admin/" usage:"The path prefix the administrative area is accessible under"`
+	Host       string `flag:"admin-host"        default:""        usage:"The host the administrative area is accessible via"`
 }
 
 // RaftServer specifies configuration options that apply to the Raft server.
 type RaftServer struct {
-	Server
-	DataPath string
-	Leader   string
-}
-
-// Server specifies configuration options that apply to all servers
-type Server struct {
-	Host string
-	Port int64
+	DataPath string `flag:"raft-data-path" default:"/etc/gateway/data" usage:"The path to the directory where the server data should be stored"`
+	Leader   string `flag:"raft-leader"    default:""                  usage:"The connection string of the Raft leader this server should join on startup"`
+	Host     string `flag:"raft-host"      default:"localhost"         usage:"The hostname of the Raft server"`
+	Port     int64  `flag:"raft-port"      default:"6000"              usage:"The port of the Raft server"`
 }
 
 const envPrefix = "APGATEWAY_"
-
-var defaultConfigFile string
-
-func init() {
-	defaultConfigFile = envValueForFlag("config")
-	if defaultConfigFile == "" {
-		defaultConfigFile = "/etc/gateway/gateway.conf"
-	}
-}
 
 // Parse all configuration.
 //
@@ -60,44 +50,32 @@ func init() {
 func Parse(args []string) (Configuration, error) {
 	config := Configuration{}
 
-	configFile := findConfigFile(args)
-	if err := parseConfigFile(&config, configFile); err != nil {
-		return config, err
-	}
-
-	setupFlags(&config)
+	// Parse flags
+	setupFlags(reflect.ValueOf(config))
 	flag.Parse()
 
+	// Parse environment
 	setUnsetFlagsFromEnv()
+
+	// Set default in our instance
+	setDefaults(reflect.ValueOf(&config).Elem())
+
+	// Override values with config file
+	if err := parseConfigFile(&config); err != nil {
+		return config, err
+	}
+	// Override values with flags (including environment)
+	setFromFlags(reflect.ValueOf(&config).Elem())
 
 	return config, nil
 }
 
-// We want to parse the flags after we've read in the config file so that they
-// take precedence, so we're going to extract the config file flag directly.
-func findConfigFile(args []string) string {
-	configRx := regexp.MustCompile("--?config=?(.*)?")
-	for index, arg := range args {
-		match := configRx.FindStringSubmatch(arg)
-		if match == nil {
-			continue
-		}
-		if len(match) == 2 && match[1] != "" {
-			return match[1]
-		}
-		if len(args) > (index + 1) {
-			return args[index+1]
-		}
-	}
-	return ""
-}
-
-func parseConfigFile(config *Configuration, configFile string) error {
-	if configFile == "" {
-		configFile = defaultConfigFile
-	}
+func parseConfigFile(config *Configuration) error {
+	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
+		log.Printf("Config file '%s' does not exist and will not be used.\n",
+			configFile)
 		return nil
 	}
 	return err
