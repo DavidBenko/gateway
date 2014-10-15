@@ -28,7 +28,7 @@ fmt:
 run: build
 	./bin/gateway -raft-data-path=./test/node
 
-test:
+test: assets
 	go test ./src/...
 
 vendor_clean:
