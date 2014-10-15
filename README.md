@@ -11,23 +11,21 @@ On OS X, simply:
     brew update
     brew install go
 
-### Fetch this Repo
+### Fetch, Build & Run
 
     git clone git@github.com:AnyPresence/gateway.git
-	
-### Add `gateway` to your `GOPATH`
-
-In your `~/.bash_profile` or similar:
-
-	export GOPATH=/path/to/gateway:$GOPATH
-
-### Build and Run
-
+    cd gateway
     make run
 
-### IDE
+### `GOPATH`
 
-I'm using Atom with [`go-plus`](https://atom.io/packages/go-plus).
+The script `gopath.sh` will alter your `GOPATH` to include this project's dependent
+paths (the working directory & `_vendor`). To include it in your shell:
+    
+	source gopath.sh
+	
+This will allow it to be picked up by your IDE and other tools (I'm using Atom with 
+[`go-plus`](https://atom.io/packages/go-plus)).
 
 ## Gateway Setup
 
