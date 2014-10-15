@@ -5,12 +5,14 @@
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
 # our third party snapshots.
-GOPATH := ${PWD}/_vendor:${GOPATH}
+GOPATH := ${PWD}/_vendor:${PWD}:${GOPATH}
 export GOPATH
+
+PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
 default: build
 
-assets:
+assets: install_bindata
 	go-bindata -o src/gateway/proxy/admin/bindata.go -pkg admin -debug -prefix "src/gateway/proxy/admin/static/" src/gateway/proxy/admin/static/...
 
 build: vet assets
@@ -54,6 +56,9 @@ vendor_update: vendor_get
 	&& rm -rf `find ./_vendor/src -type d -name .hg` \
 	&& rm -rf `find ./_vendor/src -type d -name .bzr` \
 	&& rm -rf `find ./_vendor/src -type d -name .svn`
+
+install_bindata:
+	if hash go-bindata 2>/dev/null; then : ; else go install github.com/jteeuwen/go-bindata/...; fi;
 
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet
