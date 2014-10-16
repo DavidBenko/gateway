@@ -6,10 +6,24 @@ Welcome to Gateway.
 
 ### Install Go
 
-On OS X, simply:
+On OS X:
 
     brew update
     brew install go
+    
+Now set up a global `GOPATH`. Here we'll assume it's going to be `~/go`.
+
+    mkdir ~/go
+    
+In `~/.bash_profile`, add:
+
+    export GOPATH=~/go
+    
+Now source the file into your local shell and install a few Go tools:
+
+    source ~/.bash_profile
+    go get code.google.com/p/go.tools/cmd/godoc
+    go get code.google.com/p/go.tools/cmd/vet
 
 ### Fetch, Build & Run
 
@@ -18,6 +32,9 @@ On OS X, simply:
     make run
 
 ### `GOPATH`
+
+For building and testing, Gateway manages its own `GOPATH` inside the `Makefile`.
+Still, sometimes you want to have access to that `GOPATH` outside of `make`.
 
 The script `gopath.sh` will alter your `GOPATH` to include this project's dependent
 paths (the working directory & `_vendor`). To include it in your shell:
