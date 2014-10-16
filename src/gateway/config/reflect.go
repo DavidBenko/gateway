@@ -10,19 +10,15 @@ import (
 func setupFlags(value reflect.Value) {
 	reflectConfiguration(
 		value,
-		func(flagName, defaultValue, flagUsage string) bool {
-			return flagName != ""
+		func(name, _, _ string) bool {
+			return name != ""
 		},
-		func(fieldValue reflect.Value, flagName, flagValue, flagUsage string) {
-			switch fieldValue.Kind() {
+		func(field reflect.Value, name, value, usage string) {
+			switch field.Kind() {
 			case reflect.Int64:
-				intValue, err := strconv.ParseInt(flagValue, 10, 64)
-				if err != nil {
-					log.Fatal(err)
-				}
-				flag.Int64(flagName, intValue, flagUsage)
+				flag.Int64(name, parseInt(value), usage)
 			case reflect.String:
-				flag.String(flagName, flagValue, flagUsage)
+				flag.String(name, value, usage)
 			}
 		},
 	)
@@ -31,19 +27,15 @@ func setupFlags(value reflect.Value) {
 func setDefaults(value reflect.Value) {
 	reflectConfiguration(
 		value,
-		func(flagName, defaultValue, flagUsage string) bool {
+		func(_, defaultValue, _ string) bool {
 			return defaultValue != ""
 		},
-		func(fieldValue reflect.Value, flagName, defaultValue, flagUsage string) {
-			switch fieldValue.Kind() {
+		func(field reflect.Value, _, value, _ string) {
+			switch field.Kind() {
 			case reflect.Int64:
-				flagInt, err := strconv.ParseInt(defaultValue, 10, 64)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fieldValue.SetInt(flagInt)
+				field.SetInt(parseInt(value))
 			case reflect.String:
-				fieldValue.SetString(defaultValue)
+				field.SetString(value)
 			}
 		},
 	)
@@ -57,21 +49,17 @@ func setFromFlags(value reflect.Value) {
 
 	reflectConfiguration(
 		value,
-		func(flagName, flagValue, flagUsage string) bool {
+		func(flagName, _, _ string) bool {
 			_, ok := setFlags[flagName]
 			return ok
 		},
-		func(fieldValue reflect.Value, flagName, flagValue, flagUsage string) {
-			setFlagValue, _ := setFlags[flagName]
-			switch fieldValue.Kind() {
+		func(field reflect.Value, name, _, _ string) {
+			setFlagValue, _ := setFlags[name]
+			switch field.Kind() {
 			case reflect.Int64:
-				flagInt, err := strconv.ParseInt(setFlagValue.String(), 10, 64)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fieldValue.SetInt(flagInt)
+				field.SetInt(parseInt(setFlagValue.String()))
 			case reflect.String:
-				fieldValue.SetString(setFlagValue.String())
+				field.SetString(setFlagValue.String())
 			}
 		},
 	)
@@ -101,4 +89,12 @@ func reflectConfiguration(
 			}
 		}
 	}
+}
+
+func parseInt(value string) int64 {
+	i, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return i
 }
