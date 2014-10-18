@@ -34,6 +34,16 @@ func (h *HTTPResource) Route(router *mux.Router) {
 		}))
 }
 
+// RouteSingleton adds show and update routes to the provided mux.Router.
+func (h *HTTPResource) RouteSingleton(router *mux.Router) {
+	router.Handle(fmt.Sprintf("/%s", h.Resource.Name()),
+		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
+			"GET":   h.ShowHandler(),
+			"PATCH": h.UpdateHandler(),
+			"PUT":   h.UpdateHandler(),
+		}))
+}
+
 // IndexHandler returns an http.Handler that lists the resource.
 func (h *HTTPResource) IndexHandler() http.Handler {
 	return errorCatchingHandler(

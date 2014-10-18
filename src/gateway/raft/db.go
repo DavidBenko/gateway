@@ -6,6 +6,7 @@ import (
 
 	"gateway/db"
 	"gateway/model"
+
 	"github.com/goraft/raft"
 )
 
@@ -21,6 +22,17 @@ func NewRaftDB(backingDB db.DB, server raft.Server) *DB {
 		backingDB: backingDB,
 		raft:      server,
 	}
+}
+
+// Router returns this database's singleton router.
+func (db *DB) Router() model.Router {
+	return db.backingDB.Router()
+}
+
+// UpdateRouter creates a new router from the passed script.
+func (db *DB) UpdateRouter(script string) (model.Router, error) {
+	r, err := db.raft.Do(NewUpdateRouterCommand(script))
+	return r.(model.Router), err
 }
 
 // List returns all instances in the data store.
@@ -69,9 +81,9 @@ func (db *DB) Delete(m model.Model, id interface{}) error {
 func newCommand(action DBWriteAction, instance model.Model) raft.Command {
 	switch instance := instance.(type) {
 	case model.ProxyEndpoint:
-		return ProxyEndpointDBCommand(action, instance)
+		return NewProxyEndpointDBCommand(action, instance)
 	case model.Library:
-		return LibraryDBCommand(action, instance)
+		return NewLibraryDBCommand(action, instance)
 	}
 	log.Fatalf("Could not create DB write command for instance of type %s",
 		reflect.TypeOf(instance))

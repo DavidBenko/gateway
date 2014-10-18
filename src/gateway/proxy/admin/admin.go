@@ -7,6 +7,7 @@ import (
 	"gateway/db"
 	"gateway/model"
 	"gateway/rest"
+
 	"github.com/gorilla/mux"
 )
 
@@ -24,6 +25,8 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 // AddRoutes adds the admin routes to the specified router.
 func AddRoutes(router *mux.Router, db db.DB, config config.ProxyAdmin) {
 	admin := subrouter(router, config)
+
+	(&rest.HTTPResource{Resource: &adminRoutes{db: db}}).RouteSingleton(admin)
 
 	(&rest.HTTPResource{Resource: &adminResource{backingModel: model.ProxyEndpoint{}, db: db}}).Route(admin)
 	(&rest.HTTPResource{Resource: &adminResource{backingModel: model.Library{}, db: db}}).Route(admin)

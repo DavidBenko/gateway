@@ -13,6 +13,8 @@ type Memory struct {
 	mutex sync.RWMutex
 
 	storage map[string]map[interface{}]model.Model
+
+	router model.Router
 }
 
 // NewMemoryStore creates a new Memory data store.
@@ -20,6 +22,22 @@ func NewMemoryStore() *Memory {
 	return &Memory{
 		storage: make(map[string]map[interface{}]model.Model),
 	}
+}
+
+// Router returns this database's singleton router
+func (db *Memory) Router() model.Router {
+	return db.router
+}
+
+// UpdateRouter creates a new router from the passed script.
+func (db *Memory) UpdateRouter(script string) (model.Router, error) {
+	r := model.Router{Script: script}
+	err := r.ParseRoutes()
+	if err != nil {
+		return r, err
+	}
+	db.router = r
+	return r, nil
 }
 
 func (db *Memory) subMap(m model.Model) map[interface{}]model.Model {

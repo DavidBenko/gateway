@@ -14,6 +14,7 @@ default: build
 
 assets: install_bindata
 	go-bindata -o src/gateway/proxy/admin/bindata.go -pkg admin -debug -prefix "src/gateway/proxy/admin/static/" src/gateway/proxy/admin/static/...
+	go-bindata -o src/gateway/model/router_bindata.go -pkg model -debug -prefix "src/gateway/model/static/" src/gateway/model/static/...
 
 build: vet assets
 	go build -o ./bin/gateway ./src/gateway/main.go

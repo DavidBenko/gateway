@@ -20,7 +20,7 @@ import (
 type contextKey int
 
 const (
-	contextEndpointKey contextKey = iota
+	contextMatchKey contextKey = iota
 )
 
 // Server encapsulates the proxy server.
@@ -47,8 +47,8 @@ func (s *Server) Run() {
 	admin.AddRoutes(s.router, s.db, s.adminConf)
 
 	// Set up proxy
-	s.router.HandleFunc("/{path:.*}", proxyHandlerFunc).
-		MatcherFunc(s.hasRegisteredProxyEndpoint)
+	s.router.HandleFunc("/{path:.*}", s.proxyHandlerFunc).
+		MatcherFunc(s.isRoutedToProxyEndpoint)
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
@@ -56,18 +56,28 @@ func (s *Server) Run() {
 	log.Fatal(http.ListenAndServe(listen, s.router))
 }
 
-func (s *Server) hasRegisteredProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
-	path := r.URL.Path[1:]
-	endpoint, err := s.db.Find(model.ProxyEndpoint{}, "Path", path)
-	if err != nil {
+func (s *Server) isRoutedToProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
+	router := s.db.Router().MUXRouter
+	if router == nil {
 		return false
 	}
-	context.Set(r, contextEndpointKey, endpoint)
-	return true
+
+	var match mux.RouteMatch
+	ok := router.Match(r, &match)
+	if ok {
+		context.Set(r, contextMatchKey, &match)
+	}
+	return ok
 }
 
-func proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
-	endpoint := context.Get(r, contextEndpointKey).(model.ProxyEndpoint)
+func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	match := context.Get(r, contextMatchKey).(*mux.RouteMatch)
+	modelEndpoint, err := s.db.Find(model.ProxyEndpoint{}, "Name",
+		match.Route.GetName())
+	if err != nil {
+		log.Fatal(err)
+	}
+	endpoint := modelEndpoint.(model.ProxyEndpoint)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
