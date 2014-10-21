@@ -1,7 +1,9 @@
 package admin
 
 import (
+	"bytes"
 	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/db"
@@ -39,11 +41,15 @@ func adminStaticFileHandler(w http.ResponseWriter, r *http.Request) {
 	if path == "" {
 		path = "index.html"
 	}
+	serveFile(w, r, path)
+}
 
+func serveFile(w http.ResponseWriter, r *http.Request, path string) {
 	data, err := Asset(path)
 	if err != nil || len(data) == 0 {
 		http.NotFound(w, r)
 	}
 
-	w.Write(data)
+	content := bytes.NewReader(data)
+	http.ServeContent(w, r, path, time.Time{}, content)
 }
