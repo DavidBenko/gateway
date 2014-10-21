@@ -1,14 +1,13 @@
 package proxy
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
 	"gateway/config"
 	"gateway/db"
+	aphttp "gateway/http"
 	"gateway/model"
 	"gateway/proxy/admin"
 
@@ -47,7 +46,8 @@ func (s *Server) Run() {
 	admin.AddRoutes(s.router, s.db, s.adminConf)
 
 	// Set up proxy
-	s.router.HandleFunc("/{path:.*}", s.proxyHandlerFunc).
+	s.router.Handle("/{path:.*}",
+		aphttp.ErrorCatchingHandler(s.proxyHandlerFunc)).
 		MatcherFunc(s.isRoutedToProxyEndpoint)
 
 	// Run server
@@ -70,64 +70,53 @@ func (s *Server) isRoutedToProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bo
 	return ok
 }
 
-func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) {
+func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	match := context.Get(r, contextMatchKey).(*mux.RouteMatch)
+
 	modelEndpoint, err := s.db.Find(model.ProxyEndpoint{}, "Name",
 		match.Route.GetName())
 	if err != nil {
-		log.Fatal(err)
+		return aphttp.NewServerError(err)
 	}
+
 	endpoint := modelEndpoint.(model.ProxyEndpoint)
 
-	body, err := ioutil.ReadAll(r.Body)
+	incomingJSON, err := proxyRequestJSON(r, match.Vars)
 	if err != nil {
-		log.Fatal(err)
+		return aphttp.NewServerError(err)
 	}
 
-	client := &http.Client{}
-
-	req, err := http.NewRequest(r.Method, "http://localhost:4567", nil)
-	if err != nil {
-		log.Fatal(err)
+	var scripts = []interface{}{
+		endpoint.Script,
+		"main(JSON.parse(__ap_proxyRequestJSON));",
 	}
 
-	req.Body = ioutil.NopCloser(massageBody(bytes.NewBuffer(body), endpoint.Script))
-
-	resp, err := client.Do(req)
+	vm, err := s.newVM()
 	if err != nil {
-		log.Fatal(err)
+		return aphttp.NewServerError(err)
 	}
 
-	defer resp.Body.Close()
-	newBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
+	vm.Set("__ap_proxyRequestJSON", incomingJSON)
+
+	var result otto.Value
+	for _, script := range scripts {
+		var err error
+		result, err = vm.Run(script)
+		if err != nil {
+			return aphttp.NewServerError(err)
+		}
 	}
 
-	newRespBody := massageBody(bytes.NewBuffer(newBody), endpoint.Script)
-
-	fmt.Fprint(w, newRespBody.String())
-}
-
-func massageBody(body *bytes.Buffer, src interface{}) *bytes.Buffer {
-	vm := otto.New()
-
-	vm.Set("body", body.String())
-
-	_, err := vm.Run(src)
+	responseJSON, err := s.objectJSON(vm, result)
 	if err != nil {
-		log.Fatal(err)
+		return aphttp.NewServerError(err)
+	}
+	response, err := proxyResponseFromJSON(responseJSON)
+	if err != nil {
+		return aphttp.NewServerError(err)
 	}
 
-	newBodyRaw, err := vm.Get("body")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	newBody, err := newBodyRaw.ToString()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return bytes.NewBufferString(newBody)
+	w.WriteHeader(response.StatusCode)
+	w.Write([]byte(response.Body))
+	return nil
 }

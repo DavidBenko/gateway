@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	aphttp "gateway/http"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -11,12 +13,6 @@ import (
 // HTTPResource is a Resource that knows how to communicate over HTTP.
 type HTTPResource struct {
 	Resource Resource
-}
-
-// HTTPError is an interface that describes an error case.
-type HTTPError interface {
-	Error() error
-	Code() int
 }
 
 // Route adds the RESTful routes for this resource to the provided mux.Router.
@@ -46,11 +42,11 @@ func (h *HTTPResource) RouteSingleton(router *mux.Router) {
 
 // IndexHandler returns an http.Handler that lists the resource.
 func (h *HTTPResource) IndexHandler() http.Handler {
-	return errorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) HTTPError {
+	return aphttp.ErrorCatchingHandler(
+		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 			resources, err := h.Resource.Index()
 			if err != nil {
-				return &httpError{err: err}
+				return aphttp.NewServerError(err)
 			}
 			fmt.Fprintf(w, "%s\n", resources)
 			return nil
@@ -59,11 +55,11 @@ func (h *HTTPResource) IndexHandler() http.Handler {
 
 // CreateHandler returns an http.Handler that creates the resource.
 func (h *HTTPResource) CreateHandler() http.Handler {
-	return errorCatchingHandler(
-		bodyHandler(func(w http.ResponseWriter, body []byte) HTTPError {
+	return aphttp.ErrorCatchingHandler(
+		bodyHandler(func(w http.ResponseWriter, body []byte) aphttp.Error {
 			resource, err := h.Resource.Create(body)
 			if err != nil {
-				return &httpError{err: err, code: http.StatusBadRequest}
+				return aphttp.NewError(err, http.StatusBadRequest)
 			}
 
 			fmt.Fprintf(w, "%s\n", resource)
@@ -73,10 +69,10 @@ func (h *HTTPResource) CreateHandler() http.Handler {
 
 // ShowHandler returns an http.Handler that shows the resource.
 func (h *HTTPResource) ShowHandler() http.Handler {
-	return errorCatchingHandler(func(w http.ResponseWriter, r *http.Request) HTTPError {
+	return aphttp.ErrorCatchingHandler(func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		resource, err := h.Resource.Show(mux.Vars(r)["id"])
 		if err != nil {
-			return &httpError{err: err, code: http.StatusNotFound}
+			return aphttp.NewError(err, http.StatusNotFound)
 		}
 
 		fmt.Fprintf(w, "%s\n", resource)
@@ -86,11 +82,11 @@ func (h *HTTPResource) ShowHandler() http.Handler {
 
 // UpdateHandler returns an http.Handler that updates the resource.
 func (h *HTTPResource) UpdateHandler() http.Handler {
-	return errorCatchingHandler(
-		bodyAndIDHandler(func(w http.ResponseWriter, body []byte, id string) HTTPError {
+	return aphttp.ErrorCatchingHandler(
+		bodyAndIDHandler(func(w http.ResponseWriter, body []byte, id string) aphttp.Error {
 			resource, err := h.Resource.Update(id, body)
 			if err != nil {
-				return &httpError{err: err, code: http.StatusBadRequest}
+				return aphttp.NewError(err, http.StatusBadRequest)
 			}
 
 			fmt.Fprintf(w, "%s\n", resource)
@@ -100,9 +96,9 @@ func (h *HTTPResource) UpdateHandler() http.Handler {
 
 // DeleteHandler returns an http.Handler that deletes the resource.
 func (h *HTTPResource) DeleteHandler() http.Handler {
-	return errorCatchingHandler(func(w http.ResponseWriter, r *http.Request) HTTPError {
+	return aphttp.ErrorCatchingHandler(func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		if err := h.Resource.Delete(mux.Vars(r)["id"]); err != nil {
-			return &httpError{err: err, code: http.StatusBadRequest}
+			return aphttp.NewError(err, http.StatusBadRequest)
 		}
 
 		w.WriteHeader(http.StatusOK)

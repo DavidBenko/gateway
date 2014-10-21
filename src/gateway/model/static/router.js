@@ -1,56 +1,58 @@
-function Router() {
+var AP = AP || {};
+
+AP.Router = function() {
   this.routes = [];
 }
 
-Router.prototype.routeData = function() {
+AP.Router.prototype.routeData = function() {
   return JSON.stringify(this.routes);
 }
 
-Router.prototype.newRoute = function() {
-  var route = new Route();
+AP.Router.prototype.newRoute = function() {
+  var route = new AP.Route();
   this.routes.push(route);
   return route;
 }
 
-Router.prototype.httpMethod = function(method, path, name) {
+AP.Router.prototype.httpMethod = function(method, path, name) {
   return this.newRoute().httpMethod(method, path, name);
 }
 
-Router.prototype.get = function(path, name) {
+AP.Router.prototype.get = function(path, name) {
   return this.newRoute().get(path, name);
 }
 
-Router.prototype.post = function(path, name) {
+AP.Router.prototype.post = function(path, name) {
   return this.newRoute().post(path, name);
 }
 
-Router.prototype.put = function(path, name) {
+AP.Router.prototype.put = function(path, name) {
   return this.newRoute().put(path, name);
 }
 
-Router.prototype.patch = function(path, name) {
+AP.Router.prototype.patch = function(path, name) {
   return this.newRoute().patch(path, name);
 }
 
-Router.prototype.delete = function(path, name) {
+AP.Router.prototype.delete = function(path, name) {
   return this.newRoute().delete(path, name);
 }
 
-Router.prototype.method = function(method) {
+AP.Router.prototype.method = function(method) {
   return this.newRoute().method(method);
 }
 
-Router.prototype.methods = function() {
+AP.Router.prototype.methods = function() {
   var route = this.newRoute();
   return this.newRoute().methods.apply(route, arguments);
 }
 
-Router.prototype.path = function(path) {
+AP.Router.prototype.path = function(path) {
   return this.newRoute().path(path);
 }
 
-Router.prototype.name = function(name) {
+AP.Router.prototype.name = function(name) {
   return this.newRoute().name(name);
 }
 
-var router = new Router();
+var router = new AP.Router();
