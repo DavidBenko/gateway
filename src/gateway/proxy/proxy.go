@@ -116,6 +116,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		return aphttp.NewServerError(err)
 	}
 
+	aphttp.AddHeaders(w.Header(), response.Headers)
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
 	return nil
