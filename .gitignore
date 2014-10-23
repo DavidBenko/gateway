@@ -29,7 +29,7 @@ test/raft.tddium*
 .tddium*
 
 # Bindata
-**/bindata.go
+**/*bindata.go
 
 # Test Node Data
 test/node
