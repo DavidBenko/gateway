@@ -6,19 +6,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	aphttp "gateway/http"
 )
 
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
-	Method string `json:"method"`
-	URL    string `json:"url"`
-	Body   string `json:"body"`
+	Method  string                 `json:"method"`
+	URL     string                 `json:"url"`
+	Body    string                 `json:"body"`
+	Headers map[string]interface{} `json:"headers"`
 }
 
 // HTTPResponse encapsulates a response from an HTTPRequest.
 type HTTPResponse struct {
-	StatusCode int    `json:"statusCode"`
-	Body       string `json:"body"`
+	StatusCode int                    `json:"statusCode"`
+	Body       string                 `json:"body"`
+	Headers    map[string]interface{} `json:"headers"`
 }
 
 // NewHTTPRequest decodes a JSON string and returns the request.
@@ -38,6 +42,7 @@ func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 		c <- responsePayload{index: index, response: NewErrorResponse(context)}
 		return
 	}
+	aphttp.AddHeaders(req.Header, h.Headers)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -61,6 +66,7 @@ func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 	r := &HTTPResponse{
 		StatusCode: response.StatusCode,
+		Headers:    aphttp.DesliceValues(response.Header),
 	}
 
 	defer response.Body.Close()

@@ -1,2 +1,2 @@
-router.path("/helloworld").methods("GET", "POST").name("hi");
-router.path("/helloworld/{id}").methods("GET", "POST").name("hi");
+router.path("/hi").methods("GET", "POST").name("hi");
+router.path("/bye").methods("GET", "POST").name("bye");

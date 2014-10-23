@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	aphttp "gateway/http"
 )
 
 type proxyRequest struct {
@@ -41,7 +43,7 @@ func proxyRequestJSON(r *http.Request, vars map[string]string) (string, error) {
 		RawQuery:      r.URL.RawQuery,
 		RemoteAddress: r.RemoteAddr,
 		ContentLength: r.ContentLength,
-		Headers:       desliceValues(r.Header),
+		Headers:       aphttp.DesliceValues(r.Header),
 		Vars:          vars,
 	}
 
@@ -55,16 +57,16 @@ func proxyRequestJSON(r *http.Request, vars map[string]string) (string, error) {
 	if err = r.ParseForm(); err != nil {
 		return "", err
 	}
-	request.Form = desliceValues(r.PostForm)
+	request.Form = aphttp.DesliceValues(r.PostForm)
 
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		return "", err
 	}
-	request.Query = desliceValues(query)
+	request.Query = aphttp.DesliceValues(query)
 
-	params := joinSlices(r.PostForm, query, resliceValues(vars))
-	request.Params = desliceValues(params)
+	params := joinSlices(r.PostForm, query, aphttp.ResliceValues(vars))
+	request.Params = aphttp.DesliceValues(params)
 
 	json, err := json.Marshal(request)
 	if err != nil {
@@ -77,26 +79,6 @@ func proxyResponseFromJSON(responseJSON string) (proxyResponse, error) {
 	response := proxyResponse{}
 	err := json.Unmarshal([]byte(responseJSON), &response)
 	return response, err
-}
-
-func desliceValues(slice map[string][]string) map[string]interface{} {
-	desliced := make(map[string]interface{})
-	for k, v := range slice {
-		if len(v) == 1 {
-			desliced[k] = v[0]
-		} else {
-			desliced[k] = v
-		}
-	}
-	return desliced
-}
-
-func resliceValues(slice map[string]string) map[string][]string {
-	resliced := make(map[string][]string)
-	for k, v := range slice {
-		resliced[k] = []string{v}
-	}
-	return resliced
 }
 
 func joinSlices(slices ...map[string][]string) map[string][]string {
