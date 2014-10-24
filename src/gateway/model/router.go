@@ -16,9 +16,14 @@ type Router struct {
 }
 
 type jsRoute struct {
-	Name    string   `json:"_name"`
-	Path    string   `json:"_path"`
-	Methods []string `json:"_methods"`
+	Methods    []string          `json:"_methods"`
+	Schemes    []string          `json:"_schemes"`
+	Host       string            `json:"_host"`
+	Path       string            `json:"_path"`
+	PathPrefix string            `json:"_pathPrefix"`
+	Headers    map[string]string `json:"_headers"`
+	Queries    map[string]string `json:"_queries"`
+	Name       string            `json:"_name"`
 }
 
 // ParseRoutes parses the script and stores the resulting the mux.Router.
@@ -68,12 +73,40 @@ func addRoute(js jsRoute, router *mux.Router) error {
 	}
 	route.Name(js.Name)
 
+	if len(js.Methods) > 0 {
+		route.Methods(js.Methods...)
+	}
+
+	if len(js.Schemes) > 0 {
+		route.Schemes(js.Schemes...)
+	}
+
+	if js.Host != "" {
+		route.Host(js.Host)
+	}
+
 	if js.Path != "" {
 		route.Path(js.Path)
 	}
 
-	if len(js.Methods) > 0 {
-		route.Methods(js.Methods...)
+	if js.PathPrefix != "" {
+		route.PathPrefix(js.PathPrefix)
+	}
+
+	if len(js.Headers) > 0 {
+		var pairs []string
+		for k, v := range js.Headers {
+			pairs = append(pairs, k, v)
+		}
+		route.Headers(pairs...)
+	}
+
+	if len(js.Queries) > 0 {
+		var pairs []string
+		for k, v := range js.Queries {
+			pairs = append(pairs, k, v)
+		}
+		route.Queries(pairs...)
 	}
 
 	return nil

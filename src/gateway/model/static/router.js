@@ -51,6 +51,31 @@ AP.Router.prototype.path = function(path) {
   return this.newRoute().path(path);
 }
 
+AP.Router.prototype.pathPrefix = function(pathPrefix) {
+  return this.newRoute().pathPrefix(pathPrefix);
+}
+
+AP.Router.prototype.host = function(host) {
+  return this.newRoute().host(host);
+}
+
+AP.Router.prototype.scheme = function(scheme) {
+  return this.newRoute().scheme(scheme);
+}
+
+AP.Router.prototype.schemes = function() {
+  var route = this.newRoute();
+  return this.newRoute().schemes.apply(route, arguments);
+}
+
+AP.Router.prototype.headers = function(headers) {
+  return this.newRoute().headers(headers);
+}
+
+AP.Router.prototype.queries = function(queries) {
+  return this.newRoute().queries(queries);
+}
+
 AP.Router.prototype.name = function(name) {
   return this.newRoute().name(name);
 }
