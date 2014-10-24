@@ -4,8 +4,8 @@ import "encoding/json"
 
 // ProxyEndpoint represents an endpoint that the Gateway should handle.
 type ProxyEndpoint struct {
-	IDField int64  `json:"id"`
-	Name    string `json:"name" index:"true"`
+	IDField int64  `json:"id" autoincrement:"true"`
+	Name    string `json:"name" index:"true" unique:"true"`
 	Script  string `json:"script"`
 }
 

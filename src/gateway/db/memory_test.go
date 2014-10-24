@@ -32,7 +32,8 @@ func (t testModel) UnmarshalFromJSON(data []byte) (model.Model, error) {
 }
 
 type testModel2 struct {
-	name string
+	name  string
+	value string `index:"true" unique:"true"`
 }
 
 func (t testModel2) ID() interface{} {
@@ -142,6 +143,18 @@ func TestInsertIndexed(t *testing.T) {
 	}
 }
 
+func TestInsertUnique(t *testing.T) {
+	a := testModel2{name: "a", value: "a"}
+	b := testModel2{name: "b", value: "a"}
+	db := NewMemoryStore()
+	if err := db.Insert(a); err != nil {
+		t.Error("Expected first unique insert to succeed")
+	}
+	if err := db.Insert(b); err == nil {
+		t.Error("Expected second duplicate insert to fail")
+	}
+}
+
 func TestGet(t *testing.T) {
 	db := NewMemoryStore()
 	_, err := db.Get(testModel{}, 1)
@@ -212,13 +225,28 @@ func TestUpdateIndexed(t *testing.T) {
 	}
 }
 
+func TestUpdateUnique(t *testing.T) {
+	a := testModel2{name: "a", value: "a"}
+	b := testModel2{name: "b", value: "b"}
+	db := NewMemoryStore()
+	db.Insert(a)
+	db.Insert(b)
+	if err := db.Update(b); err != nil {
+		t.Error("Expected update with same unique value to succeed")
+	}
+	b.value = "a"
+	if err := db.Update(b); err == nil {
+		t.Error("Expected update to non-unique value to fail")
+	}
+}
+
 func TestDelete(t *testing.T) {
 	db := NewMemoryStore()
-	if err := db.Delete(foo, int64(1)); err == nil {
+	if err := db.Delete(testModel{}, int64(1)); err == nil {
 		t.Error("Expected Delete to return error when instance not present")
 	}
 	db.Insert(foo)
-	if err := db.Delete(foo, int64(1)); err != nil {
+	if err := db.Delete(testModel{}, int64(1)); err != nil {
 		t.Error("Expected Delete to not return error when instance is present")
 	}
 	if _, err := db.Get(testModel{}, int64(1)); err == nil {
@@ -229,10 +257,26 @@ func TestDelete(t *testing.T) {
 func TestDeleteIndexed(t *testing.T) {
 	db := NewMemoryStore()
 	db.Insert(foo)
-	db.Delete(foo, int64(1))
+	db.Delete(testModel{}, int64(1))
 	_, err := db.Find(testModel{}, "name", "foo")
 	if err == nil {
 		t.Error("Expected Delete to remove old index")
+	}
+}
+
+func TestDeleteUnique(t *testing.T) {
+	a := testModel2{name: "a", value: "a"}
+	b := testModel2{name: "b", value: "b"}
+	db := NewMemoryStore()
+	db.Insert(a)
+	db.Insert(b)
+	b.value = "a"
+	if err := db.Update(b); err == nil {
+		t.Error("Expected update to non-unique value to fail")
+	}
+	db.Delete(testModel2{}, a.ID())
+	if err := db.Update(b); err != nil {
+		t.Error("Expected update to now-unique value to succeed")
 	}
 }
 

@@ -14,8 +14,3 @@ type DB interface {
 	Update(instance model.Model) error
 	Delete(m model.Model, id interface{}) error
 }
-
-const (
-	fieldTagIndexed     = "index"
-	fieldTagIndexedTrue = "true"
-)
