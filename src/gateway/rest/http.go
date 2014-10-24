@@ -24,7 +24,6 @@ func (h *HTTPResource) Route(router *mux.Router) {
 	router.Handle(fmt.Sprintf("/%s/{id}", h.Resource.Name()),
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
 			"GET":    h.ShowHandler(),
-			"PATCH":  h.UpdateHandler(),
 			"PUT":    h.UpdateHandler(),
 			"DELETE": h.DeleteHandler(),
 		}))
@@ -34,9 +33,8 @@ func (h *HTTPResource) Route(router *mux.Router) {
 func (h *HTTPResource) RouteSingleton(router *mux.Router) {
 	router.Handle(fmt.Sprintf("/%s", h.Resource.Name()),
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-			"GET":   h.ShowHandler(),
-			"PATCH": h.UpdateHandler(),
-			"PUT":   h.UpdateHandler(),
+			"GET": h.ShowHandler(),
+			"PUT": h.UpdateHandler(),
 		}))
 }
 
