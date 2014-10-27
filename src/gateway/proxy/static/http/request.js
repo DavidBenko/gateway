@@ -9,3 +9,8 @@ AP.HTTP.Request = function() {
   this.body = null;
   this.headers = {};
 }
+
+AP.HTTP.Request.prototype.setJSONBody = function(object) {
+  this.headers["Content-Type"] = "application/json";
+  this.body = JSON.stringify(object);
+}

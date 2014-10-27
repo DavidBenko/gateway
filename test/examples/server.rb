@@ -12,6 +12,10 @@ post '/' do
   "Hello, #{request.body.read}!\n"
 end
 
+post '/echo' do
+  request.body.read
+end
+
 get '/foo' do
   {foo: "foo!"}.to_json
 end
