@@ -1,6 +1,6 @@
 function main(proxyRequest) {
 	var request = new AP.HTTP.Request();
-	request.url = "http://localhost:4567"
+	request.url = "http://localhost:4567/headers"
 	request.headers = {
 		"X-Custom1": "Foo",
 		"X-Custom2": ["Bar", "Baz"]

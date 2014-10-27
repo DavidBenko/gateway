@@ -1,0 +1,42 @@
+desc "Seed the server"
+task :seed do
+  load_server
+end
+
+desc "Update the server"
+task :update do
+  load_server(update: true)
+end
+
+desc "Cleans the shared log in ../node"
+task :clean do
+  `rm -f ../node/log`
+end
+
+def load_server(options = {})
+  update = options[:update]
+  run "./wrap.rb routes.js | curl -s -f -X PUT -d @- localhost:5000/admin/routes"
+  endpoints.each_with_index do |endpoint, index|
+    command = "./wrap.rb endpoints/#{endpoint} id=#{index} name=#{endpoint.split(".").first} | curl -s -f -d @- "
+    command += "-X PUT " if update
+    command += "localhost:5000/admin/proxy_endpoints"
+    command += "/#{index}" if update
+    run command 
+  end
+end
+
+def endpoints
+  endpoints = Dir.glob("endpoints/*")
+  endpoints.map!{|x|x.split("/").last}
+  endpoints.sort
+end
+
+def run(command)
+  print "#{command}"
+  `#{command}`
+  if $?.to_i != 0
+    puts " \e[31merror\e[0m"
+  else
+    puts " \e[32msuccess\e[0m"
+  end
+end
