@@ -33,3 +33,5 @@ test/raft.tddium*
 
 # Test Node Data
 test/node
+
+**.DS_Store

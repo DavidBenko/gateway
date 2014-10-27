@@ -25,6 +25,11 @@ func (l Library) EmptyInstance() Model {
 	return Library{}
 }
 
+// Valid identifies whether or not the instance can be persisted.
+func (l Library) Valid() (bool, error) {
+	return true, nil
+}
+
 // UnmarshalFromJSON returns an instance created from the passed JSON.
 func (l Library) UnmarshalFromJSON(data []byte) (Model, error) {
 	instance := Library{}

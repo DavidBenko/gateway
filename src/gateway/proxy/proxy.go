@@ -10,6 +10,7 @@ import (
 	aphttp "gateway/http"
 	"gateway/model"
 	"gateway/proxy/admin"
+	"gateway/proxy/vm"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -91,7 +92,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		"main(JSON.parse(__ap_proxyRequestJSON));",
 	}
 
-	vm, err := s.newVM()
+	vm, err := vm.NewVM()
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -120,4 +121,16 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
 	return nil
+}
+
+func (s *Server) objectJSON(vm *otto.Otto, object otto.Value) (string, error) {
+	jsJSON, err := vm.Object("JSON")
+	if err != nil {
+		return "", err
+	}
+	result, err := jsJSON.Call("stringify", object)
+	if err != nil {
+		return "", err
+	}
+	return result.String(), nil
 }

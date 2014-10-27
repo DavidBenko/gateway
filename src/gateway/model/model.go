@@ -13,5 +13,6 @@ type Model interface {
 	ID() interface{}
 	CollectionName() string
 	EmptyInstance() Model
+	Valid() (bool, error)
 	UnmarshalFromJSON([]byte) (Model, error)
 }

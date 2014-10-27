@@ -1,4 +1,4 @@
-package proxy
+package vm
 
 import (
 	"encoding/json"
@@ -11,7 +11,8 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-func (s *Server) newVM() (*otto.Otto, error) {
+// NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
+func NewVM() (*otto.Otto, error) {
 	var files = []string{
 		"gateway.js",
 		"http/request.js",
@@ -27,8 +28,8 @@ func (s *Server) newVM() (*otto.Otto, error) {
 	}
 
 	vm := otto.New()
-	vm.Set("__ap_log", s.vmLog)
-	vm.Set("__ap_makeRequests", s.makeRequests)
+	vm.Set("__ap_log", vmLog)
+	vm.Set("__ap_makeRequests", makeRequests)
 
 	for _, script := range scripts {
 		_, err := vm.Run(script)
@@ -40,12 +41,12 @@ func (s *Server) newVM() (*otto.Otto, error) {
 	return vm, nil
 }
 
-func (s *Server) vmLog(call otto.FunctionCall) otto.Value {
+func vmLog(call otto.FunctionCall) otto.Value {
 	log.Println(call.Argument(0).String())
 	return otto.Value{}
 }
 
-func (s *Server) makeRequests(call otto.FunctionCall) otto.Value {
+func makeRequests(call otto.FunctionCall) otto.Value {
 	// Parse requests
 	var requestJSONs [][]string
 	jsonArg := call.Argument(0).String()
@@ -105,16 +106,4 @@ func jsonResponses(responses []requests.Response) []string {
 
 func jsonArrayResponsesValue(responses []requests.Response) otto.Value {
 	return jsonArrayValue(jsonResponses(responses))
-}
-
-func (s *Server) objectJSON(vm *otto.Otto, object otto.Value) (string, error) {
-	jsJSON, err := vm.Object("JSON")
-	if err != nil {
-		return "", err
-	}
-	result, err := jsJSON.Call("stringify", object)
-	if err != nil {
-		return "", err
-	}
-	return result.String(), nil
 }

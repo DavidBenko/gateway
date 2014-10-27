@@ -1,6 +1,10 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"gateway/proxy/vm"
+)
 
 // ProxyEndpoint represents an endpoint that the Gateway should handle.
 type ProxyEndpoint struct {
@@ -23,6 +27,18 @@ func (p ProxyEndpoint) ID() interface{} {
 // EmptyInstance returns an empty instance of the model.
 func (p ProxyEndpoint) EmptyInstance() Model {
 	return ProxyEndpoint{}
+}
+
+// Valid identifies whether or not the instance can be persisted.
+func (p ProxyEndpoint) Valid() (bool, error) {
+	vm, err := vm.NewVM()
+	if err != nil {
+		return false, fmt.Errorf("Error setting up VM")
+	}
+	if _, err = vm.Run(p.Script); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // UnmarshalFromJSON returns an instance created from the passed JSON.

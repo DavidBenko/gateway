@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -25,6 +26,10 @@ func (t testModel) EmptyInstance() model.Model {
 	return testModel{}
 }
 
+func (t testModel) Valid() (bool, error) {
+	return true, nil
+}
+
 func (t testModel) UnmarshalFromJSON(data []byte) (model.Model, error) {
 	instance := testModel{}
 	err := json.Unmarshal(data, &instance)
@@ -46,6 +51,14 @@ func (t testModel2) CollectionName() string {
 
 func (t testModel2) EmptyInstance() model.Model {
 	return testModel2{}
+}
+
+func (t testModel2) Valid() (valid bool, err error) {
+	valid = t.value != "Invalid"
+	if !valid {
+		err = fmt.Errorf("The name cannot be 'Invalid'")
+	}
+	return
 }
 
 func (t testModel2) UnmarshalFromJSON(data []byte) (model.Model, error) {
@@ -155,6 +168,18 @@ func TestInsertUnique(t *testing.T) {
 	}
 }
 
+func TestInsertValid(t *testing.T) {
+	a := testModel2{name: "a", value: "Invalid"}
+	db := NewMemoryStore()
+	if err := db.Insert(a); err == nil {
+		t.Error("Expected invalid insert to fail")
+	}
+	a.value = "Valid"
+	if err := db.Insert(a); err != nil {
+		t.Errorf("Expected valid insert to succeed, got: %s", err)
+	}
+}
+
 func TestGet(t *testing.T) {
 	db := NewMemoryStore()
 	_, err := db.Get(testModel{}, 1)
@@ -237,6 +262,20 @@ func TestUpdateUnique(t *testing.T) {
 	b.value = "a"
 	if err := db.Update(b); err == nil {
 		t.Error("Expected update to non-unique value to fail")
+	}
+}
+
+func TestUpdateValid(t *testing.T) {
+	a := testModel2{name: "a", value: "Valid"}
+	db := NewMemoryStore()
+	db.Insert(a)
+	a.value = "Invalid"
+	if err := db.Update(a); err == nil {
+		t.Error("Expected invalid update to fail")
+	}
+	a.value = "Valid Again"
+	if err := db.Update(a); err != nil {
+		t.Errorf("Expected valid update to succeed, got %s", err)
 	}
 }
 

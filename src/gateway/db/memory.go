@@ -88,6 +88,10 @@ func (db *Memory) Insert(instance model.Model) error {
 			instance.CollectionName(), name, val)
 	}
 
+	if valid, err := instance.Valid(); !valid {
+		return err
+	}
+
 	subMap[instance.ID()] = instance
 	db.createIndices(instance)
 
@@ -133,6 +137,10 @@ func (db *Memory) Update(instance model.Model) error {
 	if ok, name, val := db.passesUniqueConstraints(instance); !ok {
 		return fmt.Errorf("There is already a %s with %s '%s'",
 			instance.CollectionName(), name, val)
+	}
+
+	if valid, err := instance.Valid(); !valid {
+		return err
 	}
 
 	subMap[instance.ID()] = instance
