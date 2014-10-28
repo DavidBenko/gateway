@@ -5,14 +5,23 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
+	"gateway/config"
 	"gateway/proxy/requests"
 
 	"github.com/robertkrimen/otto"
 )
 
+// ProxyVM is an Otto VM with some helper data stored alongside it.
+type ProxyVM struct {
+	*otto.Otto
+	requestID               string
+	ProxiedRequestsDuration time.Duration
+}
+
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
-func NewVM() (*otto.Otto, error) {
+func NewVM(requestID string) (*ProxyVM, error) {
 	var files = []string{
 		"gateway.js",
 		"http/request.js",
@@ -27,9 +36,9 @@ func NewVM() (*otto.Otto, error) {
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := otto.New()
-	vm.Set("__ap_log", vmLog)
-	vm.Set("__ap_makeRequests", makeRequests)
+	vm := &ProxyVM{otto.New(), requestID, 0}
+	vm.Set("__ap_log", vm.log)
+	vm.Set("__ap_makeRequests", vm.makeRequests)
 
 	for _, script := range scripts {
 		_, err := vm.Run(script)
@@ -41,12 +50,12 @@ func NewVM() (*otto.Otto, error) {
 	return vm, nil
 }
 
-func vmLog(call otto.FunctionCall) otto.Value {
-	log.Println(call.Argument(0).String())
+func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
+	log.Printf("%s [req %s] [user] %v", config.Proxy, p.requestID, call.Argument(0).String())
 	return otto.Value{}
 }
 
-func makeRequests(call otto.FunctionCall) otto.Value {
+func (p *ProxyVM) makeRequests(call otto.FunctionCall) otto.Value {
 	// Parse requests
 	var requestJSONs [][]string
 	jsonArg := call.Argument(0).String()
@@ -70,13 +79,14 @@ func makeRequests(call otto.FunctionCall) otto.Value {
 	}
 
 	// Make requests
-	responses, err := requests.MakeRequests(requestList)
+	start := time.Now()
+	responses, err := requests.MakeRequests(requestList, p.requestID)
 	if err != nil {
 		response := requests.NewErrorResponse(fmt.Errorf(
 			"Error making requests: %v\n", err))
 		return jsonArrayResponsesValue([]requests.Response{response})
 	}
-
+	p.ProxiedRequestsDuration += time.Since(start)
 	return jsonArrayResponsesValue(responses)
 }
 

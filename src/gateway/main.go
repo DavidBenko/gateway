@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
+	log.SetOutput(os.Stdout)
+
 	conf, err := config.Parse(os.Args[1:])
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Error parsing config file: %v", err))
@@ -25,12 +28,12 @@ func main() {
 
 	db := db.NewMemoryStore()
 
-	log.Print("Starting Raft server")
+	log.Printf("%s Starting Raft server", config.System)
 	rServer := raft.NewServer(conf.Raft)
 	rServer.Setup(db)
 	go rServer.Run()
 
-	log.Print("Starting proxy server")
+	log.Printf("%s Starting proxy server", config.System)
 	proxy := proxy.NewServer(conf.Proxy, conf.Admin, raft.NewRaftDB(db, rServer.RaftServer))
 	go proxy.Run()
 

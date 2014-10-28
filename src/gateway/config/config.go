@@ -74,8 +74,9 @@ func parseConfigFile(config *Configuration) error {
 	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
-		log.Printf("Config file '%s' does not exist and will not be used.\n",
-			configFile)
+		log.Printf(
+			"%s Config file '%s' does not exist and will not be used.\n",
+			System, configFile)
 		return nil
 	}
 	return err

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/db"
@@ -15,12 +16,6 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/robertkrimen/otto"
-)
-
-type contextKey int
-
-const (
-	contextMatchKey contextKey = iota
 )
 
 // Server encapsulates the proxy server.
@@ -48,13 +43,14 @@ func (s *Server) Run() {
 
 	// Set up proxy
 	s.router.Handle("/{path:.*}",
-		aphttp.ErrorCatchingHandler(s.proxyHandlerFunc)).
+		aphttp.AccessLoggingHandler(config.Proxy,
+			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
 		MatcherFunc(s.isRoutedToProxyEndpoint)
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
-	log.Println("Proxy server listening at:", listen)
-	log.Fatal(http.ListenAndServe(listen, s.router))
+	log.Printf("%s Server listening at %s", config.Proxy, listen)
+	log.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 
 func (s *Server) isRoutedToProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
@@ -66,13 +62,16 @@ func (s *Server) isRoutedToProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bo
 	var match mux.RouteMatch
 	ok := router.Match(r, &match)
 	if ok {
-		context.Set(r, contextMatchKey, &match)
+		context.Set(r, aphttp.ContextMatchKey, &match)
 	}
 	return ok
 }
 
 func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
-	match := context.Get(r, contextMatchKey).(*mux.RouteMatch)
+	start := time.Now()
+
+	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
+	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 
 	modelEndpoint, err := s.db.Find(model.ProxyEndpoint{}, "Name",
 		match.Route.GetName())
@@ -92,7 +91,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		"main(JSON.parse(__ap_proxyRequestJSON));",
 	}
 
-	vm, err := vm.NewVM()
+	vm, err := vm.NewVM(requestID)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -120,10 +119,17 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	aphttp.AddHeaders(w.Header(), response.Headers)
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
+
+	total := time.Since(start)
+	proxied := vm.ProxiedRequestsDuration
+	processing := total - proxied
+	log.Printf("%s [req %s] [time] %v (processing %v, requests %v)",
+		config.Proxy, requestID, total, processing, proxied)
+
 	return nil
 }
 
-func (s *Server) objectJSON(vm *otto.Otto, object otto.Value) (string, error) {
+func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
 	jsJSON, err := vm.Object("JSON")
 	if err != nil {
 		return "", err

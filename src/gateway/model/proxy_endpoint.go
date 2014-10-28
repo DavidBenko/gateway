@@ -31,7 +31,7 @@ func (p ProxyEndpoint) EmptyInstance() Model {
 
 // Valid identifies whether or not the instance can be persisted.
 func (p ProxyEndpoint) Valid() (bool, error) {
-	vm, err := vm.NewVM()
+	vm, err := vm.NewVM("<test>")
 	if err != nil {
 		return false, fmt.Errorf("Error setting up VM")
 	}

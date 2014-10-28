@@ -62,6 +62,11 @@ func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 	c <- responsePayload{index: index, response: response}
 }
 
+// Log returns the HTTP request basics, e.g. 'GET http://www.google.com'
+func (h *HTTPRequest) Log() string {
+	return fmt.Sprintf("%s %s", h.Method, h.URL)
+}
+
 // ParseResponse takes a raw http.Response and creates an HTTPResponse.
 func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 	r := &HTTPResponse{
@@ -82,4 +87,9 @@ func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 // JSON converts this response to JSON format.
 func (r *HTTPResponse) JSON() ([]byte, error) {
 	return json.Marshal(&r)
+}
+
+// Log returns the status code
+func (r *HTTPResponse) Log() string {
+	return fmt.Sprintf("(%d)", r.StatusCode)
 }

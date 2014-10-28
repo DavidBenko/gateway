@@ -2,7 +2,6 @@ package raft
 
 import (
 	"fmt"
-	"log"
 
 	"gateway/db"
 	"gateway/model"
@@ -11,8 +10,6 @@ import (
 )
 
 func init() {
-	log.Print("Registering Raft commands")
-
 	goraft.RegisterCommand(&UpdateRouterCommand{})
 
 	goraft.RegisterCommand(&ProxyEndpointDBCommand{})

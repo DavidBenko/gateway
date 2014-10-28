@@ -7,6 +7,7 @@ import (
 
 	"gateway/config"
 	"gateway/db"
+	aphttp "gateway/http"
 	"gateway/model"
 	"gateway/rest"
 
@@ -25,8 +26,8 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 }
 
 // AddRoutes adds the admin routes to the specified router.
-func AddRoutes(router *mux.Router, db db.DB, config config.ProxyAdmin) {
-	admin := subrouter(router, config)
+func AddRoutes(router *mux.Router, db db.DB, conf config.ProxyAdmin) {
+	admin := aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
 
 	(&rest.HTTPResource{Resource: &adminRoutes{db: db}}).RouteSingleton(admin)
 

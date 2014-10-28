@@ -13,6 +13,7 @@ import (
 
 	"gateway/config"
 	"gateway/db"
+
 	"github.com/goraft/raft"
 	"github.com/gorilla/mux"
 )
@@ -51,7 +52,7 @@ func NewServer(conf config.RaftServer) *Server {
 func (s *Server) Setup(db db.DB) {
 	var err error
 
-	log.Printf("Initializing Raft Server: %s", s.conf.DataPath)
+	log.Printf("%s Initializing server: %s", config.Raft, s.conf.DataPath)
 
 	// Initialize and start Raft server.
 	transporter := raft.NewHTTPTransporter("/raft", 200*time.Millisecond)
@@ -67,19 +68,19 @@ func (s *Server) Setup(db db.DB) {
 	if leader != "" {
 		// Join to leader if specified.
 
-		log.Println("Attempting to join leader:", leader)
+		log.Printf("%s Attempting to join leader: %s", config.Raft, leader)
 
 		if !s.RaftServer.IsLogEmpty() {
-			log.Fatal("Cannot join with an existing log")
+			log.Fatalf("%s Cannot join with an existing log", config.Raft)
 		}
 		if err := s.join(leader); err != nil {
-			log.Fatal(err)
+			log.Fatalf("%s %v", config.Raft, err)
 		}
 
 	} else if s.RaftServer.IsLogEmpty() {
 		// Initialize the server by joining itself.
 
-		log.Println("Initializing new cluster")
+		log.Printf("%s Initializing new cluster", config.Raft)
 
 		_, err := s.RaftServer.Do(&raft.DefaultJoinCommand{
 			Name:             s.RaftServer.Name(),
@@ -90,10 +91,10 @@ func (s *Server) Setup(db db.DB) {
 		}
 
 	} else {
-		log.Println("Recovered from log")
+		log.Printf("%s Recovered from log", config.Raft)
 	}
 
-	log.Println("Initializing HTTP server")
+	log.Printf("%s Initializing HTTP server", config.Raft)
 
 	// Initialize and start HTTP server.
 	s.httpServer = &http.Server{
@@ -106,7 +107,8 @@ func (s *Server) Setup(db db.DB) {
 
 // Run runs the server.
 func (s *Server) Run() error {
-	log.Println("Raft server listening at:", s.connectionString())
+	log.Printf("%s Server listening at %s", config.Raft,
+		s.connectionString())
 	return s.httpServer.ListenAndServe()
 }
 

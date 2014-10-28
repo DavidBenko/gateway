@@ -1,15 +1,22 @@
 package requests
 
-import "fmt"
+import (
+	"fmt"
+	"gateway/config"
+	"log"
+	"time"
+)
 
 // Request defines the interface for all requests proxy code can make.
 type Request interface {
 	Perform(c chan<- responsePayload, index int)
+	Log() string
 }
 
 // Response defines the interface for the results of Requests.
 type Response interface {
 	JSON() ([]byte, error)
+	Log() string
 }
 
 type responsePayload struct {
@@ -35,8 +42,11 @@ func RequestFromData(requestData []string) (Request, error) {
 }
 
 // MakeRequests makes the requests and returns all responses.
-func MakeRequests(requests []Request) ([]Response, error) {
+func MakeRequests(requests []Request, reqID string) ([]Response, error) {
+	start := time.Now()
+
 	n := len(requests)
+	requestDurations := make([]time.Duration, n)
 	responses := make([]Response, n)
 
 	c := make(chan responsePayload)
@@ -47,8 +57,14 @@ func MakeRequests(requests []Request) ([]Response, error) {
 	for i := 0; i < n; i++ {
 		select {
 		case r := <-c:
+			requestDurations[r.index] = time.Since(start)
 			responses[r.index] = r.response
 		}
+	}
+
+	for i, request := range requests {
+		log.Printf("%s [req %s] [request] %s %s (%v)", config.Proxy,
+			reqID, request.Log(), responses[i].Log(), requestDurations[i])
 	}
 
 	return responses, nil
