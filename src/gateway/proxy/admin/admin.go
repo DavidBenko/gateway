@@ -49,6 +49,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, path string) {
 	data, err := Asset(path)
 	if err != nil || len(data) == 0 {
 		http.NotFound(w, r)
+		return
 	}
 
 	content := bytes.NewReader(data)

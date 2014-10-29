@@ -47,6 +47,8 @@ func (s *Server) Run() {
 			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
 		MatcherFunc(s.isRoutedToProxyEndpoint)
 
+	s.router.NotFoundHandler = accessLoggingNotFoundHandler()
+
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
 	log.Printf("%s Server listening at %s", config.Proxy, listen)
@@ -139,4 +141,11 @@ func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
 		return "", err
 	}
 	return result.String(), nil
+}
+
+func accessLoggingNotFoundHandler() http.Handler {
+	return aphttp.AccessLoggingHandler(config.Proxy,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.NotFound(w, r)
+		}))
 }
