@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"gateway/db"
@@ -25,11 +23,13 @@ func (r *adminResource) Index() (resources interface{}, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.MarshalIndent(list, "", "    ")
+
+	return r.backingModel.MarshalToJSON(list)
 }
 
 func (r *adminResource) Create(data interface{}) (resource interface{}, err error) {
-	instance, err := r.backingModel.UnmarshalFromJSON(data.([]byte))
+	nextID := r.db.NextID(r.backingModel)
+	instance, err := r.backingModel.UnmarshalFromJSONWithID(data.([]byte), nextID)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (r *adminResource) Create(data interface{}) (resource interface{}, err erro
 		return nil, err
 	}
 
-	return json.MarshalIndent(instance, "", "    ")
+	return instance.MarshalToJSON(instance)
 }
 
 func (r *adminResource) Show(id interface{}) (resource interface{}, err error) {
@@ -51,29 +51,25 @@ func (r *adminResource) Show(id interface{}) (resource interface{}, err error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.MarshalIndent(instance, "", "    ")
+
+	return instance.MarshalToJSON(instance)
 }
 
 func (r *adminResource) Update(id interface{}, data interface{}) (resource interface{}, err error) {
-	int64id, err := r.int64ID(id)
+	int64ID, err := r.int64ID(id)
 	if err != nil {
 		return nil, err
 	}
-
-	instance, err := r.backingModel.UnmarshalFromJSON(data.([]byte))
+	instance, err := r.backingModel.UnmarshalFromJSONWithID(data.([]byte), int64ID)
 	if err != nil {
 		return nil, err
-	}
-
-	if int64id != instance.ID() {
-		return nil, fmt.Errorf("Cannot change id via update")
 	}
 
 	if err := r.db.Update(instance); err != nil {
 		return nil, err
 	}
 
-	return json.MarshalIndent(instance, "", "    ")
+	return instance.MarshalToJSON(instance)
 }
 
 func (r *adminResource) Delete(id interface{}) error {

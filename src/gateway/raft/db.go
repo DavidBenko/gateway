@@ -35,8 +35,13 @@ func (db *DB) UpdateRouter(script string) (model.Router, error) {
 	return r.(model.Router), err
 }
 
+// NextID returns the next id to use when inserting a model.
+func (db *DB) NextID(m model.Model) interface{} {
+	return db.backingDB.NextID(m)
+}
+
 // List returns all instances in the data store.
-func (db *DB) List(instance model.Model) ([]interface{}, error) {
+func (db *DB) List(instance model.Model) ([]model.Model, error) {
 	return db.backingDB.List(instance)
 }
 

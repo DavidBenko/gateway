@@ -8,10 +8,9 @@ import (
 
 func TestMimeTypes(t *testing.T) {
 	testCases := map[string]string{
-		"index.html":          "text/html; charset=utf-8",
-		"javascript/admin.js": "application/javascript",
-		"css/admin.css":       "text/css; charset=utf-8",
-		"images/gopher.jpg":   "image/jpeg",
+		"index.html":    "text/html; charset=utf-8",
+		"js/app.js":     "application/javascript",
+		"css/style.css": "text/css; charset=utf-8",
 	}
 
 	for path, expectedMime := range testCases {

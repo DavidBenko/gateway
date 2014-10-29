@@ -1,9 +1,9 @@
-router.get("/composite", "composite")
-router.get("/echo", "echo")
-router.get("/error", "error_handling")
-router.get("/proxy", "proxy")
-router.get("/proxy_headers", "proxy_response_headers")
-router.get("/remote_headers", "remote_headers")
-router.get("/workflow", "workflow")
-router.get("/json", "json")
-router.get("/set_json", "set_json")
+router.get("/composite", "Composite");
+router.get("/echo", "Echo");
+router.get("/error", "Error Handling");
+router.get("/proxy", "Proxy");
+router.get("/proxy_headers", "Proxy Response Header");
+router.get("/remote_headers", "Remote Headers");
+router.get("/workflow", "Workflow");
+router.get("/json", "JSON");
+router.get("/set_json", "Set JSON");

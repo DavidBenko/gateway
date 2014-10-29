@@ -1,7 +1,6 @@
 package db
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -30,10 +29,21 @@ func (t testModel) Valid() (bool, error) {
 	return true, nil
 }
 
+func (t testModel) Less(other model.Model) bool {
+	t2 := other.(testModel)
+	return t.name < t2.name
+}
+
+func (t testModel) MarshalToJSON(data interface{}) ([]byte, error) {
+	return []byte{}, fmt.Errorf("NOPE")
+}
+
 func (t testModel) UnmarshalFromJSON(data []byte) (model.Model, error) {
-	instance := testModel{}
-	err := json.Unmarshal(data, &instance)
-	return instance, err
+	return nil, fmt.Errorf("NOPE")
+}
+
+func (t testModel) UnmarshalFromJSONWithID(data []byte, id interface{}) (model.Model, error) {
+	return nil, fmt.Errorf("NOPE")
 }
 
 type testModel2 struct {
@@ -61,10 +71,20 @@ func (t testModel2) Valid() (valid bool, err error) {
 	return
 }
 
+func (t testModel2) Less(instance model.Model) bool {
+	return true
+}
+
+func (t testModel2) MarshalToJSON(data interface{}) ([]byte, error) {
+	return []byte{}, fmt.Errorf("NOPE")
+}
+
 func (t testModel2) UnmarshalFromJSON(data []byte) (model.Model, error) {
-	instance := testModel2{}
-	err := json.Unmarshal(data, &instance)
-	return instance, err
+	return nil, fmt.Errorf("NOPE")
+}
+
+func (t testModel2) UnmarshalFromJSONWithID(data []byte, id interface{}) (model.Model, error) {
+	return nil, fmt.Errorf("NOPE")
 }
 
 var (
@@ -101,6 +121,21 @@ func TestSubMapPerType(t *testing.T) {
 	}
 }
 
+func TestNextID(t *testing.T) {
+	db := NewMemoryStore()
+	if db.NextID(testModel{}) != int64(1) {
+		t.Error("Expected empty db to have next id of 1")
+	}
+	db.Insert(foo)
+	if db.NextID(testModel{}) != int64(2) {
+		t.Error("Expected next ID to be foo's plus one")
+	}
+	db.Insert(bar)
+	if db.NextID(testModel{}) != int64(3) {
+		t.Error("Expected next ID to be bar's plus one")
+	}
+}
+
 func TestList(t *testing.T) {
 	db := NewMemoryStore()
 	list, err := db.List(testModel{})
@@ -127,6 +162,9 @@ func TestList(t *testing.T) {
 	}
 	if !instanceInList(bar, list) {
 		t.Error("Expected bar to be in the list")
+	}
+	if list[0] != bar {
+		t.Error("Expected list to be sorted alpha on name")
 	}
 }
 
@@ -319,7 +357,7 @@ func TestDeleteUnique(t *testing.T) {
 	}
 }
 
-func instanceInList(a model.Model, list []interface{}) bool {
+func instanceInList(a model.Model, list []model.Model) bool {
 	for _, b := range list {
 		if b == a {
 			return true

@@ -1,11 +1,86 @@
+<!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" href="/admin/css/admin.css">
-  <script src="//code.jquery.com/jquery-2.1.1.min.js"></script>
-  <script src="/admin/javascript/admin.js"></script>
+  <meta charset="utf-8">
+  <title>AnyPresence Gateway</title>
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <img src="/admin/images/gopher.jpg"/>
-  <h1>Gateway</h1>
+  <script type="text/x-handlebars">
+    <div id="header">
+      <ul id="primary-nav">
+        <li>{{#link-to 'admin'}}Admin{{/link-to}}</li>
+        <li>{{#link-to 'docs'}}Docs{{/link-to}}</li>
+        <li>{{#link-to 'support'}}Support{{/link-to}}</li>
+      </ul>
+      <h1>{{#link-to 'index'}}AnyPresence <span>Gateway</span>{{/link-to}}</h1>
+    </div>
+
+    {{outlet}}
+  </script>
+
+  <script type="text/x-handlebars" id="admin">
+    <ul id="admin-nav">
+      <li>{{#link-to 'routes'}}Routes{{/link-to}}</li>
+      <li>{{#link-to 'proxyEndpoints'}}Proxy Endpoints{{/link-to}}</li>
+    </ul>
+
+    {{outlet}}
+  </script>
+
+  <script type="text/x-handlebars" id="docs">
+  </script>
+
+  <script type="text/x-handlebars" id="support">
+  </script>
+
+  <script type="text/x-handlebars" id="routes">
+    {{ace-editor content=script}}
+    <button class="save" {{action 'update'}}>Save</button>
+  </script>
+
+  <script type="text/x-handlebars" id="proxyEndpoints">
+    <ul id="proxy-endpoints-list">
+      {{#link-to 'newProxyEndpoint' }}<li>+ New</li>{{/link-to}}
+      {{#each arrangedContent}}
+        {{#unless isNew }}
+          {{#link-to 'proxyEndpoint' this}}<li>{{name}}</li>{{/link-to}}
+        {{/unless}}
+      {{/each}}
+    </ul>
+    <div id="proxy-endpoints-body">
+      <div id="proxy-endpoints-inner">
+        {{outlet}}
+      </div>
+    </div>
+    <div class="clearfix"></div>
+  </script>
+
+  <script type="text/x-handlebars" id="proxyEndpoint">
+    <p><label>Name {{input type="text" value=name}}</label></p>
+    {{ace-editor content=script}}
+    {{#if errorMessage}}
+      <div class="error">{{ errorMessage }}</div>
+    {{/if}}
+    {{#unless isNew}}
+      <button class="delete" {{action 'delete'}}>Delete</button>
+    {{/unless}}
+    <button class="save" {{action 'save'}}>Save</button>
+  </script>
+
+  <script type="text/x-handlebars" data-template-name="components/ace-editor">
+    <pre id='editor'></pre>
+  </script>
+
+  <script src="js/libs/ace/ace.js"></script>
+  <script src="js/libs/jquery-1.10.2.js"></script>
+  <script src="js/libs/handlebars-v1.3.0.js"></script>
+  <script src="js/libs/ember-1.8.0.js"></script>
+  <script src="js/libs/ember-data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ace.js"></script>
+  <script src="js/routes.js"></script>
+  <script src="js/proxy_endpoints.js"></script>
 </body>
 </html>
