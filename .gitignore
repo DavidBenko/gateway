@@ -5,6 +5,7 @@
 
 # Folders
 bin
+build
 _obj
 _test
 

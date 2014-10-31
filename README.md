@@ -35,6 +35,14 @@ This runs a Gateway instance using the configuration specified in
 `test/gateway.conf`, and the data stored in `test/node`. To clear data between
 runs, delete `test/node/log`.
 
+### Static Assets
+
+`make build` and `make run` both use the static assets stored on disk. This
+means that you can edit them and the changes are instantly reflected.
+
+However, this implementation will not find new files. You will need to rebuild
+the server if you add a file to one of the static assets folders.
+
 ### `GOPATH`
 
 For building and testing, Gateway manages its own `GOPATH` inside the 
@@ -88,3 +96,14 @@ And to update the proxy code after making changes:
     ./update.sh
     
 To completely clear the default Gateway data, delete everything in `test/node`.
+
+## Packaging
+
+`make package` will build the gateway for all available platforms and put the
+resulting binaries in the `build` directory.
+
+The command is using [`gox`](https://github.com/mitchellh/gox). To install you
+will need to:
+
+	go get github.com/mitchellh/gox
+	gox -build-toolchain
