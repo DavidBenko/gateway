@@ -72,11 +72,11 @@ func (c *DBCommand) Apply(server goraft.Server, instance model.Model) (interface
 // ProxyEndpointDBCommand is a DBCommand to modify ProxyEndpoint instances.
 type ProxyEndpointDBCommand struct {
 	DBCommand `json:"command"`
-	Instance  model.ProxyEndpoint `json:"instance"`
+	Instance  *model.ProxyEndpoint `json:"instance"`
 }
 
 // NewProxyEndpointDBCommand returns a new command to execute with the proxy endpoint.
-func NewProxyEndpointDBCommand(action DBWriteAction, instance model.ProxyEndpoint) *ProxyEndpointDBCommand {
+func NewProxyEndpointDBCommand(action DBWriteAction, instance *model.ProxyEndpoint) *ProxyEndpointDBCommand {
 	return &ProxyEndpointDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
 }
 

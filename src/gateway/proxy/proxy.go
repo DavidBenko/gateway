@@ -75,13 +75,13 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 
-	modelEndpoint, err := s.db.Find(model.ProxyEndpoint{}, "Name",
+	modelEndpoint, err := s.db.Find(&model.ProxyEndpoint{}, "Name",
 		match.Route.GetName())
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	endpoint := modelEndpoint.(model.ProxyEndpoint)
+	endpoint := modelEndpoint.(*model.ProxyEndpoint)
 
 	incomingJSON, err := proxyRequestJSON(r, match.Vars)
 	if err != nil {

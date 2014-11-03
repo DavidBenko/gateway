@@ -246,12 +246,18 @@ func (db *Memory) doOnTaggedFields(
 	command func(fieldName string, fieldValue string),
 ) {
 	t := reflect.TypeOf(instance)
+	v := reflect.ValueOf(instance)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+		v = v.Elem()
+	}
+
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		field := t.Field(i)
 		tagged := field.Tag.Get(tagName) != ""
 		if tagged {
-			value := reflect.ValueOf(instance).FieldByName(field.Name)
+			value := v.FieldByName(field.Name)
 
 			// For non-string fields, the value may not be what you expect
 			command(field.Name, value.String())

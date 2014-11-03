@@ -24,12 +24,6 @@ func (l Library) ID() interface{} {
 	return l.IDField
 }
 
-// SetID sets the ID
-func (l Library) SetID(instance interface{}, id interface{}) {
-	i := instance.(*Library)
-	i.IDField = id.(int64)
-}
-
 // EmptyInstance returns an empty instance of the model.
 func (l Library) EmptyInstance() Model {
 	return Library{}
