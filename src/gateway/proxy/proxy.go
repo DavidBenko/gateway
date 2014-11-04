@@ -75,6 +75,14 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 
+	var proxiedRequestsDuration time.Duration
+	defer func() {
+		total := time.Since(start)
+		processing := total - proxiedRequestsDuration
+		log.Printf("%s [req %s] [time] %v (processing %v, requests %v)",
+			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
+	}()
+
 	modelEndpoint, err := s.db.Find(&model.ProxyEndpoint{}, "Name",
 		match.Route.GetName())
 	if err != nil {
@@ -129,17 +137,11 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
+	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
 	aphttp.AddHeaders(w.Header(), response.Headers)
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
-
-	total := time.Since(start)
-	proxied := vm.ProxiedRequestsDuration
-	processing := total - proxied
-	log.Printf("%s [req %s] [time] %v (processing %v, requests %v)",
-		config.Proxy, requestID, total, processing, proxied)
-
 	return nil
 }
 
