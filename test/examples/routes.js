@@ -7,3 +7,4 @@ router.get("/remote_headers", "Remote Headers");
 router.get("/workflow", "Workflow");
 router.get("/json", "JSON");
 router.get("/set_json", "Set JSON");
+router.get("/greetings", "Greetings");

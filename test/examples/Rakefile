@@ -23,12 +23,21 @@ def load_server(options = {})
     command += "/#{index+1}" if update
     run command 
   end
+  libraries.each_with_index do |library, index|
+    command = %{./wrap.rb "libraries/#{library}" wrapper=library name="#{library.split(".").first}" | curl -s -f -d @- }
+    command += "-X PUT " if update
+    command += "localhost:5000/admin/libraries"
+    command += "/#{index+1}" if update
+    run command 
+  end
 end
 
-def endpoints
-  endpoints = Dir.glob("endpoints/*")
-  endpoints.map!{|x|x.split("/").last}
-  endpoints.sort
+def endpoints; scripts("endpoints"); end
+def libraries; scripts("libraries"); end
+def scripts(dir)
+  scripts = Dir.glob("#{dir}/*")
+  scripts.map!{|x|x.split("/").last}
+  scripts.sort
 end
 
 def run(command)

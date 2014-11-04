@@ -15,5 +15,5 @@ AP.HTTP.Response.prototype.setJSONBody = function(object) {
 AP.HTTP.Response.prototype.setJSONBodyPretty = function(object) {
   this.headers = this.headers || {};
   this.headers["Content-Type"] = "application/json";
-  this.body = JSON.stringify(object, null, "   ");
+  this.body = JSON.stringify(object, null, "   ") + "\n";
 }

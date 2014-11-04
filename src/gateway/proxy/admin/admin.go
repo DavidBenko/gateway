@@ -32,7 +32,7 @@ func AddRoutes(router *mux.Router, db db.DB, conf config.ProxyAdmin) {
 	(&rest.HTTPResource{Resource: &adminRoutes{db: db}}).RouteSingleton(admin)
 
 	(&rest.HTTPResource{Resource: &adminResource{backingModel: &model.ProxyEndpoint{}, db: db}}).Route(admin)
-	(&rest.HTTPResource{Resource: &adminResource{backingModel: model.Library{}, db: db}}).Route(admin)
+	(&rest.HTTPResource{Resource: &adminResource{backingModel: &model.Library{}, db: db}}).Route(admin)
 
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }

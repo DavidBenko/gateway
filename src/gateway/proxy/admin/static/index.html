@@ -24,6 +24,7 @@
     <ul id="admin-nav">
       <li>{{#link-to 'routes'}}Routes{{/link-to}}</li>
       <li>{{#link-to 'proxyEndpoints'}}Proxy Endpoints{{/link-to}}</li>
+      <li>{{#link-to 'libraries'}}Libraries{{/link-to}}</li>
     </ul>
 
     {{outlet}}
@@ -41,7 +42,7 @@
   </script>
 
   <script type="text/x-handlebars" id="proxyEndpoints">
-    <ul id="proxy-endpoints-list">
+    <ul id="scripts-list">
       {{#link-to 'newProxyEndpoint' }}<li>+ New</li>{{/link-to}}
       {{#each arrangedContent}}
         {{#unless isNew }}
@@ -49,8 +50,8 @@
         {{/unless}}
       {{/each}}
     </ul>
-    <div id="proxy-endpoints-body">
-      <div id="proxy-endpoints-inner">
+    <div id="scripts-body">
+      <div id="scripts-inner">
         {{outlet}}
       </div>
     </div>
@@ -58,6 +59,35 @@
   </script>
 
   <script type="text/x-handlebars" id="proxyEndpoint">
+    <p><label>Name {{input type="text" value=name}}</label></p>
+    {{ace-editor content=script}}
+    {{#if errorMessage}}
+      <div class="error">{{ errorMessage }}</div>
+    {{/if}}
+    {{#unless isNew}}
+      <button class="delete" {{action 'delete'}}>Delete</button>
+    {{/unless}}
+    <button class="save" {{action 'save'}}>Save</button>
+  </script>
+
+    <script type="text/x-handlebars" id="libraries">
+    <ul id="scripts-list">
+      {{#link-to 'newLibrary' }}<li>+ New</li>{{/link-to}}
+      {{#each arrangedContent}}
+        {{#unless isNew }}
+          {{#link-to 'library' this}}<li>{{name}}</li>{{/link-to}}
+        {{/unless}}
+      {{/each}}
+    </ul>
+    <div id="scripts-body">
+      <div id="scripts-inner">
+        {{outlet}}
+      </div>
+    </div>
+    <div class="clearfix"></div>
+  </script>
+
+  <script type="text/x-handlebars" id="library">
     <p><label>Name {{input type="text" value=name}}</label></p>
     {{ace-editor content=script}}
     {{#if errorMessage}}
@@ -82,5 +112,6 @@
   <script src="js/ace.js"></script>
   <script src="js/routes.js"></script>
   <script src="js/proxy_endpoints.js"></script>
+  <script src="js/libraries.js"></script>
 </body>
 </html>

@@ -76,7 +76,8 @@ body {
   font-weight: bold;
 }
 
-#proxy-endpoints-list {
+
+#scripts-list {
   float: left;
   width: 20%;
   margin: 0px;
@@ -84,33 +85,33 @@ body {
   list-style: none;
 }
 
-#proxy-endpoints-list a {
+#scripts-list a {
   color: #e2e2e2;
   text-decoration: none;
 }
 
-#proxy-endpoints-list li {
+#scripts-list li {
   background-color: #5A6D87;
   padding: 10px;
   border-bottom: 1px solid #506077;
 }
 
-#proxy-endpoints-list a.active li {
+#scripts-list a.active li {
   background-color: #506077;
 }
 
-#proxy-endpoints-body {
+#scripts-body {
   float: left;
   margin: 0px;
   padding:0px;
   width: 80%;
 }
 
-#proxy-endpoints-body label {
+#scripts-body label {
   padding: 20px;
 }
 
-#proxy-endpoints-body label input {
+#scripts-body label input {
   margin-left: 10px;
   padding: 5px;
 }

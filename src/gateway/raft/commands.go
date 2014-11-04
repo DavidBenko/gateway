@@ -93,11 +93,11 @@ func (c *ProxyEndpointDBCommand) Apply(server goraft.Server) (interface{}, error
 // LibraryDBCommand is a DBCommand to modify Library instances.
 type LibraryDBCommand struct {
 	DBCommand `json:"command"`
-	Instance  model.Library `json:"instance"`
+	Instance  *model.Library `json:"instance"`
 }
 
 // NewLibraryDBCommand returns a new command to execute with the proxy endpoint.
-func NewLibraryDBCommand(action DBWriteAction, instance model.Library) *LibraryDBCommand {
+func NewLibraryDBCommand(action DBWriteAction, instance *model.Library) *LibraryDBCommand {
 	return &LibraryDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
 }
 

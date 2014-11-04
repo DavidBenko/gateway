@@ -1,32 +1,32 @@
-App.ProxyEndpointsIndexRoute = Ember.Route.extend({
+App.LibrariesIndexRoute = Ember.Route.extend({
   beforeModel: function() {
-    this.transitionTo('newProxyEndpoint');
+    this.transitionTo('newLibrary');
   }
 });
 
-App.ProxyEndpoint = DS.Model.extend({
+App.Library = DS.Model.extend({
   name: DS.attr(),
   script: DS.attr()
 });
 
-App.ProxyEndpointsRoute = Ember.Route.extend({
+App.LibrariesRoute = Ember.Route.extend({
   model: function() {
-    return this.store.find('proxyEndpoint');
+    return this.store.find('library');
   }
 });
 
-App.ProxyEndpointsController = Ember.ArrayController.extend({
+App.LibrariesController = Ember.ArrayController.extend({
   sortProperties: ['name'],
   sortAscending: true
 })
 
-App.ProxyEndpointRoute = Ember.Route.extend({
+App.LibraryRoute = Ember.Route.extend({
   model: function(params) {
-    return this.store.find('proxyEndpoint', params.endpoint_id);
+    return this.store.find('library', params.library_id);
   }
 })
 
-App.ProxyEndpointController = Ember.ObjectController.extend({
+App.LibraryController = Ember.ObjectController.extend({
   errorMessage: null,
 
   actions: {
@@ -34,7 +34,7 @@ App.ProxyEndpointController = Ember.ObjectController.extend({
       var self = this;
       this.model.save().then(function(value) {
         self.set('errorMessage', null);
-        self.transitionToRoute("proxyEndpoint", value.id)
+        self.transitionToRoute("library", value.id)
       }, function(reason) {
         self.set('errorMessage', reason.responseText);
       });
@@ -42,21 +42,21 @@ App.ProxyEndpointController = Ember.ObjectController.extend({
     delete: function() {
       if (confirm("Delete the endpoint '" + this.model.get('name') + "'?")) {
         this.model.destroyRecord();
-        this.transitionToRoute('proxyEndpoints');
+        this.transitionToRoute('libraries');
       }
     }
   }
 });
 
-App.NewProxyEndpointRoute = Ember.Route.extend({
-  templateName: 'proxyEndpoint',
+App.NewLibraryRoute = Ember.Route.extend({
+  templateName: 'library',
   model: function(params) {
-    return this.store.createRecord('proxyEndpoint');
+    return this.store.createRecord('library');
   }
 })
 
-App.NewProxyEndpointController = Ember.ObjectController.extend({
-  // This is almost entirely duplicated from ProxyEndpointController,
+App.NewLibraryController = Ember.ObjectController.extend({
+  // This is almost entirely duplicated from LibraryController,
   // but specifying controllerName in my route wouldn't resolve the
   // 'save' action.
 
@@ -67,7 +67,7 @@ App.NewProxyEndpointController = Ember.ObjectController.extend({
       var self = this;
       this.model.save().then(function(value) {
         self.set('errorMessage', null);
-        self.transitionToRoute("proxyEndpoint", value.id)
+        self.transitionToRoute("library", value.id)
       }, function(reason) {
         self.set('errorMessage', reason.responseText);
       });
