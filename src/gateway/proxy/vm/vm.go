@@ -11,6 +11,9 @@ import (
 	"gateway/proxy/requests"
 
 	"github.com/robertkrimen/otto"
+
+	// Add underscore.js functionality to our VMs
+	_ "github.com/robertkrimen/otto/underscore"
 )
 
 // ProxyVM is an Otto VM with some helper data stored alongside it.

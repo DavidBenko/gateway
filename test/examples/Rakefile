@@ -12,6 +12,11 @@ task :tour do
   @project = "tour"
 end
 
+desc "Use the Salesforce project files"
+task :salesforce do
+  @project = "salesforce"
+end
+
 desc "Seed the server"
 task :seed do
   require_project!
