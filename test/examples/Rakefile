@@ -1,10 +1,26 @@
+desc "Prints usage information"
+task :usage do
+  puts "Specify the project, then the command"
+  puts "   e.g."
+  puts "      rake tour seed"
+  puts "   or"
+  puts "      rake tour update"
+end
+
+desc "Use the tour project files"
+task :tour do
+  @project = "tour"
+end
+
 desc "Seed the server"
 task :seed do
+  require_project!
   load_server
 end
 
 desc "Update the server"
 task :update do
+  require_project!
   load_server(update: true)
 end
 
@@ -13,18 +29,29 @@ task :clean do
   `rm -f ../node/log`
 end
 
+def require_project!
+  unless @project
+    puts "Please use with a project!"
+    puts "   e.g."
+    puts "      rake <project name> <command>"
+    puts ""
+    puts "'rake usage' for more."
+    exit(1)
+  end
+end
+
 def load_server(options = {})
   update = options[:update]
-  run "./wrap.rb routes.js | curl -s -f -X PUT -d @- localhost:5000/admin/routes"
+  run "./wrap.rb #{@project}/routes.js | curl -s -f -X PUT -d @- localhost:5000/admin/routes"
   endpoints.each_with_index do |endpoint, index|
-    command = %{./wrap.rb "endpoints/#{endpoint}" wrapper=proxyEndpoint name="#{endpoint.split(".").first}" | curl -s -f -d @- }
+    command = %{./wrap.rb "#{@project}/endpoints/#{endpoint}" wrapper=proxyEndpoint name="#{endpoint.split(".").first}" | curl -s -f -d @- }
     command += "-X PUT " if update
     command += "localhost:5000/admin/proxyEndpoints"
     command += "/#{index+1}" if update
     run command 
   end
   libraries.each_with_index do |library, index|
-    command = %{./wrap.rb "libraries/#{library}" wrapper=library name="#{library.split(".").first}" | curl -s -f -d @- }
+    command = %{./wrap.rb "#{@project}/libraries/#{library}" wrapper=library name="#{library.split(".").first}" | curl -s -f -d @- }
     command += "-X PUT " if update
     command += "localhost:5000/admin/libraries"
     command += "/#{index+1}" if update
@@ -35,7 +62,7 @@ end
 def endpoints; scripts("endpoints"); end
 def libraries; scripts("libraries"); end
 def scripts(dir)
-  scripts = Dir.glob("#{dir}/*")
+  scripts = Dir.glob("#{@project}/#{dir}/*")
   scripts.map!{|x|x.split("/").last}
   scripts.sort
 end
