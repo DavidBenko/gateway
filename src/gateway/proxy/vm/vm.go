@@ -23,6 +23,7 @@ type ProxyVM struct {
 	*otto.Otto
 	requestID               string
 	ProxiedRequestsDuration time.Duration
+	includedLibraries       []string
 	db                      db.DB
 }
 
@@ -42,9 +43,9 @@ func NewVM(requestID string, db db.DB) (*ProxyVM, error) {
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{otto.New(), requestID, 0, db}
+	vm := &ProxyVM{otto.New(), requestID, 0, []string{}, db}
 	vm.Set("__ap_log", vm.log)
-	vm.Set("include", vm.include)
+	vm.Set("include", vm.includeLibrary)
 	vm.Set("__ap_makeRequests", vm.makeRequests)
 
 	for _, script := range scripts {
@@ -62,8 +63,20 @@ func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func (p *ProxyVM) include(call otto.FunctionCall) otto.Value {
+func (p *ProxyVM) includeLibrary(call otto.FunctionCall) otto.Value {
 	libraryName := call.Argument(0).String()
+
+	alreadyIncluded := false
+	for _, name := range p.includedLibraries {
+		if name == libraryName {
+			alreadyIncluded = true
+			break
+		}
+	}
+	if alreadyIncluded {
+		return otto.Value{}
+	}
+	p.includedLibraries = append(p.includedLibraries, libraryName)
 
 	libraryModel, err := p.db.Find(&model.Library{}, "Name", libraryName)
 	if err != nil {
