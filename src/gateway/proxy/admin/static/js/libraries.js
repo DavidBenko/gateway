@@ -27,21 +27,24 @@ App.LibraryRoute = Ember.Route.extend({
 })
 
 App.LibraryController = Ember.ObjectController.extend({
-  errorMessage: null,
+  needs: ["admin"],
 
   actions: {
     save: function() {
       var self = this;
       this.model.save().then(function(value) {
-        self.set('errorMessage', null);
-        self.transitionToRoute("library", value.id)
+        self.set('controllers.admin.successMessage', "Saved!");
+        self.set('controllers.admin.errorMessage', null);
       }, function(reason) {
-        self.set('errorMessage', reason.responseText);
+        self.set('controllers.admin.successMessage', null);
+        self.set('controllers.admin.errorMessage', reason.responseText);
       });
     },
     delete: function() {
       if (confirm("Delete the endpoint '" + this.model.get('name') + "'?")) {
         this.model.destroyRecord();
+        this.set('controllers.admin.successMessage', "Deleted!");
+        this.set('controllers.admin.errorMessage', null);
         this.transitionToRoute('libraries');
       }
     }
@@ -60,16 +63,18 @@ App.NewLibraryController = Ember.ObjectController.extend({
   // but specifying controllerName in my route wouldn't resolve the
   // 'save' action.
 
-  errorMessage: null,
+  needs: ["admin"],
 
   actions: {
     save: function() {
       var self = this;
       this.model.save().then(function(value) {
-        self.set('errorMessage', null);
+        self.set('controllers.admin.successMessage', "Created!");
+        self.set('controllers.admin.errorMessage', null);
         self.transitionToRoute("library", value.id)
       }, function(reason) {
-        self.set('errorMessage', reason.responseText);
+        self.set('controllers.admin.successMessage', null);
+        self.set('controllers.admin.errorMessage', reason.responseText);
       });
     }
   }

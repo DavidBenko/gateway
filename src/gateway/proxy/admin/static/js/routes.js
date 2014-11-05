@@ -9,16 +9,21 @@ App.RoutesRoute = Ember.Route.extend({
 });
 
 App.RoutesController = Ember.ObjectController.extend({
+  needs: ['admin'],
   actions: {
     update: function() {
+      var self = this;
       $.ajax({
         type: "PUT",
         url: "routes",
         data: JSON.stringify(this.model)
       }).done(function( msg ) {
-        alert( "Data Saved: " + msg );
+        self.set('controllers.admin.successMessage', "Saved!");
+        self.set('controllers.admin.errorMessage', null);
       }).fail(function( jqXHR, textStatus ) {
-        alert( "Request failed: " + textStatus );
+        self.set('controllers.admin.successMessage', null);
+        self.set('controllers.admin.errorMessage',
+          "Request failed: " + textStatus );
       });
     }
   }

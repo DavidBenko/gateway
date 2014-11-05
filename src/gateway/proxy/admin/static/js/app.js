@@ -28,6 +28,21 @@ App.AdminIndexRoute = Ember.Route.extend({
   }
 });
 
+App.AdminController = Ember.ObjectController.extend({
+  errorMessage: null,
+  successMessage: null,
+
+  actions: {
+    closeSuccess: function() {
+      this.set('successMessage', null);
+    },
+    closeError: function() {
+      this.set('errorMessage', null);
+    }
+  }
+});
+
+
 App.ApplicationAdapter = DS.RESTAdapter.extend({
   namespace: window.location.pathname.replace(/^\//,"").replace(/\/$/,"")
 });

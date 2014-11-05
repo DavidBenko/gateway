@@ -136,14 +136,28 @@ button.save {
   color: #008521;
 }
 
-.error {
+.notification {
   font-family: Helvetica, sans-serif;
-  border-radius: 5px;
-  margin: 20px;
-  padding: 5px;
+  padding: 10px;
+  border-bottom: 1px solid black;
+}
+
+.notification a {
+  text-decoration: none;
+  color: inherit;
+  float: right;
+}
+
+.error {
   color: #a94442;
   background-color: #f2dede;
   border-color: #ebccd1;
+}
+
+.success {
+  color: #3c763d;
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
 }
 
 .clearfix {
