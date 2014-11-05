@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/db"
+	"gateway/model"
 	"gateway/proxy/requests"
 
 	"github.com/robertkrimen/otto"
@@ -21,10 +23,11 @@ type ProxyVM struct {
 	*otto.Otto
 	requestID               string
 	ProxiedRequestsDuration time.Duration
+	db                      db.DB
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
-func NewVM(requestID string) (*ProxyVM, error) {
+func NewVM(requestID string, db db.DB) (*ProxyVM, error) {
 	var files = []string{
 		"gateway.js",
 		"http/request.js",
@@ -39,8 +42,9 @@ func NewVM(requestID string) (*ProxyVM, error) {
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{otto.New(), requestID, 0}
+	vm := &ProxyVM{otto.New(), requestID, 0, db}
 	vm.Set("__ap_log", vm.log)
+	vm.Set("include", vm.include)
 	vm.Set("__ap_makeRequests", vm.makeRequests)
 
 	for _, script := range scripts {
@@ -55,6 +59,23 @@ func NewVM(requestID string) (*ProxyVM, error) {
 
 func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
 	log.Printf("%s [req %s] [user] %v", config.Proxy, p.requestID, call.Argument(0).String())
+	return otto.Value{}
+}
+
+func (p *ProxyVM) include(call otto.FunctionCall) otto.Value {
+	libraryName := call.Argument(0).String()
+
+	libraryModel, err := p.db.Find(&model.Library{}, "Name", libraryName)
+	if err != nil {
+		runtimeError(fmt.Sprintf("There is no library named '%s'", libraryName))
+	}
+
+	library := libraryModel.(*model.Library)
+	_, err = p.Run(library.Script)
+	if err != nil {
+		runtimeError(fmt.Sprintf("Error in library '%s': %s", libraryName, err))
+	}
+
 	return otto.Value{}
 }
 
@@ -119,4 +140,10 @@ func jsonResponses(responses []requests.Response) []string {
 
 func jsonArrayResponsesValue(responses []requests.Response) otto.Value {
 	return jsonArrayValue(jsonResponses(responses))
+}
+
+// Panics with otto.Value are caught as runtime errors.
+func runtimeError(err string) {
+	errValue, _ := otto.ToValue(err)
+	panic(errValue)
 }

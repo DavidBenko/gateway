@@ -3,14 +3,13 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/proxy/vm"
 	"strings"
 )
 
 // Library holds reusable scripts for the proxy.
 type Library struct {
 	IDField int64  `json:"id"`
-	Name    string `json:"name"`
+	Name    string `json:"name" index:"true" unique:"true"`
 	Script  string `json:"script"`
 }
 
@@ -35,13 +34,7 @@ func (l *Library) Valid() (bool, error) {
 	if l.Name == "" {
 		return false, fmt.Errorf("Name must not be blank")
 	}
-	vm, err := vm.NewVM("<test>")
-	if err != nil {
-		return false, fmt.Errorf("Error setting up VM")
-	}
-	if _, err = vm.Run(l.Script); err != nil {
-		return false, err
-	}
+
 	return true, nil
 }
 

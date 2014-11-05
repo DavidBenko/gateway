@@ -101,22 +101,10 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		"main(JSON.parse(__ap_proxyRequestJSON));",
 	}
 
-	vm, err := vm.NewVM(requestID)
+	vm, err := vm.NewVM(requestID, s.db)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
-
-	// TODO: Make libraries and endpoints many-to-many, and only use the linked ones
-	libraries, err := s.db.List(&model.Library{})
-	if err != nil {
-		return aphttp.NewServerError(err)
-	}
-	var libraryScripts []interface{}
-	for _, libraryModel := range libraries {
-		library := libraryModel.(*model.Library)
-		libraryScripts = append(libraryScripts, library.Script)
-	}
-	scripts = append(libraryScripts, scripts...)
 
 	vm.Set("__ap_proxyRequestJSON", incomingJSON)
 

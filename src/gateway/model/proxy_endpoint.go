@@ -3,7 +3,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/proxy/vm"
 	"strings"
 )
 
@@ -35,13 +34,7 @@ func (p *ProxyEndpoint) Valid() (bool, error) {
 	if p.Name == "" {
 		return false, fmt.Errorf("Name must not be blank")
 	}
-	vm, err := vm.NewVM("<test>")
-	if err != nil {
-		return false, fmt.Errorf("Error setting up VM")
-	}
-	if _, err = vm.Run(p.Script); err != nil {
-		return false, err
-	}
+
 	return true, nil
 }
 
