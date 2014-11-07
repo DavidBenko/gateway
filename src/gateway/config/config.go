@@ -24,6 +24,9 @@ type Configuration struct {
 type ProxyServer struct {
 	Host string `flag:"proxy-host" default:"localhost" usage:"The hostname of the proxy server"`
 	Port int64  `flag:"proxy-port" default:"5000"      usage:"The port of the proxy server"`
+
+	AuthKey       string `flag:"proxy-session-auth-key" default:"" usage:"The auth key to use for cookie sessions. 64 chars recommended. If unset, they're disabled."`
+	EncryptionKey string `flag:"proxy-session-encryption-key" default:"" usage:"The encryption key to use for cookie sessions. 32 chars recommended. If unset, encryption is disabled."`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

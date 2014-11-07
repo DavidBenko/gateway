@@ -101,7 +101,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		"main(JSON.parse(__ap_proxyRequestJSON));",
 	}
 
-	vm, err := vm.NewVM(requestID, s.db)
+	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.db)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

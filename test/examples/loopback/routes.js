@@ -17,6 +17,7 @@ router.get("/bar", "Bar");
 router.post("/secret", "Secret");
 router.get("/topsecret", "Top Secret");
 router.get("/greetings", "Greetings");
+router.get("/counter", "Counter");
 
 /**
  * Proxy Endpoints

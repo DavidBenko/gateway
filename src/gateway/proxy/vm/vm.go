@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"gateway/db"
 	"gateway/model"
 	"gateway/proxy/requests"
+
+	"github.com/gorilla/sessions"
 
 	"github.com/robertkrimen/otto"
 
@@ -24,13 +27,25 @@ type ProxyVM struct {
 	requestID               string
 	ProxiedRequestsDuration time.Duration
 	includedLibraries       []string
-	db                      db.DB
+
+	w            http.ResponseWriter
+	r            *http.Request
+	sessionStore *sessions.CookieStore
+	db           db.DB
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
-func NewVM(requestID string, db db.DB) (*ProxyVM, error) {
+func NewVM(
+	requestID string,
+	w http.ResponseWriter,
+	r *http.Request,
+	conf config.ProxyServer,
+	db db.DB,
+) (*ProxyVM, error) {
+
 	var files = []string{
 		"gateway.js",
+		"sessions.js",
 		"http/request.js",
 		"http/response.js",
 	}
@@ -43,8 +58,22 @@ func NewVM(requestID string, db db.DB) (*ProxyVM, error) {
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{otto.New(), requestID, 0, []string{}, db}
+	vm := &ProxyVM{otto.New(), requestID, 0, []string{}, w, r, nil, db}
+
+	if conf.AuthKey != "" {
+		sessionConfig := [][]byte{[]byte(conf.AuthKey)}
+		if conf.EncryptionKey != "" {
+			sessionConfig = append(sessionConfig, []byte(conf.EncryptionKey))
+		}
+		vm.sessionStore = sessions.NewCookieStore(sessionConfig...)
+	}
+
 	vm.Set("__ap_log", vm.log)
+	vm.Set("__ap_session_get", vm.sessionGet)
+	vm.Set("__ap_session_set", vm.sessionSet)
+	vm.Set("__ap_session_is_set", vm.sessionIsSet)
+	vm.Set("__ap_session_delete", vm.sessionDelete)
+	vm.Set("__ap_session_set_options", vm.sessionSetOptions)
 	vm.Set("include", vm.includeLibrary)
 	vm.Set("__ap_makeRequests", vm.makeRequests)
 
