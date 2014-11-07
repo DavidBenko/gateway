@@ -55,6 +55,7 @@ vendor_get: vendor_clean
 	github.com/gorilla/context \
 	github.com/gorilla/handlers \
 	github.com/gorilla/mux \
+	github.com/gorilla/sessions \
 	github.com/robertkrimen/otto \
 	github.com/goraft/raft \
 	code.google.com/p/go.tools/cmd/goimports \

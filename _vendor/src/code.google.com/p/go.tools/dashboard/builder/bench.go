@@ -115,13 +115,14 @@ func (b *Builder) buildBenchmark(workpath string, update bool) (benchBin, log st
 // based on the list of available benchmarks, already executed benchmarks
 // and -benchcpu list.
 func chooseBenchmark(benchBin string, doneBenchs []string) (bench string, procs, affinity int, last bool) {
-	out, err := exec.Command(benchBin).CombinedOutput()
+	var out bytes.Buffer
+	err := run(exec.Command(benchBin), allOutput(&out))
 	if err != nil {
 		log.Printf("Failed to query benchmark list: %v\n%s", err, out)
 		last = true
 		return
 	}
-	outStr := string(out)
+	outStr := out.String()
 	nlIdx := strings.Index(outStr, "\n")
 	if nlIdx < 0 {
 		log.Printf("Failed to parse benchmark list (no new line): %s", outStr)
@@ -205,6 +206,7 @@ func (b *Builder) executeBenchmark(workpath, hash, benchBin, bench string, procs
 	}
 	metrics = metrics1
 	artifacts = append(artifacts, artifacts1...)
+	ok = true
 	return
 }
 
