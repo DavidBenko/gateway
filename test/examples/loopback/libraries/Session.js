@@ -4,4 +4,3 @@
  * "gateway_id" is the name of the session cookie.
  */
 var session = new AP.Session("gateway_id");
-session.setOptions({secure: true});
