@@ -25,9 +25,10 @@ build: vet assets
 	go build -o ./bin/gateway ./src/gateway/main.go
 
 package: vet assets
-	gox -output="build/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
+	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
 
 doc:
+	jsdoc -c ./jsdoc.conf -r
 	godoc -http=:6060 -index
 
 # http://golang.org/cmd/go/#hdr-Run_gofmt_on_package_sources
