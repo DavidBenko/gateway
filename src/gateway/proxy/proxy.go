@@ -45,7 +45,7 @@ func (s *Server) Run() {
 	s.router.Handle("/{path:.*}",
 		aphttp.AccessLoggingHandler(config.Proxy,
 			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
-		MatcherFunc(s.isRoutedToProxyEndpoint)
+		MatcherFunc(s.isRoutedToEndpoint)
 
 	s.router.NotFoundHandler = accessLoggingNotFoundHandler()
 
@@ -55,7 +55,7 @@ func (s *Server) Run() {
 	log.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 
-func (s *Server) isRoutedToProxyEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
+func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 	router := s.db.Router().MUXRouter
 	if router == nil {
 		return false
@@ -83,13 +83,13 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
 	}()
 
-	modelEndpoint, err := s.db.Find(&model.ProxyEndpoint{}, "Name",
+	modelEndpoint, err := s.db.Find(&model.Endpoint{}, "Name",
 		match.Route.GetName())
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	endpoint := modelEndpoint.(*model.ProxyEndpoint)
+	endpoint := modelEndpoint.(*model.Endpoint)
 
 	incomingJSON, err := proxyRequestJSON(r, match.Vars)
 	if err != nil {

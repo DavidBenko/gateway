@@ -85,8 +85,8 @@ func (db *DB) Delete(m model.Model, id interface{}) error {
 
 func newCommand(action DBWriteAction, instance model.Model) raft.Command {
 	switch instance := instance.(type) {
-	case *model.ProxyEndpoint:
-		return NewProxyEndpointDBCommand(action, instance)
+	case *model.Endpoint:
+		return NewEndpointDBCommand(action, instance)
 	case *model.Library:
 		return NewLibraryDBCommand(action, instance)
 	}

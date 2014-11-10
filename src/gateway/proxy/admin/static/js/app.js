@@ -3,9 +3,9 @@ App = Ember.Application.create();
 App.Router.map(function() {
   this.resource('admin', function() {
     this.resource('routes');
-    this.resource('proxyEndpoints', function() {
-      this.resource('newProxyEndpoint', { path: 'new' });
-      this.resource('proxyEndpoint', { path: ':endpoint_id' });
+    this.resource('endpoints', function() {
+      this.resource('newEndpoint', { path: 'new' });
+      this.resource('endpoint', { path: ':endpoint_id' });
     });
     this.resource('libraries', function() {
       this.resource('newLibrary', { path: 'new' });

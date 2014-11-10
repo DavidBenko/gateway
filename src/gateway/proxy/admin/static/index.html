@@ -23,7 +23,7 @@
   <script type="text/x-handlebars" id="admin">
     <ul id="admin-nav">
       <li>{{#link-to 'routes'}}Routes{{/link-to}}</li>
-      <li>{{#link-to 'proxyEndpoints'}}Proxy Endpoints{{/link-to}}</li>
+      <li>{{#link-to 'endpoints'}}Endpoints{{/link-to}}</li>
       <li>{{#link-to 'libraries'}}Libraries{{/link-to}}</li>
     </ul>
     {{#if errorMessage}}
@@ -52,12 +52,12 @@
     <button class="save" {{action 'update'}}>Save</button>
   </script>
 
-  <script type="text/x-handlebars" id="proxyEndpoints">
+  <script type="text/x-handlebars" id="endpoints">
     <ul id="scripts-list">
-      {{#link-to 'newProxyEndpoint' }}<li>+ New</li>{{/link-to}}
+      {{#link-to 'newEndpoint' }}<li>+ New</li>{{/link-to}}
       {{#each arrangedContent}}
         {{#unless isNew }}
-          {{#link-to 'proxyEndpoint' this}}<li>{{name}}</li>{{/link-to}}
+          {{#link-to 'endpoint' this}}<li>{{name}}</li>{{/link-to}}
         {{/unless}}
       {{/each}}
     </ul>
@@ -69,7 +69,7 @@
     <div class="clearfix"></div>
   </script>
 
-  <script type="text/x-handlebars" id="proxyEndpoint">
+  <script type="text/x-handlebars" id="endpoint">
     <p><label>Name {{input type="text" value=name}}</label></p>
     {{ace-editor content=script}}
     {{#unless isNew}}
@@ -116,7 +116,7 @@
   <script src="js/app.js"></script>
   <script src="js/ace.js"></script>
   <script src="js/routes.js"></script>
-  <script src="js/proxy_endpoints.js"></script>
+  <script src="js/endpoints.js"></script>
   <script src="js/libraries.js"></script>
 </body>
 </html>

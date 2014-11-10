@@ -12,11 +12,11 @@ import (
 func init() {
 	goraft.RegisterCommand(&UpdateRouterCommand{})
 
-	goraft.RegisterCommand(&ProxyEndpointDBCommand{})
+	goraft.RegisterCommand(&EndpointDBCommand{})
 	goraft.RegisterCommand(&LibraryDBCommand{})
 }
 
-// UpdateRouterCommand is a DBCommand to modify ProxyEndpoint instances.
+// UpdateRouterCommand is a DBCommand to modify Endpoint instances.
 type UpdateRouterCommand struct {
 	Script string `json:"script"`
 }
@@ -69,24 +69,24 @@ func (c *DBCommand) Apply(server goraft.Server, instance model.Model) (interface
 	}
 }
 
-// ProxyEndpointDBCommand is a DBCommand to modify ProxyEndpoint instances.
-type ProxyEndpointDBCommand struct {
+// EndpointDBCommand is a DBCommand to modify Endpoint instances.
+type EndpointDBCommand struct {
 	DBCommand `json:"command"`
-	Instance  *model.ProxyEndpoint `json:"instance"`
+	Instance  *model.Endpoint `json:"instance"`
 }
 
-// NewProxyEndpointDBCommand returns a new command to execute with the proxy endpoint.
-func NewProxyEndpointDBCommand(action DBWriteAction, instance *model.ProxyEndpoint) *ProxyEndpointDBCommand {
-	return &ProxyEndpointDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
+// NewEndpointDBCommand returns a new command to execute with the proxy endpoint.
+func NewEndpointDBCommand(action DBWriteAction, instance *model.Endpoint) *EndpointDBCommand {
+	return &EndpointDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
 }
 
 // CommandName is the name of the command in the Raft log.
-func (c *ProxyEndpointDBCommand) CommandName() string {
-	return "ProxyEndpoint"
+func (c *EndpointDBCommand) CommandName() string {
+	return "Endpoint"
 }
 
 // Apply runs the DB action against the data store.
-func (c *ProxyEndpointDBCommand) Apply(server goraft.Server) (interface{}, error) {
+func (c *EndpointDBCommand) Apply(server goraft.Server) (interface{}, error) {
 	return c.DBCommand.Apply(server, c.Instance)
 }
 

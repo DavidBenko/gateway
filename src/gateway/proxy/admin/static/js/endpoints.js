@@ -1,32 +1,32 @@
-App.ProxyEndpointsIndexRoute = Ember.Route.extend({
+App.EndpointsIndexRoute = Ember.Route.extend({
   beforeModel: function() {
-    this.transitionTo('newProxyEndpoint');
+    this.transitionTo('newEndpoint');
   }
 });
 
-App.ProxyEndpoint = DS.Model.extend({
+App.Endpoint = DS.Model.extend({
   name: DS.attr(),
   script: DS.attr()
 });
 
-App.ProxyEndpointsRoute = Ember.Route.extend({
+App.EndpointsRoute = Ember.Route.extend({
   model: function() {
-    return this.store.find('proxyEndpoint');
+    return this.store.find('endpoint');
   }
 });
 
-App.ProxyEndpointsController = Ember.ArrayController.extend({
+App.EndpointsController = Ember.ArrayController.extend({
   sortProperties: ['name'],
   sortAscending: true
 })
 
-App.ProxyEndpointRoute = Ember.Route.extend({
+App.EndpointRoute = Ember.Route.extend({
   model: function(params) {
-    return this.store.find('proxyEndpoint', params.endpoint_id);
+    return this.store.find('endpoint', params.endpoint_id);
   }
 })
 
-App.ProxyEndpointController = Ember.ObjectController.extend({
+App.EndpointController = Ember.ObjectController.extend({
   needs: ['admin'],
 
   actions: {
@@ -45,21 +45,21 @@ App.ProxyEndpointController = Ember.ObjectController.extend({
         this.model.destroyRecord();
         this.set('controllers.admin.successMessage', "Deleted!");
         this.set('controllers.admin.errorMessage', null);
-        this.transitionToRoute('proxyEndpoints');
+        this.transitionToRoute('endpoints');
       }
     }
   }
 });
 
-App.NewProxyEndpointRoute = Ember.Route.extend({
-  templateName: 'proxyEndpoint',
+App.NewEndpointRoute = Ember.Route.extend({
+  templateName: 'endpoint',
   model: function(params) {
-    return this.store.createRecord('proxyEndpoint');
+    return this.store.createRecord('endpoint');
   }
 })
 
-App.NewProxyEndpointController = Ember.ObjectController.extend({
-  // This is almost entirely duplicated from ProxyEndpointController,
+App.NewEndpointController = Ember.ObjectController.extend({
+  // This is almost entirely duplicated from EndpointController,
   // but specifying controllerName in my route wouldn't resolve the
   // 'save' action.
 
@@ -71,7 +71,7 @@ App.NewProxyEndpointController = Ember.ObjectController.extend({
       this.model.save().then(function(value) {
         self.set('controllers.admin.successMessage', "Created!");
         self.set('controllers.admin.errorMessage', null);
-        self.transitionToRoute("proxyEndpoint", value.id)
+        self.transitionToRoute("endpoint", value.id)
       }, function(reason) {
         self.set('controllers.admin.successMessage', null);
         self.set('controllers.admin.errorMessage', reason.responseText);
