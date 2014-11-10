@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/astutil"
+	"code.google.com/p/go.tools/astutil"
 )
 
 // Options specifies options for processing files.

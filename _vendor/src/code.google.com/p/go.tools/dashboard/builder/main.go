@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/tools/go/vcs"
+	"code.google.com/p/go.tools/go/vcs"
 )
 
 const (
@@ -55,7 +55,7 @@ var (
 	buildTool      = flag.String("tool", "go", "Tool to build.")
 	gcPath         = flag.String("gcpath", "code.google.com/p/go", "Path to download gc from")
 	gccPath        = flag.String("gccpath", "https://github.com/mirrors/gcc.git", "Path to download gcc from")
-	benchPath      = flag.String("benchpath", "golang.org/x/benchmarks/bench", "Path to download benchmarks from")
+	benchPath      = flag.String("benchpath", "code.google.com/p/go.benchmarks/bench", "Path to download benchmarks from")
 	failAll        = flag.Bool("fail", false, "fail all builds")
 	parallel       = flag.Bool("parallel", false, "Build multiple targets in parallel")
 	buildTimeout   = flag.Duration("buildTimeout", 60*time.Minute, "Maximum time to wait for builds and tests")
@@ -580,9 +580,6 @@ func (b *Builder) buildSubrepo(goRoot, goPath, pkg, hash string) (string, error)
 		sep := string(os.PathListSeparator)
 		env[i] = p + filepath.Join(goRoot, "bin") + sep + filepath.Join(goPath, "bin") + sep + e[len(p):]
 	}
-
-	// HACK: check out to new sub-repo location instead of old location.
-	pkg = strings.Replace(pkg, "code.google.com/p/go.", "golang.org/x/", 1)
 
 	// fetch package and dependencies
 	var outbuf bytes.Buffer

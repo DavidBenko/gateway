@@ -11,10 +11,10 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/refactor/lexical"
-	"golang.org/x/tools/refactor/satisfy"
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/refactor/lexical"
+	"code.google.com/p/go.tools/refactor/satisfy"
 )
 
 // errorf reports an error (e.g. conflict) and prevents file modification.
@@ -293,21 +293,10 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
 	info, path, _ := r.iprog.PathEnclosingInterval(from.Pos(), from.Pos())
-	// path matches this pattern:
-	// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
+	// path is [Ident Field FieldList StructType ... File].  Can't fail.
 
-	// Ascend to FieldList.
-	var i int
-	for {
-		if _, ok := path[i].(*ast.FieldList); ok {
-			break
-		}
-		i++
-	}
-	i++
-	tStruct := path[i].(*ast.StructType)
-	i++
 	// Ascend past parens (unlikely).
+	i := 4
 	for {
 		_, ok := path[i].(*ast.ParenExpr)
 		if !ok {
@@ -331,7 +320,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	} else {
 		// This struct is not a named type.
 		// We need only check for direct (non-promoted) field/field conflicts.
-		T := info.Types[tStruct].Type.Underlying().(*types.Struct)
+		T := info.Types[path[3].(*ast.StructType)].Type.Underlying().(*types.Struct)
 		for i := 0; i < T.NumFields(); i++ {
 			if prev := T.Field(i); prev.Name() == r.to {
 				r.errorf(from.Pos(), "renaming this field %q to %q",
@@ -656,7 +645,7 @@ func someUse(info *loader.PackageInfo, obj types.Object) *ast.Ident {
 	return nil
 }
 
-// -- Plundered from golang.org/x/tools/go/ssa -----------------
+// -- Plundered from code.google.com/p/go.tools/go/ssa -----------------
 
 func isInterface(T types.Type) bool {
 	_, ok := T.Underlying().(*types.Interface)

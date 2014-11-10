@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/oracle/serial"
+	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/oracle/serial"
 )
 
 // Implements displays the "implements" relation as it pertains to the

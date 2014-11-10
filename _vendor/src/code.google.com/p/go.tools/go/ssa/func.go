@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/types"
 )
 
 // addEdge adds a control-flow graph edge from from to to.

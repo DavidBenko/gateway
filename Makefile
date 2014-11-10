@@ -59,7 +59,6 @@ vendor_get: vendor_clean
 	github.com/gorilla/sessions \
 	github.com/robertkrimen/otto \
 	github.com/goraft/raft \
-	github.com/abbot/go-http-auth \
 	code.google.com/p/go.tools/cmd/goimports \
 	github.com/jteeuwen/go-bindata
 

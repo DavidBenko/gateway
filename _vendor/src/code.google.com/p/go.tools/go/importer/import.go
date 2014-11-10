@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"go/token"
 
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/exact"
+	"code.google.com/p/go.tools/go/types"
 )
 
 // ImportData imports a package from the serialized package data

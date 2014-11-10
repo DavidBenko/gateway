@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/astutil"
+	"code.google.com/p/go.tools/astutil"
 )
 
 // parseOctothorpDecimal returns the numeric value if s matches "#%d",

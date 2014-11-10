@@ -1,6 +1,6 @@
 package typeutil
 
-import "golang.org/x/tools/go/types"
+import "code.google.com/p/go.tools/go/types"
 
 // Dependencies returns all dependencies of the specified packages.
 //

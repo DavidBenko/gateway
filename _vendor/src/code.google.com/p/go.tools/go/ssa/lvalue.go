@@ -11,7 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/types"
 )
 
 // An lvalue represents an assignable location that may appear on the

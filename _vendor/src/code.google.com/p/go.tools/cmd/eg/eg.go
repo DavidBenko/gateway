@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/refactor/eg"
+	"code.google.com/p/go.tools/go/loader"
+	"code.google.com/p/go.tools/refactor/eg"
 )
 
 var (

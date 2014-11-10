@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/types"
 )
 
 var importablePackages = [...]string{

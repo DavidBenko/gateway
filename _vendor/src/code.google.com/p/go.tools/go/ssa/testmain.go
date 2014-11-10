@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/types"
 )
 
 // FindTests returns the list of packages that define at least one Test,

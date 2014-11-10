@@ -51,8 +51,8 @@ import (
 	"reflect"
 	"runtime"
 
-	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/ssa"
+	"code.google.com/p/go.tools/go/types"
 )
 
 type continuation int

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/types"
 )
 
 var gcPath string // Go compiler path

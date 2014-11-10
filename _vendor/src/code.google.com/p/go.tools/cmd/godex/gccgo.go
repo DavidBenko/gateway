@@ -7,8 +7,8 @@
 package main
 
 import (
-	"golang.org/x/tools/go/gccgoimporter"
-	"golang.org/x/tools/go/types"
+	"code.google.com/p/go.tools/go/gccgoimporter"
+	"code.google.com/p/go.tools/go/types"
 )
 
 var (

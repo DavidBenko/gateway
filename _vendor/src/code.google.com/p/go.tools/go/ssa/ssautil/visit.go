@@ -4,7 +4,7 @@
 
 package ssautil
 
-import "golang.org/x/tools/go/ssa"
+import "code.google.com/p/go.tools/go/ssa"
 
 // This file defines utilities for visiting the SSA representation of
 // a Program.

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/vcs"
+	"code.google.com/p/go.tools/go/vcs"
 )
 
 // Repo represents a mercurial repository.

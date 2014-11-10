@@ -9,8 +9,8 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/go/types"
-	"golang.org/x/tools/oracle/serial"
+	"code.google.com/p/go.tools/go/types"
+	"code.google.com/p/go.tools/oracle/serial"
 )
 
 // definition reports the location of the definition of an identifier.

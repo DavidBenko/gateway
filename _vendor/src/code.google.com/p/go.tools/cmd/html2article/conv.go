@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This program takes an HTML file and outputs a corresponding article file in
-// present format. See: golang.org/x/tools/present
+// present format. See: code.google.com/p/go.tools/present
 package main
 
 import (
@@ -19,8 +19,8 @@ import (
 	"regexp"
 	"strings"
 
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
+	"code.google.com/p/go.net/html"
+	"code.google.com/p/go.net/html/atom"
 )
 
 func main() {
