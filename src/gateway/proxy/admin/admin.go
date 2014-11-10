@@ -27,7 +27,9 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 
 // AddRoutes adds the admin routes to the specified router.
 func AddRoutes(router *mux.Router, db db.DB, conf config.ProxyAdmin) {
-	admin := aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
+	var admin aphttp.Router
+	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
+	admin = aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
 
 	(&rest.HTTPResource{Resource: &adminRoutes{db: db}}).RouteSingleton(admin)
 

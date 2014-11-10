@@ -34,6 +34,10 @@ type ProxyServer struct {
 type ProxyAdmin struct {
 	PathPrefix string `flag:"admin-path-prefix" default:"/admin/" usage:"The path prefix the administrative area is accessible under"`
 	Host       string `flag:"admin-host"        default:""        usage:"The host the administrative area is accessible via"`
+
+	Username string `flag:"admin-username" default:"admin" usage:"The username to require with HTTP Basic Auth to protect the admin functionality"`
+	Password string `flag:"admin-password" default:""      usage:"The password to require with HTTP Basic Auth to protect the admin functionality; disabled if blank."`
+	Realm    string `flag:"admin-realm"    default:""      usage:"The HTTP Basic realm to use. Optional."`
 }
 
 // RaftServer specifies configuration options that apply to the Raft server.

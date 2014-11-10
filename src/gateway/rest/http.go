@@ -15,13 +15,8 @@ type HTTPResource struct {
 	Resource Resource
 }
 
-// HTTPRouter defines the minimal interface of *mux.Router necessary here.
-type HTTPRouter interface {
-	Handle(pattern string, handler http.Handler)
-}
-
 // Route adds the RESTful routes for this resource to the provided mux.Router.
-func (h *HTTPResource) Route(router HTTPRouter) {
+func (h *HTTPResource) Route(router aphttp.Router) {
 	router.Handle(fmt.Sprintf("/%s", h.Resource.Name()), handlers.MethodHandler{
 		"GET":  h.IndexHandler(),
 		"POST": h.CreateHandler()},
@@ -35,7 +30,7 @@ func (h *HTTPResource) Route(router HTTPRouter) {
 }
 
 // RouteSingleton adds show and update routes to the provided mux.Router.
-func (h *HTTPResource) RouteSingleton(router HTTPRouter) {
+func (h *HTTPResource) RouteSingleton(router aphttp.Router) {
 	router.Handle(fmt.Sprintf("/%s", h.Resource.Name()),
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
 			"GET": h.ShowHandler(),
