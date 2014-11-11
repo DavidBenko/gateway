@@ -25,6 +25,7 @@
       <li>{{#link-to 'routes'}}Routes{{/link-to}}</li>
       <li>{{#link-to 'endpoints'}}Endpoints{{/link-to}}</li>
       <li>{{#link-to 'libraries'}}Libraries{{/link-to}}</li>
+      <li>{{#link-to 'environments'}}Environments{{/link-to}}</li>
     </ul>
     {{#if errorMessage}}
       <div class="notification error">
@@ -104,6 +105,32 @@
     <button class="save" {{action 'save'}}>Save</button>
   </script>
 
+  <script type="text/x-handlebars" id="environments">
+    <ul id="scripts-list">
+      {{#link-to 'newEnvironment' }}<li>+ New</li>{{/link-to}}
+      {{#each arrangedContent}}
+        {{#unless isNew }}
+          {{#link-to 'environment' this}}<li>{{name}}</li>{{/link-to}}
+        {{/unless}}
+      {{/each}}
+    </ul>
+    <div id="scripts-body">
+      <div id="scripts-inner">
+        {{outlet}}
+      </div>
+    </div>
+    <div class="clearfix"></div>
+  </script>
+
+  <script type="text/x-handlebars" id="environment">
+    <p><label>Name {{input type="text" value=name}}</label></p>
+    {{ace-editor content=values}}
+    {{#unless isNew}}
+      <button class="delete" {{action 'delete'}}>Delete</button>
+    {{/unless}}
+    <button class="save" {{action 'save'}}>Save</button>
+  </script>
+
   <script type="text/x-handlebars" data-template-name="components/ace-editor">
     <pre id='editor'></pre>
   </script>
@@ -118,5 +145,6 @@
   <script src="js/routes.js"></script>
   <script src="js/endpoints.js"></script>
   <script src="js/libraries.js"></script>
+  <script src="js/environments.js"></script>
 </body>
 </html>

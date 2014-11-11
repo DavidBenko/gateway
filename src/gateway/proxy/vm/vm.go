@@ -24,6 +24,7 @@ import (
 // ProxyVM is an Otto VM with some helper data stored alongside it.
 type ProxyVM struct {
 	*otto.Otto
+	conf                    config.ProxyServer
 	requestID               string
 	ProxiedRequestsDuration time.Duration
 	includedLibraries       []string
@@ -45,6 +46,7 @@ func NewVM(
 
 	var files = []string{
 		"gateway.js",
+		"environments.js",
 		"sessions.js",
 		"http/request.js",
 		"http/response.js",
@@ -58,7 +60,7 @@ func NewVM(
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{otto.New(), requestID, 0, []string{}, w, r, nil, db}
+	vm := &ProxyVM{otto.New(), conf, requestID, 0, []string{}, w, r, nil, db}
 
 	if conf.AuthKey != "" {
 		sessionConfig := [][]byte{[]byte(conf.AuthKey)}
@@ -69,6 +71,7 @@ func NewVM(
 	}
 
 	vm.Set("__ap_log", vm.log)
+	vm.Set("__ap_environment_get", vm.environmentGet)
 	vm.Set("__ap_session_get", vm.sessionGet)
 	vm.Set("__ap_session_set", vm.sessionSet)
 	vm.Set("__ap_session_is_set", vm.sessionIsSet)

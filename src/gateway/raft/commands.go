@@ -14,6 +14,7 @@ func init() {
 
 	goraft.RegisterCommand(&EndpointDBCommand{})
 	goraft.RegisterCommand(&LibraryDBCommand{})
+	goraft.RegisterCommand(&EnvironmentDBCommand{})
 }
 
 // UpdateRouterCommand is a DBCommand to modify Endpoint instances.
@@ -108,5 +109,26 @@ func (c *LibraryDBCommand) CommandName() string {
 
 // Apply runs the DB action against the data store.
 func (c *LibraryDBCommand) Apply(server goraft.Server) (interface{}, error) {
+	return c.DBCommand.Apply(server, c.Instance)
+}
+
+// EnvironmentDBCommand is a DBCommand to modify Environment instances.
+type EnvironmentDBCommand struct {
+	DBCommand `json:"command"`
+	Instance  *model.Environment `json:"instance"`
+}
+
+// NewEnvironmentDBCommand returns a new command to execute with the proxy endpoint.
+func NewEnvironmentDBCommand(action DBWriteAction, instance *model.Environment) *EnvironmentDBCommand {
+	return &EnvironmentDBCommand{DBCommand: DBCommand{Action: action}, Instance: instance}
+}
+
+// CommandName is the name of the command in the Raft log.
+func (c *EnvironmentDBCommand) CommandName() string {
+	return "Environment"
+}
+
+// Apply runs the DB action against the data store.
+func (c *EnvironmentDBCommand) Apply(server goraft.Server) (interface{}, error) {
 	return c.DBCommand.Apply(server, c.Instance)
 }

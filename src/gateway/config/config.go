@@ -27,6 +27,9 @@ type ProxyServer struct {
 
 	AuthKey       string `flag:"proxy-session-auth-key" default:"" usage:"The auth key to use for cookie sessions. 64 chars recommended. If unset, they're disabled."`
 	EncryptionKey string `flag:"proxy-session-encryption-key" default:"" usage:"The encryption key to use for cookie sessions. 32 chars recommended. If unset, encryption is disabled."`
+
+	Environment        string `flag:"proxy-environment"         default:"" usage:"The name of the environment to use for looking up configuration values."`
+	EnvironmentDefault string `flag:"proxy-environment-default" default:"" usage:"The name of the environment to use as a backup for looking up configuration values."`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

@@ -11,6 +11,10 @@ App.Router.map(function() {
       this.resource('newLibrary', { path: 'new' });
       this.resource('library', { path: ':library_id' });
     });
+    this.resource('environments', function() {
+      this.resource('newEnvironment', { path: 'new' });
+      this.resource('environment', { path: ':environment_id' });
+    });
   });
   this.resource('docs');
   this.resource('support');

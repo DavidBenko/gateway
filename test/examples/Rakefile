@@ -67,10 +67,18 @@ def load_server(options = {})
     command += "/#{index+1}" if update
     run command 
   end
+  environments.each_with_index do |environment, index|
+    command = %{./wrap_env.rb "#{@project}/environments/#{environment}" wrapper=environment name="#{environment.split(".").first}" | curl -s -f -d @- }
+    command += "-X PUT " if update
+    command += "localhost:5000/admin/environments"
+    command += "/#{index+1}" if update
+    run command 
+  end
 end
 
 def endpoints; scripts("endpoints"); end
 def libraries; scripts("libraries"); end
+def environments; scripts("environments"); end
 def scripts(dir)
   scripts = Dir.glob("#{@project}/#{dir}/*")
   scripts.map!{|x|x.split("/").last}

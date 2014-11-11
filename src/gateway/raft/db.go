@@ -89,6 +89,8 @@ func newCommand(action DBWriteAction, instance model.Model) raft.Command {
 		return NewEndpointDBCommand(action, instance)
 	case *model.Library:
 		return NewLibraryDBCommand(action, instance)
+	case *model.Environment:
+		return NewEnvironmentDBCommand(action, instance)
 	}
 	log.Fatalf("Could not create DB write command for instance of type %s",
 		reflect.TypeOf(instance))
