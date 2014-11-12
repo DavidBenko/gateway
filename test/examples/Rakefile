@@ -7,11 +7,6 @@ task :usage do
   puts "      rake tour update"
 end
 
-desc "Use the tour project files"
-task :tour do
-  @project = "tour"
-end
-
 desc "Use the loopback project files"
 task :loopback do
   @project = "loopback"
