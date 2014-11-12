@@ -13,6 +13,7 @@ AP.HTTP = AP.HTTP || {};
  *
  * @class
  * @constructor
+ * @param [request] - An incoming request to copy the method, headers, and body.
  */
 AP.HTTP.Request = function() {
   /** @private */
@@ -41,6 +42,13 @@ AP.HTTP.Request = function() {
    * @type {Object.<string,string|string[]>}
    */
   this.headers = {};
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.method = request.method;
+    this.headers = request.headers;
+    this.body = request.body;
+  }
 }
 
 /**

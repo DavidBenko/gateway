@@ -11,7 +11,7 @@
  * Useful? Probably most in conjunction with another service. But yes.
  */
 router.get("/", "Hello World");
-router.path("/echo").methods("GET", "POST").name("Echo");
+router.path("/{e|E}cho").name("Echo");
 router.get("/foo", "Foo");
 router.get("/bar", "Bar");
 router.post("/secret", "Secret");
@@ -27,6 +27,7 @@ router.get("/env", "Environment");
  * the things the proxy can do.
  */
 router.get("/proxy", "Proxy");
+router.path("/proxyEcho").name("Proxy");
 router.get("/error", "Error Handling");
 router.get("/composite", "Composite");
 router.get("/workflow", "Workflow");
