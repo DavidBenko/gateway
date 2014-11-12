@@ -77,25 +77,28 @@ Run the app with the `--help` flag to see all options.
 
 ## Examples
 
-The `test` directory has several example servers and corresponding proxy 
-endpoint code. Each one is set up the same, and is designed to be used with the
-default test Gateway server running; i.e. run with `make run` from the root
-project directory. 
+The `test` directory has several sets of example data. The one being maintained
+most frequently right now is the standalone "loopback" server, which serves as
+its own backend.
 
-To run the backing server:
+Setup scripts for the "loopback" data and the other examples are run with
+`rake`, which you can get with a standard Ruby installation by invoking:
 
-    bundle install
-    ruby server.rb
+    gem install rake
+
+To seed a fresh server (run with `make run`) with the loopback data:
     
-To create the proxy code:
-
-    ./seed.sh
+	cd test/examples
+	rake loopback seed
     
 And to update the proxy code after making changes:
 
-    ./update.sh
+    rake loopback update
     
-To completely clear the default Gateway data, delete everything in `test/node`.
+To completely clear the default Gateway data:
+
+    rake clean
+
 
 ## Packaging
 
