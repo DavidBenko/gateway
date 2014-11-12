@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: assets build doc fmt package run test vendor_clean vendor_get vendor_update install_bindata vet
+.PHONY: assets build fmt godoc jsdoc package run test vendor_clean vendor_get vendor_update install_bindata vet
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -27,8 +27,10 @@ build: vet assets
 package: vet assets
 	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
 
-doc:
+jsdoc:
 	jsdoc -c ./jsdoc.conf -r
+	
+godoc:
 	godoc -http=:6060 -index
 
 # http://golang.org/cmd/go/#hdr-Run_gofmt_on_package_sources
