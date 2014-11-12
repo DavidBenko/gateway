@@ -83,11 +83,13 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
 	}()
 
-	modelEndpoint, err := s.db.Find(&model.Endpoint{}, "Name",
-		match.Route.GetName())
+	routeName := match.Route.GetName()
+	modelEndpoint, err := s.db.Find(&model.Endpoint{}, "Name", routeName)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
+
+	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, routeName)
 
 	endpoint := modelEndpoint.(*model.Endpoint)
 
