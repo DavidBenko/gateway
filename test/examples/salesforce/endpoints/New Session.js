@@ -1,3 +1,24 @@
+/**
+ * Logs the user into the service, by delegating to the Salesforce SOAP API.
+ * 
+ * $ curl -b cookies.txt -c cookies.txt \
+ *      -d '{"email":"qa_alias1@anypresence.com","password":"badpass","token":"orbadtoken"}' \
+ *      http://localhost:5000/sessions/new
+ * {
+ *    "error": "Invalid credentials."
+ * }
+ * 
+ * $ curl -b cookies.txt -c cookies.txt \
+ *      -d '{"email":"qa_alias1@anypresence.com","password":"<omitted>","token":"<omitted>"}' \
+ *      http://localhost:5000/sessions/new
+ * {
+ *    "success": true
+ * }
+ * 
+ */
+
+include("Salesforce");
+
 function main(proxyRequest) {
 	var credentials = JSON.parse(proxyRequest.body);
 	
@@ -11,11 +32,8 @@ function main(proxyRequest) {
 	   </soapenv:Body>\
 	</soapenv:Envelope>';
 	
-	var request = new AP.HTTP.Request();
-	request.method = "POST";
-	request.url = "https://login.salesforce.com/services/Soap/c/28.0";
-	request.headers["Content-Type"] = "text/xml;charset=UTF-8";
-	request.headers["SOAPAction"] = '""';
+	var request = Salesforce.newRequest();
+	request.url = AP.Environment.get("loginURL");
 	request.body = _.template(body)(credentials);
 	var proxyResponse = AP.makeRequest(request);
 	
@@ -44,6 +62,9 @@ function main(proxyRequest) {
 		return response;
 	}
 	
-	response.setJSONBodyPretty({"serverURL": serverMatch[1], "sessionID": sessionMatch[1]});
+	session.set("serverURL", serverMatch[1]);
+	session.set("sessionID", sessionMatch[1]);
+	
+	response.setJSONBodyPretty({"success": true});
 	return response;
 }

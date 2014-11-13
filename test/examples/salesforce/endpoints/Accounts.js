@@ -1,10 +1,45 @@
+/**
+ * Requests a truncated version of the accounts from Salesforce by
+ * delegating to its SOAP API.
+ * 
+ * After logging in:
+ * 
+ * $ curl -b cookies.txt -c cookies.txt http://localhost:5000/accounts?limit=1
+ * [
+ *    {
+ *       "id": "001d000001MEZm4AAH",
+ *       "name": "Aaron"
+ *    }
+ * ]
+ * 
+ * $ curl -b cookies.txt -c cookies.txt "http://localhost:5000/accounts?limit=1&offset=100"
+ * [
+ *    {
+ *       "id": "001d000001MEgKJAA1",
+ *       "name": "Adidas Corporation"
+ *    }
+ * ]
+ * 
+ * Or, if logged out:
+ * $ curl -b cookies.txt -c cookies.txt http://localhost:5000/accounts?limit=1
+ * {
+ *    "error": "Unauthorized"
+ * }
+ * 
+ */
+
+include("Salesforce");
+
 function main(proxyRequest) {
+	if (!Salesforce.isLoggedIn()) {
+		return Salesforce.unauthorizedResponse();
+	}
+	
 	var info = {
-		sessionID: proxyRequest.headers["X-Sessionid"],
-		serverURL: proxyRequest.headers["X-Serverurl"],
+		sessionID: session.get("sessionID"),
 		limit: Math.min(proxyRequest.params.limit || 100, 100),
 		offset: proxyRequest.params.offset || 0
-	}
+	};
 	
 	var body = '<?xml version="1.0" encoding="utf-8"?>\
 	<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:enterprise.soap.sforce.com">\
@@ -20,14 +55,10 @@ function main(proxyRequest) {
 	  </soapenv:Body>\
 	</soapenv:Envelope>';
 	
-	var request = new AP.HTTP.Request();
-	request.method = "POST";
-	request.url = info.serverURL;
-	request.headers["Content-Type"] = "text/xml;charset=UTF-8";
-	request.headers["SOAPAction"] = '""';
+	var request = Salesforce.newRequest();
 	request.body = _.template(body)(info);
 	var proxyResponse = AP.makeRequest(request);
-		
+			
 	// Prepare response
 	var response = new AP.HTTP.Response();
 	
