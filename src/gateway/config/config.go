@@ -15,6 +15,8 @@ import (
 type Configuration struct {
 	File string `flag:"config" default:"/etc/gateway/gateway.conf" usage:"The path to the configuration file"`
 
+	License string `flag:"license" default:"" usage:"The path to a valid Gateway license key"`
+
 	Proxy ProxyServer
 	Admin ProxyAdmin
 	Raft  RaftServer

@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: assets build fmt godoc jsdoc package run test vendor_clean vendor_get vendor_update install_bindata vet
+.PHONY: assets build fmt godoc jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata vet
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -12,6 +12,7 @@ PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
 ifneq ($(MAKECMDGOALS), package)
 	BINDATA_DEBUG = -debug
+	LICENSE_PUBLIC_KEY = test/dev_public_key_assets
 endif
 
 default: run
@@ -20,9 +21,13 @@ assets: install_bindata
 	go-bindata -o src/gateway/proxy/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/proxy/admin/static/" src/gateway/proxy/admin/static/...
 	go-bindata -o src/gateway/model/router_bindata.go -pkg model $(BINDATA_DEBUG) -prefix "src/gateway/model/static/" src/gateway/model/static/...
 	go-bindata -o src/gateway/proxy/vm/bindata.go -pkg vm $(BINDATA_DEBUG) -prefix "src/gateway/proxy/vm/static/" src/gateway/proxy/vm/static/...
+	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
 
 build: vet assets
 	go build -o ./bin/gateway ./src/gateway/main.go
+	
+keygen:
+	go build -o ./bin/keygen keygen
 
 package: vet assets
 	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
