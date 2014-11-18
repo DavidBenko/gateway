@@ -1,42 +1,42 @@
 /**
- * Primary Source
- * 
  * These routes mock out a back end, so that you don't have to
  * run another server for little experimentation.
- * 
- * It also shows how this tool can be used to provide value
+ */
+ router.get("/", "Acme.Static.HelloWorld");
+ router.get("/foo", "Acme.Static.Foo");
+ router.get("/bar", "Acme.Static.Bar");
+ router.get("/topsecret", "Acme.Static.TopSecret");
+
+
+ /*
+ * You can also use this tool can be used to provide value
  * directly. You could write your own business logic in Gateway
  * without requiring another service to proxy to.
- * 
+ *
  * Useful? Probably most in conjunction with another service. But yes.
  */
-router.get("/", "Hello World");
-router.path("/{e|E}cho").name("Echo");
-router.get("/foo", "Foo");
-router.get("/bar", "Bar");
-router.post("/secret", "Secret");
-router.get("/topsecret", "Top Secret");
-router.get("/greetings", "Greetings");
-router.get("/counter", "Counter");
-router.get("/env", "Environment");
+router.post("/secret", "Acme.Proxy.Secret");
+router.path("/{e|E}cho").name("Acme.Proxy.Echo");
+router.get("/greetings", "Acme.Proxy.Greetings");
+router.get("/counter", "Acme.Proxy.Counter");
+router.get("/env", "Acme.Proxy.Environment");
+// router.get("/widgets", "Acme.Proxy.Widgets");
+
 
 /**
- * Proxy Endpoints
- * 
  * These endpoints build on the endpoints above to highlight some of
- * the things the proxy can do.
+ * the things the proxy can do as a proxy.
  */
-router.get("/proxy", "Proxy");
-router.path("/proxyEcho").name("Proxy");
-router.get("/error", "Error Handling");
-router.get("/composite", "Composite");
-router.get("/workflow", "Workflow");
+router.get("/proxy", "Acme.Proxy.Proxy");
+router.path("/proxyEcho").name("Acme.Proxy.Proxy");
+router.get("/error", "Acme.Proxy.ErrorHandler");
+router.get("/composite", "Acme.Proxy.Composite");
+router.get("/workflow", "Acme.Proxy.Workflow");
+
 
 /**
- * Router Examples
- *
  * This just shows some routing functionality.
- * 
+ *
  * The following route matches only if:
  *   - path looks like /routed/1111 (any number of ones, nothing else)
  *   - HTTP method is 'CUSTOM'

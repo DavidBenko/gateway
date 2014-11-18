@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/db"
 	aphttp "gateway/http"
-	"gateway/model"
 	"gateway/proxy/admin"
+	"gateway/proxy/keys"
 	"gateway/proxy/vm"
 
 	"github.com/gorilla/context"
@@ -20,26 +19,48 @@ import (
 
 // Server encapsulates the proxy server.
 type Server struct {
-	proxyConf config.ProxyServer
-	adminConf config.ProxyAdmin
-	db        db.DB
-	router    *mux.Router
+	proxyConf   config.ProxyServer
+	adminConf   config.ProxyAdmin
+	router      *mux.Router
+	proxyRouter *mux.Router
+	scripts     map[string]*otto.Script
 }
 
 // NewServer builds a new proxy server.
-func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db db.DB) *Server {
+func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin) *Server {
+	scripts, err := scriptsFromFilesystem(proxyConfig)
+	if err != nil {
+		log.Fatalf("%s Could not setup proxy code: %v", config.Proxy, err)
+	}
+
+	routes, ok := scripts["routes"]
+	if !ok {
+		log.Fatalf("%s Top level code path must contain routes.js with routing code", config.Proxy)
+	}
+
+	proxyRouter, err := ParseRoutes(routes)
+	if err != nil {
+		log.Fatalf("%s Could not parse routes.js: %v", config.Proxy, err)
+	}
+
+	if proxyConfig.WatchRestart {
+		go watchForRestarts(proxyConfig.CodePath)
+	}
+
 	return &Server{
-		proxyConf: proxyConfig,
-		adminConf: adminConfig,
-		db:        db,
-		router:    mux.NewRouter(),
+		proxyConf:   proxyConfig,
+		adminConf:   adminConfig,
+		router:      mux.NewRouter(),
+		proxyRouter: proxyRouter,
+		scripts:     scripts,
 	}
 }
 
 // Run runs the server.
 func (s *Server) Run() {
+
 	// Set up admin
-	admin.AddRoutes(s.router, s.db, s.adminConf)
+	admin.AddRoutes(s.router, s.adminConf)
 
 	// Set up proxy
 	s.router.Handle("/{path:.*}",
@@ -56,13 +77,8 @@ func (s *Server) Run() {
 }
 
 func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
-	router := s.db.Router().MUXRouter
-	if router == nil {
-		return false
-	}
-
 	var match mux.RouteMatch
-	ok := router.Match(r, &match)
+	ok := s.proxyRouter.Match(r, &match)
 	if ok {
 		context.Set(r, aphttp.ContextMatchKey, &match)
 	}
@@ -83,27 +99,36 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
 	}()
 
-	routeName := match.Route.GetName()
-	modelEndpoint, err := s.db.Find(&model.Endpoint{}, "Name", routeName)
+	controller := match.Route.GetName()
+
+	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, controller)
+
+	endpointKey, err := keys.ScriptKeyForCodeString(controller)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, routeName)
-
-	endpoint := modelEndpoint.(*model.Endpoint)
+	endpoint, ok := s.scripts[endpointKey]
+	// FIXME: I think we can guarantee this particular bit won't happen at startup
+	if !ok {
+		err = fmt.Errorf("No code found for '%s'", controller)
+		return aphttp.NewServerError(err)
+	}
 
 	incomingJSON, err := proxyRequestJSON(r, match.Vars)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
+	handleScript := fmt.Sprintf("App.handle(JSON.parse(__ap_proxyRequestJSON), %s);", controller)
+
 	var scripts = []interface{}{
-		endpoint.Script,
-		"main(JSON.parse(__ap_proxyRequestJSON));",
+		s.scripts["app"], // FIXME Ensure existance & check validity in setup
+		endpoint,
+		handleScript,
 	}
 
-	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.db)
+	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.scripts)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

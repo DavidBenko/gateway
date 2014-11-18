@@ -32,8 +32,7 @@ Now source the file into your local shell and install a few Go tools:
     make run
 
 This runs a Gateway instance using the configuration specified in 
-`test/gateway.conf`, and the data stored in `test/node`. To clear data between
-runs, delete `test/node/log`.
+`test/gateway.conf`, and sample proxy code stored in `test/examples`.
 
 ### Static Assets
 
@@ -96,6 +95,8 @@ example, the development license in `test/dev_license` was generated with:
 	    -company="AnyPresence, Inc" -private-key=./test/license/private_key
 
 ## Examples
+
+FIXME Out of date with filesystem code
 
 The `test` directory has several sets of example data. The one being maintained
 most frequently right now is the standalone "loopback" server, which serves as

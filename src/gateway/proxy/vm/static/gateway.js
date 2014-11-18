@@ -50,3 +50,22 @@ AP.makeRequests = function(requests) {
   var rawResponse = __ap_makeRequests(JSON.stringify(typedRequests));
   return JSON.parse(rawResponse);
 }
+
+AP.Gateway = function() {
+	this.middleware = [];
+}
+
+AP.Gateway.prototype.handle = function(request, endpoint) {
+	var chain = new AP.Gateway.RequestChain(this.middleware, endpoint);
+	return chain.handle(request);
+}
+
+AP.Gateway.RequestChain = function(middleware, endpoint) {
+	this.handlers = middleware.slice(0);
+	this.handlers.push(endpoint);
+}
+
+AP.Gateway.RequestChain.prototype.handle = function(request) {
+	var handler = new (this.handlers.shift())(this);
+	return handler.handle(request);
+}

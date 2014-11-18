@@ -1,4 +1,0 @@
-{
-    "mood": "grumpy",
-	"shouldPrompt": true
-}

@@ -6,10 +6,7 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/db"
 	aphttp "gateway/http"
-	"gateway/model"
-	"gateway/rest"
 
 	"github.com/gorilla/mux"
 )
@@ -26,17 +23,10 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 }
 
 // AddRoutes adds the admin routes to the specified router.
-func AddRoutes(router *mux.Router, db db.DB, conf config.ProxyAdmin) {
+func AddRoutes(router *mux.Router, conf config.ProxyAdmin) {
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
 	admin = aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
-
-	(&rest.HTTPResource{Resource: &adminRoutes{db: db}}).RouteSingleton(admin)
-
-	(&rest.HTTPResource{Resource: &adminResource{backingModel: &model.Endpoint{}, db: db}}).Route(admin)
-	(&rest.HTTPResource{Resource: &adminResource{backingModel: &model.Library{}, db: db}}).Route(admin)
-	(&rest.HTTPResource{Resource: &adminResource{backingModel: &model.Environment{}, db: db}}).Route(admin)
-
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }
 

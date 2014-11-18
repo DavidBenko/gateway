@@ -19,6 +19,8 @@ func setupFlags(value reflect.Value) {
 				flag.Int64(name, parseInt(value), usage)
 			case reflect.String:
 				flag.String(name, value, usage)
+			case reflect.Bool:
+				flag.Bool(name, parseBool(value), usage)
 			}
 		},
 	)
@@ -36,6 +38,8 @@ func setDefaults(value reflect.Value) {
 				field.SetInt(parseInt(value))
 			case reflect.String:
 				field.SetString(value)
+			case reflect.Bool:
+				field.SetBool(parseBool(value))
 			}
 		},
 	)
@@ -60,6 +64,8 @@ func setFromFlags(value reflect.Value) {
 				field.SetInt(parseInt(setFlagValue.String()))
 			case reflect.String:
 				field.SetString(setFlagValue.String())
+			case reflect.Bool:
+				field.SetBool(parseBool(setFlagValue.String()))
 			}
 		},
 	)
@@ -97,4 +103,12 @@ func parseInt(value string) int64 {
 		log.Fatal(err)
 	}
 	return i
+}
+
+func parseBool(value string) bool {
+	b, err := strconv.ParseBool(value)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return b
 }

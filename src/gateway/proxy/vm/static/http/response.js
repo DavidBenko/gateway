@@ -12,7 +12,7 @@ AP.HTTP.Response = function() {
    * The HTTP status code of the response.
    * @type {integer}
    */
-  this.url = null;
+  this.statusCode = 200;
 
   /**
    * The body of the response.

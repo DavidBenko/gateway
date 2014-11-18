@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/db"
-	"gateway/model"
+	"gateway/proxy/keys"
 	"gateway/proxy/requests"
 
 	"github.com/gorilla/sessions"
@@ -27,12 +26,13 @@ type ProxyVM struct {
 	conf                    config.ProxyServer
 	requestID               string
 	ProxiedRequestsDuration time.Duration
-	includedLibraries       []string
+
+	scripts           map[string]*otto.Script
+	includedLibraries []string
 
 	w            http.ResponseWriter
 	r            *http.Request
 	sessionStore *sessions.CookieStore
-	db           db.DB
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
@@ -41,7 +41,7 @@ func NewVM(
 	w http.ResponseWriter,
 	r *http.Request,
 	conf config.ProxyServer,
-	db db.DB,
+	proxyScripts map[string]*otto.Script,
 ) (*ProxyVM, error) {
 
 	var files = []string{
@@ -60,7 +60,13 @@ func NewVM(
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{otto.New(), conf, requestID, 0, []string{}, w, r, nil, db}
+	vm := &ProxyVM{
+		otto.New(),
+		conf, requestID, 0,
+		proxyScripts, []string{},
+		w, r,
+		nil,
+	}
 
 	if conf.AuthKey != "" {
 		sessionConfig := [][]byte{[]byte(conf.AuthKey)}
@@ -110,13 +116,17 @@ func (p *ProxyVM) includeLibrary(call otto.FunctionCall) otto.Value {
 	}
 	p.includedLibraries = append(p.includedLibraries, libraryName)
 
-	libraryModel, err := p.db.Find(&model.Library{}, "Name", libraryName)
+	libraryKey, err := keys.ScriptKeyForCodeString(libraryName)
 	if err != nil {
+		runtimeError(fmt.Sprintf("Could not make '%s' to script key", libraryName))
+	}
+
+	library, ok := p.scripts[libraryKey]
+	if !ok {
 		runtimeError(fmt.Sprintf("There is no library named '%s'", libraryName))
 	}
 
-	library := libraryModel.(*model.Library)
-	_, err = p.Run(library.Script)
+	_, err = p.Run(library)
 	if err != nil {
 		runtimeError(fmt.Sprintf("Error in library '%s': %s", libraryName, err))
 	}
