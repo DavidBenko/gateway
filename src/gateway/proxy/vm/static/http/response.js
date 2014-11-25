@@ -24,7 +24,7 @@ AP.HTTP.Response = function() {
    * The response's headers.
    * @type {Object.<string,string|string[]>}
    */
-  this.headers = null;
+  this.headers = {};
 }
 
 /**
@@ -36,7 +36,6 @@ AP.HTTP.Response = function() {
  * @param {object} object The object to serialize and use as the response body
  */
 AP.HTTP.Response.prototype.setJSONBody = function(object) {
-  this.headers = this.headers || {};
   this.headers["Content-Type"] = "application/json";
   this.body = JSON.stringify(object);
 }
@@ -50,7 +49,6 @@ AP.HTTP.Response.prototype.setJSONBody = function(object) {
  * @param {object} object The object to serialize and use as the response body
  */
 AP.HTTP.Response.prototype.setJSONBodyPretty = function(object) {
-  this.headers = this.headers || {};
   this.headers["Content-Type"] = "application/json";
   this.body = JSON.stringify(object, null, "   ") + "\n";
 }

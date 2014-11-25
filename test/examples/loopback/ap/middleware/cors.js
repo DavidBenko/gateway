@@ -6,7 +6,7 @@ AP.Middleware.CORS = function(next) {
 
 AP.Middleware.CORS.prototype.handle = function(request) {
 	var response = this.next.handle(request);
-	response.headers = response.headers || {};
-	response.headers["Access-Control-Allow-Origin"] = "*";
+	var accessHeader = response.headers["Access-Control-Allow-Origin"]
+	response.headers["Access-Control-Allow-Origin"] = accessHeader || "*";
 	return response;
 }
