@@ -27,16 +27,14 @@ func Translate(c *Config) error {
 		return err
 	}
 
+	var knownFuncs = make(map[string]int)
 	// Locate all the assets.
 	for _, input := range c.Input {
-		err = findFiles(input.Path, c.Prefix, input.Recursive, &toc, c.Ignore)
+		err = findFiles(input.Path, c.Prefix, input.Recursive, &toc, c.Ignore, knownFuncs)
 		if err != nil {
 			return err
 		}
 	}
-
-	// Sort to make output stable between invocations
-	sort.Sort(ByPath(toc))
 
 	// Create output file.
 	fd, err := os.Create(c.Output)
@@ -80,13 +78,25 @@ func Translate(c *Config) error {
 		return err
 	}
 	// Write hierarchical tree of assets
-	return writeTOCTree(bfd, toc)
+	if err := writeTOCTree(bfd, toc); err != nil {
+		return err
+	}
+
+	// Write restore procedure
+	return writeRestore(bfd)
 }
+
+// Implement sort.Interface for []os.FileInfo based on Name()
+type ByName []os.FileInfo
+
+func (v ByName) Len() int           { return len(v) }
+func (v ByName) Swap(i, j int)      { v[i], v[j] = v[j], v[i] }
+func (v ByName) Less(i, j int) bool { return v[i].Name() < v[j].Name() }
 
 // findFiles recursively finds all the file paths in the given directory tree.
 // They are added to the given map as keys. Values will be safe function names
 // for each file, which will be used when generating the output code.
-func findFiles(dir, prefix string, recursive bool, toc *[]Asset, ignore []*regexp.Regexp) error {
+func findFiles(dir, prefix string, recursive bool, toc *[]Asset, ignore []*regexp.Regexp, knownFuncs map[string]int) error {
 	if len(prefix) > 0 {
 		dir, _ = filepath.Abs(dir)
 		prefix, _ = filepath.Abs(prefix)
@@ -115,9 +125,10 @@ func findFiles(dir, prefix string, recursive bool, toc *[]Asset, ignore []*regex
 		if err != nil {
 			return err
 		}
-	}
 
-	knownFuncs := make(map[string]int)
+		// Sort to make output stable between invocations
+		sort.Sort(ByName(list))
+	}
 
 	for _, file := range list {
 		var asset Asset
@@ -137,7 +148,7 @@ func findFiles(dir, prefix string, recursive bool, toc *[]Asset, ignore []*regex
 
 		if file.IsDir() {
 			if recursive {
-				findFiles(asset.Path, prefix, recursive, toc, ignore)
+				findFiles(asset.Path, prefix, recursive, toc, ignore, knownFuncs)
 			}
 			continue
 		}

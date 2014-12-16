@@ -56,7 +56,7 @@
 // where t is the lower-cased name of the first type listed. It can be overridden
 // with the -output flag.
 //
-package main
+package main // import "golang.org/x/tools/cmd/stringer"
 
 import (
 	"bytes"
@@ -261,7 +261,7 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 // check type-checks the package. The package must be OK to proceed.
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.defs = make(map[*ast.Ident]types.Object)
-	var config types.Config
+	config := types.Config{FakeImportC: true}
 	info := &types.Info{
 		Defs: pkg.defs,
 	}

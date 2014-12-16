@@ -18,8 +18,8 @@ Then in your .emacs file:
    (add-hook 'before-save-hook 'gofmt-before-save)
 
 For vim, set "gofmt_command" to "goimports":
-    https://code.google.com/p/go/source/detail?r=39c724dd7f252
-    https://code.google.com/p/go/source/browse#hg%2Fmisc%2Fvim
+    https://golang.org/change/39c724dd7f252
+    https://golang.org/wiki/IDEsAndTextEditorPlugins
     etc
 
 For GoSublime, follow the steps described here:
@@ -30,4 +30,4 @@ For other editors, you probably know what to do.
 Happy hacking!
 
 */
-package main
+package main // import "golang.org/x/tools/cmd/goimports"

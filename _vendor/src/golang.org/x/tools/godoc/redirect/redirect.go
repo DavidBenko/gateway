@@ -5,11 +5,15 @@
 // Package redirect provides hooks to register HTTP handlers that redirect old
 // godoc paths to their new equivalents and assist in accessing the issue
 // tracker, wiki, code review system, etc.
-package redirect
+package redirect // import "golang.org/x/tools/godoc/redirect"
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 // Register registers HTTP handlers that redirect old godoc paths to their new
@@ -29,7 +33,9 @@ func Register(mux *http.ServeMux) {
 		mux.Handle(path, Handler(redirect))
 	}
 	// NB: /src/pkg (sans trailing slash) is the index of packages.
-	http.HandleFunc("/src/pkg/", srcPkgHandler)
+	mux.HandleFunc("/src/pkg/", srcPkgHandler)
+	mux.HandleFunc("/cl/", clHandler)
+	mux.HandleFunc("/change/", changeHandler)
 }
 
 func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
@@ -84,13 +90,13 @@ var cmdRedirects = map[string]string{
 var redirects = map[string]string{
 	"/blog":       "/blog/",
 	"/build":      "http://build.golang.org",
-	"/change":     "https://code.google.com/p/go/source/list",
-	"/cl":         "https://gocodereview.appspot.com/",
+	"/change":     "https://go.googlesource.com/go",
+	"/cl":         "https://go-review.googlesource.com",
 	"/cmd/godoc/": "http://godoc.org/golang.org/x/tools/cmd/godoc/",
 	"/cmd/vet/":   "http://godoc.org/golang.org/x/tools/cmd/vet/",
-	"/issue":      "https://code.google.com/p/go/issues",
-	"/issue/new":  "https://code.google.com/p/go/issues/entry",
-	"/issues":     "https://code.google.com/p/go/issues",
+	"/issue":      "https://github.com/golang/go/issues",
+	"/issue/new":  "https://github.com/golang/go/issues/new",
+	"/issues":     "https://github.com/golang/go/issues",
 	"/play":       "http://play.golang.org",
 
 	// In Go 1.2 the references page is part of /doc/.
@@ -105,7 +111,7 @@ var redirects = map[string]string{
 
 	"/talks": "http://talks.golang.org",
 	"/tour":  "http://tour.golang.org",
-	"/wiki":  "https://code.google.com/p/go-wiki/w/list",
+	"/wiki":  "https://github.com/golang/go/wiki",
 
 	"/doc/articles/c_go_cgo.html":                    "/blog/c-go-cgo",
 	"/doc/articles/concurrency_patterns.html":        "/blog/go-concurrency-patterns-timing-out-and",
@@ -125,12 +131,10 @@ var redirects = map[string]string{
 }
 
 var prefixHelpers = map[string]string{
-	"change": "https://code.google.com/p/go/source/detail?r=",
-	"cl":     "https://codereview.appspot.com/",
-	"issue":  "https://code.google.com/p/go/issues/detail?id=",
-	"play":   "http://play.golang.org/",
-	"talks":  "http://talks.golang.org/",
-	"wiki":   "https://code.google.com/p/go-wiki/wiki/",
+	"issue": "https://github.com/golang/go/issues/",
+	"play":  "http://play.golang.org/",
+	"talks": "http://talks.golang.org/",
+	"wiki":  "https://github.com/golang/go/wiki/",
 }
 
 func Handler(target string) http.Handler {
@@ -163,4 +167,63 @@ func PrefixHandler(prefix, baseURL string) http.Handler {
 func srcPkgHandler(w http.ResponseWriter, r *http.Request) {
 	r.URL.Path = "/src/" + r.URL.Path[len("/src/pkg/"):]
 	http.Redirect(w, r, r.URL.String(), http.StatusMovedPermanently)
+}
+
+func clHandler(w http.ResponseWriter, r *http.Request) {
+	const prefix = "/cl/"
+	if p := r.URL.Path; p == prefix {
+		// redirect /prefix/ to /prefix
+		http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+		return
+	}
+	id := r.URL.Path[len(prefix):]
+	if !validId.MatchString(id) {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	target := ""
+	// the first CL in rietveld is about 152046, so if id is less than
+	// 150000, treat it as a Gerrit change id.
+	if n, _ := strconv.Atoi(id); strings.HasPrefix(id, "I") || n < 150000 {
+		target = "https://go-review.googlesource.com/#/q/" + id
+	} else {
+		target = "https://codereview.appspot.com/" + id
+	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+var changeMap *hashMap
+
+// LoadChangeMap loads the specified map of Mercurial to Git revisions,
+// which is used by the /change/ handler to intelligently map old hg
+// revisions to their new git equivalents.
+// It should be called before calling Register.
+// The file should remain open as long as the process is running.
+// See the implementation of this package for details.
+func LoadChangeMap(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	m, err := newHashMap(f)
+	if err != nil {
+		return err
+	}
+	changeMap = m
+	return nil
+}
+
+func changeHandler(w http.ResponseWriter, r *http.Request) {
+	const prefix = "/change/"
+	if p := r.URL.Path; p == prefix {
+		// redirect /prefix/ to /prefix
+		http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+		return
+	}
+	hash := r.URL.Path[len(prefix):]
+	target := "https://go.googlesource.com/go/+/" + hash
+	if git := changeMap.Lookup(hash); git > 0 {
+		target = fmt.Sprintf("https://go.googlesource.com/%v/+/%v", git.Repo(), git.Hash())
+	}
+	http.Redirect(w, r, target, http.StatusFound)
 }

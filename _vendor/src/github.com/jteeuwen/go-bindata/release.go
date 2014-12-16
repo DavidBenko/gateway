@@ -5,10 +5,13 @@
 package bindata
 
 import (
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"unicode/utf8"
 )
 
 // writeRelease writes the release code file.
@@ -31,19 +34,24 @@ func writeRelease(w io.Writer, c *Config, toc []Asset) error {
 // writeReleaseHeader writes output file headers.
 // This targets release builds.
 func writeReleaseHeader(w io.Writer, c *Config) error {
+	var err error
 	if c.NoCompress {
 		if c.NoMemCopy {
-			return header_uncompressed_nomemcopy(w)
+			err = header_uncompressed_nomemcopy(w)
 		} else {
-			return header_uncompressed_memcopy(w)
+			err = header_uncompressed_memcopy(w)
 		}
 	} else {
 		if c.NoMemCopy {
-			return header_compressed_nomemcopy(w)
+			err = header_compressed_nomemcopy(w)
 		} else {
-			return header_compressed_memcopy(w)
+			err = header_compressed_memcopy(w)
 		}
 	}
+	if err != nil {
+		return err
+	}
+	return header_release_common(w)
 }
 
 // writeReleaseAsset write a release entry for the given asset.
@@ -59,17 +67,34 @@ func writeReleaseAsset(w io.Writer, c *Config, asset *Asset) error {
 
 	if c.NoCompress {
 		if c.NoMemCopy {
-			return uncompressed_nomemcopy(w, asset, fd)
+			err = uncompressed_nomemcopy(w, asset, fd)
 		} else {
-			return uncompressed_memcopy(w, asset, fd)
+			err = uncompressed_memcopy(w, asset, fd)
 		}
 	} else {
 		if c.NoMemCopy {
-			return compressed_nomemcopy(w, asset, fd)
+			err = compressed_nomemcopy(w, asset, fd)
 		} else {
-			return compressed_memcopy(w, asset, fd)
+			err = compressed_memcopy(w, asset, fd)
 		}
 	}
+	if err != nil {
+		return err
+	}
+	return asset_release_common(w, asset)
+}
+
+// sanitize prepares a valid UTF-8 string as a raw string constant.
+// Based on https://code.google.com/p/go/source/browse/godoc/static/makestatic.go?repo=tools
+func sanitize(b []byte) []byte {
+	// Replace ` with `+"`"+`
+	b = bytes.Replace(b, []byte("`"), []byte("`+\"`\"+`"), -1)
+
+	// Replace BOM with `+"\xEF\xBB\xBF"+`
+	// (A BOM is valid UTF-8 but not permitted in Go source files.
+	// I wouldn't bother handling this, but for some insane reason
+	// jquery.js has a BOM somewhere in the middle.)
+	return bytes.Replace(b, []byte("\xEF\xBB\xBF"), []byte("`+\"\\xEF\\xBB\\xBF\"+`"), -1)
 }
 
 func header_compressed_nomemcopy(w io.Writer) error {
@@ -81,6 +106,11 @@ func header_compressed_nomemcopy(w io.Writer) error {
 	"reflect"
 	"strings"
 	"unsafe"
+	"os"
+	"time"
+	"io/ioutil"
+	"path"
+	"path/filepath"
 )
 
 func bindata_read(data, name string) ([]byte, error) {
@@ -119,6 +149,11 @@ func header_compressed_memcopy(w io.Writer) error {
 	"fmt"
 	"io"
 	"strings"
+	"os"
+	"time"
+	"io/ioutil"
+	"path"
+	"path/filepath"
 )
 
 func bindata_read(data []byte, name string) ([]byte, error) {
@@ -148,6 +183,11 @@ func header_uncompressed_nomemcopy(w io.Writer) error {
 	"reflect"
 	"strings"
 	"unsafe"
+	"os"
+	"time"
+	"io/ioutil"
+	"path"
+	"path/filepath"
 )
 
 func bindata_read(data, name string) ([]byte, error) {
@@ -169,7 +209,48 @@ func header_uncompressed_memcopy(w io.Writer) error {
 	_, err := fmt.Fprintf(w, `import (
 	"fmt"
 	"strings"
+	"os"
+	"time"
+	"io/ioutil"
+	"path"
+	"path/filepath"
 )
+`)
+	return err
+}
+
+func header_release_common(w io.Writer) error {
+	_, err := fmt.Fprintf(w, `type asset struct {
+	bytes []byte
+	info  os.FileInfo
+}
+
+type bindata_file_info struct {
+	name string
+	size int64
+	mode os.FileMode
+	modTime time.Time
+}
+
+func (fi bindata_file_info) Name() string {
+	return fi.name
+}
+func (fi bindata_file_info) Size() int64 {
+	return fi.size
+}
+func (fi bindata_file_info) Mode() os.FileMode {
+	return fi.mode
+}
+func (fi bindata_file_info) ModTime() time.Time {
+	return fi.modTime
+}
+func (fi bindata_file_info) IsDir() bool {
+	return false
+}
+func (fi bindata_file_info) Sys() interface{} {
+	return nil
+}
+
 `)
 	return err
 }
@@ -190,7 +271,7 @@ func compressed_nomemcopy(w io.Writer, asset *Asset, r io.Reader) error {
 
 	_, err = fmt.Fprintf(w, `"
 
-func %s() ([]byte, error) {
+func %s_bytes() ([]byte, error) {
 	return bindata_read(
 		_%s,
 		%q,
@@ -202,14 +283,12 @@ func %s() ([]byte, error) {
 }
 
 func compressed_memcopy(w io.Writer, asset *Asset, r io.Reader) error {
-	_, err := fmt.Fprintf(w, `func %s() ([]byte, error) {
-	return bindata_read([]byte{`, asset.Func)
-
+	_, err := fmt.Fprintf(w, `var _%s = []byte("`, asset.Func)
 	if err != nil {
-		return nil
+		return err
 	}
 
-	gz := gzip.NewWriter(&ByteWriter{Writer: w})
+	gz := gzip.NewWriter(&StringWriter{Writer: w})
 	_, err = io.Copy(gz, r)
 	gz.Close()
 
@@ -217,13 +296,16 @@ func compressed_memcopy(w io.Writer, asset *Asset, r io.Reader) error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(w, `
-	},
+	_, err = fmt.Fprintf(w, `")
+
+func %s_bytes() ([]byte, error) {
+	return bindata_read(
+		_%s,
 		%q,
 	)
 }
 
-`, asset.Name)
+`, asset.Func, asset.Func, asset.Name)
 	return err
 }
 
@@ -240,7 +322,7 @@ func uncompressed_nomemcopy(w io.Writer, asset *Asset, r io.Reader) error {
 
 	_, err = fmt.Fprintf(w, `"
 
-func %s() ([]byte, error) {
+func %s_bytes() ([]byte, error) {
 	return bindata_read(
 		_%s,
 		%q,
@@ -252,21 +334,48 @@ func %s() ([]byte, error) {
 }
 
 func uncompressed_memcopy(w io.Writer, asset *Asset, r io.Reader) error {
-	_, err := fmt.Fprintf(w, `func %s() ([]byte, error) {
-	return []byte{`, asset.Func)
+	_, err := fmt.Fprintf(w, `var _%s = []byte(`, asset.Func)
 	if err != nil {
 		return err
 	}
 
-	_, err = io.Copy(&ByteWriter{Writer: w}, r)
+	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
 	}
+	if utf8.Valid(b) {
+		fmt.Fprintf(w, "`%s`", sanitize(b))
+	} else {
+		fmt.Fprintf(w, "%q", b)
+	}
 
-	_, err = fmt.Fprintf(w, `
-	}, nil
+	_, err = fmt.Fprintf(w, `)
+
+func %s_bytes() ([]byte, error) {
+	return _%s, nil
 }
 
-`)
+`, asset.Func, asset.Func)
+	return err
+}
+
+func asset_release_common(w io.Writer, asset *Asset) error {
+	fi, err := os.Stat(asset.Path)
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(w, `func %s() (*asset, error) {
+	bytes, err := %s_bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindata_file_info{name: %q, size: %d, mode: os.FileMode(%d), modTime: time.Unix(%d, 0)}
+	a := &asset{bytes: bytes, info:  info}
+	return a, nil
+}
+
+`, asset.Func, asset.Func, asset.Name, fi.Size(), uint32(fi.Mode()), fi.ModTime().Unix())
 	return err
 }
