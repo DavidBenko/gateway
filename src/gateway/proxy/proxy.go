@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"gateway/admin"
 	"gateway/config"
 	aphttp "gateway/http"
-	"gateway/proxy/admin"
 	"gateway/proxy/keys"
 	"gateway/proxy/vm"
 
