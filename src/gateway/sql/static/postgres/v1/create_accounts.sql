@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS `accounts` (
+  `id` INTEGER SERIAL PRIMARY KEY,
+  `name` VARCHAR(255)
+);

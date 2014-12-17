@@ -13,14 +13,14 @@ import (
 
 const currentVersion = 1
 
-type driverType int64
+type driverType string
 
 const (
 	// Sqlite3 driver type
-	Sqlite3 driverType = iota
+	Sqlite3 = "sqlite3"
 
 	// Postgres driver type
-	Postgres
+	Postgres = "postgres"
 )
 
 // DB wraps a *sqlx.DB with some convenience methods and data
@@ -33,10 +33,8 @@ type DB struct {
 func Connect(conf config.Database) (*DB, error) {
 	var driver driverType
 	switch conf.Driver {
-	case "sqlite3":
-		driver = Sqlite3
-	case "postgres":
-		driver = Postgres
+	case "sqlite3", "postgres":
+		driver = driverType(conf.Driver)
 	default:
 		return nil,
 			fmt.Errorf("Database driver must be sqlite3 or postgres (got '%v')",
@@ -87,4 +85,13 @@ func (db *DB) Migrate() error {
 	}
 
 	return nil
+}
+
+func (db *DB) sql(name string) string {
+	asset := fmt.Sprintf("%s/%s.sql", db.Driver, name)
+	bytes, err := Asset(asset)
+	if err != nil {
+		log.Fatalf("%s could not find %s", config.System, asset)
+	}
+	return string(bytes)
 }
