@@ -13,19 +13,23 @@ import (
 )
 
 func main() {
+	// Setup logging
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
 	log.SetOutput(os.Stdout)
 
+	// Parse configuration
 	conf, err := config.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatalf("Error parsing config file: %v", err)
+		log.Fatalf("%s Error parsing config file: %v", config.System, err)
 	}
 
+	// Require a valid license key
 	license.ValidateForever(conf.License, time.Hour)
 
+	// Setup the database
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
+		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 	if !db.UpToDate() {
 		if conf.Database.Migrate {
@@ -33,12 +37,13 @@ func main() {
 				log.Fatalf("Error migrating database: %v", err)
 			}
 		} else {
-			message := "The database is not up to date.\n"
-			message += "Please migrate by invoking with the -db-migrate flag."
-			log.Fatal(message)
+			log.Fatalf("%s The database is not up to date. "+
+				"Please migrate by invoking with the -db-migrate flag.",
+				config.System)
 		}
 	}
 
+	// Start the proxy
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf.Proxy, conf.Admin)
 	go proxy.Run()
