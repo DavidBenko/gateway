@@ -32,7 +32,9 @@ test/raft.tddium*
 # Bindata
 **/*bindata.go
 
-# Test Node Data
+# Some test data
 test/node
+test/gateway.db
+
 
 **.DS_Store

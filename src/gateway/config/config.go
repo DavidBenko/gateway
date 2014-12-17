@@ -17,8 +17,16 @@ type Configuration struct {
 
 	License string `flag:"license" default:"" usage:"The path to a valid Gateway license key"`
 
-	Proxy ProxyServer
-	Admin ProxyAdmin
+	Database Database
+	Proxy    ProxyServer
+	Admin    ProxyAdmin
+}
+
+// Database specifies configuration options for your database
+type Database struct {
+	Migrate          bool   `flag:"db-migrate"     default:"false"                   usage:"Whether or not to migrate the database on startup"`
+	Driver           string `flag:"db-driver"      default:"sqlite3"                 usage:"The database driver; sqlite or postgres"`
+	ConnectionString string `flag:"db-conn-string" default:"/etc/gateway/gateway.db" usage:"The connection string for your database"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

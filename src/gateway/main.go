@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"math/rand"
 	"time"
 
 	"os"
@@ -11,6 +9,7 @@ import (
 	"gateway/config"
 	"gateway/license"
 	"gateway/proxy"
+	"gateway/sql"
 )
 
 func main() {
@@ -19,13 +18,26 @@ func main() {
 
 	conf, err := config.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error parsing config file: %v", err))
+		log.Fatalf("Error parsing config file: %v", err)
 	}
 
 	license.ValidateForever(conf.License, time.Hour)
 
-	// Each server name must be unique
-	rand.Seed(time.Now().UnixNano())
+	db, err := sql.Connect(conf.Database)
+	if err != nil {
+		log.Fatalf("Error connecting to database: %v", err)
+	}
+	if !db.UpToDate() {
+		if conf.Database.Migrate {
+			if err = db.Migrate(); err != nil {
+				log.Fatalf("Error migrating database: %v", err)
+			}
+		} else {
+			message := "The database is not up to date.\n"
+			message += "Please migrate by invoking with the -db-migrate flag."
+			log.Fatal(message)
+		}
+	}
 
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf.Proxy, conf.Admin)

@@ -43,7 +43,7 @@ fmt:
 	goimports ./src/...
 
 run: build
-	./bin/gateway -config=./test/gateway.conf
+	./bin/gateway -config=./test/gateway.conf -db-migrate
 
 test: assets
 	go test ./src/...
@@ -68,7 +68,9 @@ vendor_get: vendor_clean
 	github.com/goraft/raft \
 	code.google.com/p/go.tools/cmd/goimports \
 	github.com/jteeuwen/go-bindata \
-	gopkg.in/fsnotify.v1
+	gopkg.in/fsnotify.v1 \
+	github.com/jmoiron/sqlx \
+	github.com/mattn/go-sqlite3
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
