@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -37,6 +38,11 @@ func NewError(err error, code int) Error {
 // NewServerError returns a new error with standard code.
 func NewServerError(err error) Error {
 	return NewError(err, 0)
+}
+
+// DefaultServerError returns a standard error message with standard code.
+func DefaultServerError() Error {
+	return NewError(errors.New("Server error"), 0)
 }
 
 // ErrorReturningHandler is an http.Handler that can return an error
