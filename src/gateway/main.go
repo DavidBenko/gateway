@@ -45,7 +45,7 @@ func main() {
 
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
-	proxy := proxy.NewServer(conf.Proxy, conf.Admin)
+	proxy := proxy.NewServer(conf.Proxy, conf.Admin, db)
 	go proxy.Run()
 
 	done := make(chan bool)

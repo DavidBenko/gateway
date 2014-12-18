@@ -7,6 +7,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	sql "gateway/sql"
 
 	"github.com/gorilla/mux"
 )
@@ -23,10 +24,14 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 }
 
 // AddRoutes adds the admin routes to the specified router.
-func AddRoutes(router *mux.Router, conf config.ProxyAdmin) {
+func AddRoutes(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
-	admin = aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
+
+	// siteAdmin is additionally protected for the site owner
+	siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
+	RouteAccounts(siteAdmin, db)
+
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }
 

@@ -11,6 +11,7 @@ import (
 	aphttp "gateway/http"
 	"gateway/proxy/keys"
 	"gateway/proxy/vm"
+	sql "gateway/sql"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -23,11 +24,12 @@ type Server struct {
 	adminConf   config.ProxyAdmin
 	router      *mux.Router
 	proxyRouter *mux.Router
+	db          *sql.DB
 	scripts     map[string]*otto.Script
 }
 
 // NewServer builds a new proxy server.
-func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin) *Server {
+func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
 	scripts, err := scriptsFromFilesystem(proxyConfig)
 	if err != nil {
 		log.Fatalf("%s Could not setup proxy code: %v", config.Proxy, err)
@@ -52,6 +54,7 @@ func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin) *S
 		adminConf:   adminConfig,
 		router:      mux.NewRouter(),
 		proxyRouter: proxyRouter,
+		db:          db,
 		scripts:     scripts,
 	}
 }
@@ -60,7 +63,7 @@ func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin) *S
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.AddRoutes(s.router, s.adminConf)
+	admin.AddRoutes(s.router, s.db, s.adminConf)
 
 	// Set up proxy
 	s.router.Handle("/{path:.*}",
