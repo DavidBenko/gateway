@@ -13,6 +13,7 @@ import (
 	sql "gateway/sql"
 
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 // RouteAccounts routes all the endpoints for account management
@@ -22,12 +23,12 @@ func RouteAccounts(router aphttp.Router, db *sql.DB) {
 			"GET":  ListAccountsHandler(db),
 			"POST": CreateAccountHandler(db),
 		})
-	// router.Handle("/accounts/{id}",
-	// 	handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-	// 		"GET":    ShowAccountHandler(),
-	// 		"PUT":    UpdateAccountHandler(),
-	// 		"DELETE": DeleteAccountHandler(),
-	// 	}))
+	router.Handle("/accounts/{id}",
+		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
+			"GET": ShowAccountHandler(db),
+			// 		"PUT":    UpdateAccountHandler(),
+			// "DELETE": DeleteAccountHandler(),
+		}))
 }
 
 // ListAccountsHandler returns an http.Handler that lists the accounts.
@@ -56,10 +57,6 @@ func ListAccountsHandler(db *sql.DB) http.Handler {
 		})
 }
 
-type accountWrapper struct {
-	Account model.Account `json:"account"`
-}
-
 // CreateAccountHandler returns an http.Handler that creates the account.
 func CreateAccountHandler(db *sql.DB) http.Handler {
 	return aphttp.ErrorCatchingHandler(
@@ -71,7 +68,9 @@ func CreateAccountHandler(db *sql.DB) http.Handler {
 				return aphttp.DefaultServerError()
 			}
 
-			var wrapped accountWrapper
+			var wrapped struct {
+				Account model.Account `json:"account"`
+			}
 			err = json.Unmarshal(body, &wrapped)
 			if err != nil {
 				log.Printf("%s Error unmarshalling account body: %v",
@@ -112,19 +111,33 @@ func CreateAccountHandler(db *sql.DB) http.Handler {
 		})
 }
 
-// // ShowAccountHandler returns an http.Handler that shows the account.
-// func ShowAccountHandler() http.Handler {
-// 	return aphttp.ErrorCatchingHandler(func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 		resource, err := h.Resource.Show(mux.Vars(r)["id"])
-// 		if err != nil {
-// 			return aphttp.NewError(err, http.StatusNotFound)
-// 		}
-//
-// 		fmt.Fprintf(w, "%s\n", resource)
-// 		return nil
-// 	})
-// }
-//
+// ShowAccountHandler returns an http.Handler that shows the account.
+func ShowAccountHandler(db *sql.DB) http.Handler {
+	return aphttp.ErrorCatchingHandler(
+		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+			id := mux.Vars(r)["id"]
+
+			account := model.Account{}
+			err := db.Get(&account, "SELECT * FROM `accounts` WHERE `id` = ?;", id)
+			if err != nil {
+				return aphttp.NewError(fmt.Errorf("No account with id %s", id), 404)
+			}
+
+			wrapped := struct {
+				Account model.Account `json:"account"`
+			}{account}
+
+			accountJSON, err := json.MarshalIndent(wrapped, "", "    ")
+			if err != nil {
+				log.Printf("%s Error marshaling accounts: %v", config.System, err)
+				return aphttp.DefaultServerError()
+			}
+
+			fmt.Fprintf(w, "%s\n", string(accountJSON))
+			return nil
+		})
+}
+
 // // UpdateAccountHandler returns an http.Handler that updates the account.
 // func UpdateAccountHandler() http.Handler {
 // 	return aphttp.ErrorCatchingHandler(
