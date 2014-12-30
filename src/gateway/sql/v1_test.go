@@ -5,12 +5,32 @@ import (
 	"testing"
 )
 
+////
+/// Test Data
+//
+
 func v1TestDB() *DB {
 	db, _ := setupFreshMemoryDB()
 	setupSchemaTable(db)
 	migrateToV1(db)
 	return db
 }
+
+func v1AccountSeededDB() *DB {
+	db := v1TestDB()
+	db.Exec("INSERT INTO `accounts` (`id`, `name`) VALUES (1, 'Foo Corp');")
+	return db
+}
+
+func v1UserInsert(name, email, pw string) string {
+	return fmt.Sprintf("INSERT INTO `users` "+
+		"(`account_id`, `name`, `email`, `password`) "+
+		"VALUES (1, %s, %s, %s);", name, email, pw)
+}
+
+////
+/// Accounts
+//
 
 func TestAccountsPresence(t *testing.T) {
 	db := v1TestDB()
@@ -44,16 +64,160 @@ func TestAccountsNameUnique(t *testing.T) {
 	}
 }
 
-func v1AccountSeededDB() *DB {
+////
+/// APIs
+//
+
+func TestAPIsPresence(t *testing.T) {
 	db := v1TestDB()
-	db.Exec("INSERT INTO `accounts` (`id`, `name`) VALUES (1, 'Foo Corp');")
-	return db
+	_, err := db.Query("SELECT COUNT(*) FROM `apis`;")
+	if err != nil {
+		t.Errorf("Should not error counting apis: %v", err)
+	}
 }
 
-func v1UserInsert(name, email, pw string) string {
-	return fmt.Sprintf("INSERT INTO `users` "+
-		"(`account_id`, `name`, `email`, `password`) "+
-		"VALUES (1, %s, %s, %s);", name, email, pw)
+////
+/// Endpoint Groups
+//
+
+func TestEndpointGroupsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `endpoint_groups`;")
+	if err != nil {
+		t.Errorf("Should not error counting endpoint groups: %v", err)
+	}
+}
+
+////
+/// Environment Values
+//
+
+func TestEnvironmentValuesPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `environment_values`;")
+	if err != nil {
+		t.Errorf("Should not error counting environment values: %v", err)
+	}
+}
+
+////
+/// Environments
+//
+
+func TestEnvironmentsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `environments`;")
+	if err != nil {
+		t.Errorf("Should not error counting environments: %v", err)
+	}
+}
+
+////
+/// Hosts
+//
+
+func TestHostsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `hosts`;")
+	if err != nil {
+		t.Errorf("Should not error counting hosts: %v", err)
+	}
+}
+
+////
+/// Proxy Endpoint Calls
+//
+
+func TestProxyEndpointCallsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_calls`;")
+	if err != nil {
+		t.Errorf("Should not error counting proxy endpoint calls: %v", err)
+	}
+}
+
+////
+/// Proxy Endpoint Components
+//
+
+func TestProxyEndpointComponentsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_components`;")
+	if err != nil {
+		t.Errorf("Should not error counting proxy endpoint components: %v", err)
+	}
+}
+
+////
+/// Proxy Endpoint Transformations
+//
+
+func TestProxyEndpointTransformationsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_transformations`;")
+	if err != nil {
+		t.Errorf("Should not error counting proxy endpoint transformations: %v", err)
+	}
+}
+
+////
+/// Proxy Endpoints
+//
+
+func TestProxyEndpointsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoints`;")
+	if err != nil {
+		t.Errorf("Should not error counting proxy endpoints: %v", err)
+	}
+}
+
+////
+/// Remote Endpoint Environment Data
+//
+
+func TestRemoteEndpointEnvironmentDataPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `remote_endpoint_environment_data`;")
+	if err != nil {
+		t.Errorf("Should not error counting remote endpoint environment data: %v", err)
+	}
+}
+
+////
+/// Remote Endpoints
+//
+
+func TestRemoteEndpointsPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `remote_endpoints`;")
+	if err != nil {
+		t.Errorf("Should not error counting remote endpoints: %v", err)
+	}
+}
+
+////
+/// Routes
+//
+
+func TestRoutesPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `routes`;")
+	if err != nil {
+		t.Errorf("Should not error counting routes: %v", err)
+	}
+}
+
+////
+/// Users
+//
+
+func TestUsersPresence(t *testing.T) {
+	db := v1TestDB()
+	_, err := db.Query("SELECT COUNT(*) FROM `users`;")
+	if err != nil {
+		t.Errorf("Should not error counting users: %v", err)
+	}
 }
 
 func TestUsersNameNotNull(t *testing.T) {
