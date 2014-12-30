@@ -1,4 +1,4 @@
 CREATE TABLE IF NOT EXISTS `accounts` (
   `id` INTEGER SERIAL PRIMARY KEY,
-  `name` TEXT
+  `name` TEXT UNIQUE
 );
