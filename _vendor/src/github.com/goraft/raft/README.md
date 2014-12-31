@@ -3,6 +3,13 @@ go-raft [![Build Status](https://drone.io/github.com/goraft/raft/status.png)](ht
 
 ## Overview
 
+![unmaintained](http://img.shields.io/badge/status-unmaintained-red.png)
+
+**NOTE**: This project is unmaintained. If you are using goraft in a project
+and want to carry the project forward please file an issue with your ideas and
+intentions. The original project authors have created new raft implementations
+now used in etcd and InfluxDB.
+
 This is a Go implementation of the Raft distributed consensus protocol.
 Raft is a protocol by which a cluster of nodes can maintain a replicated state machine.
 The state machine is kept in sync through the use of a replicated log.
@@ -32,7 +39,7 @@ go-raft is under the MIT license.
 
 These projects are built on go-raft:
 
-- [coreos/etcd](https://github.com/coreos/etcd) - A highly-available key value store for shared configuration and service discovery.
+- [coreos/etcd 0.4.* and older](https://github.com/coreos/etcd) - A highly-available key value store for shared configuration and service discovery. Note: etcd from v2.0.0 onward has since started using a [new raft implementation](godoc.org/github.com/coreos/etcd/raft).
 - [goraft/raftd](https://github.com/goraft/raftd) - A reference implementation for using the go-raft library for distributed consensus.
 - [skynetservices/skydns](https://github.com/skynetservices/skydns) - DNS for skynet or any other service discovery.
 - [influxdb/influxdb](https://github.com/influxdb/influxdb) - An open-source, distributed, time series, events, and metrics database.

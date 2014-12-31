@@ -71,7 +71,8 @@ vendor_get: vendor_clean
 	github.com/jteeuwen/go-bindata \
 	gopkg.in/fsnotify.v1 \
 	github.com/jmoiron/sqlx \
-	github.com/mattn/go-sqlite3
+	github.com/mattn/go-sqlite3 \
+	github.com/lib/pq
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
