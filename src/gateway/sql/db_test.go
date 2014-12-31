@@ -19,27 +19,22 @@ func TestConnectBogus(t *testing.T) {
 	}
 }
 
-func setupFreshMemoryDB() (*DB, error) {
-	conf := config.Database{Driver: "sqlite3", ConnectionString: ":memory:"}
-	return Connect(conf)
-}
-
 func TestCurrentVersionFresh(t *testing.T) {
-	db, _ := setupFreshMemoryDB()
+	db, _ := setupFreshDB()
 	if _, err := db.CurrentVersion(); err == nil {
 		t.Error("Fresh database should not have a version")
 	}
 }
 
 func TestUpToDateFresh(t *testing.T) {
-	db, _ := setupFreshMemoryDB()
+	db, _ := setupFreshDB()
 	if db.UpToDate() {
 		t.Error("Fresh database should not be up to date")
 	}
 }
 
 func TestMigrate(t *testing.T) {
-	db, _ := setupFreshMemoryDB()
+	db, _ := setupFreshDB()
 	db.Migrate()
 	if !db.UpToDate() {
 		t.Error("Migrated database should be up to date")

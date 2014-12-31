@@ -3,7 +3,7 @@ package sql
 import "testing"
 
 func TestSchemaCreation(t *testing.T) {
-	db, _ := setupFreshMemoryDB()
+	db, _ := setupFreshDB()
 	if err := setupSchemaTable(db); err != nil {
 		t.Errorf("Should not error setting up schema table: %v", err)
 	}

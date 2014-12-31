@@ -9,23 +9,10 @@ import (
 /// Test Data
 //
 
-func v1TestDB() *DB {
-	db, _ := setupFreshMemoryDB()
-	setupSchemaTable(db)
-	migrateToV1(db)
-	return db
-}
-
 func v1AccountSeededDB() *DB {
-	db := v1TestDB()
+	db := testDB(1)
 	db.Exec("INSERT INTO `accounts` (`id`, `name`) VALUES (1, 'Foo Corp');")
 	return db
-}
-
-func v1UserInsert(name, email, pw string) string {
-	return fmt.Sprintf("INSERT INTO `users` "+
-		"(`account_id`, `name`, `email`, `password`) "+
-		"VALUES (1, %s, %s, %s);", name, email, pw)
 }
 
 ////
@@ -33,7 +20,7 @@ func v1UserInsert(name, email, pw string) string {
 //
 
 func TestAccountsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `accounts`;")
 	if err != nil {
 		t.Errorf("Should not error counting accounts: %v", err)
@@ -41,7 +28,7 @@ func TestAccountsPresence(t *testing.T) {
 }
 
 func TestAccountsNameNotNull(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Exec("INSERT INTO `accounts`;")
 	if err == nil {
 		t.Errorf("Should error without name")
@@ -53,7 +40,7 @@ func TestAccountsNameNotNull(t *testing.T) {
 }
 
 func TestAccountsNameUnique(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Exec("INSERT INTO `accounts` (`name`) VALUES ('Foo Corp');")
 	if err != nil {
 		t.Errorf("Should not error on first insertion: %v", err)
@@ -69,7 +56,7 @@ func TestAccountsNameUnique(t *testing.T) {
 //
 
 func TestAPIsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `apis`;")
 	if err != nil {
 		t.Errorf("Should not error counting apis: %v", err)
@@ -81,7 +68,7 @@ func TestAPIsPresence(t *testing.T) {
 //
 
 func TestEndpointGroupsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `endpoint_groups`;")
 	if err != nil {
 		t.Errorf("Should not error counting endpoint groups: %v", err)
@@ -93,7 +80,7 @@ func TestEndpointGroupsPresence(t *testing.T) {
 //
 
 func TestEnvironmentValuesPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `environment_values`;")
 	if err != nil {
 		t.Errorf("Should not error counting environment values: %v", err)
@@ -105,7 +92,7 @@ func TestEnvironmentValuesPresence(t *testing.T) {
 //
 
 func TestEnvironmentsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `environments`;")
 	if err != nil {
 		t.Errorf("Should not error counting environments: %v", err)
@@ -117,7 +104,7 @@ func TestEnvironmentsPresence(t *testing.T) {
 //
 
 func TestHostsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `hosts`;")
 	if err != nil {
 		t.Errorf("Should not error counting hosts: %v", err)
@@ -129,7 +116,7 @@ func TestHostsPresence(t *testing.T) {
 //
 
 func TestProxyEndpointCallsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_calls`;")
 	if err != nil {
 		t.Errorf("Should not error counting proxy endpoint calls: %v", err)
@@ -141,7 +128,7 @@ func TestProxyEndpointCallsPresence(t *testing.T) {
 //
 
 func TestProxyEndpointComponentsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_components`;")
 	if err != nil {
 		t.Errorf("Should not error counting proxy endpoint components: %v", err)
@@ -153,7 +140,7 @@ func TestProxyEndpointComponentsPresence(t *testing.T) {
 //
 
 func TestProxyEndpointTransformationsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoint_transformations`;")
 	if err != nil {
 		t.Errorf("Should not error counting proxy endpoint transformations: %v", err)
@@ -165,7 +152,7 @@ func TestProxyEndpointTransformationsPresence(t *testing.T) {
 //
 
 func TestProxyEndpointsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `proxy_endpoints`;")
 	if err != nil {
 		t.Errorf("Should not error counting proxy endpoints: %v", err)
@@ -177,7 +164,7 @@ func TestProxyEndpointsPresence(t *testing.T) {
 //
 
 func TestRemoteEndpointEnvironmentDataPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `remote_endpoint_environment_data`;")
 	if err != nil {
 		t.Errorf("Should not error counting remote endpoint environment data: %v", err)
@@ -189,7 +176,7 @@ func TestRemoteEndpointEnvironmentDataPresence(t *testing.T) {
 //
 
 func TestRemoteEndpointsPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `remote_endpoints`;")
 	if err != nil {
 		t.Errorf("Should not error counting remote endpoints: %v", err)
@@ -201,7 +188,7 @@ func TestRemoteEndpointsPresence(t *testing.T) {
 //
 
 func TestRoutesPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `routes`;")
 	if err != nil {
 		t.Errorf("Should not error counting routes: %v", err)
@@ -212,8 +199,18 @@ func TestRoutesPresence(t *testing.T) {
 /// Users
 //
 
+func v1UserInsert(name, email, pw string) string {
+	return v1UserInsertWithAccount(name, email, pw, 1)
+}
+
+func v1UserInsertWithAccount(name, email, pw string, acct int64) string {
+	return fmt.Sprintf("INSERT INTO `users` "+
+		"(`account_id`, `name`, `email`, `password`) "+
+		"VALUES (%d, %s, %s, %s);", acct, name, email, pw)
+}
+
 func TestUsersPresence(t *testing.T) {
-	db := v1TestDB()
+	db := testDB(1)
 	_, err := db.Query("SELECT COUNT(*) FROM `users`;")
 	if err != nil {
 		t.Errorf("Should not error counting users: %v", err)
