@@ -38,3 +38,10 @@ test/gateway.db
 
 
 **.DS_Store
+
+# Admin Front End
+admin/dist
+admin/node_modules
+admin/test/temp
+admin/temp/
+admin/npm-debug.log

@@ -57,6 +57,10 @@ shell:
 This will allow it to be picked up by your IDE and other tools (I'm using Atom
 with [`go-plus`](https://atom.io/packages/go-plus)).
 
+### Admin Front End
+
+I'm using Ember CLI to manage the front end application found in `admin`.
+
 ## Gateway Setup
 
 The Gateway can be configured using a configuration file, environment 
