@@ -13,7 +13,7 @@ export var NewProxyEndpointController = Ember.ObjectController.extend({
       this.model.save().then(function(value) {
         self.set('controllers.admin.successMessage', "Created!");
         self.set('controllers.admin.errorMessage', null);
-        self.transitionToRoute("endpoint", value.id)
+        self.transitionToRoute("endpoint", value.id);
       }, function(reason) {
         self.set('controllers.admin.successMessage', null);
         self.set('controllers.admin.errorMessage', reason.responseText);

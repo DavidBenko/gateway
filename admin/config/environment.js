@@ -4,7 +4,7 @@ module.exports = function(environment) {
   var ENV = {
     modulePrefix: 'admin',
     environment: environment,
-    baseURL: '/',
+    baseURL: '/admin/',   //TODO: FIXME: Must be dynamic from build process
     locationType: 'auto',
     EmberENV: {
       FEATURES: {
