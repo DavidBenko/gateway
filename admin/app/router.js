@@ -7,10 +7,9 @@ var Router = Ember.Router.extend({
 
 Router.map(function() {
   this.resource('admin', function() {
-    this.resource('routes');
-    this.resource('endpoints', function() {
-      this.resource('newEndpoint', { path: 'new' });
-      this.resource('endpoint', { path: ':endpoint_id' });
+    this.resource('proxyEndpoints', function() {
+      this.resource('proxyEndpoints.new', { path: 'new' });
+      this.resource('proxyEndpoints.show', { path: ':endpoint_id' });
     });
     this.resource('libraries', function() {
       this.resource('newLibrary', { path: 'new' });
