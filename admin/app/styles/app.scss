@@ -1,0 +1,167 @@
+@import 'normalize';
+
+body {
+  background-color: #313C49;
+  color: #E2E2E2;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: lighter;
+  margin: 0px;
+  padding: 0px;
+}
+
+#header {
+  background-color: #0d0f11;
+  border-bottom: 1px solid #545C63;
+  padding: 0px 20px;
+  height: 70px;
+  line-height: 70px;
+}
+
+#header h1 {
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
+  font-size: 18px;
+  font-weight: lighter;
+  vertical-align: middle;
+}
+
+#header h1 span {
+  font-weight: normal;
+}
+
+#header a {
+  color: #E2E2E2;
+  text-decoration: none;
+}
+
+#header a.active {
+  font-weight: bold;
+}
+
+#primary-nav {
+  float: right;
+  list-style: none;
+  margin: 0px;
+  padding: 0px;
+  height: 100%;
+}
+
+#primary-nav li {
+  display: inline;
+  margin-left: 20px;
+}
+
+#admin-nav {
+  margin: 0px;
+  list-style: none;
+  padding: 0px 20px;
+  height: 50px;
+  background-color: #5F6870;
+  line-height: 50px;
+  font-size: 16px;
+  font-weight: normal;
+  border-bottom: 1px solid #6C767F;
+}
+
+#admin-nav li {
+  display: inline;
+  margin-right: 20px;
+}
+
+#admin-nav a {
+  color: #E2E2E2;
+  text-decoration: none;
+}
+
+#admin-nav a.active {
+  font-weight: bold;
+}
+
+
+#scripts-list {
+  float: left;
+  width: 20%;
+  margin: 0px;
+  padding: 0px;
+  list-style: none;
+}
+
+#scripts-list a {
+  color: #e2e2e2;
+  text-decoration: none;
+}
+
+#scripts-list li {
+  background-color: #5A6D87;
+  padding: 10px;
+  border-bottom: 1px solid #506077;
+}
+
+#scripts-list a.active li {
+  background-color: #506077;
+}
+
+#scripts-body {
+  float: left;
+  margin: 0px;
+  padding:0px;
+  width: 80%;
+}
+
+#scripts-body label {
+  padding: 20px;
+}
+
+#scripts-body label input {
+  margin-left: 10px;
+  padding: 5px;
+}
+
+#editor {
+  height: 500px;
+}
+
+button {
+  margin: 10px 20px 20px 20px;
+  padding: 5px;
+}
+
+button.delete {
+  float: right;
+  border: 2px solid #850021;
+  color: #850021;
+}
+
+button.save {
+  border: 2px solid #008521;
+  color: #008521;
+}
+
+.notification {
+  font-family: Helvetica, sans-serif;
+  padding: 10px;
+  border-bottom: 1px solid black;
+}
+
+.notification a {
+  text-decoration: none;
+  color: inherit;
+  float: right;
+}
+
+.error {
+  color: #a94442;
+  background-color: #f2dede;
+  border-color: #ebccd1;
+}
+
+.success {
+  color: #3c763d;
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
+}
+
+.clearfix {
+  clear: both;
+}
