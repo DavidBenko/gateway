@@ -3,8 +3,7 @@ import Ember from "ember";
 export var ProxyEndpoints = Ember.Route.extend({
   controllerName: "proxyEndpoints/index",
   model: function() {
-    return [];
-    // return this.store.find('proxyEndpoint');
+    return this.store.find('proxyEndpoint');
   }
 });
 

@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: assets build fmt godoc jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata vet
+.PHONY: admin assets build fmt godoc jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata vet
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -17,6 +17,9 @@ endif
 
 default: run
 
+admin:
+	cd admin; ember build -output-path ../src/gateway/admin/static/
+
 assets: install_bindata
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
 	go-bindata -o src/gateway/proxy/routerjs/bindata.go -pkg routerjs $(BINDATA_DEBUG) -prefix "src/gateway/proxy/routerjs/static/" src/gateway/proxy/routerjs/static/...
@@ -24,7 +27,7 @@ assets: install_bindata
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
 
-build: vet assets
+build: vet admin assets
 	go build -o ./bin/gateway ./src/gateway/main.go
 	
 keygen:
