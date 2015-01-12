@@ -18,7 +18,7 @@ endif
 default: run
 
 admin:
-	cd admin; ember build -output-path ../src/gateway/admin/static/
+	# cd admin; ember build -output-path ../src/gateway/admin/static/
 
 assets: install_bindata
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
