@@ -46,7 +46,7 @@ godoc:
 fmt:
 	goimports ./src/...
 
-run: build
+run: 
 	./bin/gateway -config=./test/gateway.conf -db-migrate
 
 test: assets
