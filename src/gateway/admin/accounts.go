@@ -77,7 +77,7 @@ func CreateAccountHandler(db *sql.DB) http.Handler {
 					config.System, err)
 				return aphttp.DefaultServerError()
 			}
-			account := wrapped.Account
+			account := &wrapped.Account
 
 			tx := db.MustBegin()
 			result, err := tx.Exec("INSERT INTO `accounts` (`name`) VALUES (?);",
