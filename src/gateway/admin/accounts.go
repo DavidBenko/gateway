@@ -79,6 +79,17 @@ func CreateAccountHandler(db *sql.DB) http.Handler {
 			}
 			account := &wrapped.Account
 
+			validationErrors := account.Validate()
+			if !validationErrors.Empty() {
+				errorsJSON, err := validationErrors.JSON()
+				if err != nil {
+					log.Printf("%s Error marshaling account: %v", config.System, err)
+					return aphttp.DefaultServerError()
+				}
+				fmt.Fprintf(w, "%s\n", errorsJSON)
+				return nil
+			}
+
 			tx := db.MustBegin()
 			result, err := tx.Exec("INSERT INTO `accounts` (`name`) VALUES (?);",
 				account.Name)
