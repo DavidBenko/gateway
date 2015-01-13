@@ -35,8 +35,10 @@ func RouteAccounts(router aphttp.Router, db *sql.DB) {
 func ListAccountsHandler(db *sql.DB) http.Handler {
 	return aphttp.ErrorCatchingHandler(
 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+			sql := newTracingDB(r, db)
+
 			accounts := []model.Account{}
-			err := db.Select(&accounts, "SELECT * FROM `accounts` ORDER BY `id` ASC;")
+			err := sql.Select(&accounts, "SELECT * FROM `accounts` ORDER BY `id` ASC;")
 			if err != nil {
 				log.Printf("%s Error listing accounts: %v", config.System, err)
 				return aphttp.DefaultServerError()
