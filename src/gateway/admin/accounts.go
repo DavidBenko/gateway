@@ -1,9 +1,7 @@
 package admin
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -13,231 +11,125 @@ import (
 	sql "gateway/sql"
 
 	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 // RouteAccounts routes all the endpoints for account management
 func RouteAccounts(router aphttp.Router, db *sql.DB) {
 	router.Handle("/accounts",
 		handlers.MethodHandler{
-			"GET":  ListAccountsHandler(db),
-			"POST": CreateAccountHandler(db),
+			"GET":  aphttp.ErrorCatchingHandler(ListAccountsHandler(db)),
+			"POST": aphttp.ErrorCatchingHandler(CreateAccountHandler(db)),
 		})
 	router.Handle("/accounts/{id}",
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-			"GET":    ShowAccountHandler(db),
-			"PUT":    UpdateAccountHandler(db),
-			"DELETE": DeleteAccountHandler(db),
+			"GET":    aphttp.ErrorCatchingHandler(ShowAccountHandler(db)),
+			"PUT":    aphttp.ErrorCatchingHandler(UpdateAccountHandler(db)),
+			"DELETE": aphttp.ErrorCatchingHandler(DeleteAccountHandler(db)),
 		}))
 }
 
-// ListAccountsHandler returns an http.Handler that lists the accounts.
-func ListAccountsHandler(db *sql.DB) http.Handler {
-	return aphttp.ErrorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-			sql := newTracingDB(r, db)
+// ListAccountsHandler returns a handler that lists the accounts.
+func ListAccountsHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		accounts, err := model.AllAccounts(db)
+		if err != nil {
+			log.Printf("%s Error listing accounts: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
 
-			accounts := []model.Account{}
-			err := sql.Select(&accounts, "SELECT * FROM `accounts` ORDER BY `id` ASC;")
-			if err != nil {
-				log.Printf("%s Error listing accounts: %v", config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			wrapped := struct {
-				Accounts []model.Account `json:"accounts"`
-			}{accounts}
-
-			accountsJSON, err := json.MarshalIndent(wrapped, "", "    ")
-			if err != nil {
-				log.Printf("%s Error marshaling accounts: %v", config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			fmt.Fprintf(w, "%s\n", string(accountsJSON))
-			return nil
-		})
+		return serializeAccounts(accounts, w)
+	}
 }
 
-// CreateAccountHandler returns an http.Handler that creates the account.
-func CreateAccountHandler(db *sql.DB) http.Handler {
-	return aphttp.ErrorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Printf("%s Error reading create account body: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			var wrapped struct {
-				Account model.Account `json:"account"`
-			}
-			err = json.Unmarshal(body, &wrapped)
-			if err != nil {
-				log.Printf("%s Error unmarshalling account body: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-			account := &wrapped.Account
-
-			validationErrors := account.Validate()
-			if !validationErrors.Empty() {
-				errorsJSON, err := validationErrors.JSON()
-				if err != nil {
-					log.Printf("%s Error marshaling account: %v", config.System, err)
-					return aphttp.DefaultServerError()
-				}
-				fmt.Fprintf(w, "%s\n", errorsJSON)
-				return nil
-			}
-
-			tx := db.MustBegin()
-			result, err := tx.Exec("INSERT INTO `accounts` (`name`) VALUES (?);",
-				account.Name)
-			if err != nil {
-				log.Printf("%s Error inserting account: %v", config.System, err)
-				tx.Rollback()
-				return aphttp.DefaultServerError()
-			}
-			err = tx.Commit()
-			if err != nil {
-				log.Printf("%s Error committing insert account: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-			account.ID, err = result.LastInsertId()
-			if err != nil {
-				log.Printf("%s Error getting last insert id for account: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			accountJSON, err := json.MarshalIndent(wrapped, "", "    ")
-			if err != nil {
-				log.Printf("%s Error marshaling account: %v", config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			fmt.Fprintf(w, "%s\n", accountJSON)
-			return nil
-		})
+// CreateAccountHandler returns a handler that creates the account.
+func CreateAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+	return insertOrUpdateAccountHandler(db, true)
 }
 
-// ShowAccountHandler returns an http.Handler that shows the account.
-func ShowAccountHandler(db *sql.DB) http.Handler {
-	return aphttp.ErrorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-			id := mux.Vars(r)["id"]
+// ShowAccountHandler returns a handler that shows the account.
+func ShowAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		id := instanceID(r)
+		account, err := model.FindAccount(db, id)
+		if err != nil {
+			return aphttp.NewError(fmt.Errorf("No account with id %d", id), 404)
+		}
 
-			account := model.Account{}
-			err := db.Get(&account, "SELECT * FROM `accounts` WHERE `id` = ?;", id)
-			if err != nil {
-				return aphttp.NewError(fmt.Errorf("No account with id %s", id), 404)
-			}
-
-			wrapped := struct {
-				Account model.Account `json:"account"`
-			}{account}
-
-			accountJSON, err := json.MarshalIndent(wrapped, "", "    ")
-			if err != nil {
-				log.Printf("%s Error marshaling accounts: %v", config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			fmt.Fprintf(w, "%s\n", string(accountJSON))
-			return nil
-		})
+		return serialize(wrappedAccount{account}, w)
+	}
 }
 
-// UpdateAccountHandler returns an http.Handler that updates the account.
-func UpdateAccountHandler(db *sql.DB) http.Handler {
-	return aphttp.ErrorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-			id := mux.Vars(r)["id"]
-
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				log.Printf("%s Error reading create account body: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			var wrapped struct {
-				Account model.Account `json:"account"`
-			}
-			err = json.Unmarshal(body, &wrapped)
-			if err != nil {
-				log.Printf("%s Error unmarshalling account body: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-			account := wrapped.Account
-
-			tx := db.MustBegin()
-			result, err := tx.Exec("UPDATE `accounts` SET `name` = ? WHERE `id` = ?;",
-				account.Name, id)
-			if err != nil {
-				log.Printf("%s Error updating account: %v", config.System, err)
-				tx.Rollback()
-				return aphttp.DefaultServerError()
-			}
-
-			numRows, err := result.RowsAffected()
-			if err != nil || numRows != 1 {
-				log.Printf("%s Error updating account: %v", config.System, err)
-				tx.Rollback()
-				return aphttp.DefaultServerError()
-			}
-
-			err = tx.Commit()
-			if err != nil {
-				log.Printf("%s Error committing update account: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			accountJSON, err := json.MarshalIndent(wrapped, "", "    ")
-			if err != nil {
-				log.Printf("%s Error marshaling account: %v", config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			fmt.Fprintf(w, "%s\n", accountJSON)
-			return nil
-		})
+// UpdateAccountHandler returns a handler that updates the account.
+func UpdateAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+	return insertOrUpdateAccountHandler(db, false)
 }
 
-// DeleteAccountHandler returns an http.Handler that deletes the account.
-func DeleteAccountHandler(db *sql.DB) http.Handler {
-	return aphttp.ErrorCatchingHandler(
-		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-			id := mux.Vars(r)["id"]
-
-			tx := db.MustBegin()
-			result, err := tx.Exec("DELETE FROM `accounts` WHERE `id` = ?;", id)
-			if err != nil {
-				log.Printf("%s Error deleting account: %v", config.System, err)
-				tx.Rollback()
-				return aphttp.DefaultServerError()
-			}
-
-			numRows, err := result.RowsAffected()
-			if err != nil || numRows != 1 {
-				log.Printf("%s Error deleting account: %v", config.System, err)
-				tx.Rollback()
-				return aphttp.DefaultServerError()
-			}
-
-			err = tx.Commit()
-			if err != nil {
-				log.Printf("%s Error committing delete account: %v",
-					config.System, err)
-				return aphttp.DefaultServerError()
-			}
-
-			w.WriteHeader(http.StatusOK)
-			return nil
+// DeleteAccountHandler returns a handler that deletes the account.
+func DeleteAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		err := performInTransaction(db, func(tx *sqlx.Tx) error {
+			return model.DeleteAccount(tx, instanceID(r))
 		})
+		if err != nil {
+			log.Printf("%s Error deleting account: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+}
+
+func insertOrUpdateAccountHandler(db *sql.DB, isInsert bool) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		account, err := readAccount(r)
+		if err != nil {
+			log.Printf("%s Error reading account: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
+
+		var method func(*sqlx.Tx) error
+		var desc string
+		if isInsert {
+			method = account.Insert
+			desc = "inserting"
+		} else {
+			account.ID = instanceID(r)
+			method = account.Update
+			desc = "updating"
+		}
+
+		validationErrors := account.Validate()
+		if !validationErrors.Empty() {
+			return serialize(wrappedErrors{validationErrors}, w)
+		}
+
+		err = performInTransaction(db, method)
+		if err != nil {
+			log.Printf("%s Error %s account: %v", config.System, desc, err)
+			return aphttp.DefaultServerError()
+		}
+
+		return serialize(wrappedAccount{account}, w)
+	}
+}
+
+type wrappedAccount struct {
+	Account *model.Account `json:"account"`
+}
+
+func readAccount(r *http.Request) (*model.Account, error) {
+	var wrapped wrappedAccount
+	if err := deserialize(&wrapped, r); err != nil {
+		return nil, err
+	}
+	return wrapped.Account, nil
+}
+
+func serializeAccounts(accounts []model.Account, w http.ResponseWriter) aphttp.Error {
+	wrappedAccounts := struct {
+		Accounts []model.Account `json:"accounts"`
+	}{accounts}
+	return serialize(wrappedAccounts, w)
 }

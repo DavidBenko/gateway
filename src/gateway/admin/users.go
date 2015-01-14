@@ -35,8 +35,10 @@ package admin
 // func ListUsersHandler(db *sql.DB) http.Handler {
 // 	return aphttp.ErrorCatchingHandler(
 // 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+// 			sql := newTracingDB(r, db)
+//
 // 			users := []model.User{}
-// 			err := db.Select(&users, "SELECT * FROM `users` ORDER BY `id` ASC;")
+// 			err := sql.Select(&users, "SELECT * FROM `users` ORDER BY `name` ASC;")
 // 			if err != nil {
 // 				log.Printf("%s Error listing users: %v", config.System, err)
 // 				return aphttp.DefaultServerError()
@@ -77,7 +79,18 @@ package admin
 // 					config.System, err)
 // 				return aphttp.DefaultServerError()
 // 			}
-// 			user := wrapped.User
+// 			user := &wrapped.User
+//
+// 			validationErrors := user.Validate()
+// 			if !validationErrors.Empty() {
+// 				errorsJSON, err := validationErrors.JSON()
+// 				if err != nil {
+// 					log.Printf("%s Error marshaling user: %v", config.System, err)
+// 					return aphttp.DefaultServerError()
+// 				}
+// 				fmt.Fprintf(w, "%s\n", errorsJSON)
+// 				return nil
+// 			}
 //
 // 			tx := db.MustBegin()
 // 			result, err := tx.Exec("INSERT INTO `users` (`name`) VALUES (?);",
