@@ -75,7 +75,8 @@ vendor_get: vendor_clean
 	gopkg.in/fsnotify.v1 \
 	github.com/jmoiron/sqlx \
 	github.com/mattn/go-sqlite3 \
-	github.com/lib/pq
+	github.com/lib/pq \
+	golang.org/x/crypto/bcrypt
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

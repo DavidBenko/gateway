@@ -10,7 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"golang.org/x/tools/astutil"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/exact"
 )
 
@@ -48,7 +48,6 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// make argument getter
 		arg, nargs, _ = unpack(func(x *operand, i int) { check.expr(x, call.Args[i]) }, nargs, false)
 		if arg == nil {
-			x.mode = invalid
 			return
 		}
 		// evaluate first argument, if present

@@ -33,6 +33,7 @@ var xMap = map[string]xRepo{
 	"mobile":     {"https://go.googlesource.com/mobile", "git"},
 	"net":        {"https://go.googlesource.com/net", "git"},
 	"oauth2":     {"https://go.googlesource.com/oauth2", "git"},
+	"playground": {"https://go.googlesource.com/playground", "git"},
 	"review":     {"https://go.googlesource.com/review", "git"},
 	"sys":        {"https://go.googlesource.com/sys", "git"},
 	"talks":      {"https://go.googlesource.com/talks", "git"},
@@ -68,6 +69,7 @@ var xTemplate = template.Must(template.New("x").Parse(`<!DOCTYPE html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <meta name="go-import" content="golang.org{{.Prefix}}{{.Head}} {{.Repo.VCS}} {{.Repo.URL}}">
+<meta name="go-source" content="golang.org{{.Prefix}}{{.Head}} https://github.com/golang/{{.Head}}/ https://github.com/golang/{{.Head}}/tree/master{/dir} https://github.com/golang/{{.Head}}/blob/master{/dir}/{file}#L{line}">
 <meta http-equiv="refresh" content="0; url=https://godoc.org/golang.org{{.Prefix}}{{.Head}}{{.Tail}}">
 </head>
 <body>
