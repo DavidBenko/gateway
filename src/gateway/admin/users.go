@@ -1,5 +1,11 @@
 package admin
 
+import (
+	aphttp "gateway/http"
+	"gateway/model"
+	"net/http"
+)
+
 // import (
 // 	"encoding/json"
 // 	"fmt"
@@ -241,3 +247,39 @@ package admin
 // 			return nil
 // 		})
 // }
+
+type wrappedUser struct {
+	User *model.User `json:"user"`
+}
+
+type sanitizedUser struct {
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+type wrappedSanitizedUser struct {
+	User *sanitizedUser `json:"user"`
+}
+
+func sanitizeUser(user *model.User) *sanitizedUser {
+	return &sanitizedUser{user.ID, user.Name, user.Email}
+}
+
+func readUser(r *http.Request) (*model.User, error) {
+	var wrapped wrappedUser
+	if err := deserialize(&wrapped, r); err != nil {
+		return nil, err
+	}
+	return wrapped.User, nil
+}
+
+func serializeUsers(users []*model.User, w http.ResponseWriter) aphttp.Error {
+	wrappedUsers := struct {
+		Users []*sanitizedUser `json:"users"`
+	}{}
+	for _, user := range users {
+		wrappedUsers.Users = append(wrappedUsers.Users, sanitizeUser(user))
+	}
+	return serialize(wrappedUsers, w)
+}

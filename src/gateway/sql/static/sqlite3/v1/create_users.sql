@@ -3,6 +3,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   `account_id` INTEGER NOT NULL,
   `name` TEXT NOT NULL,
   `email` TEXT UNIQUE NOT NULL,
-  `password` TEXT NOT NULL,
+  `hashed_password` TEXT NOT NULL,
   FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`)
 );

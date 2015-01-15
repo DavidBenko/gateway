@@ -47,6 +47,10 @@ func Connect(conf config.Database) (*DB, error) {
 		return nil, err
 	}
 
+	if conf.Driver == Sqlite3 {
+		db.Exec("PRAGMA foreign_keys = ON;")
+	}
+
 	return &DB{db, driver}, nil
 }
 

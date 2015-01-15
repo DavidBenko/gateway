@@ -25,17 +25,17 @@ func (a *Account) Validate() Errors {
 }
 
 // AllAccounts returns all accounts in default order.
-func AllAccounts(db *sql.DB) ([]Account, error) {
-	accounts := []Account{}
+func AllAccounts(db *sql.DB) ([]*Account, error) {
+	accounts := []*Account{}
 	err := db.Select(&accounts,
-		"SELECT * FROM `accounts` ORDER BY `name` ASC;")
+		"SELECT `id`, `name` FROM `accounts` ORDER BY `name` ASC;")
 	return accounts, err
 }
 
 // FindAccount returns the account with the id specified.
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}
-	err := db.Get(&account, "SELECT * FROM `accounts` WHERE `id` = ?;", id)
+	err := db.Get(&account, "SELECT `id`, `name` FROM `accounts` WHERE `id` = ?;", id)
 	return &account, err
 }
 

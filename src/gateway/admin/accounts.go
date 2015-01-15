@@ -127,9 +127,9 @@ func readAccount(r *http.Request) (*model.Account, error) {
 	return wrapped.Account, nil
 }
 
-func serializeAccounts(accounts []model.Account, w http.ResponseWriter) aphttp.Error {
+func serializeAccounts(accounts []*model.Account, w http.ResponseWriter) aphttp.Error {
 	wrappedAccounts := struct {
-		Accounts []model.Account `json:"accounts"`
+		Accounts []*model.Account `json:"accounts"`
 	}{accounts}
 	return serialize(wrappedAccounts, w)
 }

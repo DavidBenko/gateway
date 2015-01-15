@@ -15,7 +15,14 @@ import (
 )
 
 func instanceID(r *http.Request) int64 {
-	id := mux.Vars(r)["id"]
+	return parseID(mux.Vars(r)["id"])
+}
+
+func accountID(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["accountID"])
+}
+
+func parseID(id string) int64 {
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
 		return -1
