@@ -6,20 +6,23 @@ import (
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
+const bcryptPasswordCost = 10
+
 // User represents a user!
 type User struct {
-	AccountID               int64  `json:"-"`
+	AccountID               int64  `json:"-" db:"account_id"`
 	ID                      int64  `json:"id"`
 	Name                    string `json:"name"`
 	Email                   string `json:"email"`
 	NewPassword             string `json:"password"`
 	NewPasswordConfirmation string `json:"password_confirmation"`
-	HashedPassword          string `json:"-"`
+	HashedPassword          string `json:"-" db:"hashed_password"`
 }
 
 // Validate validates the model.
@@ -73,6 +76,15 @@ func DeleteUserForAccountID(tx *sqlx.Tx, id, accountID int64) error {
 	return nil
 }
 
+// FindUserByEmail returns the account with the email specified.
+func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
+	user := User{}
+	err := db.Get(&user,
+		"SELECT `id`, `account_id`, `hashed_password` FROM `users` WHERE `email` = ?;",
+		strings.ToLower(email))
+	return &user, err
+}
+
 // Insert inserts the account into the database as a new row.
 func (u *User) Insert(tx *sqlx.Tx) error {
 	err := u.hashPassword()
@@ -81,7 +93,7 @@ func (u *User) Insert(tx *sqlx.Tx) error {
 	}
 
 	result, err := tx.Exec("INSERT INTO `users` (`account_id`, `name`, `email`, `hashed_password`) VALUES (?, ?, ?, ?);",
-		u.AccountID, u.Name, u.Email, u.HashedPassword)
+		u.AccountID, u.Name, strings.ToLower(u.Email), u.HashedPassword)
 	if err != nil {
 		return err
 	}
@@ -104,10 +116,10 @@ func (u *User) Update(tx *sqlx.Tx) error {
 			return err
 		}
 		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ?, `hashed_password` = ? WHERE `id` = ?;",
-			u.Name, u.Email, u.HashedPassword, u.ID)
+			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID)
 	} else {
 		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ? WHERE `id` = ?;",
-			u.Name, u.Email, u.ID)
+			u.Name, strings.ToLower(u.Email), u.ID)
 	}
 	if err != nil {
 		return err
@@ -120,10 +132,16 @@ func (u *User) Update(tx *sqlx.Tx) error {
 }
 
 func (u *User) hashPassword() error {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(u.NewPassword), 10)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(u.NewPassword), bcryptPasswordCost)
 	if err != nil {
 		return err
 	}
 	u.HashedPassword = string(hashed)
 	return nil
+}
+
+// ValidPassword returns whether or not the password matches what's on file.
+func (u *User) ValidPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(u.HashedPassword), []byte(password))
+	return err == nil
 }

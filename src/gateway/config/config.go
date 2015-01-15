@@ -47,8 +47,14 @@ type ProxyAdmin struct {
 	PathPrefix string `flag:"admin-path-prefix" default:"/admin/" usage:"The path prefix the administrative area is accessible under"`
 	Host       string `flag:"admin-host"        default:""        usage:"The host the administrative area is accessible via"`
 
-	Username string `flag:"admin-username" default:"admin" usage:"The username to require with HTTP Basic Auth to protect the admin functionality"`
-	Password string `flag:"admin-password" default:""      usage:"The password to require with HTTP Basic Auth to protect the admin functionality; disabled if blank."`
+	SessionName    string `flag:"admin-session-name" default:"__ap_gateway" usage:"The name of the cookie to use for sessions."`
+	AuthKey        string `flag:"admin-session-auth-key" default:"" usage:"The auth key to use for sessions. 64 chars recommended. Required."`
+	EncryptionKey  string `flag:"admin-session-encryption-key" default:"" usage:"The encryption key to use for sessions. 32 chars recommended. If unset, encryption is disabled."`
+	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:"" usage:"Same as admin-session-auth-key, to be used during key rotation."`
+	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:"" usage:"Same as admin-session-encryption-key, to be used during key rotation."`
+
+	Username string `flag:"admin-username" default:"admin" usage:"The username to require with HTTP Basic Auth to protect the site admin functionality"`
+	Password string `flag:"admin-password" default:""      usage:"The password to require with HTTP Basic Auth to protect the site admin functionality"`
 	Realm    string `flag:"admin-realm"    default:""      usage:"The HTTP Basic realm to use. Optional."`
 }
 

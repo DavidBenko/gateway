@@ -21,8 +21,10 @@ func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
 	return adminRoute.Subrouter()
 }
 
-// AddRoutes adds the admin routes to the specified router.
-func AddRoutes(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
+// Setup sets up the session and adds admin routes.
+func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
+	setupSessions(conf)
+
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
 
@@ -32,7 +34,7 @@ func AddRoutes(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	RouteAccountUsers(siteAdmin, db)
 
 	// sessions are unprotected to allow users to authenticate
-	// RouteSessions(admin, db)
+	RouteSessions(admin, db)
 
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }

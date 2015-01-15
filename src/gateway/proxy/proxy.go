@@ -63,7 +63,7 @@ func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.AddRoutes(s.router, s.db, s.adminConf)
+	admin.Setup(s.router, s.db, s.adminConf)
 
 	// Set up proxy
 	s.router.Handle("/{path:.*}",
