@@ -88,10 +88,10 @@ func insertOrUpdateUserHandler(db *sql.DB, accountID func(r *http.Request) int64
 			return aphttp.DefaultServerError()
 		}
 
+		user.AccountID = accountID(r)
 		var method func(*sqlx.Tx) error
 		var desc string
 		if isInsert {
-			user.AccountID = accountID(r)
 			method = user.Insert
 			desc = "inserting"
 		} else {

@@ -76,7 +76,7 @@ func DeleteUserForAccountID(tx *sqlx.Tx, id, accountID int64) error {
 	return nil
 }
 
-// FindUserByEmail returns the account with the email specified.
+// FindUserByEmail returns the user with the email specified.
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
@@ -85,7 +85,7 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	return &user, err
 }
 
-// Insert inserts the account into the database as a new row.
+// Insert inserts the user into the database as a new row.
 func (u *User) Insert(tx *sqlx.Tx) error {
 	err := u.hashPassword()
 	if err != nil {
@@ -106,7 +106,7 @@ func (u *User) Insert(tx *sqlx.Tx) error {
 	return nil
 }
 
-// Update updates the account in the database.
+// Update updates the user in the database.
 func (u *User) Update(tx *sqlx.Tx) error {
 	var result sql.Result
 	var err error
@@ -115,11 +115,11 @@ func (u *User) Update(tx *sqlx.Tx) error {
 		if err != nil {
 			return err
 		}
-		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ?, `hashed_password` = ? WHERE `id` = ?;",
-			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID)
+		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ?, `hashed_password` = ? WHERE `id` = ? AND `account_id` = ?;",
+			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID, u.AccountID)
 	} else {
-		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ? WHERE `id` = ?;",
-			u.Name, strings.ToLower(u.Email), u.ID)
+		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ? WHERE `id` = ? AND `account_id` = ?;",
+			u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
 	}
 	if err != nil {
 		return err
