@@ -18,8 +18,13 @@ func instanceID(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["id"])
 }
 
-func accountID(r *http.Request) int64 {
+func accountIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["accountID"])
+}
+
+func accountIDFromSession(r *http.Request) int64 {
+	session := requestSession(r)
+	return session.Values[accountIDKey].(int64)
 }
 
 func parseID(id string) int64 {

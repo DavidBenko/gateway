@@ -1,252 +1,119 @@
 package admin
 
 import (
+	"fmt"
+	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
+	"gateway/sql"
+	"log"
 	"net/http"
+
+	"github.com/gorilla/handlers"
+	"github.com/jmoiron/sqlx"
 )
 
-// import (
-// 	"encoding/json"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"log"
-// 	"net/http"
-//
-// 	"gateway/config"
-// 	aphttp "gateway/http"
-// 	"gateway/model"
-// 	sql "gateway/sql"
-//
-// 	"github.com/gorilla/handlers"
-// 	"github.com/gorilla/mux"
-// )
-//
-// // RouteUsers routes all the endpoints for user management
-// func RouteUsers(router aphttp.Router, db *sql.DB) {
-// 	router.Handle("/users",
-// 		handlers.MethodHandler{
-// 			"GET":  ListUsersHandler(db),
-// 			"POST": CreateUserHandler(db),
-// 		})
-// 	router.Handle("/users/{id}",
-// 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-// 			"GET":    ShowUserHandler(db),
-// 			"PUT":    UpdateUserHandler(db),
-// 			"DELETE": DeleteUserHandler(db),
-// 		}))
-// }
-//
-// // ListUsersHandler returns an http.Handler that lists the users.
-// func ListUsersHandler(db *sql.DB) http.Handler {
-// 	return aphttp.ErrorCatchingHandler(
-// 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 			sql := newTracingDB(r, db)
-//
-// 			users := []model.User{}
-// 			err := sql.Select(&users, "SELECT * FROM `users` ORDER BY `name` ASC;")
-// 			if err != nil {
-// 				log.Printf("%s Error listing users: %v", config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			wrapped := struct {
-// 				Users []model.User `json:"users"`
-// 			}{users}
-//
-// 			usersJSON, err := json.MarshalIndent(wrapped, "", "    ")
-// 			if err != nil {
-// 				log.Printf("%s Error marshaling users: %v", config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			fmt.Fprintf(w, "%s\n", string(usersJSON))
-// 			return nil
-// 		})
-// }
-//
-// // CreateUserHandler returns an http.Handler that creates the user.
-// func CreateUserHandler(db *sql.DB) http.Handler {
-// 	return aphttp.ErrorCatchingHandler(
-// 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 			body, err := ioutil.ReadAll(r.Body)
-// 			if err != nil {
-// 				log.Printf("%s Error reading create user body: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			var wrapped struct {
-// 				User model.User `json:"user"`
-// 			}
-// 			err = json.Unmarshal(body, &wrapped)
-// 			if err != nil {
-// 				log.Printf("%s Error unmarshalling user body: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-// 			user := &wrapped.User
-//
-// 			validationErrors := user.Validate()
-// 			if !validationErrors.Empty() {
-// 				errorsJSON, err := validationErrors.JSON()
-// 				if err != nil {
-// 					log.Printf("%s Error marshaling user: %v", config.System, err)
-// 					return aphttp.DefaultServerError()
-// 				}
-// 				fmt.Fprintf(w, "%s\n", errorsJSON)
-// 				return nil
-// 			}
-//
-// 			tx := db.MustBegin()
-// 			result, err := tx.Exec("INSERT INTO `users` (`name`) VALUES (?);",
-// 				user.Name)
-// 			if err != nil {
-// 				log.Printf("%s Error inserting user: %v", config.System, err)
-// 				tx.Rollback()
-// 				return aphttp.DefaultServerError()
-// 			}
-// 			err = tx.Commit()
-// 			if err != nil {
-// 				log.Printf("%s Error committing insert user: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-// 			user.ID, err = result.LastInsertId()
-// 			if err != nil {
-// 				log.Printf("%s Error getting last insert id for user: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			userJSON, err := json.MarshalIndent(wrapped, "", "    ")
-// 			if err != nil {
-// 				log.Printf("%s Error marshaling user: %v", config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			fmt.Fprintf(w, "%s\n", userJSON)
-// 			return nil
-// 		})
-// }
-//
-// // ShowUserHandler returns an http.Handler that shows the user.
-// func ShowUserHandler(db *sql.DB) http.Handler {
-// 	return aphttp.ErrorCatchingHandler(
-// 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 			id := mux.Vars(r)["id"]
-//
-// 			user := model.User{}
-// 			err := db.Get(&user, "SELECT * FROM `users` WHERE `id` = ?;", id)
-// 			if err != nil {
-// 				return aphttp.NewError(fmt.Errorf("No user with id %s", id), 404)
-// 			}
-//
-// 			wrapped := struct {
-// 				User model.User `json:"user"`
-// 			}{user}
-//
-// 			userJSON, err := json.MarshalIndent(wrapped, "", "    ")
-// 			if err != nil {
-// 				log.Printf("%s Error marshaling users: %v", config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			fmt.Fprintf(w, "%s\n", string(userJSON))
-// 			return nil
-// 		})
-// }
-//
-// // UpdateUserHandler returns an http.Handler that updates the user.
-// func UpdateUserHandler(db *sql.DB) http.Handler {
-// 	return aphttp.ErrorCatchingHandler(
-// 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 			id := mux.Vars(r)["id"]
-//
-// 			body, err := ioutil.ReadAll(r.Body)
-// 			if err != nil {
-// 				log.Printf("%s Error reading create user body: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			var wrapped struct {
-// 				User model.User `json:"user"`
-// 			}
-// 			err = json.Unmarshal(body, &wrapped)
-// 			if err != nil {
-// 				log.Printf("%s Error unmarshalling user body: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-// 			user := wrapped.User
-//
-// 			tx := db.MustBegin()
-// 			result, err := tx.Exec("UPDATE `users` SET `name` = ? WHERE `id` = ?;",
-// 				user.Name, id)
-// 			if err != nil {
-// 				log.Printf("%s Error updating user: %v", config.System, err)
-// 				tx.Rollback()
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			numRows, err := result.RowsAffected()
-// 			if err != nil || numRows != 1 {
-// 				log.Printf("%s Error updating user: %v", config.System, err)
-// 				tx.Rollback()
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			err = tx.Commit()
-// 			if err != nil {
-// 				log.Printf("%s Error committing update user: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			userJSON, err := json.MarshalIndent(wrapped, "", "    ")
-// 			if err != nil {
-// 				log.Printf("%s Error marshaling user: %v", config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			fmt.Fprintf(w, "%s\n", userJSON)
-// 			return nil
-// 		})
-// }
-//
-// // DeleteUserHandler returns an http.Handler that deletes the user.
-// func DeleteUserHandler(db *sql.DB) http.Handler {
-// 	return aphttp.ErrorCatchingHandler(
-// 		func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-// 			id := mux.Vars(r)["id"]
-//
-// 			tx := db.MustBegin()
-// 			result, err := tx.Exec("DELETE FROM `users` WHERE `id` = ?;", id)
-// 			if err != nil {
-// 				log.Printf("%s Error deleting user: %v", config.System, err)
-// 				tx.Rollback()
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			numRows, err := result.RowsAffected()
-// 			if err != nil || numRows != 1 {
-// 				log.Printf("%s Error deleting user: %v", config.System, err)
-// 				tx.Rollback()
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			err = tx.Commit()
-// 			if err != nil {
-// 				log.Printf("%s Error committing delete user: %v",
-// 					config.System, err)
-// 				return aphttp.DefaultServerError()
-// 			}
-//
-// 			w.WriteHeader(http.StatusOK)
-// 			return nil
-// 		})
-// }
+// RouteUsers routes all the endpoints for user management by account admins.
+func RouteUsers(router aphttp.Router, db *sql.DB) {
+	router.Handle("/users",
+		handlers.MethodHandler{
+			"GET":  aphttp.ErrorCatchingHandler(ListUsersHandler(db, accountIDFromSession)),
+			"POST": aphttp.ErrorCatchingHandler(CreateUserHandler(db, accountIDFromSession)),
+		})
+	router.Handle("/users/{id}",
+		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
+			"GET":    aphttp.ErrorCatchingHandler(ShowUserHandler(db, accountIDFromSession)),
+			"PUT":    aphttp.ErrorCatchingHandler(UpdateUserHandler(db, accountIDFromSession)),
+			"DELETE": aphttp.ErrorCatchingHandler(DeleteUserHandler(db, accountIDFromSession)),
+		}))
+}
+
+// ListUsersHandler returns a handler that lists the users.
+func ListUsersHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		users, err := model.AllUsersForAccountID(db, accountID(r))
+		if err != nil {
+			log.Printf("%s Error listing users: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
+
+		return serializeUsers(users, w)
+	}
+}
+
+// CreateUserHandler returns a handler that creates the user.
+func CreateUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
+	return insertOrUpdateUserHandler(db, accountID, true)
+}
+
+// ShowUserHandler returns a handler that shows the user.
+func ShowUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		id := instanceID(r)
+		user, err := model.FindUserForAccountID(db, id, accountID(r))
+		if err != nil {
+			return aphttp.NewError(fmt.Errorf("No user with id %d in account", id), 404)
+		}
+
+		return serialize(wrappedSanitizedUser{sanitizeUser(user)}, w)
+	}
+}
+
+// UpdateUserHandler returns a handler that updates the user.
+func UpdateUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
+	return insertOrUpdateUserHandler(db, accountID, false)
+}
+
+// DeleteUserHandler returns a handler that deletes the user.
+func DeleteUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		err := performInTransaction(db, func(tx *sqlx.Tx) error {
+			return model.DeleteUserForAccountID(tx, instanceID(r), accountID(r))
+		})
+		if err != nil {
+			log.Printf("%s Error deleting user: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+}
+
+func insertOrUpdateUserHandler(db *sql.DB, accountID func(r *http.Request) int64, isInsert bool) aphttp.ErrorReturningHandler {
+	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
+		user, err := readUser(r)
+		if err != nil {
+			log.Printf("%s Error reading user: %v", config.System, err)
+			return aphttp.DefaultServerError()
+		}
+
+		var method func(*sqlx.Tx) error
+		var desc string
+		if isInsert {
+			user.AccountID = accountID(r)
+			method = user.Insert
+			desc = "inserting"
+		} else {
+			user.ID = instanceID(r)
+			method = user.Update
+			desc = "updating"
+		}
+
+		validationErrors := user.Validate()
+		if !validationErrors.Empty() {
+			return serialize(wrappedErrors{validationErrors}, w)
+		}
+
+		err = performInTransaction(db, method)
+		if err != nil {
+			log.Printf("%s Error %s user: %v", config.System, desc, err)
+			return aphttp.DefaultServerError()
+		}
+
+		return serialize(wrappedSanitizedUser{sanitizeUser(user)}, w)
+	}
+}
 
 type wrappedUser struct {
 	User *model.User `json:"user"`

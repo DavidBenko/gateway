@@ -99,3 +99,41 @@ func DeleteSessionHandler(db *sql.DB) aphttp.ErrorReturningHandler {
 		return nil
 	}
 }
+
+// NewSessionAuthRouter wraps a router with session checking behavior.
+func NewSessionAuthRouter(router aphttp.Router) aphttp.Router {
+	return &SessionAuthRouter{router}
+}
+
+// SessionAuthRouter wraps all Handle calls in an HTTP Basic check.
+type SessionAuthRouter struct {
+	router aphttp.Router
+}
+
+// Handle wraps the handler in the auth check.
+func (s *SessionAuthRouter) Handle(pattern string, handler http.Handler) {
+	s.router.Handle(pattern, s.Wrap(handler))
+}
+
+// Wrap provides the wrapped handling functionality.
+func (s *SessionAuthRouter) Wrap(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.checkAuth(w, r) {
+			handler.ServeHTTP(w, r)
+			return
+		}
+
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("401 Unauthorized\n"))
+	})
+}
+
+func (s *SessionAuthRouter) checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	session := requestSession(r)
+	userID := session.Values[userIDKey]
+	accountID := session.Values[accountIDKey]
+	if userID == nil || accountID == nil {
+		return false
+	}
+	return userID.(int64) > 0 && accountID.(int64) > 0
+}

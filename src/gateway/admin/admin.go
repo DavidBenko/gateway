@@ -36,5 +36,9 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	// sessions are unprotected to allow users to authenticate
 	RouteSessions(admin, db)
 
+	// protected by requiring login
+	authAdmin := NewSessionAuthRouter(admin)
+	RouteUsers(authAdmin, db)
+
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }
