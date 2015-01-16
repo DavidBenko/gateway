@@ -5,7 +5,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
-	sql "gateway/sql"
+	apsql "gateway/sql"
 	"log"
 	"net/http"
 
@@ -47,57 +47,57 @@ func setupSessions(conf config.ProxyAdmin) {
 }
 
 // RouteSessions routes all the endpoints for logging in and out
-func RouteSessions(router aphttp.Router, db *sql.DB) {
-	router.Handle("/sessions",
+func RouteSessions(path string, router aphttp.Router, db *apsql.DB) {
+	router.Handle(path,
 		handlers.MethodHandler{
-			"POST":   aphttp.ErrorCatchingHandler(NewSessionHandler(db)),
-			"DELETE": aphttp.ErrorCatchingHandler(DeleteSessionHandler(db)),
+			"POST":   read(db, NewSessionHandler),
+			"DELETE": read(db, DeleteSessionHandler),
 		})
 }
 
 // NewSessionHandler returns a hndler that adds authenticating information
 // to the session if the credentials are valid.
-func NewSessionHandler(db *sql.DB) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		var credentials struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		if err := deserialize(&credentials, r); err != nil {
-			log.Printf("%s Error reading credentials: %v", config.System, err)
-			return aphttp.DefaultServerError()
-		}
+func NewSessionHandler(w http.ResponseWriter, r *http.Request,
+	db *apsql.DB) aphttp.Error {
 
-		user, err := model.FindUserByEmail(db, credentials.Email)
-		if err != nil {
-			return aphttp.NewError(errors.New("No user with that email."), 400)
-		}
-		if !user.ValidPassword(credentials.Password) {
-			return aphttp.NewError(errors.New("Invalid password."), 400)
-		}
-
-		session := requestSession(r)
-		session.Values[userIDKey] = user.ID
-		session.Values[accountIDKey] = user.AccountID
-		session.Save(r, w)
-
-		w.WriteHeader(http.StatusOK)
-		return nil
+	var credentials struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
+	if err := deserialize(&credentials, r); err != nil {
+		log.Printf("%s Error reading credentials: %v", config.System, err)
+		return aphttp.DefaultServerError()
+	}
+
+	user, err := model.FindUserByEmail(db, credentials.Email)
+	if err != nil {
+		return aphttp.NewError(errors.New("No user with that email."), 400)
+	}
+	if !user.ValidPassword(credentials.Password) {
+		return aphttp.NewError(errors.New("Invalid password."), 400)
+	}
+
+	session := requestSession(r)
+	session.Values[userIDKey] = user.ID
+	session.Values[accountIDKey] = user.AccountID
+	session.Save(r, w)
+
+	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 // DeleteSessionHandler returns a hndler that removes authenticating information
 // from the session.
-func DeleteSessionHandler(db *sql.DB) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		session := requestSession(r)
-		delete(session.Values, userIDKey)
-		delete(session.Values, accountIDKey)
-		session.Save(r, w)
+func DeleteSessionHandler(w http.ResponseWriter, r *http.Request,
+	db *apsql.DB) aphttp.Error {
 
-		w.WriteHeader(http.StatusOK)
-		return nil
-	}
+	session := requestSession(r)
+	delete(session.Values, userIDKey)
+	delete(session.Values, accountIDKey)
+	session.Save(r, w)
+
+	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
 // NewSessionAuthRouter wraps a router with session checking behavior.

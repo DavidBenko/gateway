@@ -34,7 +34,7 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	RouteResource(&UsersController{accountIDFromPath}, "/accounts/{accountID}/users", siteAdmin, db)
 
 	// sessions are unprotected to allow users to authenticate
-	RouteSessions(admin, db)
+	RouteSessions("/sessions", admin, db)
 
 	// protected by requiring login
 	authAdmin := NewSessionAuthRouter(admin)
