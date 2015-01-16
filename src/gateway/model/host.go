@@ -5,8 +5,6 @@ import (
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Host represents a host the API is available on.
@@ -55,7 +53,7 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 }
 
 // DeleteHostForAPIIDAndAccountID deletes the host with the id, api_id and account_id specified.
-func DeleteHostForAPIIDAndAccountID(tx *sqlx.Tx, id, apiID, accountID int64) error {
+func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	result, err := tx.Exec(
 		"DELETE FROM `hosts`"+
 			"INNER JOIN `apis` ON `hosts`.`api_id` = `api`.`id`"+
@@ -74,7 +72,7 @@ func DeleteHostForAPIIDAndAccountID(tx *sqlx.Tx, id, apiID, accountID int64) err
 }
 
 // Insert inserts the host into the database as a new row.
-func (h *Host) Insert(tx *sqlx.Tx) error {
+func (h *Host) Insert(tx *apsql.Tx) error {
 	result, err := tx.Exec("INSERT INTO `hosts` (`api_id`, `name`) VALUES (?, ?);",
 		h.APIID, h.Name)
 	if err != nil {
@@ -90,7 +88,7 @@ func (h *Host) Insert(tx *sqlx.Tx) error {
 }
 
 // Update updates the host in the database.
-func (h *Host) Update(tx *sqlx.Tx) error {
+func (h *Host) Update(tx *apsql.Tx) error {
 	result, err := tx.Exec(
 		"UPDATE `hosts` "+
 			"INNER JOIN `apis` ON `hosts`.`api_id` = `api`.`id`"+
