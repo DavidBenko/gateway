@@ -11,6 +11,8 @@ import (
 	apsql "gateway/sql"
 )
 
+//go:generate ./serialize.rb Accounts
+
 type AccountsController struct{}
 
 // List returns a handler that lists the accounts.
@@ -23,7 +25,7 @@ func (c *AccountsController) List(w http.ResponseWriter, r *http.Request,
 		return aphttp.DefaultServerError()
 	}
 
-	return c.serializeAccounts(accounts, w)
+	return c.serializeCollection(accounts, w)
 }
 
 // Create returns a handler that creates the account.
@@ -43,7 +45,7 @@ func (c *AccountsController) Show(w http.ResponseWriter, r *http.Request,
 		return aphttp.NewError(fmt.Errorf("No account with id %d", id), 404)
 	}
 
-	return c.serialize(account, w)
+	return c.serializeInstance(account, w)
 }
 
 // Update returns a handler that updates the account.
@@ -69,7 +71,7 @@ func (c *AccountsController) Delete(w http.ResponseWriter, r *http.Request,
 
 func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
-	account, err := c.deserialize(r)
+	account, err := c.deserializeInstance(r)
 	if err != nil {
 		log.Printf("%s Error reading account: %v", config.System, err)
 		return aphttp.DefaultServerError()
@@ -96,29 +98,5 @@ func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Reque
 		return aphttp.DefaultServerError()
 	}
 
-	return c.serialize(account, w)
-}
-
-func (c *AccountsController) deserialize(r *http.Request) (*model.Account, error) {
-	var wrapped struct {
-		Account *model.Account `json:"account"`
-	}
-	if err := deserialize(&wrapped, r); err != nil {
-		return nil, err
-	}
-	return wrapped.Account, nil
-}
-
-func (c *AccountsController) serialize(account *model.Account, w http.ResponseWriter) aphttp.Error {
-	wrapped := struct {
-		Account *model.Account `json:"account"`
-	}{account}
-	return serialize(wrapped, w)
-}
-
-func (c *AccountsController) serializeAccounts(accounts []*model.Account, w http.ResponseWriter) aphttp.Error {
-	wrapped := struct {
-		Accounts []*model.Account `json:"accounts"`
-	}{accounts}
-	return serialize(wrapped, w)
+	return c.serializeInstance(account, w)
 }
