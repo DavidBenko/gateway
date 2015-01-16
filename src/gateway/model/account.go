@@ -5,8 +5,6 @@ import (
 	"gateway/config"
 	"gateway/sql"
 	"log"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Account represents a single tenant in multi-tenant deployment.
@@ -40,7 +38,7 @@ func FindAccount(db *sql.DB, id int64) (*Account, error) {
 }
 
 // DeleteAccount deletes the account with the id specified.
-func DeleteAccount(tx *sqlx.Tx, id int64) error {
+func DeleteAccount(tx *sql.Tx, id int64) error {
 	result, err := tx.Exec("DELETE FROM `accounts` WHERE `id` = ?;", id)
 	if err != nil {
 		return err
@@ -55,7 +53,7 @@ func DeleteAccount(tx *sqlx.Tx, id int64) error {
 }
 
 // Insert inserts the account into the database as a new row.
-func (a *Account) Insert(tx *sqlx.Tx) error {
+func (a *Account) Insert(tx *sql.Tx) error {
 	result, err := tx.Exec("INSERT INTO `accounts` (`name`) VALUES (?);",
 		a.Name)
 	if err != nil {
@@ -71,7 +69,7 @@ func (a *Account) Insert(tx *sqlx.Tx) error {
 }
 
 // Update updates the account in the database.
-func (a *Account) Update(tx *sqlx.Tx) error {
+func (a *Account) Update(tx *sql.Tx) error {
 	result, err := tx.Exec("UPDATE `accounts` SET `name` = ? WHERE `id` = ?;",
 		a.Name, a.ID)
 	if err != nil {

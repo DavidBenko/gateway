@@ -1,56 +1,42 @@
 package admin
 
 import (
-	"gateway/config"
 	aphttp "gateway/http"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/handlers"
 )
 
-type Controller interface {
-	List(db *apsql.DB) aphttp.ErrorReturningHandler
-	Create(db *apsql.DB) aphttp.ErrorReturningHandler
-	Show(db *apsql.DB) aphttp.ErrorReturningHandler
-	Update(db *apsql.DB) aphttp.ErrorReturningHandler
-	Delete(db *apsql.DB) aphttp.ErrorReturningHandler
+// ResourceController defines what we expect a controller to do to route
+// a RESTful resource
+type ResourceController interface {
+	List(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error
+	Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
+	Show(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error
+	Update(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
+	Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
 }
 
-func RouteResource(controller Controller, path string, router aphttp.Router, db *apsql.DB) {
-	router.Handle(path,
-		handlers.MethodHandler{
-			"GET":  aphttp.ErrorCatchingHandler(controller.List(db)),
-			"POST": aphttp.ErrorCatchingHandler(controller.Create(db)),
-		})
+func RouteResource(controller ResourceController, path string,
+	router aphttp.Router, db *apsql.DB) {
+
+	router.Handle(path, handlers.MethodHandler{
+		"GET":  read(db, controller.List),
+		"POST": write(db, controller.Create),
+	})
 	router.Handle(path+"/{id}",
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-			"GET":    aphttp.ErrorCatchingHandler(controller.Show(db)),
-			"PUT":    aphttp.ErrorCatchingHandler(controller.Update(db)),
-			"DELETE": aphttp.ErrorCatchingHandler(controller.Delete(db)),
+			"GET":    read(db, controller.Show),
+			"PUT":    write(db, controller.Update),
+			"DELETE": write(db, controller.Delete),
 		}))
 }
 
-// TransactionAwareHandler TODO
-type TransactionAwareHandler func(w http.ResponseWriter,
-	r *http.Request,
-	tx *apsql.Tx) aphttp.Error
+func read(db *apsql.DB, handler DatabaseAwareHandler) http.Handler {
+	return aphttp.ErrorCatchingHandler(DatabaseWrappedHandler(db, handler))
+}
 
-// TransactionWrappedHandler catches an error a handler throws and responds with it.
-func TransactionWrappedHandler(db *apsql.DB, handler TransactionAwareHandler) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		tx, err := db.Begin()
-		if err != nil {
-			log.Printf("%s Error beginning transaction: %v", config.System, err)
-			return aphttp.DefaultServerError()
-		}
-		handlerError := handler(w, r, tx)
-		if handlerError != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-		return handlerError
-	}
+func write(db *apsql.DB, handler TransactionAwareHandler) http.Handler {
+	return aphttp.ErrorCatchingHandler(TransactionWrappedHandler(db, handler))
 }
