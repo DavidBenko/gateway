@@ -29,6 +29,12 @@ type DB struct {
 	Driver driverType
 }
 
+// Tx wraps a *sql.Tx with the driver we're using
+type Tx struct {
+	*sqlx.Tx
+	Driver driverType
+}
+
 // Connect opens and returns a database connection.
 func Connect(conf config.Database) (*DB, error) {
 	var driver driverType
@@ -89,6 +95,12 @@ func (db *DB) Migrate() error {
 	}
 
 	return nil
+}
+
+// Begin creates a new transaction
+func (db *DB) Begin() (*Tx, error) {
+	tx, err := db.DB.Beginx()
+	return &Tx{tx, db.Driver}, err
 }
 
 func (db *DB) sql(name string) string {

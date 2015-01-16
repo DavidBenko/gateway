@@ -30,7 +30,7 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 
 	// siteAdmin is additionally protected for the site owner
 	siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
-	RouteAccounts(siteAdmin, db)
+	RouteResource(&AccountsController{}, "/accounts", siteAdmin, db)
 	RouteAccountUsers(siteAdmin, db)
 
 	// sessions are unprotected to allow users to authenticate

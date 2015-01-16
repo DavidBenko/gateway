@@ -10,27 +10,13 @@ import (
 	"gateway/model"
 	sql "gateway/sql"
 
-	"github.com/gorilla/handlers"
 	"github.com/jmoiron/sqlx"
 )
 
-// RouteAccounts routes all the endpoints for account management
-func RouteAccounts(router aphttp.Router, db *sql.DB) {
-	router.Handle("/accounts",
-		handlers.MethodHandler{
-			"GET":  aphttp.ErrorCatchingHandler(ListAccountsHandler(db)),
-			"POST": aphttp.ErrorCatchingHandler(CreateAccountHandler(db)),
-		})
-	router.Handle("/accounts/{id}",
-		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-			"GET":    aphttp.ErrorCatchingHandler(ShowAccountHandler(db)),
-			"PUT":    aphttp.ErrorCatchingHandler(UpdateAccountHandler(db)),
-			"DELETE": aphttp.ErrorCatchingHandler(DeleteAccountHandler(db)),
-		}))
-}
+type AccountsController struct{}
 
-// ListAccountsHandler returns a handler that lists the accounts.
-func ListAccountsHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+// List returns a handler that lists the accounts.
+func (c *AccountsController) List(db *sql.DB) aphttp.ErrorReturningHandler {
 	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		accounts, err := model.AllAccounts(db)
 		if err != nil {
@@ -42,13 +28,13 @@ func ListAccountsHandler(db *sql.DB) aphttp.ErrorReturningHandler {
 	}
 }
 
-// CreateAccountHandler returns a handler that creates the account.
-func CreateAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
-	return insertOrUpdateAccountHandler(db, true)
+// Create returns a handler that creates the account.
+func (c *AccountsController) Create(db *sql.DB) aphttp.ErrorReturningHandler {
+	return c.insertOrUpdate(db, true)
 }
 
-// ShowAccountHandler returns a handler that shows the account.
-func ShowAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+// Show returns a handler that shows the account.
+func (c *AccountsController) Show(db *sql.DB) aphttp.ErrorReturningHandler {
 	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		id := instanceID(r)
 		account, err := model.FindAccount(db, id)
@@ -60,13 +46,13 @@ func ShowAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
 	}
 }
 
-// UpdateAccountHandler returns a handler that updates the account.
-func UpdateAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
-	return insertOrUpdateAccountHandler(db, false)
+// Update returns a handler that updates the account.
+func (c *AccountsController) Update(db *sql.DB) aphttp.ErrorReturningHandler {
+	return c.insertOrUpdate(db, false)
 }
 
-// DeleteAccountHandler returns a handler that deletes the account.
-func DeleteAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
+// Delete returns a handler that deletes the account.
+func (c *AccountsController) Delete(db *sql.DB) aphttp.ErrorReturningHandler {
 	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		err := performInTransaction(db, func(tx *sqlx.Tx) error {
 			return model.DeleteAccount(tx, instanceID(r))
@@ -81,7 +67,7 @@ func DeleteAccountHandler(db *sql.DB) aphttp.ErrorReturningHandler {
 	}
 }
 
-func insertOrUpdateAccountHandler(db *sql.DB, isInsert bool) aphttp.ErrorReturningHandler {
+func (c *AccountsController) insertOrUpdate(db *sql.DB, isInsert bool) aphttp.ErrorReturningHandler {
 	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		account, err := readAccount(r)
 		if err != nil {
