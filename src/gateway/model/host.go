@@ -32,8 +32,8 @@ func AllHostsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Host
 		"SELECT `hosts`.`id` as `id`, `hosts`.`name` as `name` "+
 			"FROM `hosts`, `apis` "+
 			"WHERE `hosts`.`api_id` = ? "+
-			"AND `hosts`.`api_id` = `apis`.`id` "+
-			"AND `apis`.`account_id` = ? "+
+			"  AND `hosts`.`api_id` = `apis`.`id` "+
+			"  AND `apis`.`account_id` = ? "+
 			"ORDER BY `hosts`.`name` ASC;",
 		apiID, accountID)
 	return hosts, err
@@ -45,9 +45,10 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 	err := db.Get(&host,
 		"SELECT `hosts`.`id` as `id`, `hosts`.`name` as `name` "+
 			"FROM `hosts`, `apis` "+
-			"WHERE `hosts`.`api_id` = ? "+
-			"AND `hosts`.`api_id` = `apis`.`id` "+
-			"AND `apis`.`account_id` = ? ",
+			"WHERE `hosts`.`id` = ? "+
+			"  AND `hosts`.`api_id` = ? "+
+			"  AND `hosts`.`api_id` = `apis`.`id` "+
+			"  AND `apis`.`account_id` = ?;",
 		id, apiID, accountID)
 	return &host, err
 }
@@ -56,8 +57,9 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	result, err := tx.Exec(
 		"DELETE FROM `hosts`"+
-			"INNER JOIN `apis` ON `hosts`.`api_id` = `api`.`id`"+
-			"WHERE `hosts`.`id` = ? AND `apis`.`id` = ? AND `apis`.`account_id` = ?;",
+			"WHERE `hosts`.`id` = ? "+
+			"  AND `hosts`.`api_id` IN "+
+			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		id, apiID, accountID)
 	if err != nil {
 		return err
@@ -73,8 +75,13 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) er
 
 // Insert inserts the host into the database as a new row.
 func (h *Host) Insert(tx *apsql.Tx) error {
-	result, err := tx.Exec("INSERT INTO `hosts` (`api_id`, `name`) VALUES (?, ?);",
-		h.APIID, h.Name)
+	result, err := tx.Exec(
+		"INSERT INTO `hosts` (`api_id`, `name`) "+
+			"VALUES ( "+
+			"  (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?), "+
+			"  ? "+
+			");",
+		h.APIID, h.AccountID, h.Name)
 	if err != nil {
 		return err
 	}
@@ -91,9 +98,10 @@ func (h *Host) Insert(tx *apsql.Tx) error {
 func (h *Host) Update(tx *apsql.Tx) error {
 	result, err := tx.Exec(
 		"UPDATE `hosts` "+
-			"INNER JOIN `apis` ON `hosts`.`api_id` = `api`.`id`"+
 			"SET `name` = ? "+
-			"WHERE `hosts`.`id` = ? AND `apis`.`id` = ? AND `apis`.`account_id` = ?;",
+			"WHERE `hosts`.`id` = ? "+
+			"  AND `hosts`.`api_id` IN "+
+			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		h.Name, h.ID, h.APIID, h.AccountID)
 	if err != nil {
 		return err

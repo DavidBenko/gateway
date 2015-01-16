@@ -43,6 +43,9 @@ func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular}
   if err := deserialize(&wrapped, r); err != nil {
     return nil, err
   }
+  if wrapped.#{singular} == nil {
+    return nil, errors.New("Could not deserialize #{singular} from json.")
+  }
   return wrapped.#{singular}, nil
 }
 GOLANG
