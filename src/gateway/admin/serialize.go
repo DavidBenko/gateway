@@ -27,6 +27,10 @@ func accountIDFromSession(r *http.Request) int64 {
 	return session.Values[accountIDKey].(int64)
 }
 
+func apiIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["apiID"])
+}
+
 func parseID(id string) int64 {
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

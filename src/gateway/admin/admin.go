@@ -40,6 +40,8 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	authAdmin := NewSessionAuthRouter(admin)
 	RouteUsers(authAdmin, db)
 	RouteAPIs(authAdmin, db)
+	RouteHosts(authAdmin, db)
 
+	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
 }

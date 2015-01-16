@@ -1,12 +1,5 @@
 package model
 
-type Host struct {
-	API *API
-
-	ID   int64
-	Name string
-}
-
 type Environment struct {
 	API *API
 
