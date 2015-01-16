@@ -3,12 +3,12 @@
 require 'rubygems'
 require 'active_support/inflector'
 
-plural = ARGV.first
-singular = plural.singularize
+singular = ARGV.first
+plural = singular.pluralize
 controller = "#{plural}Controller"
 
-json_plural = plural.underscore
 json_singular = singular.underscore
+json_plural = json_singular.pluralize
 
 transform = ARGV.count > 1
 transform_method = transform ? ARGV[1] : ""
@@ -38,7 +38,7 @@ func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular}
   error) {
 
   var wrapped struct {
-    #{singular} *model.#{singular} `json:"#{singular}"`
+    #{singular} *model.#{singular} `json:"#{json_singular}"`
   }
   if err := deserialize(&wrapped, r); err != nil {
     return nil, err

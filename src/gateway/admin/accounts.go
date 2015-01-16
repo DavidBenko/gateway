@@ -11,7 +11,7 @@ import (
 	apsql "gateway/sql"
 )
 
-//go:generate ./serialize.rb Accounts
+//go:generate ./serialize.rb Account
 
 // AccountsController manages accounts
 type AccountsController struct{}

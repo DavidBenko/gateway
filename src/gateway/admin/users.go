@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-//go:generate ./serialize.rb Users c.sanitize sanitizedUser
+//go:generate ./serialize.rb User c.sanitize sanitizedUser
 
 // UsersController manages users.
 type UsersController struct {

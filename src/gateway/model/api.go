@@ -5,8 +5,6 @@ import (
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // API represents a top level grouping of endpoints accessible at a host.
@@ -43,7 +41,7 @@ func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 }
 
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
-func DeleteAPIForAccountID(tx *sqlx.Tx, id, accountID int64) error {
+func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 	result, err := tx.Exec("DELETE FROM `apis` WHERE `id` = ? AND account_id = ?;",
 		id, accountID)
 	if err != nil {
@@ -59,7 +57,7 @@ func DeleteAPIForAccountID(tx *sqlx.Tx, id, accountID int64) error {
 }
 
 // Insert inserts the api into the database as a new row.
-func (a *API) Insert(tx *sqlx.Tx) error {
+func (a *API) Insert(tx *apsql.Tx) error {
 	result, err := tx.Exec("INSERT INTO `apis` (`account_id`, `name`) VALUES (?, ?);",
 		a.AccountID, a.Name)
 	if err != nil {
@@ -75,7 +73,7 @@ func (a *API) Insert(tx *sqlx.Tx) error {
 }
 
 // Update updates the api in the database.
-func (a *API) Update(tx *sqlx.Tx) error {
+func (a *API) Update(tx *apsql.Tx) error {
 	result, err := tx.Exec("UPDATE `apis` SET `name` = ? WHERE `id` = ? AND `account_id` = ?;",
 		a.Name, a.ID, a.AccountID)
 	if err != nil {
