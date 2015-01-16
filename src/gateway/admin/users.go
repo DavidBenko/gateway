@@ -5,118 +5,104 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
-	"gateway/sql"
+	apsql "gateway/sql"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/handlers"
-	"github.com/jmoiron/sqlx"
 )
 
-// RouteUsers routes all the endpoints for user management by account admins.
-func RouteUsers(router aphttp.Router, db *sql.DB) {
-	router.Handle("/users",
-		handlers.MethodHandler{
-			"GET":  aphttp.ErrorCatchingHandler(ListUsersHandler(db, accountIDFromSession)),
-			"POST": aphttp.ErrorCatchingHandler(CreateUserHandler(db, accountIDFromSession)),
-		})
-	router.Handle("/users/{id}",
-		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler{
-			"GET":    aphttp.ErrorCatchingHandler(ShowUserHandler(db, accountIDFromSession)),
-			"PUT":    aphttp.ErrorCatchingHandler(UpdateUserHandler(db, accountIDFromSession)),
-			"DELETE": aphttp.ErrorCatchingHandler(DeleteUserHandler(db, accountIDFromSession)),
-		}))
+//go:generate ./serialize.rb Users c.sanitize sanitizedUser
+
+// UsersController manages users.
+type UsersController struct {
+	accountID func(r *http.Request) int64
 }
 
-// ListUsersHandler returns a handler that lists the users.
-func ListUsersHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		users, err := model.AllUsersForAccountID(db, accountID(r))
-		if err != nil {
-			log.Printf("%s Error listing users: %v", config.System, err)
-			return aphttp.DefaultServerError()
-		}
+// List lists the users.
+func (c *UsersController) List(w http.ResponseWriter, r *http.Request,
+	db *apsql.DB) aphttp.Error {
 
-		return serializeUsers(users, w)
+	users, err := model.AllUsersForAccountID(db, c.accountID(r))
+	if err != nil {
+		log.Printf("%s Error listing users: %v", config.System, err)
+		return aphttp.DefaultServerError()
 	}
+
+	return c.serializeCollection(users, w)
 }
 
-// CreateUserHandler returns a handler that creates the user.
-func CreateUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
-	return insertOrUpdateUserHandler(db, accountID, true)
+// Create creates the user.
+func (c *UsersController) Create(w http.ResponseWriter, r *http.Request,
+	tx *apsql.Tx) aphttp.Error {
+
+	return c.insertOrUpdate(w, r, tx, true)
 }
 
-// ShowUserHandler returns a handler that shows the user.
-func ShowUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		id := instanceID(r)
-		user, err := model.FindUserForAccountID(db, id, accountID(r))
-		if err != nil {
-			return aphttp.NewError(fmt.Errorf("No user with id %d in account", id), 404)
-		}
+// Show shows the user.
+func (c *UsersController) Show(w http.ResponseWriter, r *http.Request,
+	db *apsql.DB) aphttp.Error {
 
-		return serialize(wrappedSanitizedUser{sanitizeUser(user)}, w)
+	id := instanceID(r)
+	user, err := model.FindUserForAccountID(db, id, c.accountID(r))
+	if err != nil {
+		return aphttp.NewError(fmt.Errorf("No user with id %d in account", id), 404)
 	}
+
+	return c.serializeInstance(user, w)
 }
 
-// UpdateUserHandler returns a handler that updates the user.
-func UpdateUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
-	return insertOrUpdateUserHandler(db, accountID, false)
+// Update updates the user.
+func (c *UsersController) Update(w http.ResponseWriter, r *http.Request,
+	tx *apsql.Tx) aphttp.Error {
+
+	return c.insertOrUpdate(w, r, tx, false)
 }
 
-// DeleteUserHandler returns a handler that deletes the user.
-func DeleteUserHandler(db *sql.DB, accountID func(r *http.Request) int64) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		err := performInTransaction(db, func(tx *sqlx.Tx) error {
-			return model.DeleteUserForAccountID(tx, instanceID(r), accountID(r))
-		})
-		if err != nil {
-			log.Printf("%s Error deleting user: %v", config.System, err)
-			return aphttp.DefaultServerError()
-		}
+// Delete deletes the user.
+func (c *UsersController) Delete(w http.ResponseWriter, r *http.Request,
+	tx *apsql.Tx) aphttp.Error {
 
-		w.WriteHeader(http.StatusOK)
-		return nil
+	err := model.DeleteUserForAccountID(tx, instanceID(r), c.accountID(r))
+	if err != nil {
+		log.Printf("%s Error deleting user: %v", config.System, err)
+		return aphttp.DefaultServerError()
 	}
+
+	w.WriteHeader(http.StatusOK)
+	return nil
 }
 
-func insertOrUpdateUserHandler(db *sql.DB, accountID func(r *http.Request) int64, isInsert bool) aphttp.ErrorReturningHandler {
-	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
-		user, err := readUser(r)
-		if err != nil {
-			log.Printf("%s Error reading user: %v", config.System, err)
-			return aphttp.DefaultServerError()
-		}
+func (c *UsersController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
+	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-		user.AccountID = accountID(r)
-		var method func(*sqlx.Tx) error
-		var desc string
-		if isInsert {
-			method = user.Insert
-			desc = "inserting"
-		} else {
-			user.ID = instanceID(r)
-			method = user.Update
-			desc = "updating"
-		}
-
-		validationErrors := user.Validate()
-		if !validationErrors.Empty() {
-			return serialize(wrappedErrors{validationErrors}, w)
-		}
-
-		err = performInTransaction(db, method)
-		if err != nil {
-			log.Printf("%s Error %s user: %v", config.System, desc, err)
-			return aphttp.DefaultServerError()
-		}
-
-		return serialize(wrappedSanitizedUser{sanitizeUser(user)}, w)
+	user, err := c.deserializeInstance(r)
+	if err != nil {
+		log.Printf("%s Error reading user: %v", config.System, err)
+		return aphttp.DefaultServerError()
 	}
-}
 
-type wrappedUser struct {
-	User *model.User `json:"user"`
+	user.AccountID = c.accountID(r)
+	var method func(*apsql.Tx) error
+	var desc string
+	if isInsert {
+		method = user.Insert
+		desc = "inserting"
+	} else {
+		user.ID = instanceID(r)
+		method = user.Update
+		desc = "updating"
+	}
+
+	validationErrors := user.Validate()
+	if !validationErrors.Empty() {
+		return serialize(wrappedErrors{validationErrors}, w)
+	}
+
+	if err = method(tx); err != nil {
+		log.Printf("%s Error %s user: %v", config.System, desc, err)
+		return aphttp.DefaultServerError()
+	}
+
+	return c.serializeInstance(user, w)
 }
 
 type sanitizedUser struct {
@@ -125,28 +111,6 @@ type sanitizedUser struct {
 	Email string `json:"email"`
 }
 
-type wrappedSanitizedUser struct {
-	User *sanitizedUser `json:"user"`
-}
-
-func sanitizeUser(user *model.User) *sanitizedUser {
+func (c *UsersController) sanitize(user *model.User) *sanitizedUser {
 	return &sanitizedUser{user.ID, user.Name, user.Email}
-}
-
-func readUser(r *http.Request) (*model.User, error) {
-	var wrapped wrappedUser
-	if err := deserialize(&wrapped, r); err != nil {
-		return nil, err
-	}
-	return wrapped.User, nil
-}
-
-func serializeUsers(users []*model.User, w http.ResponseWriter) aphttp.Error {
-	wrappedUsers := struct {
-		Users []*sanitizedUser `json:"users"`
-	}{}
-	for _, user := range users {
-		wrappedUsers.Users = append(wrappedUsers.Users, sanitizeUser(user))
-	}
-	return serialize(wrappedUsers, w)
 }

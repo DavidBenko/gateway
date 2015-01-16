@@ -13,6 +13,7 @@ import (
 
 //go:generate ./serialize.rb Accounts
 
+// AccountsController manages accounts
 type AccountsController struct{}
 
 // List returns a handler that lists the accounts.

@@ -8,7 +8,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -61,7 +60,7 @@ func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 }
 
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
-func DeleteUserForAccountID(tx *sqlx.Tx, id, accountID int64) error {
+func DeleteUserForAccountID(tx *apsql.Tx, id, accountID int64) error {
 	result, err := tx.Exec("DELETE FROM `users` WHERE `id` = ? AND account_id = ?;",
 		id, accountID)
 	if err != nil {
@@ -86,7 +85,7 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 }
 
 // Insert inserts the user into the database as a new row.
-func (u *User) Insert(tx *sqlx.Tx) error {
+func (u *User) Insert(tx *apsql.Tx) error {
 	err := u.hashPassword()
 	if err != nil {
 		return err
@@ -107,7 +106,7 @@ func (u *User) Insert(tx *sqlx.Tx) error {
 }
 
 // Update updates the user in the database.
-func (u *User) Update(tx *sqlx.Tx) error {
+func (u *User) Update(tx *apsql.Tx) error {
 	var result sql.Result
 	var err error
 	if u.NewPassword != "" {
