@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: admin assets build fmt godoc jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata vet
+.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata vet
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -26,8 +26,11 @@ assets: install_bindata
 	go-bindata -o src/gateway/proxy/vm/bindata.go -pkg vm $(BINDATA_DEBUG) -prefix "src/gateway/proxy/vm/static/" src/gateway/proxy/vm/static/...
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
-
-build: vet admin assets
+	
+generate:
+	go generate gateway/...
+	
+build: vet admin assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 	
 keygen:

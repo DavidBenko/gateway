@@ -48,3 +48,6 @@ admin/npm-debug.log
 src/gateway/admin/static
 
 test/cookies
+
+# Generated files
+**/*_gen.go
