@@ -48,6 +48,7 @@ func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular}
   }
   return wrapped.#{singular}, nil
 }
+
 GOLANG
 
 if transform
