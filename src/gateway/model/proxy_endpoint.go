@@ -1,12 +1,5 @@
 package model
 
-type Environment struct {
-	API *API
-
-	ID   int64
-	Name string
-}
-
 type EndpointGroup struct {
 	API *API
 

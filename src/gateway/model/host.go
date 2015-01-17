@@ -56,7 +56,7 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 // DeleteHostForAPIIDAndAccountID deletes the host with the id, api_id and account_id specified.
 func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	result, err := tx.Exec(
-		"DELETE FROM `hosts`"+
+		"DELETE FROM `hosts` "+
 			"WHERE `hosts`.`id` = ? "+
 			"  AND `hosts`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
