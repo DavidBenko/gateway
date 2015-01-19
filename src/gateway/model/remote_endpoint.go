@@ -7,7 +7,7 @@ import (
 	"log"
 )
 
-// RemoteEndpoint is an optional grouping of proxy endpoints.
+// RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
 	APIID     int64 `json:"-" db:"api_id"`
