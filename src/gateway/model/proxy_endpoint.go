@@ -9,14 +9,6 @@ type Route struct {
 	Path   string
 }
 
-type RemoteEndpoint struct {
-	API *API
-
-	ID   int64
-	Name string
-	Desc string
-}
-
 type ProxyEndpoint struct {
 	API         *API
 	Group       *EndpointGroup
