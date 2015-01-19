@@ -1,13 +1,5 @@
 package model
 
-type EndpointGroup struct {
-	API *API
-
-	ID   int64
-	Name string
-	Desc string
-}
-
 type Route struct {
 	API      *API
 	Endpoint *ProxyEndpoint
