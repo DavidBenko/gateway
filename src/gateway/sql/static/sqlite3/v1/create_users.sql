@@ -4,5 +4,5 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` TEXT NOT NULL,
   `email` TEXT UNIQUE NOT NULL,
   `hashed_password` TEXT NOT NULL,
-  FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`)
+  FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON DELETE CASCADE
 );

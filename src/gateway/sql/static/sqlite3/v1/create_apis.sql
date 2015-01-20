@@ -4,5 +4,5 @@ CREATE TABLE IF NOT EXISTS `apis` (
   `name` TEXT NOT NULL,
   `description` TEXT,
   `cors_allow` TEXT DEFAULT '*',
-  FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`)
+  FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON DELETE CASCADE
 );
