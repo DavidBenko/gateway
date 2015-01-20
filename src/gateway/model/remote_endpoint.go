@@ -6,7 +6,6 @@ import (
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
-	"strings"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -89,7 +88,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	for _, endpoint := range remoteEndpoints {
 		endpointIDs = append(endpointIDs, endpoint.ID)
 	}
-	idQuery := strings.Join(strings.Split(strings.Repeat("?", len(remoteEndpoints)), ""), ",")
+	idQuery := apsql.NQs(len(remoteEndpoints))
 	environmentData := []*RemoteEndpointEnvironmentData{}
 	err = db.Select(&environmentData,
 		"SELECT "+
@@ -160,12 +159,8 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(
-			"INSERT INTO `remote_endpoint_environment_data` "+
-				"  (`remote_endpoint_id`, `environment_id`, `data`) "+
-				"VALUES ( "+
-				"  ?, (SELECT `id` FROM `environments` WHERE `id` = ? AND `api_id` = ?), ?);",
-			e.ID, envData.EnvironmentID, e.APIID, string(encodedData))
+		err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
+			e.APIID, string(encodedData))
 		if err != nil {
 			return err
 		}
@@ -180,7 +175,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 			"SET `name` = ?, `description` = ? "+
 			"WHERE `remote_endpoints`.`id` = ? "+
 			"  AND `remote_endpoints`.`api_id` IN "+
-			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
+			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?);",
 		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
@@ -189,5 +184,78 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil || numRows != 1 {
 		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
-	return nil
+
+	var existingEnvIDs []int64
+	err = tx.Select(&existingEnvIDs,
+		"SELECT `environment_id` "+
+			"FROM `remote_endpoint_environment_data` "+
+			"WHERE `remote_endpoint_id` = ? "+
+			"ORDER BY `environment_id` ASC;",
+		e.ID)
+
+	for _, envData := range e.EnvironmentData {
+		encodedData, err := envData.Data.MarshalJSON()
+		if err != nil {
+			return err
+		}
+
+		var found bool
+		existingEnvIDs, found = popID(envData.EnvironmentID, existingEnvIDs)
+		if found {
+			_, err = tx.Exec(
+				"UPDATE `remote_endpoint_environment_data` "+
+					"  SET `data` = ? "+
+					"WHERE "+
+					"  `remote_endpoint_id` = ? AND `environment_id` = ?;",
+				string(encodedData), e.ID, envData.EnvironmentID)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
+				e.APIID, string(encodedData))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(existingEnvIDs) == 0 {
+		return nil
+	}
+
+	args := []interface{}{e.ID}
+	for _, envID := range existingEnvIDs {
+		args = append(args, envID)
+	}
+	idQuery := apsql.NQs(len(existingEnvIDs))
+	_, err = tx.Exec(
+		"DELETE FROM `remote_endpoint_environment_data` "+
+			"WHERE `remote_endpoint_id` = ? AND `environment_id` IN ("+idQuery+");",
+		args...)
+
+	return err
+}
+
+func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
+	data string) error {
+	_, err := tx.Exec(
+		"INSERT INTO `remote_endpoint_environment_data` "+
+			"  (`remote_endpoint_id`, `environment_id`, `data`) "+
+			"VALUES ( "+
+			"  ?, (SELECT `id` FROM `environments` WHERE `id` = ? AND `api_id` = ?), ?);",
+		rID, eID, apiID, data)
+	return err
+}
+
+func popID(queryID int64, searchIDs []int64) (ids []int64, found bool) {
+	found = false
+	for _, id := range searchIDs {
+		if id == queryID {
+			found = true
+		} else {
+			ids = append(ids, id)
+		}
+	}
+	return
 }
