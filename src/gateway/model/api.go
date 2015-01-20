@@ -9,9 +9,11 @@ import (
 
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
-	AccountID int64  `json:"-" db:"account_id"`
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
+	AccountID   int64  `json:"-" db:"account_id"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	CORSAllow   string `json:"cors_allow" db:"cors_allow"`
 }
 
 // Validate validates the model.
@@ -20,6 +22,9 @@ func (a *API) Validate() Errors {
 	if a.Name == "" {
 		errors.add("name", "must not be blank")
 	}
+	if a.CORSAllow == "" {
+		errors.add("cors_allow", "must not be blank (use '*' for everything)")
+	}
 	return errors
 }
 
@@ -27,7 +32,9 @@ func (a *API) Validate() Errors {
 func AllAPIsForAccountID(db *apsql.DB, accountID int64) ([]*API, error) {
 	apis := []*API{}
 	err := db.Select(&apis,
-		"SELECT `id`, `name` FROM `apis` WHERE account_id = ? ORDER BY `name` ASC;",
+		"SELECT `id`, `name`, `description`, `cors_allow` "+
+			"  FROM `apis` WHERE account_id = ? "+
+			"  ORDER BY `name` ASC;",
 		accountID)
 	return apis, err
 }
@@ -35,7 +42,10 @@ func AllAPIsForAccountID(db *apsql.DB, accountID int64) ([]*API, error) {
 // FindAPIForAccountID returns the api with the id and account_id specified.
 func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	api := API{}
-	err := db.Get(&api, "SELECT `id`, `name` FROM `apis` WHERE `id` = ? AND account_id = ?;",
+	err := db.Get(&api,
+		"SELECT `id`, `name`, `description`, `cors_allow` "+
+			"  FROM `apis` "+
+			"  WHERE `id` = ? AND account_id = ?;",
 		id, accountID)
 	return &api, err
 }
@@ -58,8 +68,10 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 
 // Insert inserts the api into the database as a new row.
 func (a *API) Insert(tx *apsql.Tx) error {
-	result, err := tx.Exec("INSERT INTO `apis` (`account_id`, `name`) VALUES (?, ?);",
-		a.AccountID, a.Name)
+	result, err := tx.Exec(
+		"INSERT INTO `apis` (`account_id`, `name`, `description`, `cors_allow`) "+
+			"VALUES (?, ?, ?, ?);",
+		a.AccountID, a.Name, a.Description, a.CORSAllow)
 	if err != nil {
 		return err
 	}
@@ -74,8 +86,11 @@ func (a *API) Insert(tx *apsql.Tx) error {
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
-	result, err := tx.Exec("UPDATE `apis` SET `name` = ? WHERE `id` = ? AND `account_id` = ?;",
-		a.Name, a.ID, a.AccountID)
+	result, err := tx.Exec(
+		"UPDATE `apis` "+
+			"  SET `name` = ?, `description` = ?, `cors_allow` = ? "+
+			"  WHERE `id` = ? AND `account_id` = ?;",
+		a.Name, a.Description, a.CORSAllow, a.ID, a.AccountID)
 	if err != nil {
 		return err
 	}
