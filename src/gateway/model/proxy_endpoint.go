@@ -128,11 +128,23 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 	result, err := tx.Exec(
 		"UPDATE `proxy_endpoints` "+
-			"SET `name` = ?, `description` = ? "+
+			"SET `name` = ?, "+
+			"  `description` = ?, "+
+			"  `endpoint_group_id` = "+
+			"     (SELECT `id` FROM `endpoint_groups` WHERE `id` = ? AND `api_id` = ?), "+
+			"  `environment_id` = "+
+			"     (SELECT `id` FROM `environments` WHERE `id` = ? AND `api_id` = ?), "+
+			"  `active` = ?, "+
+			"  `cors_enabled` = ?, "+
+			"  `cors_allow_override` = ? "+
 			"WHERE `proxy_endpoints`.`id` = ? "+
 			"  AND `proxy_endpoints`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
-		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Description,
+		e.EndpointGroupID, e.APIID,
+		e.EnvironmentID, e.APIID,
+		e.Active, e.CORSEnabled, e.CORSAllowOverride,
+		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
