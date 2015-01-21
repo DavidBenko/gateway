@@ -9,18 +9,17 @@ import (
 
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
 type ProxyEndpoint struct {
-	AccountID int64 `json:"-"`
-	APIID     int64 `json:"-" db:"api_id"`
+	AccountID       int64  `json:"-"`
+	APIID           int64  `json:"-" db:"api_id"`
+	EndpointGroupID *int64 `json:"endpoint_group_id" db:"endpoint_group_id"`
+	EnvironmentID   int64  `json:"environment_id" db:"environment_id"`
 
-	// Group       *EndpointGroup
-	// Environment *Environment
-
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Active      bool
-	CORSEnabled bool
-	CORSAllow   string
+	ID                int64   `json:"id"`
+	Name              string  `json:"name"`
+	Description       string  `json:"description"`
+	Active            bool    `json:"active"`
+	CORSEnabled       bool    `json:"cors_enabled"`
+	CORSAllowOverride *string `json:"cors_allow_override"`
 }
 
 // Validate validates the model.
@@ -89,11 +88,18 @@ func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID 
 // Insert inserts the proxyEndpoint into the database as a new row.
 func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 	result, err := tx.Exec(
-		"INSERT INTO `proxy_endpoints` (`api_id`, `name`, `description`) "+
+		"INSERT INTO `proxy_endpoints` "+
+			"(`api_id`, `name`, `description`, "+
+			"`endpoint_group_id`, `environment_id`, "+
+			"`active`, `cors_enabled`, `cors_allow_override`) "+
 			"VALUES ( "+
 			"  (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?), "+
-			"  ?, ?);",
-		e.APIID, e.AccountID, e.Name, e.Description)
+			"  ?, ?, "+
+			"  (SELECT `id` FROM `endpoint_groups` WHERE `id` = ? AND `api_id` = ?), "+
+			"  (SELECT `id` FROM `environments` WHERE `id` = ? AND `api_id` = ?), "+
+			"  ?, ?, ?);",
+		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
+		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, e.CORSAllowOverride)
 	if err != nil {
 		return err
 	}
