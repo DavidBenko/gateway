@@ -18,8 +18,8 @@ type ProxyEndpoint struct {
 	Name              string  `json:"name"`
 	Description       string  `json:"description"`
 	Active            bool    `json:"active"`
-	CORSEnabled       bool    `json:"cors_enabled"`
-	CORSAllowOverride *string `json:"cors_allow_override"`
+	CORSEnabled       bool    `json:"cors_enabled" db:"cors_enabled"`
+	CORSAllowOverride *string `json:"cors_allow_override" db:"cors_allow_override"`
 }
 
 // Validate validates the model.
@@ -33,36 +33,48 @@ func (e *ProxyEndpoint) Validate() Errors {
 
 // AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
 func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*ProxyEndpoint, error) {
-	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints,
-		"SELECT "+
-			"  `proxy_endpoints`.`id` as `id`, "+
-			"  `proxy_endpoints`.`name` as `name`, "+
-			"  `proxy_endpoints`.`description` as `description` "+
-			"FROM `proxy_endpoints`, `apis` "+
-			"WHERE `proxy_endpoints`.`api_id` = ? "+
-			"  AND `proxy_endpoints`.`api_id` = `apis`.`id` "+
-			"  AND `apis`.`account_id` = ? "+
-			"ORDER BY `proxy_endpoints`.`name` ASC;",
-		apiID, accountID)
-	return proxyEndpoints, err
+	return _proxyEndpoints(db, 0, apiID, accountID)
 }
 
 // FindProxyEndpointForAPIIDAndAccountID returns the proxyEndpoint with the id, api id, and account_id specified.
 func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*ProxyEndpoint, error) {
-	proxyEndpoint := ProxyEndpoint{}
-	err := db.Get(&proxyEndpoint,
-		"SELECT "+
-			"  `proxy_endpoints`.`id` as `id`, "+
-			"  `proxy_endpoints`.`name` as `name`, "+
-			"  `proxy_endpoints`.`description` as `description` "+
-			"FROM `proxy_endpoints`, `apis` "+
-			"WHERE `proxy_endpoints`.`id` = ? "+
-			"  AND `proxy_endpoints`.`api_id` = ? "+
-			"  AND `proxy_endpoints`.`api_id` = `apis`.`id` "+
-			"  AND `apis`.`account_id` = ?;",
-		id, apiID, accountID)
-	return &proxyEndpoint, err
+	endpoints, err := _proxyEndpoints(db, id, apiID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if len(endpoints) == 0 {
+		return nil, fmt.Errorf("No endpoint with id %d found", id)
+	}
+	return endpoints[0], nil
+}
+
+func _proxyEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*ProxyEndpoint, error) {
+	args := []interface{}{}
+	query := "SELECT " +
+		"  `proxy_endpoints`.`id` as `id`, " +
+		"  `proxy_endpoints`.`name` as `name`, " +
+		"  `proxy_endpoints`.`description` as `description`, " +
+		"  `proxy_endpoints`.`endpoint_group_id` as `endpoint_group_id`, " +
+		"  `proxy_endpoints`.`environment_id` as `environment_id`, " +
+		"  `proxy_endpoints`.`active` as `active`, " +
+		"  `proxy_endpoints`.`cors_enabled` as `cors_enabled`, " +
+		"  `proxy_endpoints`.`cors_allow_override` as `cors_allow_override` " +
+		"FROM `proxy_endpoints`, `apis` " +
+		"WHERE"
+	if id != 0 {
+		query = query + "`proxy_endpoints`.`id` = ? AND "
+		args = append(args, id)
+	}
+	query = query + "`proxy_endpoints`.`api_id` = ? " +
+		"  AND `proxy_endpoints`.`api_id` = `apis`.`id` " +
+		"  AND `apis`.`account_id` = ? " +
+		"ORDER BY `proxy_endpoints`.`name` ASC, " +
+		"  `proxy_endpoints`.`id` ASC;"
+
+	args = append(args, apiID, accountID)
+	proxyEndpoints := []*ProxyEndpoint{}
+	err := db.Select(&proxyEndpoints, query, args...)
+	return proxyEndpoints, err
 }
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
