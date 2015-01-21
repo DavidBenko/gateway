@@ -1,14 +1,5 @@
 package model
 
-type Route struct {
-	API      *API
-	Endpoint *ProxyEndpoint
-
-	ID     int64
-	Method string
-	Path   string
-}
-
 type ProxyEndpointComponent struct {
 	Endpoint *ProxyEndpoint
 

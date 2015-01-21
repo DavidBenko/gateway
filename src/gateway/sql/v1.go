@@ -14,7 +14,6 @@ func migrateToV1(db *DB) error {
 	tx.MustExec(db.sql("v1/create_proxy_endpoint_components"))
 	tx.MustExec(db.sql("v1/create_proxy_endpoint_calls"))
 	tx.MustExec(db.sql("v1/create_proxy_endpoint_transformations"))
-	tx.MustExec(db.sql("v1/create_routes"))
 	tx.MustExec(`UPDATE schema SET version = 1;`)
 	return tx.Commit()
 }
