@@ -14,3 +14,15 @@ type ProxyEndpointRoute struct {
 	Path    string   `json:"path"`
 	Methods []string `json:"methods"`
 }
+
+// Validate validates the model.
+func (r *ProxyEndpointRoute) Validate() Errors {
+	errors := make(Errors)
+	if r.Path == "" {
+		errors.add("path", "must not be blank")
+	}
+	if len(r.Methods) == 0 {
+		errors.add("methods", "must not be empty")
+	}
+	return errors
+}

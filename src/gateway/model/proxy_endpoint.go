@@ -30,6 +30,17 @@ func (e *ProxyEndpoint) Validate() Errors {
 	if e.Name == "" {
 		errors.add("name", "must not be blank")
 	}
+	routes, err := e.GetRoutes()
+	if err != nil {
+		errors.add("routes", "are invalid")
+	} else {
+		for i, r := range routes {
+			rErrors := r.Validate()
+			if !rErrors.Empty() {
+				errors.add("routes", fmt.Sprintf("%d is invalid: %v", i, rErrors))
+			}
+		}
+	}
 	return errors
 }
 
