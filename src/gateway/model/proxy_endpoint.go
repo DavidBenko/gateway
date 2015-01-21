@@ -24,12 +24,6 @@ type ProxyEndpoint struct {
 	Routes            json.RawMessage `json:"routes"`
 }
 
-// ProxyEndpointRoute is a route on which the endpoint should be accessible.
-type ProxyEndpointRoute struct {
-	Path    string   `json:"path"`
-	Methods []string `json:"methods"`
-}
-
 // Validate validates the model.
 func (e *ProxyEndpoint) Validate() Errors {
 	errors := make(Errors)
