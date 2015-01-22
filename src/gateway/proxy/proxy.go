@@ -30,32 +30,11 @@ type Server struct {
 
 // NewServer builds a new proxy server.
 func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
-	scripts, err := scriptsFromFilesystem(proxyConfig)
-	if err != nil {
-		log.Fatalf("%s Could not setup proxy code: %v", config.Proxy, err)
-	}
-
-	routes, ok := scripts["routes"]
-	if !ok {
-		log.Fatalf("%s Top level code path must contain routes.js with routing code", config.Proxy)
-	}
-
-	proxyRouter, err := ParseRoutes(routes)
-	if err != nil {
-		log.Fatalf("%s Could not parse routes.js: %v", config.Proxy, err)
-	}
-
-	if proxyConfig.WatchRestart {
-		go watchForRestarts(proxyConfig.CodePath)
-	}
-
 	return &Server{
-		proxyConf:   proxyConfig,
-		adminConf:   adminConfig,
-		router:      mux.NewRouter(),
-		proxyRouter: proxyRouter,
-		db:          db,
-		scripts:     scripts,
+		proxyConf: proxyConfig,
+		adminConf: adminConfig,
+		router:    mux.NewRouter(),
+		db:        db,
 	}
 }
 

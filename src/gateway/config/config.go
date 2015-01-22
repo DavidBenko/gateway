@@ -34,9 +34,6 @@ type ProxyServer struct {
 	Host string `flag:"proxy-host" default:"localhost" usage:"The hostname of the proxy server"`
 	Port int64  `flag:"proxy-port" default:"5000"      usage:"The port of the proxy server"`
 
-	CodePath     string `flag:"proxy-code" default:"" usage:"The path to the code the proxy should run."`
-	WatchRestart bool   `flag:"proxy-watch-restart" default:"true" usage:"Whether to watch codePath/restart.txt to trigger proxy reloads."`
-
 	AuthKey       string `flag:"proxy-session-auth-key" default:"" usage:"The auth key to use for cookie sessions. 64 chars recommended. If unset, they're disabled."`
 	EncryptionKey string `flag:"proxy-session-encryption-key" default:"" usage:"The encryption key to use for cookie sessions. 32 chars recommended. If unset, encryption is disabled."`
 }
