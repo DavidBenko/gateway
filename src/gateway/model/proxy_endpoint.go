@@ -22,6 +22,8 @@ type ProxyEndpoint struct {
 	CORSEnabled       bool            `json:"cors_enabled" db:"cors_enabled"`
 	CORSAllowOverride *string         `json:"cors_allow_override" db:"cors_allow_override"`
 	Routes            json.RawMessage `json:"routes"`
+
+	Components []*ProxyEndpointComponent `json:"components"`
 }
 
 // Validate validates the model.
@@ -140,6 +142,14 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 			config.System, err)
 		return err
 	}
+
+	for position, component := range e.Components {
+		err = component.Insert(tx, e.ID, e.APIID, position)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
