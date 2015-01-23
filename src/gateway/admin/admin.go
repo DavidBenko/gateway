@@ -28,6 +28,10 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
 
+	if conf.CORSAllow != "" {
+		admin = aphttp.NewCORSAwareRouter(conf.CORSAllow, admin)
+	}
+
 	// siteAdmin is additionally protected for the site owner
 	siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
 	RouteResource(&AccountsController{}, "/accounts", siteAdmin, db)
