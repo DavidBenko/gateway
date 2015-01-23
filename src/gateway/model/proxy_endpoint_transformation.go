@@ -5,14 +5,59 @@ import (
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
+	"strings"
 )
 
 // ProxyEndpointTransformation describes a transformation around a proxy call.
 type ProxyEndpointTransformation struct {
-	ID       int64           `json:"id"`
-	Type     string          `json:"type"`
-	Position int64           `json:"-"`
-	Data     json.RawMessage `json:"data,omitempty"`
+	ID          int64           `json:"id"`
+	ComponentID *int64          `json:"-" db:"component_id"`
+	CallID      *int64          `json:"-" db:"call_id"`
+	Before      bool            `json:"-" db:"before"`
+	Type        string          `json:"type"`
+	Position    int64           `json:"-"`
+	Data        json.RawMessage `json:"data,omitempty"`
+}
+
+// AllProxyEndpointTransformationsForComponentIDsAndCallIDs returns all
+// transformations for a set of endpoint component.
+func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
+	componentIDs, callIDs []int64) ([]*ProxyEndpointTransformation, error) {
+
+	transformations := []*ProxyEndpointTransformation{}
+
+	numComponentIDs := len(componentIDs)
+	numCallIDs := len(callIDs)
+	if numComponentIDs == 0 && numCallIDs == 0 {
+		return transformations, nil
+	}
+
+	whereClauses := []string{}
+	if numComponentIDs > 0 {
+		whereClauses = append(whereClauses,
+			"`component_id` IN ("+apsql.NQs(numComponentIDs)+")")
+	}
+	if numCallIDs > 0 {
+		whereClauses = append(whereClauses,
+			"`call_id` IN ("+apsql.NQs(numCallIDs)+")")
+	}
+
+	var args []interface{}
+	for _, id := range componentIDs {
+		args = append(args, id)
+	}
+	for _, id := range callIDs {
+		args = append(args, id)
+	}
+
+	err := db.Select(&transformations,
+		"SELECT "+
+			"  `id`, `component_id`, `call_id`, `before`, `type`, `data` "+
+			"FROM `proxy_endpoint_transformations` "+
+			"WHERE "+strings.Join(whereClauses, " OR ")+" "+
+			"ORDER BY `before` DESC, `position` ASC;",
+		args...)
+	return transformations, err
 }
 
 // InsertForComponent inserts the transformation into the database as a new row

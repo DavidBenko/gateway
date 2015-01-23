@@ -88,6 +88,11 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 			"  AND `apis`.`account_id` = ?;",
 		id, apiID, accountID)
 
+	if err != nil {
+		return nil, err
+	}
+
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
 	return &proxyEndpoint, err
 }
 
