@@ -190,5 +190,26 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil || numRows != 1 {
 		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
+
+	var validComponentIDs []int64
+	for position, component := range e.Components {
+		if component.ID == 0 {
+			err = component.Insert(tx, e.ID, e.APIID, position)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = component.Update(tx, e.ID, e.APIID, position)
+			if err != nil {
+				return err
+			}
+		}
+		validComponentIDs = append(validComponentIDs, component.ID)
+	}
+	err = DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx, e.ID, validComponentIDs)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

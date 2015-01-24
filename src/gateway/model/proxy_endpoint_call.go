@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
@@ -42,6 +43,26 @@ func AllProxyEndpointCallsForComponentIDs(db *apsql.DB, componentIDs []int64) ([
 	return calls, err
 }
 
+// DeleteProxyEndpointCallsWithComponentIDAndNotInList
+func DeleteProxyEndpointCallsWithComponentIDAndNotInList(tx *apsql.Tx,
+	componentID int64, validIDs []int64) error {
+	log.Printf("Deleting calls for component ID %d except %v", componentID, validIDs)
+
+	args := []interface{}{componentID}
+	var validIDQuery string
+	if len(validIDs) > 0 {
+		validIDQuery = " AND `id` NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		for _, id := range validIDs {
+			args = append(args, id)
+		}
+	}
+	_, err := tx.Exec(
+		"DELETE FROM `proxy_endpoint_calls` "+
+			"WHERE `component_id` = ?"+validIDQuery+";",
+		args...)
+	return err
+}
+
 // Insert inserts the call into the database as a new row.
 func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
@@ -75,6 +96,66 @@ func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// Update updates the call into the database in place.
+func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
+	position int) error {
+	result, err := tx.Exec(
+		"UPDATE `proxy_endpoint_calls` "+
+			"SET `remote_endpoint_id` = "+
+			"       (SELECT `id` FROM `remote_endpoints` WHERE `id` = ? AND `api_id` = ?), "+
+			"    `endpoint_name_override` = ?, "+
+			"    `conditional` = ?, "+
+			"    `conditional_positive` = ?, "+
+			"    `position` = ? "+
+			"WHERE `id` = ? AND `component_id` = ?;",
+		c.RemoteEndpointID, apiID, c.EndpointNameOverride,
+		c.Conditional, c.ConditionalPositive, position, c.ID, componentID)
+	if err != nil {
+		return err
+	}
+	numRows, err := result.RowsAffected()
+	if err != nil || numRows != 1 {
+		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
+	}
+
+	var validTransformationIDs []int64
+	for position, transformation := range c.BeforeTransformations {
+		if transformation.ID == 0 {
+			err = transformation.InsertForCall(tx, c.ID, true, position)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = transformation.UpdateForCall(tx, c.ID, true, position)
+			if err != nil {
+				return err
+			}
+		}
+		validTransformationIDs = append(validTransformationIDs, transformation.ID)
+	}
+	for position, transformation := range c.AfterTransformations {
+		if transformation.ID == 0 {
+			err = transformation.InsertForCall(tx, c.ID, false, position)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = transformation.UpdateForCall(tx, c.ID, false, position)
+			if err != nil {
+				return err
+			}
+		}
+		validTransformationIDs = append(validTransformationIDs, transformation.ID)
+	}
+	err = DeleteProxyEndpointTransformationsWithCallIDAndNotInList(tx,
+		c.ID, validTransformationIDs)
+	if err != nil {
+		return err
 	}
 
 	return nil

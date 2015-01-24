@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"fmt"
 	"gateway/config"
 	apsql "gateway/sql"
 	"log"
@@ -60,6 +61,38 @@ func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 	return transformations, err
 }
 
+func DeleteProxyEndpointTransformationsWithComponentIDAndNotInList(tx *apsql.Tx,
+	componentID int64, validIDs []int64) error {
+	log.Printf("Deleting transformations for component ID %d except %v", componentID, validIDs)
+	return _deleteProxyEndpointTransformations(tx, "component_id", componentID, validIDs)
+}
+
+func DeleteProxyEndpointTransformationsWithCallIDAndNotInList(tx *apsql.Tx,
+	callID int64, validIDs []int64) error {
+	log.Printf("Deleting transformations for call ID %d except %v", callID, validIDs)
+	return _deleteProxyEndpointTransformations(tx, "call_id", callID, validIDs)
+}
+
+func _deleteProxyEndpointTransformations(tx *apsql.Tx, ownerCol string,
+	ownerID int64, validIDs []int64) error {
+
+	args := []interface{}{ownerID}
+	var validIDQuery string
+	if len(validIDs) > 0 {
+		validIDQuery = " AND `id` NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		for _, id := range validIDs {
+			args = append(args, id)
+		}
+	}
+	query := "DELETE FROM `proxy_endpoint_transformations` " +
+		"WHERE `" + ownerCol + "` = ?" + validIDQuery + ";"
+	log.Println(query)
+	_, err := tx.Exec(
+		query,
+		args...)
+	return err
+}
+
 // InsertForComponent inserts the transformation into the database as a new row
 // owned by a proxy endpoint component.
 func (t *ProxyEndpointTransformation) InsertForComponent(tx *apsql.Tx,
@@ -95,6 +128,44 @@ func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 		log.Printf("%s Error getting last insert ID for proxy endpoint tranform: %v",
 			config.System, err)
 		return err
+	}
+
+	return nil
+}
+
+// InsertForComponent inserts the transformation into the database as a new row
+// owned by a proxy endpoint component.
+func (t *ProxyEndpointTransformation) UpdateForComponent(tx *apsql.Tx,
+	componentID int64, before bool, position int) error {
+	return t.update(tx, "component_id", componentID, before, position)
+}
+
+// InsertForComponent inserts the transformation into the database as a new row
+// owned by a proxy endpoint component.
+func (t *ProxyEndpointTransformation) UpdateForCall(tx *apsql.Tx,
+	callID int64, before bool, position int) error {
+	return t.update(tx, "call_id", callID, before, position)
+}
+
+// Insert inserts the transformation into the database as a new row.
+func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
+	ownerID int64, before bool, position int) error {
+
+	data, err := t.Data.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	result, err := tx.Exec(
+		"UPDATE `proxy_endpoint_transformations` "+
+			"SET `before` = ?, `position` = ?, `type` = ?, `data` = ? "+
+			"WHERE `id` = ? AND `"+ownerCol+"` = ?",
+		before, position, t.Type, string(data), t.ID, ownerID)
+	if err != nil {
+		return err
+	}
+	numRows, err := result.RowsAffected()
+	if err != nil || numRows != 1 {
+		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
 
 	return nil
