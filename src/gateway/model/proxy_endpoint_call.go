@@ -46,7 +46,6 @@ func AllProxyEndpointCallsForComponentIDs(db *apsql.DB, componentIDs []int64) ([
 // DeleteProxyEndpointCallsWithComponentIDAndNotInList
 func DeleteProxyEndpointCallsWithComponentIDAndNotInList(tx *apsql.Tx,
 	componentID int64, validIDs []int64) error {
-	log.Printf("Deleting calls for component ID %d except %v", componentID, validIDs)
 
 	args := []interface{}{componentID}
 	var validIDQuery string

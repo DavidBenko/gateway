@@ -63,13 +63,11 @@ func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 
 func DeleteProxyEndpointTransformationsWithComponentIDAndNotInList(tx *apsql.Tx,
 	componentID int64, validIDs []int64) error {
-	log.Printf("Deleting transformations for component ID %d except %v", componentID, validIDs)
 	return _deleteProxyEndpointTransformations(tx, "component_id", componentID, validIDs)
 }
 
 func DeleteProxyEndpointTransformationsWithCallIDAndNotInList(tx *apsql.Tx,
 	callID int64, validIDs []int64) error {
-	log.Printf("Deleting transformations for call ID %d except %v", callID, validIDs)
 	return _deleteProxyEndpointTransformations(tx, "call_id", callID, validIDs)
 }
 
@@ -84,11 +82,9 @@ func _deleteProxyEndpointTransformations(tx *apsql.Tx, ownerCol string,
 			args = append(args, id)
 		}
 	}
-	query := "DELETE FROM `proxy_endpoint_transformations` " +
-		"WHERE `" + ownerCol + "` = ?" + validIDQuery + ";"
-	log.Println(query)
 	_, err := tx.Exec(
-		query,
+		"DELETE FROM `proxy_endpoint_transformations` " +
+		"WHERE `" + ownerCol + "` = ?" + validIDQuery + ";",
 		args...)
 	return err
 }

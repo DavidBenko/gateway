@@ -96,7 +96,6 @@ func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]
 // DeleteProxyEndpointComponentsWithEndpointIDAndNotInList
 func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
 	endpointID int64, validIDs []int64) error {
-	log.Printf("Deleting components for endpoint ID %d except %v", endpointID, validIDs)
 
 	args := []interface{}{endpointID}
 	var validIDQuery string
