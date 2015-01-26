@@ -19,6 +19,12 @@ default: run
 
 admin:
 	# cd admin; ember build -output-path ../src/gateway/admin/static/
+	# Placeholder:
+	mkdir -p src/gateway/admin/static/js
+	mkdir -p src/gateway/admin/static/css
+	echo "<html></html>" > src/gateway/admin/static/index.html
+	echo "body { color: black; }" > src/gateway/admin/static/css/style.css
+	echo "function foo(){}" > src/gateway/admin/static/js/app.js
 
 assets: install_bindata
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
@@ -51,7 +57,7 @@ fmt:
 run: 
 	./bin/gateway -config=./test/gateway.conf -db-migrate
 
-test: assets
+test: admin assets
 	go test ./src/...
 
 vendor_clean:
