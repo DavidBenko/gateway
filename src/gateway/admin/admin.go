@@ -28,27 +28,27 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
 
-	if conf.CORSAllow != "" {
-		admin = aphttp.NewCORSAwareRouter(conf.CORSAllow, admin)
+	if conf.CORSEnabled {
+		admin = aphttp.NewCORSAwareRouter(conf.CORSOrigin, admin)
 	}
 
 	// siteAdmin is additionally protected for the site owner
 	siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
-	RouteResource(&AccountsController{}, "/accounts", siteAdmin, db)
-	RouteResource(&UsersController{accountIDFromPath}, "/accounts/{accountID}/users", siteAdmin, db)
+	RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
+	RouteResource(&UsersController{accountIDFromPath}, "/accounts/{accountID}/users", siteAdmin, db, conf)
 
 	// sessions are unprotected to allow users to authenticate
-	RouteSessions("/sessions", admin, db)
+	RouteSessions("/sessions", admin, db, conf)
 
 	// protected by requiring login
 	authAdmin := NewSessionAuthRouter(admin)
-	RouteResource(&UsersController{accountIDFromSession}, "/users", authAdmin, db)
-	RouteResource(&APIsController{}, "/apis", authAdmin, db)
-	RouteResource(&HostsController{}, "/apis/{apiID}/hosts", authAdmin, db)
-	RouteResource(&EnvironmentsController{}, "/apis/{apiID}/environments", authAdmin, db)
-	RouteResource(&EndpointGroupsController{}, "/apis/{apiID}/endpoint_groups", authAdmin, db)
-	RouteResource(&RemoteEndpointsController{}, "/apis/{apiID}/remote_endpoints", authAdmin, db)
-	RouteResource(&ProxyEndpointsController{}, "/apis/{apiID}/proxy_endpoints", authAdmin, db)
+	RouteResource(&UsersController{accountIDFromSession}, "/users", authAdmin, db, conf)
+	RouteResource(&APIsController{}, "/apis", authAdmin, db, conf)
+	RouteResource(&HostsController{}, "/apis/{apiID}/hosts", authAdmin, db, conf)
+	RouteResource(&EnvironmentsController{}, "/apis/{apiID}/environments", authAdmin, db, conf)
+	RouteResource(&EndpointGroupsController{}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
+	RouteResource(&RemoteEndpointsController{}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointsController{}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 
 	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))

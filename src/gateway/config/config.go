@@ -50,7 +50,8 @@ type ProxyAdmin struct {
 	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:"" usage:"Same as admin-session-auth-key, to be used during key rotation."`
 	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:"" usage:"Same as admin-session-encryption-key, to be used during key rotation."`
 
-	CORSAllow string `flag:"admin-cors-allow" default:"*" usage:"The Access-Control-Allow-Origin header value to send with admin responses. Blank to omit."`
+	CORSEnabled bool   `flag:"admin-cors-enabled" default:"true" usage:"Set to false to disable CORS headers from being added to admin responses."`
+	CORSOrigin  string `flag:"admin-cors-origin" default:"*" usage:"The Access-Control-Allow-Origin header value to send with admin responses."`
 
 	Username string `flag:"admin-username" default:"admin" usage:"The username to require with HTTP Basic Auth to protect the site admin functionality"`
 	Password string `flag:"admin-password" default:""      usage:"The password to require with HTTP Basic Auth to protect the site admin functionality"`

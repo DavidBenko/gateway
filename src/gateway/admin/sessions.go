@@ -47,12 +47,18 @@ func setupSessions(conf config.ProxyAdmin) {
 }
 
 // RouteSessions routes all the endpoints for logging in and out
-func RouteSessions(path string, router aphttp.Router, db *apsql.DB) {
-	router.Handle(path,
-		handlers.MethodHandler{
-			"POST":   read(db, NewSessionHandler),
-			"DELETE": read(db, DeleteSessionHandler),
-		})
+func RouteSessions(path string, router aphttp.Router, db *apsql.DB,
+	conf config.ProxyAdmin) {
+
+	routes := map[string]http.Handler{
+		"POST":   read(db, NewSessionHandler),
+		"DELETE": read(db, DeleteSessionHandler),
+	}
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"POST", "DELETE", "OPTIONS"})
+	}
+
+	router.Handle(path, handlers.MethodHandler(routes))
 }
 
 // NewSessionHandler returns a hndler that adds authenticating information
