@@ -76,18 +76,6 @@ func TestEndpointGroupsPresence(t *testing.T) {
 }
 
 ////
-/// Environment Values
-//
-
-func TestEnvironmentValuesPresence(t *testing.T) {
-	db := testDB(1)
-	_, err := db.Query("SELECT COUNT(*) FROM `environment_values`;")
-	if err != nil {
-		t.Errorf("Should not error counting environment values: %v", err)
-	}
-}
-
-////
 /// Environments
 //
 
@@ -184,18 +172,6 @@ func TestRemoteEndpointsPresence(t *testing.T) {
 }
 
 ////
-/// Routes
-//
-
-func TestRoutesPresence(t *testing.T) {
-	db := testDB(1)
-	_, err := db.Query("SELECT COUNT(*) FROM `routes`;")
-	if err != nil {
-		t.Errorf("Should not error counting routes: %v", err)
-	}
-}
-
-////
 /// Users
 //
 
@@ -205,7 +181,7 @@ func v1UserInsert(name, email, pw string) string {
 
 func v1UserInsertWithAccount(name, email, pw string, acct int64) string {
 	return fmt.Sprintf("INSERT INTO `users` "+
-		"(`account_id`, `name`, `email`, `password`) "+
+		"(`account_id`, `name`, `email`, `hashed_password`) "+
 		"VALUES (%d, %s, %s, %s);", acct, name, email, pw)
 }
 
