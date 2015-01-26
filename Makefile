@@ -57,7 +57,7 @@ fmt:
 run: 
 	./bin/gateway -config=./test/gateway.conf -db-migrate
 
-test: admin assets
+test: admin assets generate
 	go test ./src/...
 
 vendor_clean:
