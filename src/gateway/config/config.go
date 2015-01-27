@@ -13,9 +13,9 @@ import (
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	File string `flag:"config" default:"/etc/gateway/gateway.conf" usage:"The path to the configuration file"`
+	File string `flag:"config" default:"/etc/gateway/gateway.conf"`
 
-	License string `flag:"license" default:"" usage:"The path to a valid Gateway license key"`
+	License string `flag:"license" default:""`
 
 	Database Database
 	Proxy    ProxyServer
@@ -24,38 +24,38 @@ type Configuration struct {
 
 // Database specifies configuration options for your database
 type Database struct {
-	Migrate          bool   `flag:"db-migrate"     default:"false"                   usage:"Whether or not to migrate the database on startup"`
-	Driver           string `flag:"db-driver"      default:"sqlite3"                 usage:"The database driver; sqlite or postgres"`
-	ConnectionString string `flag:"db-conn-string" default:"/etc/gateway/gateway.db" usage:"The connection string for your database"`
+	Migrate          bool   `flag:"db-migrate"     default:"false"`
+	Driver           string `flag:"db-driver"      default:"sqlite3"`
+	ConnectionString string `flag:"db-conn-string" default:"/etc/gateway/gateway.db"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
-	Host string `flag:"proxy-host" default:"localhost" usage:"The hostname of the proxy server"`
-	Port int64  `flag:"proxy-port" default:"5000"      usage:"The port of the proxy server"`
+	Host string `flag:"proxy-host" default:"localhost"`
+	Port int64  `flag:"proxy-port" default:"5000"`
 
-	AuthKey       string `flag:"proxy-session-auth-key" default:"" usage:"The auth key to use for cookie sessions. 64 chars recommended. If unset, they're disabled."`
-	EncryptionKey string `flag:"proxy-session-encryption-key" default:"" usage:"The encryption key to use for cookie sessions. 32 chars recommended. If unset, encryption is disabled."`
+	AuthKey       string `flag:"proxy-session-auth-key" default:""`
+	EncryptionKey string `flag:"proxy-session-encryption-key" default:""`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
 // of the proxy.
 type ProxyAdmin struct {
-	PathPrefix string `flag:"admin-path-prefix" default:"/admin/" usage:"The path prefix the administrative area is accessible under"`
-	Host       string `flag:"admin-host"        default:""        usage:"The host the administrative area is accessible via"`
+	PathPrefix string `flag:"admin-path-prefix" default:"/admin/"`
+	Host       string `flag:"admin-host"        default:""`
 
-	SessionName    string `flag:"admin-session-name" default:"__ap_gateway" usage:"The name of the cookie to use for sessions."`
-	AuthKey        string `flag:"admin-session-auth-key" default:"" usage:"The auth key to use for sessions. 64 chars recommended. Required."`
-	EncryptionKey  string `flag:"admin-session-encryption-key" default:"" usage:"The encryption key to use for sessions. 32 chars recommended. If unset, encryption is disabled."`
-	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:"" usage:"Same as admin-session-auth-key, to be used during key rotation."`
-	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:"" usage:"Same as admin-session-encryption-key, to be used during key rotation."`
+	SessionName    string `flag:"admin-session-name" default:"__ap_gateway"`
+	AuthKey        string `flag:"admin-session-auth-key" default:""`
+	EncryptionKey  string `flag:"admin-session-encryption-key" default:""`
+	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:""`
+	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:""`
 
-	CORSEnabled bool   `flag:"admin-cors-enabled" default:"true" usage:"Set to false to disable CORS headers from being added to admin responses."`
-	CORSOrigin  string `flag:"admin-cors-origin" default:"*" usage:"The Access-Control-Allow-Origin header value to send with admin responses."`
+	CORSEnabled bool   `flag:"admin-cors-enabled" default:"true"`
+	CORSOrigin  string `flag:"admin-cors-origin" default:"*"`
 
-	Username string `flag:"admin-username" default:"admin" usage:"The username to require with HTTP Basic Auth to protect the site admin functionality"`
-	Password string `flag:"admin-password" default:""      usage:"The password to require with HTTP Basic Auth to protect the site admin functionality"`
-	Realm    string `flag:"admin-realm"    default:""      usage:"The HTTP Basic realm to use. Optional."`
+	Username string `flag:"admin-username" default:"admin"`
+	Password string `flag:"admin-password" default:""`
+	Realm    string `flag:"admin-realm"    default:""`
 }
 
 const envPrefix = "APGATEWAY_"

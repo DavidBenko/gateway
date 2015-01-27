@@ -10,10 +10,14 @@ import (
 func setupFlags(value reflect.Value) {
 	reflectConfiguration(
 		value,
-		func(name, _, _ string) bool {
+		func(name, _ string) bool {
 			return name != ""
 		},
-		func(field reflect.Value, name, value, usage string) {
+		func(field reflect.Value, name, value string) {
+			usage, ok := usageStrings[name]
+			if !ok {
+				log.Fatalf("No usage string for flag %s", name)
+			}
 			switch field.Kind() {
 			case reflect.Int64:
 				flag.Int64(name, parseInt(value), usage)
@@ -29,10 +33,10 @@ func setupFlags(value reflect.Value) {
 func setDefaults(value reflect.Value) {
 	reflectConfiguration(
 		value,
-		func(_, defaultValue, _ string) bool {
+		func(_, defaultValue string) bool {
 			return defaultValue != ""
 		},
-		func(field reflect.Value, _, value, _ string) {
+		func(field reflect.Value, _, value string) {
 			switch field.Kind() {
 			case reflect.Int64:
 				field.SetInt(parseInt(value))
@@ -53,11 +57,11 @@ func setFromFlags(value reflect.Value) {
 
 	reflectConfiguration(
 		value,
-		func(flagName, _, _ string) bool {
+		func(flagName, _ string) bool {
 			_, ok := setFlags[flagName]
 			return ok
 		},
-		func(field reflect.Value, name, _, _ string) {
+		func(field reflect.Value, name, _ string) {
 			setFlagValue, _ := setFlags[name]
 			switch field.Kind() {
 			case reflect.Int64:
@@ -73,8 +77,8 @@ func setFromFlags(value reflect.Value) {
 
 func reflectConfiguration(
 	value reflect.Value,
-	shouldHandle func(flagName, flagValue, flagUsage string) bool,
-	handle func(fieldValue reflect.Value, flagName, flagValue, flagUsage string),
+	shouldHandle func(flagName, flagValue string) bool,
+	handle func(fieldValue reflect.Value, flagName, flagValue string),
 ) {
 	if value.Kind() == reflect.Struct {
 		t := reflect.TypeOf(value.Interface())
@@ -84,12 +88,11 @@ func reflectConfiguration(
 
 			flagName := field.Tag.Get("flag")
 			flagValue := field.Tag.Get("default")
-			flagUsage := field.Tag.Get("usage")
 
 			fieldValue := value.FieldByName(field.Name)
 
-			if shouldHandle(flagName, flagValue, flagUsage) {
-				handle(fieldValue, flagName, flagValue, flagUsage)
+			if shouldHandle(flagName, flagValue) {
+				handle(fieldValue, flagName, flagValue)
 			} else if fieldValue.Kind() == reflect.Struct {
 				reflectConfiguration(fieldValue, shouldHandle, handle)
 			}
