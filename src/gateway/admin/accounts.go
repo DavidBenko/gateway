@@ -94,6 +94,10 @@ func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := method(tx); err != nil {
+		validationErrors = account.ValidateFromDatabaseError(err)
+		if !validationErrors.Empty() {
+			return SerializableValidationErrors{validationErrors}
+		}
 		log.Printf("%s Error %s account: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

@@ -22,6 +22,16 @@ func (a *Account) Validate() Errors {
 	return errors
 }
 
+// ValidationErrorsFromDatabase translates possible database constraint errors
+// into validation errors.
+func (a *Account) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: accounts.name" {
+		errors.add("name", "is already taken")
+	}
+	return errors
+}
+
 // AllAccounts returns all accounts in default order.
 func AllAccounts(db *sql.DB) ([]*Account, error) {
 	accounts := []*Account{}
