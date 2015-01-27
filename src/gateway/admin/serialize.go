@@ -39,17 +39,15 @@ func parseID(id string) int64 {
 	return i
 }
 
-func deserialize(dest interface{}, r *http.Request) error {
+func deserialize(dest interface{}, r *http.Request) aphttp.Error {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("%s Error reading body: %v", config.System, err)
-		return err
+		return aphttp.NewError(err, 500)
 	}
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
-		log.Printf("%s Error deserializing data: %v, %v", config.System, err, body)
-		return err
+		return aphttp.NewError(err, 400)
 	}
 
 	return nil

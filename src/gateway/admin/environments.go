@@ -73,10 +73,9 @@ func (c *EnvironmentsController) Delete(w http.ResponseWriter, r *http.Request,
 func (c *EnvironmentsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	environment, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading environment: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	environment, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	environment.APIID = apiIDFromPath(r)
 	environment.AccountID = accountIDFromSession(r)
@@ -97,7 +96,7 @@ func (c *EnvironmentsController) insertOrUpdate(w http.ResponseWriter, r *http.R
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s environment: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

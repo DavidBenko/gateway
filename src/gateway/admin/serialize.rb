@@ -35,7 +35,7 @@ import (
 )
 
 func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular},
-  error) {
+  aphttp.Error) {
 
   var wrapped struct {
     #{singular} *model.#{singular} `json:"#{json_singular}"`
@@ -44,7 +44,7 @@ func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular}
     return nil, err
   }
   if wrapped.#{singular} == nil {
-    return nil, errors.New("Could not deserialize #{singular} from json.")
+    return nil, aphttp.NewError(errors.New("Could not deserialize #{singular} from JSON."), 400)
   }
   return wrapped.#{singular}, nil
 }

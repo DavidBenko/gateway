@@ -73,10 +73,9 @@ func (c *RemoteEndpointsController) Delete(w http.ResponseWriter, r *http.Reques
 func (c *RemoteEndpointsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	remoteEndpoint, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading remote endpoint: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	remoteEndpoint, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	remoteEndpoint.APIID = apiIDFromPath(r)
 	remoteEndpoint.AccountID = accountIDFromSession(r)
@@ -97,7 +96,7 @@ func (c *RemoteEndpointsController) insertOrUpdate(w http.ResponseWriter, r *htt
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s remote endpoint: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

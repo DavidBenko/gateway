@@ -43,9 +43,9 @@ func RouteResource(controller ResourceController, path string,
 }
 
 func read(db *apsql.DB, handler DatabaseAwareHandler) http.Handler {
-	return aphttp.ErrorCatchingHandler(DatabaseWrappedHandler(db, handler))
+	return aphttp.JSONErrorCatchingHandler(DatabaseWrappedHandler(db, handler))
 }
 
 func write(db *apsql.DB, handler TransactionAwareHandler) http.Handler {
-	return aphttp.ErrorCatchingHandler(TransactionWrappedHandler(db, handler))
+	return aphttp.JSONErrorCatchingHandler(TransactionWrappedHandler(db, handler))
 }

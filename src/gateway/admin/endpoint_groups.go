@@ -73,10 +73,9 @@ func (c *EndpointGroupsController) Delete(w http.ResponseWriter, r *http.Request
 func (c *EndpointGroupsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	endpointGroup, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading endpoint group: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	endpointGroup, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	endpointGroup.APIID = apiIDFromPath(r)
 	endpointGroup.AccountID = accountIDFromSession(r)
@@ -97,7 +96,7 @@ func (c *EndpointGroupsController) insertOrUpdate(w http.ResponseWriter, r *http
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s endpoint group: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

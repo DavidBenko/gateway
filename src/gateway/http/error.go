@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 // Error is an interface that describes an error case.
 type Error interface {
 	Error() error
+	String() string
 	Code() int
 }
 
@@ -20,6 +22,11 @@ type httpError struct {
 // Error returns the underlying error.
 func (h *httpError) Error() error {
 	return h.err
+}
+
+// String returns the string representation of the underlying error.
+func (h *httpError) String() string {
+	return h.err.Error()
 }
 
 // Code returns the HTTP status code of the error. Defaults to 500.
@@ -52,8 +59,24 @@ type ErrorReturningHandler func(w http.ResponseWriter, r *http.Request) Error
 func ErrorCatchingHandler(handler ErrorReturningHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := handler(w, r); err != nil {
-			if err != nil {
-				http.Error(w, fmt.Sprintf("%v\n", err.Error()), err.Code())
+			http.Error(w, fmt.Sprintf("%s\n", err.String()), err.Code())
+		}
+	})
+}
+
+// JSONErrorCatchingHandler catches an error a handler throws and responds with
+// it in JSON format.
+func JSONErrorCatchingHandler(handler ErrorReturningHandler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if httpErr := handler(w, r); httpErr != nil {
+			data, err := json.MarshalIndent(struct {
+				Error string `json:"error"`
+			}{httpErr.String()}, "", "    ")
+			if err == nil {
+				http.Error(w, string(data), httpErr.Code())
+			} else {
+				// Fall back to non-JSON body
+				http.Error(w, fmt.Sprintf("%s\n", httpErr.String()), httpErr.Code())
 			}
 		}
 	})

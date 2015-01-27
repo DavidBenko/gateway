@@ -73,10 +73,9 @@ func (c *HostsController) Delete(w http.ResponseWriter, r *http.Request,
 func (c *HostsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	host, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading host: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	host, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	host.APIID = apiIDFromPath(r)
 	host.AccountID = accountIDFromSession(r)
@@ -97,7 +96,7 @@ func (c *HostsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s host: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

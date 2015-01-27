@@ -73,10 +73,9 @@ func (c *ProxyEndpointsController) Delete(w http.ResponseWriter, r *http.Request
 func (c *ProxyEndpointsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	proxyEndpoint, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading proxy endpoint: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	proxyEndpoint, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	proxyEndpoint.APIID = apiIDFromPath(r)
 	proxyEndpoint.AccountID = accountIDFromSession(r)
@@ -97,7 +96,7 @@ func (c *ProxyEndpointsController) insertOrUpdate(w http.ResponseWriter, r *http
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s proxy endpoint: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

@@ -71,10 +71,9 @@ func (c *APIsController) Delete(w http.ResponseWriter, r *http.Request,
 func (c *APIsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	api, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading api: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	api, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 	api.AccountID = accountIDFromSession(r)
 
@@ -94,7 +93,7 @@ func (c *APIsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s api: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

@@ -74,10 +74,9 @@ func (c *UsersController) Delete(w http.ResponseWriter, r *http.Request,
 func (c *UsersController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-	user, err := c.deserializeInstance(r)
-	if err != nil {
-		log.Printf("%s Error reading user: %v", config.System, err)
-		return aphttp.DefaultServerError()
+	user, httpErr := c.deserializeInstance(r)
+	if httpErr != nil {
+		return httpErr
 	}
 
 	user.AccountID = c.accountID(r)
@@ -97,7 +96,7 @@ func (c *UsersController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 		return serialize(wrappedErrors{validationErrors}, w)
 	}
 
-	if err = method(tx); err != nil {
+	if err := method(tx); err != nil {
 		log.Printf("%s Error %s user: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}
