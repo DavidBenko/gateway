@@ -57,6 +57,9 @@ fmt:
 run: 
 	./bin/gateway -config=./test/gateway.conf -db-migrate
 
+runpg: 
+	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=gateway_dev sslmode=disable"
+
 test: admin assets generate
 	go test ./src/...
 
