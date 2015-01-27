@@ -9,6 +9,8 @@ import (
 
 	// Add sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
+	// Add postgres driver
+	_ "github.com/lib/pq"
 )
 
 const currentVersion = 1

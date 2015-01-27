@@ -2,9 +2,7 @@ package model
 
 import (
 	"fmt"
-	"gateway/config"
 	"gateway/sql"
-	"log"
 )
 
 // Account represents a single tenant in multi-tenant deployment.
@@ -26,7 +24,8 @@ func (a *Account) Validate() Errors {
 // into validation errors.
 func (a *Account) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	if err.Error() == "UNIQUE constraint failed: accounts.name" {
+	if err.Error() == "UNIQUE constraint failed: accounts.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "accounts_name_key"` {
 		errors.add("name", "is already taken")
 	}
 	return errors
@@ -36,20 +35,22 @@ func (a *Account) ValidateFromDatabaseError(err error) Errors {
 func AllAccounts(db *sql.DB) ([]*Account, error) {
 	accounts := []*Account{}
 	err := db.Select(&accounts,
-		"SELECT `id`, `name` FROM `accounts` ORDER BY `name` ASC;")
+		`SELECT "id", "name"
+		 FROM "accounts"
+		 ORDER BY "name" ASC;`)
 	return accounts, err
 }
 
 // FindAccount returns the account with the id specified.
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}
-	err := db.Get(&account, "SELECT `id`, `name` FROM `accounts` WHERE `id` = ?;", id)
+	err := db.Get(&account, `SELECT "id", "name" FROM "accounts" WHERE "id" = ?;`, id)
 	return &account, err
 }
 
 // DeleteAccount deletes the account with the id specified.
 func DeleteAccount(tx *sql.Tx, id int64) error {
-	result, err := tx.Exec("DELETE FROM `accounts` WHERE `id` = ?;", id)
+	result, err := tx.Exec(`DELETE FROM "accounts" WHERE "id" = ?;`, id)
 	if err != nil {
 		return err
 	}
@@ -63,24 +64,14 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 }
 
 // Insert inserts the account into the database as a new row.
-func (a *Account) Insert(tx *sql.Tx) error {
-	result, err := tx.Exec("INSERT INTO `accounts` (`name`) VALUES (?);",
-		a.Name)
-	if err != nil {
-		return err
-	}
-	a.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for account: %v",
-			config.System, err)
-		return err
-	}
-	return nil
+func (a *Account) Insert(tx *sql.Tx) (err error) {
+	a.ID, err = tx.Insert(`INSERT INTO "accounts" ("name") VALUES (?)`, a.Name)
+	return err
 }
 
 // Update updates the account in the database.
 func (a *Account) Update(tx *sql.Tx) error {
-	result, err := tx.Exec("UPDATE `accounts` SET `name` = ? WHERE `id` = ?;",
+	result, err := tx.Exec(`UPDATE "accounts" SET "name" = ? WHERE "id" = ?;`,
 		a.Name, a.ID)
 	if err != nil {
 		return err

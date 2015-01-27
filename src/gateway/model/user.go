@@ -46,7 +46,8 @@ func (u *User) Validate() Errors {
 func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 	users := []*User{}
 	err := db.Select(&users,
-		"SELECT `id`, `name`, `email` FROM `users` WHERE account_id = ? ORDER BY `name` ASC;",
+		`SELECT "id", "name", "email" FROM "users"
+		 WHERE account_id = ? ORDER BY "name" ASC;`,
 		accountID)
 	return users, err
 }
@@ -54,14 +55,18 @@ func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 // FindUserForAccountID returns the user with the id and account_id specified.
 func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 	user := User{}
-	err := db.Get(&user, "SELECT `id`, `name`, `email` FROM `users` WHERE `id` = ? AND account_id = ?;",
+	err := db.Get(&user,
+		`SELECT "id", "name", "email" FROM "users"
+		 WHERE "id" = ? AND account_id = ?;`,
 		id, accountID)
 	return &user, err
 }
 
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
 func DeleteUserForAccountID(tx *apsql.Tx, id, accountID int64) error {
-	result, err := tx.Exec("DELETE FROM `users` WHERE `id` = ? AND account_id = ?;",
+	result, err := tx.Exec(
+		`DELETE FROM "users"
+		 WHERE "id" = ? AND account_id = ?;`,
 		id, accountID)
 	if err != nil {
 		return err
@@ -79,7 +84,8 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID int64) error {
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		"SELECT `id`, `account_id`, `hashed_password` FROM `users` WHERE `email` = ?;",
+		`SELECT "id", "account_id", "hashed_password"
+		 FROM "users" WHERE "email" = ?;`,
 		strings.ToLower(email))
 	return &user, err
 }
@@ -91,7 +97,10 @@ func (u *User) Insert(tx *apsql.Tx) error {
 		return err
 	}
 
-	result, err := tx.Exec("INSERT INTO `users` (`account_id`, `name`, `email`, `hashed_password`) VALUES (?, ?, ?, ?);",
+	result, err := tx.Exec(
+		`INSERT INTO "users"
+		        ("account_id", "name", "email", "hashed_password")
+		 VALUES (?, ?, ?, ?);`,
 		u.AccountID, u.Name, strings.ToLower(u.Email), u.HashedPassword)
 	if err != nil {
 		return err
@@ -114,10 +123,16 @@ func (u *User) Update(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ?, `hashed_password` = ? WHERE `id` = ? AND `account_id` = ?;",
+		result, err = tx.Exec(
+			`UPDATE "users"
+			 SET "name" = ?, "email" = ?, "hashed_password" = ?
+			 WHERE "id" = ? AND "account_id" = ?;`,
 			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID, u.AccountID)
 	} else {
-		result, err = tx.Exec("UPDATE `users` SET `name` = ?, `email` = ? WHERE `id` = ? AND `account_id` = ?;",
+		result, err = tx.Exec(
+			`UPDATE "users"
+			 SET "name" = ?, "email" = ?
+			 WHERE "id" = ? AND "account_id" = ?;`,
 			u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
 	}
 	if err != nil {
