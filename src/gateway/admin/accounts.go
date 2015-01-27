@@ -90,7 +90,7 @@ func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Reque
 
 	validationErrors := account.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {

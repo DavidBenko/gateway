@@ -44,7 +44,8 @@ func (c *#{controller}) deserializeInstance(r *http.Request) (*model.#{singular}
     return nil, err
   }
   if wrapped.#{singular} == nil {
-    return nil, aphttp.NewError(errors.New("Could not deserialize #{singular} from JSON."), 400)
+    return nil, aphttp.NewError(errors.New("Could not deserialize #{singular} from JSON."),
+      http.StatusBadRequest)
   }
   return wrapped.#{singular}, nil
 }

@@ -42,12 +42,12 @@ func parseID(id string) int64 {
 func deserialize(dest interface{}, r *http.Request) aphttp.Error {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return aphttp.NewError(err, 500)
+		return aphttp.NewError(err, http.StatusInternalServerError)
 	}
 
 	err = json.Unmarshal(body, dest)
 	if err != nil {
-		return aphttp.NewError(err, 400)
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
 	return nil
@@ -64,6 +64,7 @@ func serialize(data interface{}, w http.ResponseWriter) aphttp.Error {
 	return nil
 }
 
+// To be removed when SerializedValidationErrors are adopted everywhere
 type wrappedErrors struct {
 	Errors model.Errors `json:"errors"`
 }

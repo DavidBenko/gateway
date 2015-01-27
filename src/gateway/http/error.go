@@ -11,6 +11,7 @@ import (
 type Error interface {
 	Error() error
 	String() string
+	Body() string
 	Code() int
 }
 
@@ -27,6 +28,11 @@ func (h *httpError) Error() error {
 // String returns the string representation of the underlying error.
 func (h *httpError) String() string {
 	return h.err.Error()
+}
+
+// Body returns a ready to use HTTP body for the error response, if present.
+func (h *httpError) Body() string {
+	return ""
 }
 
 // Code returns the HTTP status code of the error. Defaults to 500.
@@ -59,7 +65,11 @@ type ErrorReturningHandler func(w http.ResponseWriter, r *http.Request) Error
 func ErrorCatchingHandler(handler ErrorReturningHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := handler(w, r); err != nil {
-			http.Error(w, fmt.Sprintf("%s\n", err.String()), err.Code())
+			body := err.Body()
+			if body == "" {
+				body = fmt.Sprintf("%s\n", err.String())
+			}
+			http.Error(w, body, err.Code())
 		}
 	})
 }
@@ -69,15 +79,19 @@ func ErrorCatchingHandler(handler ErrorReturningHandler) http.Handler {
 func JSONErrorCatchingHandler(handler ErrorReturningHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if httpErr := handler(w, r); httpErr != nil {
-			data, err := json.MarshalIndent(struct {
-				Error string `json:"error"`
-			}{httpErr.String()}, "", "    ")
-			if err == nil {
-				http.Error(w, string(data), httpErr.Code())
-			} else {
-				// Fall back to non-JSON body
-				http.Error(w, fmt.Sprintf("%s\n", httpErr.String()), httpErr.Code())
+			body := httpErr.Body()
+			if body == "" {
+				data, err := json.MarshalIndent(struct {
+					Error string `json:"error"`
+				}{httpErr.String()}, "", "    ")
+				if err == nil {
+					body = string(data)
+				} else {
+					// Fall back to non-JSON body
+					body = fmt.Sprintf("%s\n", httpErr.String())
+				}
 			}
+			http.Error(w, body, httpErr.Code())
 		}
 	})
 }

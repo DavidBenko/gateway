@@ -77,10 +77,10 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 
 	user, err := model.FindUserByEmail(db, credentials.Email)
 	if err != nil {
-		return aphttp.NewError(errors.New("No user with that email."), 400)
+		return aphttp.NewError(errors.New("No user with that email."), http.StatusBadRequest)
 	}
 	if !user.ValidPassword(credentials.Password) {
-		return aphttp.NewError(errors.New("Invalid password."), 400)
+		return aphttp.NewError(errors.New("Invalid password."), http.StatusBadRequest)
 	}
 
 	session := requestSession(r)
