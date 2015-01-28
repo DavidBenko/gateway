@@ -214,16 +214,14 @@ describe "accounts" do
       end
     end
 
-    # context "non-existing" do
-    #   before(:all) do
-    #     setup_account
-    #     put "/accounts/#{@id+1}", {account: { name: "BooBoo Butt"}}
-    #   end
-    #
-    #   it "should return 404" do
-    #     expect(response.code).to eq(404)
-    #   end
-    # end
+    context "non-existing" do
+      before(:all) do
+        setup_account
+        put "/accounts/#{@id+1}", {account: { name: "BooBoo Butt"}}
+      end
+
+      it "should return 404"
+    end
   end
 
   describe "delete" do
@@ -253,15 +251,13 @@ describe "accounts" do
       end
     end
 
-    # context "non-existing" do
-    #   before(:all) do
-    #     delete "/accounts/#{@id+1}"
-    #   end
-    #
-    #   it "should return 404" do
-    #     expect(response.code).to eq(404)
-    #   end
-    # end
+    context "non-existing" do
+      before(:all) do
+        delete "/accounts/#{@id+1}"
+      end
+
+      it "should return 404"
+    end
   end
 
   # it 'should validate types' do
