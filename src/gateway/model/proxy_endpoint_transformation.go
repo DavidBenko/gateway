@@ -33,11 +33,11 @@ func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 	whereClauses := []string{}
 	if numComponentIDs > 0 {
 		whereClauses = append(whereClauses,
-			"`component_id` IN ("+apsql.NQs(numComponentIDs)+")")
+			"component_id IN ("+apsql.NQs(numComponentIDs)+")")
 	}
 	if numCallIDs > 0 {
 		whereClauses = append(whereClauses,
-			"`call_id` IN ("+apsql.NQs(numCallIDs)+")")
+			"call_id IN ("+apsql.NQs(numCallIDs)+")")
 	}
 
 	var args []interface{}
@@ -50,10 +50,10 @@ func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 
 	err := db.Select(&transformations,
 		"SELECT "+
-			"  `id`, `component_id`, `call_id`, `before`, `type`, `data` "+
-			"FROM `proxy_endpoint_transformations` "+
+			"  id, component_id, call_id, before, type, data "+
+			"FROM proxy_endpoint_transformations "+
 			"WHERE "+strings.Join(whereClauses, " OR ")+" "+
-			"ORDER BY `before` DESC, `position` ASC;",
+			"ORDER BY before DESC, position ASC;",
 		args...)
 	return transformations, err
 }
@@ -74,14 +74,14 @@ func _deleteProxyEndpointTransformations(tx *apsql.Tx, ownerCol string,
 	args := []interface{}{ownerID}
 	var validIDQuery string
 	if len(validIDs) > 0 {
-		validIDQuery = " AND `id` NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		validIDQuery = " AND id NOT IN (" + apsql.NQs(len(validIDs)) + ")"
 		for _, id := range validIDs {
 			args = append(args, id)
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM `proxy_endpoint_transformations` "+
-			"WHERE `"+ownerCol+"` = ?"+validIDQuery+";",
+		"DELETE FROM proxy_endpoint_transformations "+
+			"WHERE "+ownerCol+" = ?"+validIDQuery+";",
 		args...)
 	return err
 }
@@ -109,8 +109,8 @@ func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 		return err
 	}
 	t.ID, err = tx.InsertOne(
-		"INSERT INTO `proxy_endpoint_transformations` "+
-			"(`"+ownerCol+"`, `before`, `position`, `type`, `data`) "+
+		"INSERT INTO proxy_endpoint_transformations "+
+			"("+ownerCol+", before, position, type, data) "+
 			"VALUES (?, ?, ?, ?, ?);",
 		ownerID, before, position, t.Type, string(data))
 
@@ -140,8 +140,8 @@ func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
 		return err
 	}
 	return tx.UpdateOne(
-		"UPDATE `proxy_endpoint_transformations` "+
-			"SET `before` = ?, `position` = ?, `type` = ?, `data` = ? "+
-			"WHERE `id` = ? AND `"+ownerCol+"` = ?",
+		"UPDATE proxy_endpoint_transformations "+
+			"SET before = ?, position = ?, type = ?, data = ? "+
+			"WHERE id = ? AND "+ownerCol+" = ?",
 		before, position, t.Type, string(data), t.ID, ownerID)
 }

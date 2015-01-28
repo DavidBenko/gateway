@@ -28,10 +28,10 @@ func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(&components,
 		"SELECT "+
-			"  `id`, `conditional`, `conditional_positive`, `type`, `data` "+
-			"FROM `proxy_endpoint_components` "+
-			"WHERE `endpoint_id` = ? "+
-			"ORDER BY `position` ASC;",
+			"  id, conditional, conditional_positive, type, data "+
+			"FROM proxy_endpoint_components "+
+			"WHERE endpoint_id = ? "+
+			"ORDER BY position ASC;",
 		endpointID)
 	if err != nil {
 		return nil, err
@@ -97,14 +97,14 @@ func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
 	args := []interface{}{endpointID}
 	var validIDQuery string
 	if len(validIDs) > 0 {
-		validIDQuery = " AND `id` NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		validIDQuery = " AND id NOT IN (" + apsql.NQs(len(validIDs)) + ")"
 		for _, id := range validIDs {
 			args = append(args, id)
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM `proxy_endpoint_components` "+
-			"WHERE `endpoint_id` = ?"+validIDQuery+";",
+		"DELETE FROM proxy_endpoint_components "+
+			"WHERE endpoint_id = ?"+validIDQuery+";",
 		args...)
 	return err
 }
@@ -118,9 +118,9 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 		return err
 	}
 	c.ID, err = tx.InsertOne(
-		"INSERT INTO `proxy_endpoint_components` "+
-			"(`endpoint_id`, `conditional`, `conditional_positive`, "+
-			" `position`, `type`, `data`) "+
+		"INSERT INTO proxy_endpoint_components "+
+			"(endpoint_id, conditional, conditional_positive, "+
+			" position, type, data) "+
 			"VALUES (?, ?, ?, ?, ?, ?);",
 		endpointID, c.Conditional, c.ConditionalPositive,
 		position, c.Type, string(data))
@@ -169,13 +169,13 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 		return err
 	}
 	err = tx.UpdateOne(
-		"UPDATE `proxy_endpoint_components` "+
-			"SET `conditional` = ?, "+
-			"    `conditional_positive` = ?, "+
-			"    `position` = ?, "+
-			"    `type` = ?, "+
-			"    `data` = ? "+
-			"WHERE `id` = ? AND `endpoint_id` = ?;",
+		"UPDATE proxy_endpoint_components "+
+			"SET conditional = ?, "+
+			"    conditional_positive = ?, "+
+			"    position = ?, "+
+			"    type = ?, "+
+			"    data = ? "+
+			"WHERE id = ? AND endpoint_id = ?;",
 		c.Conditional, c.ConditionalPositive,
 		position, c.Type, string(data),
 		c.ID, endpointID)

@@ -29,11 +29,11 @@ func AllProxyEndpointCallsForComponentIDs(db *apsql.DB, componentIDs []int64) ([
 
 	err := db.Select(&calls,
 		"SELECT "+
-			"  `id`, `component_id`, `remote_endpoint_id`, "+
-			"`endpoint_name_override`, `conditional`, `conditional_positive` "+
-			"FROM `proxy_endpoint_calls` "+
-			"WHERE `component_id` IN ("+apsql.NQs(numIDs)+") "+
-			"ORDER BY `position` ASC;",
+			"  id, component_id, remote_endpoint_id, "+
+			"endpoint_name_override, conditional, conditional_positive "+
+			"FROM proxy_endpoint_calls "+
+			"WHERE component_id IN ("+apsql.NQs(numIDs)+") "+
+			"ORDER BY position ASC;",
 		ids...)
 	return calls, err
 }
@@ -45,14 +45,14 @@ func DeleteProxyEndpointCallsWithComponentIDAndNotInList(tx *apsql.Tx,
 	args := []interface{}{componentID}
 	var validIDQuery string
 	if len(validIDs) > 0 {
-		validIDQuery = " AND `id` NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		validIDQuery = " AND id NOT IN (" + apsql.NQs(len(validIDs)) + ")"
 		for _, id := range validIDs {
 			args = append(args, id)
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM `proxy_endpoint_calls` "+
-			"WHERE `component_id` = ?"+validIDQuery+";",
+		"DELETE FROM proxy_endpoint_calls "+
+			"WHERE component_id = ?"+validIDQuery+";",
 		args...)
 	return err
 }
@@ -62,11 +62,11 @@ func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
 	var err error
 	c.ID, err = tx.InsertOne(
-		"INSERT INTO `proxy_endpoint_calls` "+
-			"(`component_id`, `remote_endpoint_id`, `endpoint_name_override`, "+
-			" `conditional`, `conditional_positive`, `position`) "+
+		"INSERT INTO proxy_endpoint_calls "+
+			"(component_id, remote_endpoint_id, endpoint_name_override, "+
+			" conditional, conditional_positive, position) "+
 			"VALUES (?, "+
-			"  (SELECT `id` FROM `remote_endpoints` WHERE `id` = ? AND `api_id` = ?), "+
+			"  (SELECT id FROM remote_endpoints WHERE id = ? AND api_id = ?), "+
 			"  ?, ?, ?, ?);",
 		componentID, c.RemoteEndpointID, apiID, c.EndpointNameOverride,
 		c.Conditional, c.ConditionalPositive, position)
@@ -94,14 +94,14 @@ func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
 	err := tx.UpdateOne(
-		"UPDATE `proxy_endpoint_calls` "+
-			"SET `remote_endpoint_id` = "+
-			"       (SELECT `id` FROM `remote_endpoints` WHERE `id` = ? AND `api_id` = ?), "+
-			"    `endpoint_name_override` = ?, "+
-			"    `conditional` = ?, "+
-			"    `conditional_positive` = ?, "+
-			"    `position` = ? "+
-			"WHERE `id` = ? AND `component_id` = ?;",
+		"UPDATE proxy_endpoint_calls "+
+			"SET remote_endpoint_id = "+
+			"       (SELECT id FROM remote_endpoints WHERE id = ? AND api_id = ?), "+
+			"    endpoint_name_override = ?, "+
+			"    conditional = ?, "+
+			"    conditional_positive = ?, "+
+			"    position = ? "+
+			"WHERE id = ? AND component_id = ?;",
 		c.RemoteEndpointID, apiID, c.EndpointNameOverride,
 		c.Conditional, c.ConditionalPositive, position, c.ID, componentID)
 	if err != nil {

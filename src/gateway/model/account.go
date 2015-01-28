@@ -17,7 +17,7 @@ func (a *Account) Validate() Errors {
 	return errors
 }
 
-// ValidationErrorsFromDatabase translates possible database constraint errors
+// ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
 func (a *Account) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
@@ -32,32 +32,32 @@ func (a *Account) ValidateFromDatabaseError(err error) Errors {
 func AllAccounts(db *sql.DB) ([]*Account, error) {
 	accounts := []*Account{}
 	err := db.Select(&accounts,
-		`SELECT "id", "name"
-		 FROM "accounts"
-		 ORDER BY "name" ASC;`)
+		`SELECT id, name
+		 FROM accounts
+		 ORDER BY name ASC;`)
 	return accounts, err
 }
 
 // FindAccount returns the account with the id specified.
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}
-	err := db.Get(&account, `SELECT "id", "name" FROM "accounts" WHERE "id" = ?;`, id)
+	err := db.Get(&account, `SELECT id, name FROM accounts WHERE id = ?;`, id)
 	return &account, err
 }
 
 // DeleteAccount deletes the account with the id specified.
 func DeleteAccount(tx *sql.Tx, id int64) error {
-	return tx.DeleteOne(`DELETE FROM "accounts" WHERE "id" = ?;`, id)
+	return tx.DeleteOne(`DELETE FROM accounts WHERE id = ?;`, id)
 }
 
 // Insert inserts the account into the database as a new row.
 func (a *Account) Insert(tx *sql.Tx) (err error) {
-	a.ID, err = tx.InsertOne(`INSERT INTO "accounts" ("name") VALUES (?)`, a.Name)
+	a.ID, err = tx.InsertOne(`INSERT INTO accounts (name) VALUES (?)`, a.Name)
 	return err
 }
 
 // Update updates the account in the database.
 func (a *Account) Update(tx *sql.Tx) error {
-	return tx.UpdateOne(`UPDATE "accounts" SET "name" = ? WHERE "id" = ?;`,
+	return tx.UpdateOne(`UPDATE accounts SET name = ? WHERE id = ?;`,
 		a.Name, a.ID)
 }
