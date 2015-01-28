@@ -3,9 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -119,39 +117,24 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	result, err := tx.Exec(
+	return tx.DeleteOne(
 		"DELETE FROM `remote_endpoints` "+
 			"WHERE `remote_endpoints`.`id` = ? "+
 			"  AND `remote_endpoints`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		id, apiID, accountID)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }
 
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
-	result, err := tx.Exec(
+	var err error
+	e.ID, err = tx.InsertOne(
 		"INSERT INTO `remote_endpoints` (`api_id`, `name`, `description`, `type`) "+
 			"VALUES ( "+
 			"  (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?), "+
 			"  ?, ?, ?);",
 		e.APIID, e.AccountID, e.Name, e.Description, e.Type)
 	if err != nil {
-		return err
-	}
-	e.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for remoteEndpoint: %v",
-			config.System, err)
 		return err
 	}
 	for _, envData := range e.EnvironmentData {
@@ -170,7 +153,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
-	result, err := tx.Exec(
+	err := tx.UpdateOne(
 		"UPDATE `remote_endpoints` "+
 			"SET `name` = ?, `description` = ? "+
 			"WHERE `remote_endpoints`.`id` = ? "+
@@ -179,10 +162,6 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
 
 	var existingEnvIDs []int64

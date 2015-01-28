@@ -2,10 +2,7 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 )
 
 // Environment represents a environment the API is available on.
@@ -66,22 +63,12 @@ func FindEnvironmentForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int6
 
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
 func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	result, err := tx.Exec(
+	return tx.DeleteOne(
 		"DELETE FROM `environments` "+
 			"WHERE `environments`.`id` = ? "+
 			"  AND `environments`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		id, apiID, accountID)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }
 
 // Insert inserts the environment into the database as a new row.
@@ -90,22 +77,13 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	e.ID, err = tx.InsertOne(
 		"INSERT INTO `environments` (`api_id`, `name`, `description`, `data`) "+
 			"VALUES ( "+
 			"  (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?), "+
 			"  ?, ?, ?);",
 		e.APIID, e.AccountID, e.Name, e.Description, string(data))
-	if err != nil {
-		return err
-	}
-	e.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for environment: %v",
-			config.System, err)
-		return err
-	}
-	return nil
+	return err
 }
 
 // Update updates the environment in the database.
@@ -114,19 +92,11 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	return tx.UpdateOne(
 		"UPDATE `environments` "+
 			"SET `name` = ?, `description` = ?, `data` = ? "+
 			"WHERE `environments`.`id` = ? "+
 			"  AND `environments`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		e.Name, e.Description, string(data), e.ID, e.APIID, e.AccountID)
-	if err != nil {
-		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-	return nil
 }

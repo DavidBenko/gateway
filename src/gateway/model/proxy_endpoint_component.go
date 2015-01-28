@@ -2,10 +2,7 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 )
 
 const (
@@ -120,7 +117,7 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	c.ID, err = tx.InsertOne(
 		"INSERT INTO `proxy_endpoint_components` "+
 			"(`endpoint_id`, `conditional`, `conditional_positive`, "+
 			" `position`, `type`, `data`) "+
@@ -128,12 +125,6 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 		endpointID, c.Conditional, c.ConditionalPositive,
 		position, c.Type, string(data))
 	if err != nil {
-		return err
-	}
-	c.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for proxy endpoint component: %v",
-			config.System, err)
 		return err
 	}
 
@@ -177,7 +168,7 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	err = tx.UpdateOne(
 		"UPDATE `proxy_endpoint_components` "+
 			"SET `conditional` = ?, "+
 			"    `conditional_positive` = ?, "+
@@ -190,10 +181,6 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 		c.ID, endpointID)
 	if err != nil {
 		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
 
 	var validTransformationIDs []int64

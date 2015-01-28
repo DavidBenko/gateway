@@ -3,9 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 )
 
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
@@ -98,22 +96,12 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
 func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	result, err := tx.Exec(
+	return tx.DeleteOne(
 		"DELETE FROM `proxy_endpoints` "+
 			"WHERE `proxy_endpoints`.`id` = ? "+
 			"  AND `proxy_endpoints`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?);",
 		id, apiID, accountID)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -122,7 +110,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	e.ID, err = tx.InsertOne(
 		"INSERT INTO `proxy_endpoints` "+
 			"(`api_id`, `name`, `description`, "+
 			"`endpoint_group_id`, `environment_id`, "+
@@ -137,12 +125,6 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, e.CORSAllowOverride, string(routes))
 	if err != nil {
-		return err
-	}
-	e.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for proxyEndpoint: %v",
-			config.System, err)
 		return err
 	}
 
@@ -162,7 +144,7 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	err = tx.UpdateOne(
 		"UPDATE `proxy_endpoints` "+
 			"SET `name` = ?, "+
 			"  `description` = ?, "+
@@ -185,10 +167,6 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
 
 	var validComponentIDs []int64

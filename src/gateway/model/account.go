@@ -1,9 +1,6 @@
 package model
 
-import (
-	"fmt"
-	"gateway/sql"
-)
+import "gateway/sql"
 
 // Account represents a single tenant in multi-tenant deployment.
 type Account struct {
@@ -50,35 +47,17 @@ func FindAccount(db *sql.DB, id int64) (*Account, error) {
 
 // DeleteAccount deletes the account with the id specified.
 func DeleteAccount(tx *sql.Tx, id int64) error {
-	result, err := tx.Exec(`DELETE FROM "accounts" WHERE "id" = ?;`, id)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
+	return tx.DeleteOne(`DELETE FROM "accounts" WHERE "id" = ?;`, id)
 }
 
 // Insert inserts the account into the database as a new row.
 func (a *Account) Insert(tx *sql.Tx) (err error) {
-	a.ID, err = tx.Insert(`INSERT INTO "accounts" ("name") VALUES (?)`, a.Name)
+	a.ID, err = tx.InsertOne(`INSERT INTO "accounts" ("name") VALUES (?)`, a.Name)
 	return err
 }
 
 // Update updates the account in the database.
 func (a *Account) Update(tx *sql.Tx) error {
-	result, err := tx.Exec(`UPDATE "accounts" SET "name" = ? WHERE "id" = ?;`,
+	return tx.UpdateOne(`UPDATE "accounts" SET "name" = ? WHERE "id" = ?;`,
 		a.Name, a.ID)
-	if err != nil {
-		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-	return nil
 }

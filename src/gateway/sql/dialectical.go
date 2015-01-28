@@ -2,11 +2,12 @@ package sql
 
 import (
 	"database/sql"
+	"fmt"
 	"regexp"
 	"strconv"
 )
 
-func (tx *Tx) Insert(baseQuery string, args ...interface{}) (id int64, err error) {
+func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err error) {
 	if tx.Driver == Postgres {
 		query := tx.Q(baseQuery + ` RETURNING "id";`)
 		err = tx.Get(&id, query, args...)
@@ -18,6 +19,22 @@ func (tx *Tx) Insert(baseQuery string, args ...interface{}) (id int64, err error
 		return
 	}
 	return result.LastInsertId()
+}
+
+func (tx *Tx) UpdateOne(query string, args ...interface{}) error {
+	result, err := tx.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+	numRows, err := result.RowsAffected()
+	if err != nil || numRows != 1 {
+		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
+	}
+	return nil
+}
+
+func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
+	return tx.UpdateOne(query, args...)
 }
 
 var qrx = regexp.MustCompile(`\?`)

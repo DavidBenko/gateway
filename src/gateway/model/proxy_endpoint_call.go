@@ -1,11 +1,6 @@
 package model
 
-import (
-	"fmt"
-	"gateway/config"
-	apsql "gateway/sql"
-	"log"
-)
+import apsql "gateway/sql"
 
 type ProxyEndpointCall struct {
 	ID                    int64                          `json:"id"`
@@ -65,7 +60,8 @@ func DeleteProxyEndpointCallsWithComponentIDAndNotInList(tx *apsql.Tx,
 // Insert inserts the call into the database as a new row.
 func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
-	result, err := tx.Exec(
+	var err error
+	c.ID, err = tx.InsertOne(
 		"INSERT INTO `proxy_endpoint_calls` "+
 			"(`component_id`, `remote_endpoint_id`, `endpoint_name_override`, "+
 			" `conditional`, `conditional_positive`, `position`) "+
@@ -75,12 +71,6 @@ func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 		componentID, c.RemoteEndpointID, apiID, c.EndpointNameOverride,
 		c.Conditional, c.ConditionalPositive, position)
 	if err != nil {
-		return err
-	}
-	c.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for proxy endpoint component: %v",
-			config.System, err)
 		return err
 	}
 
@@ -103,7 +93,7 @@ func (c *ProxyEndpointCall) Insert(tx *apsql.Tx, componentID, apiID int64,
 // Update updates the call into the database in place.
 func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
-	result, err := tx.Exec(
+	err := tx.UpdateOne(
 		"UPDATE `proxy_endpoint_calls` "+
 			"SET `remote_endpoint_id` = "+
 			"       (SELECT `id` FROM `remote_endpoints` WHERE `id` = ? AND `api_id` = ?), "+
@@ -116,10 +106,6 @@ func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
 		c.Conditional, c.ConditionalPositive, position, c.ID, componentID)
 	if err != nil {
 		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}
 
 	var validTransformationIDs []int64

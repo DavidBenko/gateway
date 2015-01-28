@@ -2,10 +2,7 @@ package model
 
 import (
 	"encoding/json"
-	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 	"strings"
 )
 
@@ -83,8 +80,8 @@ func _deleteProxyEndpointTransformations(tx *apsql.Tx, ownerCol string,
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM `proxy_endpoint_transformations` " +
-		"WHERE `" + ownerCol + "` = ?" + validIDQuery + ";",
+		"DELETE FROM `proxy_endpoint_transformations` "+
+			"WHERE `"+ownerCol+"` = ?"+validIDQuery+";",
 		args...)
 	return err
 }
@@ -111,22 +108,13 @@ func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	t.ID, err = tx.InsertOne(
 		"INSERT INTO `proxy_endpoint_transformations` "+
 			"(`"+ownerCol+"`, `before`, `position`, `type`, `data`) "+
 			"VALUES (?, ?, ?, ?, ?);",
 		ownerID, before, position, t.Type, string(data))
-	if err != nil {
-		return err
-	}
-	t.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for proxy endpoint tranform: %v",
-			config.System, err)
-		return err
-	}
 
-	return nil
+	return err
 }
 
 // InsertForComponent inserts the transformation into the database as a new row
@@ -151,18 +139,9 @@ func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
 	if err != nil {
 		return err
 	}
-	result, err := tx.Exec(
+	return tx.UpdateOne(
 		"UPDATE `proxy_endpoint_transformations` "+
 			"SET `before` = ?, `position` = ?, `type` = ?, `data` = ? "+
 			"WHERE `id` = ? AND `"+ownerCol+"` = ?",
 		before, position, t.Type, string(data), t.ID, ownerID)
-	if err != nil {
-		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }

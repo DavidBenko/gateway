@@ -1,11 +1,7 @@
 package model
 
 import (
-	"database/sql"
-	"fmt"
-	"gateway/config"
 	apsql "gateway/sql"
-	"log"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -64,20 +60,10 @@ func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
 func DeleteUserForAccountID(tx *apsql.Tx, id, accountID int64) error {
-	result, err := tx.Exec(
+	return tx.DeleteOne(
 		`DELETE FROM "users"
 		 WHERE "id" = ? AND account_id = ?;`,
 		id, accountID)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }
 
 // FindUserByEmail returns the user with the email specified.
@@ -91,58 +77,39 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 }
 
 // Insert inserts the user into the database as a new row.
-func (u *User) Insert(tx *apsql.Tx) error {
-	err := u.hashPassword()
-	if err != nil {
+func (u *User) Insert(tx *apsql.Tx) (err error) {
+	if err = u.hashPassword(); err != nil {
 		return err
 	}
 
-	result, err := tx.Exec(
+	u.ID, err = tx.InsertOne(
 		`INSERT INTO "users"
 		        ("account_id", "name", "email", "hashed_password")
 		 VALUES (?, ?, ?, ?);`,
 		u.AccountID, u.Name, strings.ToLower(u.Email), u.HashedPassword)
-	if err != nil {
-		return err
-	}
-	u.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for user: %v",
-			config.System, err)
-		return err
-	}
-	return nil
+	return err
 }
 
 // Update updates the user in the database.
 func (u *User) Update(tx *apsql.Tx) error {
-	var result sql.Result
 	var err error
 	if u.NewPassword != "" {
 		err = u.hashPassword()
 		if err != nil {
 			return err
 		}
-		result, err = tx.Exec(
+		return tx.UpdateOne(
 			`UPDATE "users"
 			 SET "name" = ?, "email" = ?, "hashed_password" = ?
 			 WHERE "id" = ? AND "account_id" = ?;`,
 			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID, u.AccountID)
 	} else {
-		result, err = tx.Exec(
+		return tx.UpdateOne(
 			`UPDATE "users"
 			 SET "name" = ?, "email" = ?
 			 WHERE "id" = ? AND "account_id" = ?;`,
 			u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
 	}
-	if err != nil {
-		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-	return nil
 }
 
 func (u *User) hashPassword() error {

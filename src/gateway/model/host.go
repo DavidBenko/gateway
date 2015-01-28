@@ -1,11 +1,6 @@
 package model
 
-import (
-	"fmt"
-	"gateway/config"
-	apsql "gateway/sql"
-	"log"
-)
+import apsql "gateway/sql"
 
 // Host represents a host the API is available on.
 type Host struct {
@@ -55,60 +50,33 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 
 // DeleteHostForAPIIDAndAccountID deletes the host with the id, api_id and account_id specified.
 func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	result, err := tx.Exec(
+	return tx.DeleteOne(
 		"DELETE FROM `hosts` "+
 			"WHERE `hosts`.`id` = ? "+
 			"  AND `hosts`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		id, apiID, accountID)
-	if err != nil {
-		return err
-	}
-
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-
-	return nil
 }
 
 // Insert inserts the host into the database as a new row.
-func (h *Host) Insert(tx *apsql.Tx) error {
-	result, err := tx.Exec(
+func (h *Host) Insert(tx *apsql.Tx) (err error) {
+	h.ID, err = tx.InsertOne(
 		"INSERT INTO `hosts` (`api_id`, `name`) "+
 			"VALUES ( "+
 			"  (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?), "+
 			"  ? "+
 			");",
 		h.APIID, h.AccountID, h.Name)
-	if err != nil {
-		return err
-	}
-	h.ID, err = result.LastInsertId()
-	if err != nil {
-		log.Printf("%s Error getting last insert ID for host: %v",
-			config.System, err)
-		return err
-	}
-	return nil
+	return
 }
 
 // Update updates the host in the database.
 func (h *Host) Update(tx *apsql.Tx) error {
-	result, err := tx.Exec(
+	return tx.UpdateOne(
 		"UPDATE `hosts` "+
 			"SET `name` = ? "+
 			"WHERE `hosts`.`id` = ? "+
 			"  AND `hosts`.`api_id` IN "+
 			"      (SELECT `id` FROM `apis` WHERE `id` = ? AND `account_id` = ?)",
 		h.Name, h.ID, h.APIID, h.AccountID)
-	if err != nil {
-		return err
-	}
-	numRows, err := result.RowsAffected()
-	if err != nil || numRows != 1 {
-		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
-	}
-	return nil
 }
