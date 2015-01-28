@@ -2,4 +2,4 @@
   :golang:
     :golang_version: 1.4.1
   :tests:
-    - make test
+    - make test_all

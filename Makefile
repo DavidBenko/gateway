@@ -63,6 +63,14 @@ runpg:
 test: admin assets generate
 	go test ./src/...
 
+test_admin: build
+	mkdir -p tmp
+	./bin/gateway -config=./test/gateway.conf -db-migrate & echo "$$!" > ./tmp/server.pid
+	sleep 1
+	rspec test/admin-api ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
+
+test_all: test test_admin
+
 vendor_clean:
 	rm -dRf ./_vendor/src
 

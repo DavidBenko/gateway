@@ -1,5 +1,0 @@
-desc "Set up and run the specs"
-task :spec do
-  # sh "GATEWAY_TEST_BINARY=../../bin/gateway rspec ."
-  sh "rspec . --color"
-end
