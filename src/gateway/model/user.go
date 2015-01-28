@@ -103,13 +103,13 @@ func (u *User) Update(tx *apsql.Tx) error {
 			 SET "name" = ?, "email" = ?, "hashed_password" = ?
 			 WHERE "id" = ? AND "account_id" = ?;`,
 			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID, u.AccountID)
-	} else {
-		return tx.UpdateOne(
-			`UPDATE "users"
+	}
+
+	return tx.UpdateOne(
+		`UPDATE "users"
 			 SET "name" = ?, "email" = ?
 			 WHERE "id" = ? AND "account_id" = ?;`,
-			u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
-	}
+		u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
 }
 
 func (u *User) hashPassword() error {
