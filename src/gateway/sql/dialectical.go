@@ -3,11 +3,16 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err error) {
+	if strings.HasSuffix(baseQuery, ";") {
+		log.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
+	}
 	if tx.Driver == Postgres {
 		query := tx.Q(baseQuery + ` RETURNING "id";`)
 		err = tx.Get(&id, query, args...)

@@ -49,11 +49,11 @@ func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 	}
 
 	err := db.Select(&transformations,
-		"SELECT "+
-			"  id, component_id, call_id, before, type, data "+
-			"FROM proxy_endpoint_transformations "+
-			"WHERE "+strings.Join(whereClauses, " OR ")+" "+
-			"ORDER BY before DESC, position ASC;",
+		`SELECT
+			id, component_id, call_id, before, type, data
+		FROM proxy_endpoint_transformations
+		WHERE `+strings.Join(whereClauses, " OR ")+`
+		ORDER BY before DESC, position ASC;`,
 		args...)
 	return transformations, err
 }
@@ -80,8 +80,8 @@ func _deleteProxyEndpointTransformations(tx *apsql.Tx, ownerCol string,
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM proxy_endpoint_transformations "+
-			"WHERE "+ownerCol+" = ?"+validIDQuery+";",
+		`DELETE FROM proxy_endpoint_transformations
+		WHERE `+ownerCol+" = ?"+validIDQuery+";",
 		args...)
 	return err
 }
@@ -109,9 +109,9 @@ func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 		return err
 	}
 	t.ID, err = tx.InsertOne(
-		"INSERT INTO proxy_endpoint_transformations "+
-			"("+ownerCol+", before, position, type, data) "+
-			"VALUES (?, ?, ?, ?, ?);",
+		`INSERT INTO proxy_endpoint_transformations
+			(`+ownerCol+`, before, position, type, data)
+		VALUES (?, ?, ?, ?, ?)`,
 		ownerID, before, position, t.Type, string(data))
 
 	return err
@@ -140,8 +140,8 @@ func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
 		return err
 	}
 	return tx.UpdateOne(
-		"UPDATE proxy_endpoint_transformations "+
-			"SET before = ?, position = ?, type = ?, data = ? "+
-			"WHERE id = ? AND "+ownerCol+" = ?",
+		`UPDATE proxy_endpoint_transformations
+		 SET before = ?, position = ?, type = ?, data = ?
+		 WHERE id = ? AND `+ownerCol+" = ?",
 		before, position, t.Type, string(data), t.ID, ownerID)
 }

@@ -56,7 +56,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	a.ID, err = tx.InsertOne(
 		`INSERT INTO apis
 		(account_id, name, description, cors_allow)
-		VALUES (?, ?, ?, ?);`,
+		VALUES (?, ?, ?, ?)`,
 		a.AccountID, a.Name, a.Description, a.CORSAllow)
 	return
 }

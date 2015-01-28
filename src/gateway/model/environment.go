@@ -29,16 +29,16 @@ func (e *Environment) Validate() Errors {
 func AllEnvironmentsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Environment, error) {
 	environments := []*Environment{}
 	err := db.Select(&environments,
-		"SELECT "+
-			"  environments.id as id, "+
-			"  environments.name as name, "+
-			"  environments.description as description, "+
-			"  environments.data as data "+
-			"FROM environments, apis "+
-			"WHERE environments.api_id = ? "+
-			"  AND environments.api_id = apis.id "+
-			"  AND apis.account_id = ? "+
-			"ORDER BY environments.name ASC;",
+		`SELECT
+			environments.id as id,
+			environments.name as name,
+			environments.description as description,
+			environments.data as data
+		FROM environments, apis
+		WHERE environments.api_id = ?
+			AND environments.api_id = apis.id
+			AND apis.account_id = ?
+		ORDER BY environments.name ASC;`,
 		apiID, accountID)
 	return environments, err
 }
@@ -47,16 +47,16 @@ func AllEnvironmentsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) (
 func FindEnvironmentForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Environment, error) {
 	environment := Environment{}
 	err := db.Get(&environment,
-		"SELECT "+
-			"  environments.id as id, "+
-			"  environments.name as name, "+
-			"  environments.description as description "+
-			"  environments.data as data "+
-			"FROM environments, apis "+
-			"WHERE environments.id = ? "+
-			"  AND environments.api_id = ? "+
-			"  AND environments.api_id = apis.id "+
-			"  AND apis.account_id = ?;",
+		`SELECT
+			environments.id as id,
+			environments.name as name,
+			environments.description as description
+			environments.data as data
+		FROM environments, apis
+		WHERE environments.id = ?
+			AND environments.api_id = ?
+			AND environments.api_id = apis.id
+			AND apis.account_id = ?;`,
 		id, apiID, accountID)
 	return &environment, err
 }
@@ -64,10 +64,10 @@ func FindEnvironmentForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int6
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
 func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	return tx.DeleteOne(
-		"DELETE FROM environments "+
-			"WHERE environments.id = ? "+
-			"  AND environments.api_id IN "+
-			"      (SELECT id FROM apis WHERE id = ? AND account_id = ?)",
+		`DELETE FROM environments
+		WHERE environments.id = ?
+			AND environments.api_id IN
+				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		id, apiID, accountID)
 }
 
@@ -78,10 +78,8 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	e.ID, err = tx.InsertOne(
-		"INSERT INTO environments (api_id, name, description, data) "+
-			"VALUES ( "+
-			"  (SELECT id FROM apis WHERE id = ? AND account_id = ?), "+
-			"  ?, ?, ?);",
+		`INSERT INTO environments (api_id, name, description, data)
+		 VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?, ?, ?)`,
 		e.APIID, e.AccountID, e.Name, e.Description, string(data))
 	return err
 }
@@ -93,10 +91,10 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 		return err
 	}
 	return tx.UpdateOne(
-		"UPDATE environments "+
-			"SET name = ?, description = ?, data = ? "+
-			"WHERE environments.id = ? "+
-			"  AND environments.api_id IN "+
-			"      (SELECT id FROM apis WHERE id = ? AND account_id = ?)",
+		`UPDATE environments
+		SET name = ?, description = ?, data = ?
+		WHERE environments.id = ?
+			AND environments.api_id IN
+			(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		e.Name, e.Description, string(data), e.ID, e.APIID, e.AccountID)
 }

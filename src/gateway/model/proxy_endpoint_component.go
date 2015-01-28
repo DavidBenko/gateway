@@ -27,11 +27,11 @@ type ProxyEndpointComponent struct {
 func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(&components,
-		"SELECT "+
-			"  id, conditional, conditional_positive, type, data "+
-			"FROM proxy_endpoint_components "+
-			"WHERE endpoint_id = ? "+
-			"ORDER BY position ASC;",
+		`SELECT
+			id, conditional, conditional_positive, type, data
+		FROM proxy_endpoint_components
+		WHERE endpoint_id = ?
+		ORDER BY position ASC;`,
 		endpointID)
 	if err != nil {
 		return nil, err
@@ -103,8 +103,8 @@ func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
 		}
 	}
 	_, err := tx.Exec(
-		"DELETE FROM proxy_endpoint_components "+
-			"WHERE endpoint_id = ?"+validIDQuery+";",
+		`DELETE FROM proxy_endpoint_components
+		WHERE endpoint_id = ?`+validIDQuery+`;`,
 		args...)
 	return err
 }
@@ -118,10 +118,10 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 		return err
 	}
 	c.ID, err = tx.InsertOne(
-		"INSERT INTO proxy_endpoint_components "+
-			"(endpoint_id, conditional, conditional_positive, "+
-			" position, type, data) "+
-			"VALUES (?, ?, ?, ?, ?, ?);",
+		`INSERT INTO proxy_endpoint_components
+			(endpoint_id, conditional, conditional_positive,
+			 position, type, data)
+		VALUES (?, ?, ?, ?, ?, ?)`,
 		endpointID, c.Conditional, c.ConditionalPositive,
 		position, c.Type, string(data))
 	if err != nil {
@@ -169,13 +169,14 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 		return err
 	}
 	err = tx.UpdateOne(
-		"UPDATE proxy_endpoint_components "+
-			"SET conditional = ?, "+
-			"    conditional_positive = ?, "+
-			"    position = ?, "+
-			"    type = ?, "+
-			"    data = ? "+
-			"WHERE id = ? AND endpoint_id = ?;",
+		`UPDATE proxy_endpoint_components
+		SET
+			conditional = ?,
+			conditional_positive = ?,
+			position = ?,
+			type = ?,
+			data = ?
+		WHERE id = ? AND endpoint_id = ?;`,
 		c.Conditional, c.ConditionalPositive,
 		position, c.Type, string(data),
 		c.ID, endpointID)

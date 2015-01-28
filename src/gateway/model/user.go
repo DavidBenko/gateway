@@ -83,9 +83,8 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	u.ID, err = tx.InsertOne(
-		`INSERT INTO users
-		        (account_id, name, email, hashed_password)
-		 VALUES (?, ?, ?, ?);`,
+		`INSERT INTO users (account_id, name, email, hashed_password)
+		 VALUES (?, ?, ?, ?)`,
 		u.AccountID, u.Name, strings.ToLower(u.Email), u.HashedPassword)
 	return err
 }

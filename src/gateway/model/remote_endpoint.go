@@ -55,23 +55,25 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 }
 
 func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
-	query := "SELECT " +
-		"  remote_endpoints.id as id, " +
-		"  remote_endpoints.name as name, " +
-		"  remote_endpoints.description as description, " +
-		"  remote_endpoints.type as type " +
-		"FROM remote_endpoints, apis " +
-		"WHERE "
+	query := `SELECT
+	  remote_endpoints.id as id,
+	  remote_endpoints.name as name,
+	  remote_endpoints.description as description,
+	  remote_endpoints.type as type
+	FROM remote_endpoints, apis
+	WHERE `
 	args := []interface{}{}
 	if id != 0 {
 		query = query + "remote_endpoints.id = ? AND "
 		args = append(args, id)
 	}
-	query = query + "remote_endpoints.api_id = ? " +
-		"  AND remote_endpoints.api_id = apis.id " +
-		"  AND apis.account_id = ? " +
-		"ORDER BY remote_endpoints.name ASC, " +
-		"  remote_endpoints.id ASC;"
+	query = query +
+		`   remote_endpoints.api_id = ?
+	  AND remote_endpoints.api_id = apis.id
+	  AND apis.account_id = ?
+  ORDER BY
+	  remote_endpoints.name ASC,
+		remote_endpoints.id ASC;`
 	args = append(args, apiID, accountID)
 	remoteEndpoints := []*RemoteEndpoint{}
 	err := db.Select(&remoteEndpoints, query, args...)
@@ -89,17 +91,18 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	idQuery := apsql.NQs(len(remoteEndpoints))
 	environmentData := []*RemoteEndpointEnvironmentData{}
 	err = db.Select(&environmentData,
-		"SELECT "+
-			"  remote_endpoint_environment_data.remote_endpoint_id as remote_endpoint_id, "+
-			"  remote_endpoint_environment_data.environment_id as environment_id, "+
-			"  remote_endpoint_environment_data.data as data "+
-			"FROM remote_endpoint_environment_data, remote_endpoints, environments "+
-			"WHERE remote_endpoint_environment_data.remote_endpoint_id IN ("+idQuery+") "+
-			"  AND remote_endpoint_environment_data.environment_id = environments.id "+
-			"  AND remote_endpoint_environment_data.remote_endpoint_id = remote_endpoints.id "+
-			"ORDER BY remote_endpoints.name ASC, "+
-			"  remote_endpoints.id ASC, "+
-			"  environments.name ASC;",
+		`SELECT
+			remote_endpoint_environment_data.remote_endpoint_id as remote_endpoint_id,
+			remote_endpoint_environment_data.environment_id as environment_id,
+			remote_endpoint_environment_data.data as data
+		FROM remote_endpoint_environment_data, remote_endpoints, environments
+		WHERE remote_endpoint_environment_data.remote_endpoint_id IN (`+idQuery+`)
+			AND remote_endpoint_environment_data.environment_id = environments.id
+			AND remote_endpoint_environment_data.remote_endpoint_id = remote_endpoints.id
+		ORDER BY
+			remote_endpoints.name ASC,
+			remote_endpoints.id ASC,
+			environments.name ASC;`,
 		endpointIDs...)
 	if err != nil {
 		return nil, err
@@ -118,10 +121,10 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	return tx.DeleteOne(
-		"DELETE FROM remote_endpoints "+
-			"WHERE remote_endpoints.id = ? "+
-			"  AND remote_endpoints.api_id IN "+
-			"      (SELECT id FROM apis WHERE id = ? AND account_id = ?)",
+		`DELETE FROM remote_endpoints
+		WHERE remote_endpoints.id = ?
+			AND remote_endpoints.api_id IN
+				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		id, apiID, accountID)
 }
 
@@ -129,10 +132,8 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	var err error
 	e.ID, err = tx.InsertOne(
-		"INSERT INTO remote_endpoints (api_id, name, description, type) "+
-			"VALUES ( "+
-			"  (SELECT id FROM apis WHERE id = ? AND account_id = ?), "+
-			"  ?, ?, ?);",
+		`INSERT INTO remote_endpoints (api_id, name, description, type)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?)`,
 		e.APIID, e.AccountID, e.Name, e.Description, e.Type)
 	if err != nil {
 		return err
@@ -154,11 +155,11 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(
-		"UPDATE remote_endpoints "+
-			"SET name = ?, description = ? "+
-			"WHERE remote_endpoints.id = ? "+
-			"  AND remote_endpoints.api_id IN "+
-			"      (SELECT id FROM apis WHERE id = ? AND account_id = ?);",
+		`UPDATE remote_endpoints
+		SET name = ?, description = ?
+		WHERE remote_endpoints.id = ?
+			AND remote_endpoints.api_id IN
+				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
@@ -166,10 +167,10 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 
 	var existingEnvIDs []int64
 	err = tx.Select(&existingEnvIDs,
-		"SELECT environment_id "+
-			"FROM remote_endpoint_environment_data "+
-			"WHERE remote_endpoint_id = ? "+
-			"ORDER BY environment_id ASC;",
+		`SELECT environment_id
+		FROM remote_endpoint_environment_data
+		WHERE remote_endpoint_id = ?
+		ORDER BY environment_id ASC;`,
 		e.ID)
 
 	for _, envData := range e.EnvironmentData {
@@ -182,10 +183,10 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 		existingEnvIDs, found = popID(envData.EnvironmentID, existingEnvIDs)
 		if found {
 			_, err = tx.Exec(
-				"UPDATE remote_endpoint_environment_data "+
-					"  SET data = ? "+
-					"WHERE "+
-					"  remote_endpoint_id = ? AND environment_id = ?;",
+				`UPDATE remote_endpoint_environment_data
+				  SET data = ?
+				WHERE remote_endpoint_id = ?
+				  AND environment_id = ?;`,
 				string(encodedData), e.ID, envData.EnvironmentID)
 			if err != nil {
 				return err
@@ -209,8 +210,8 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 	idQuery := apsql.NQs(len(existingEnvIDs))
 	_, err = tx.Exec(
-		"DELETE FROM remote_endpoint_environment_data "+
-			"WHERE remote_endpoint_id = ? AND environment_id IN ("+idQuery+");",
+		`DELETE FROM remote_endpoint_environment_data
+		WHERE remote_endpoint_id = ? AND environment_id IN (`+idQuery+`);`,
 		args...)
 
 	return err
@@ -219,10 +220,9 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
 	data string) error {
 	_, err := tx.Exec(
-		"INSERT INTO remote_endpoint_environment_data "+
-			"  (remote_endpoint_id, environment_id, data) "+
-			"VALUES ( "+
-			"  ?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?);",
+		`INSERT INTO remote_endpoint_environment_data
+			(remote_endpoint_id, environment_id, data)
+			VALUES (?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?);`,
 		rID, eID, apiID, data)
 	return err
 }
