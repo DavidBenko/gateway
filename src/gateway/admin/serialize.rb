@@ -68,7 +68,7 @@ func (c *#{controller}) serializeCollection(collection []*model.#{singular},
 
   wrapped := struct {
     #{plural} []*#{transform_type} `json:"#{json_plural}"`
-  }{}
+  }{[]*#{transform_type}{}}
   for _, instance := range collection {
     wrapped.#{plural} = append(wrapped.#{plural}, #{transform_method}(instance))
   }
