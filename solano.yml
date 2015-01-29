@@ -1,0 +1,6 @@
+:golang:
+    :golang_version: 1.4.1
+:tests:
+    - make test_all
+:postgresql:
+    :version: '9.3'

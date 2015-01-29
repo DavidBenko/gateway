@@ -15,6 +15,13 @@ ifneq ($(MAKECMDGOALS), package)
 	LICENSE_PUBLIC_KEY = test/dev_public_key_assets
 endif
 
+ifdef TDDIUM_DB_NAME
+	POSTGRES_DB_NAME =  $$TDDIUM_DB_NAME
+endif
+ifndef POSTGRES_DB_NAME	
+	POSTGRES_DB_NAME = "gateway_test"
+endif
+
 default: run
 
 admin:
@@ -60,14 +67,23 @@ run:
 runpg: 
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=gateway_dev sslmode=disable"
 
-test: admin assets generate
+test: build
 	go test ./src/...
 
-test_api: build
+test_api_sqlite: build
 	mkdir -p tmp
 	./bin/gateway -config=./test/gateway.conf -db-migrate & echo "$$!" > ./tmp/server.pid
 	sleep 1
 	rspec test/admin-api --color ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
+
+test_api_postgres: 
+	-dropdb $(POSTGRES_DB_NAME)
+	-createdb $(POSTGRES_DB_NAME)
+	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" & echo "$$!" > ./tmp/server.pid
+	sleep 1
+	rspec test/admin-api --color ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
+
+test_api: test_api_sqlite test_api_postgres
 
 test_all: test test_api
 
