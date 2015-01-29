@@ -38,6 +38,17 @@ func (u *User) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (u *User) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: users.email" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
+		errors.add("email", "is already taken")
+	}
+	return errors
+}
+
 // AllUsersForAccountID returns all users on the Account in default order.
 func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 	users := []*User{}

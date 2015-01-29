@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -16,6 +16,8 @@ import (
 type UsersController struct {
 	accountID func(r *http.Request) int64
 }
+
+var noUser = aphttp.NewError(errors.New("No user matches"), 404)
 
 // List lists the users.
 func (c *UsersController) List(w http.ResponseWriter, r *http.Request,
@@ -44,7 +46,7 @@ func (c *UsersController) Show(w http.ResponseWriter, r *http.Request,
 	id := instanceID(r)
 	user, err := model.FindUserForAccountID(db, id, c.accountID(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No user with id %d in account", id), 404)
+		return noUser
 	}
 
 	return c.serializeInstance(user, w)
@@ -63,6 +65,9 @@ func (c *UsersController) Delete(w http.ResponseWriter, r *http.Request,
 
 	err := model.DeleteUserForAccountID(tx, instanceID(r), c.accountID(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noUser
+		}
 		log.Printf("%s Error deleting user: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -93,10 +98,17 @@ func (c *UsersController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 
 	validationErrors := user.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noUser
+		}
+		validationErrors = user.ValidateFromDatabaseError(err)
+		if !validationErrors.Empty() {
+			return SerializableValidationErrors{validationErrors}
+		}
 		log.Printf("%s Error %s user: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

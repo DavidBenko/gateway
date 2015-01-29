@@ -11,8 +11,16 @@ def clear_db!
   end
 end
 
+def clear_users!(id)
+  get "/accounts/#{id}/users"
+  json_body[:users].each do |user|
+    delete "/accounts/#{id}/users/#{user[:id]}"
+  end
+end
+
 def login(email, pw)
   post "/sessions", {email: email, password: pw}
+  expect_status(200)
   cookie = response.cookies.first
   Airborne.configuration.headers = {cookies: { cookie[0] => cookie[1].gsub("%3D","=")}}
 end
@@ -27,6 +35,23 @@ def fixtures
       lulz: { account: { name: "LulzCorp" } },
       foo:  { account: { name: "Foo Corp" } },
       bar:  { account: { name: "Bar Corp" } },
+    },
+    users: {
+      geff:  { user: { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" } },
+      brain: { user: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" } },
     }
   }
+end
+
+class Hash
+  def without(*keys)
+    cpy = self.dup
+    keys.each { |key| cpy.delete(key) }
+    cpy
+  end
+end
+
+shared_examples "invalid json" do
+  it { expect_status(400) }
+  it { expect_json("error", "unexpected end of JSON input") }
 end

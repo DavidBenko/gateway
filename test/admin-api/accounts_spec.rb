@@ -1,19 +1,26 @@
 require_relative './spec_helper'
 
-shared_examples "missing account" do
-  it { expect(response.code).to eq(404) }
-  it { expect(json_body[:error]).to eq("No account matches") }
+shared_examples "a missing account" do
+  it { expect_status(404) }
+  it { expect_json("error", "No account matches") }
+end
+
+shared_examples "a valid account" do
+  it { expect_status(200) }
+  it { expect_json_types("account", {id: :int, name: :string}) }
 end
 
 describe "accounts" do
   describe "index" do
     context "empty" do
       before(:all) do
+        clear_db!
         get '/accounts'
       end
 
-      it { expect(response.code).to eq(200) }
+      it { expect_status(200) }
       it { expect_json_types({accounts: :array}) }
+      it { expect_json('accounts', []) }
     end
 
     context "with data" do
@@ -32,7 +39,7 @@ describe "accounts" do
 
     def expect_count_to_equal(num)
       get '/accounts'
-      expect(json_body[:accounts].size).to equal(num)
+      expect_json_sizes("accounts", num)
     end
   end
 
@@ -43,9 +50,8 @@ describe "accounts" do
         post '/accounts', fixtures[:accounts][:lulz]
       end
 
-      it { expect(response.code).to eq(200) }
-      it { expect(json_body[:account][:id]).to_not be_nil }
-      it { expect(json_body[:account][:name]).to eq("LulzCorp") }
+      it_behaves_like "a valid account"
+      it { expect_json("account.name", "LulzCorp") }
     end
 
     context "with invalid json" do
@@ -53,8 +59,7 @@ describe "accounts" do
         post '/accounts', '{"account":{"name":"LulzCo'
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:error]).to eq("unexpected end of JSON input") }
+      it_behaves_like "invalid json"
     end
 
     context "without a name" do
@@ -62,20 +67,20 @@ describe "accounts" do
         post '/accounts',  {account: { name: ""}}
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:errors]).to eq({name: ["must not be blank"]}) }
+      it { expect_status(400) }
+      it { expect_json("errors", {name: ["must not be blank"]}) }
     end
 
     context "with a duplicate name" do
       before(:all) do
         clear_db!
         post '/accounts', fixtures[:accounts][:lulz]
-        expect(response.code).to eq(200)
+        expect_status(200)
         post '/accounts',  fixtures[:accounts][:lulz]
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:errors]).to eq({name: ["is already taken"]}) }
+      it { expect_status(400) }
+      it { expect_json("errors", {name: ["is already taken"]}) }
     end
   end
 
@@ -83,7 +88,7 @@ describe "accounts" do
     before(:all) do
       clear_db!
       post '/accounts', fixtures[:accounts][:lulz]
-      expect(response.code).to eq(200)
+      expect_status(200)
       @id = json_body[:account][:id]
     end
 
@@ -92,9 +97,8 @@ describe "accounts" do
         get "/accounts/#{@id}"
       end
 
-      it { expect(response.code).to eq(200) }
-      it { expect(json_body[:account][:id]).to eq(@id) }
-      it { expect(json_body[:account][:name]).to eq("LulzCorp") }
+      it_behaves_like "a valid account"
+      it { expect_json("account", {id: @id, name: "LulzCorp"}) }
     end
 
     context "non-existing" do
@@ -102,7 +106,7 @@ describe "accounts" do
         get "/accounts/#{@id+1}"
       end
 
-      it_behaves_like "missing account"
+      it_behaves_like "a missing account"
     end
   end
 
@@ -110,7 +114,7 @@ describe "accounts" do
     def setup_account
       clear_db!
       post '/accounts', fixtures[:accounts][:lulz]
-      expect(response.code).to eq(200)
+      expect_status(200)
       @id = json_body[:account][:id]
     end
 
@@ -120,9 +124,8 @@ describe "accounts" do
         put "/accounts/#{@id}", fixtures[:accounts][:foo]
       end
 
-      it { expect(response.code).to eq(200) }
-      it { expect(json_body[:account][:id]).to eq(@id) }
-      it { expect(json_body[:account][:name]).to eq("Foo Corp") }
+      it_behaves_like "a valid account"
+      it { expect_json("account", {id: @id, name: "Foo Corp"}) }
     end
 
     context "with invalid json" do
@@ -131,8 +134,7 @@ describe "accounts" do
         put "/accounts/#{@id}", '{"account":{"name":"LulzCo'
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:error]).to eq("unexpected end of JSON input") }
+      it_behaves_like "invalid json"
     end
 
     context "without a name" do
@@ -141,20 +143,20 @@ describe "accounts" do
         put "/accounts/#{@id}", {account: { name: ""}}
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:errors]).to eq({name: ["must not be blank"]}) }
+      it { expect_status(400) }
+      it { expect_json("errors", {name: ["must not be blank"]}) }
     end
 
     context "with a duplicate name" do
       before(:all) do
         setup_account
         post '/accounts', {account: { name: "BooBoo Butt"}}
-        expect(response.code).to eq(200)
+        expect_status(200)
         put "/accounts/#{@id}", {account: { name: "BooBoo Butt"}}
       end
 
-      it { expect(response.code).to eq(400) }
-      it { expect(json_body[:errors]).to eq({name: ["is already taken"]}) }
+      it { expect_status(400) }
+      it { expect_json("errors", {name: ["is already taken"]}) }
     end
 
     context "non-existing" do
@@ -163,7 +165,7 @@ describe "accounts" do
         put "/accounts/#{@id+1}", {account: { name: "BooBoo Butt"}}
       end
 
-      it_behaves_like "missing account"
+      it_behaves_like "a missing account"
     end
   end
 
@@ -171,7 +173,7 @@ describe "accounts" do
     before(:all) do
       clear_db!
       post '/accounts', fixtures[:accounts][:lulz]
-      expect(response.code).to eq(200)
+      expect_status(200)
       @id = json_body[:account][:id]
     end
 
@@ -180,12 +182,12 @@ describe "accounts" do
         delete "/accounts/#{@id}"
       end
 
-      it { expect(response.code).to eq(200) }
+      it { expect_status(200) }
       it { expect(body).to be_empty }
 
       it "should remove the item" do
         get "/accounts/#{@id}"
-        expect(response.code).to eq(404)
+        expect_status(404)
       end
     end
 
@@ -193,8 +195,8 @@ describe "accounts" do
       before(:all) do
         delete "/accounts/#{@id+1}"
       end
-      
-      it_behaves_like "missing account"
+
+      it_behaves_like "a missing account"
     end
   end
 end
