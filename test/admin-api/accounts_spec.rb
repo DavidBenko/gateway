@@ -1,5 +1,10 @@
 require_relative './spec_helper'
 
+shared_examples "missing account" do
+  it { expect(response.code).to eq(404) }
+  it { expect(json_body[:error]).to eq("No account matches") }
+end
+
 describe "accounts" do
   describe "index" do
     context "empty" do
@@ -7,13 +12,8 @@ describe "accounts" do
         get '/accounts'
       end
 
-      it "should return 200" do
-        expect(response.code).to eq(200)
-      end
-
-      it "should return an array in 'accounts'" do
-        expect_json_types({accounts: :array})
-      end
+      it { expect(response.code).to eq(200) }
+      it { expect_json_types({accounts: :array}) }
     end
 
     context "with data" do
@@ -43,17 +43,9 @@ describe "accounts" do
         post '/accounts', fixtures[:accounts][:lulz]
       end
 
-      it "should return 200" do
-        expect(response.code).to eq(200)
-      end
-
-      it "should return the new ID" do
-        expect(json_body[:account][:id]).to_not be_nil
-      end
-
-      it "should return the name" do
-        expect(json_body[:account][:name]).to eq("LulzCorp")
-      end
+      it { expect(response.code).to eq(200) }
+      it { expect(json_body[:account][:id]).to_not be_nil }
+      it { expect(json_body[:account][:name]).to eq("LulzCorp") }
     end
 
     context "with invalid json" do
@@ -61,13 +53,8 @@ describe "accounts" do
         post '/accounts', '{"account":{"name":"LulzCo'
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:error]).to eq("unexpected end of JSON input")
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:error]).to eq("unexpected end of JSON input") }
     end
 
     context "without a name" do
@@ -75,13 +62,8 @@ describe "accounts" do
         post '/accounts',  {account: { name: ""}}
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:errors]).to eq({name: ["must not be blank"]})
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:errors]).to eq({name: ["must not be blank"]}) }
     end
 
     context "with a duplicate name" do
@@ -92,13 +74,8 @@ describe "accounts" do
         post '/accounts',  fixtures[:accounts][:lulz]
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:errors]).to eq({name: ["is already taken"]})
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:errors]).to eq({name: ["is already taken"]}) }
     end
   end
 
@@ -115,28 +92,17 @@ describe "accounts" do
         get "/accounts/#{@id}"
       end
 
-      it "should return 200" do
-        expect(response.code).to eq(200)
-      end
-
-      it "should return the id" do
-        expect(json_body[:account][:id]).to eq(@id)
-      end
-
-      it "should return the name" do
-        expect(json_body[:account][:name]).to eq("LulzCorp")
-      end
+      it { expect(response.code).to eq(200) }
+      it { expect(json_body[:account][:id]).to eq(@id) }
+      it { expect(json_body[:account][:name]).to eq("LulzCorp") }
     end
-
 
     context "non-existing" do
       before(:all) do
         get "/accounts/#{@id+1}"
       end
 
-      it "should return 404" do
-        expect(response.code).to eq(404)
-      end
+      it_behaves_like "missing account"
     end
   end
 
@@ -154,17 +120,9 @@ describe "accounts" do
         put "/accounts/#{@id}", fixtures[:accounts][:foo]
       end
 
-      it "should return 200" do
-        expect(response.code).to eq(200)
-      end
-
-      it "should return the same ID" do
-        expect(json_body[:account][:id]).to eq(@id)
-      end
-
-      it "should return the new name" do
-        expect(json_body[:account][:name]).to eq("Foo Corp")
-      end
+      it { expect(response.code).to eq(200) }
+      it { expect(json_body[:account][:id]).to eq(@id) }
+      it { expect(json_body[:account][:name]).to eq("Foo Corp") }
     end
 
     context "with invalid json" do
@@ -173,13 +131,8 @@ describe "accounts" do
         put "/accounts/#{@id}", '{"account":{"name":"LulzCo'
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:error]).to eq("unexpected end of JSON input")
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:error]).to eq("unexpected end of JSON input") }
     end
 
     context "without a name" do
@@ -188,13 +141,8 @@ describe "accounts" do
         put "/accounts/#{@id}", {account: { name: ""}}
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:errors]).to eq({name: ["must not be blank"]})
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:errors]).to eq({name: ["must not be blank"]}) }
     end
 
     context "with a duplicate name" do
@@ -205,13 +153,8 @@ describe "accounts" do
         put "/accounts/#{@id}", {account: { name: "BooBoo Butt"}}
       end
 
-      it "should return 400" do
-        expect(response.code).to eq(400)
-      end
-
-      it "should return an error" do
-        expect(json_body[:errors]).to eq({name: ["is already taken"]})
-      end
+      it { expect(response.code).to eq(400) }
+      it { expect(json_body[:errors]).to eq({name: ["is already taken"]}) }
     end
 
     context "non-existing" do
@@ -220,9 +163,7 @@ describe "accounts" do
         put "/accounts/#{@id+1}", {account: { name: "BooBoo Butt"}}
       end
 
-      it "should return 404" do
-        expect(response.code).to eq(404)
-      end
+      it_behaves_like "missing account"
     end
   end
 
@@ -239,13 +180,8 @@ describe "accounts" do
         delete "/accounts/#{@id}"
       end
 
-      it "should return 200" do
-        expect(response.code).to eq(200)
-      end
-
-      it "should return nothing" do
-        expect(body).to eq("")
-      end
+      it { expect(response.code).to eq(200) }
+      it { expect(body).to be_empty }
 
       it "should remove the item" do
         get "/accounts/#{@id}"
@@ -257,10 +193,8 @@ describe "accounts" do
       before(:all) do
         delete "/accounts/#{@id+1}"
       end
-
-      it "should return 404" do
-        expect(response.code).to eq(404)
-      end
+      
+      it_behaves_like "missing account"
     end
   end
 end

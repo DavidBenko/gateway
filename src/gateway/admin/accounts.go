@@ -2,7 +2,6 @@ package admin
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -16,6 +15,8 @@ import (
 
 // AccountsController manages accounts
 type AccountsController struct{}
+
+var noAccount = aphttp.NewError(errors.New("No account matches"), 404)
 
 // List returns a handler that lists the accounts.
 func (c *AccountsController) List(w http.ResponseWriter, r *http.Request,
@@ -44,7 +45,7 @@ func (c *AccountsController) Show(w http.ResponseWriter, r *http.Request,
 	id := instanceID(r)
 	account, err := model.FindAccount(db, id)
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No account with id %d", id), 404)
+		return noAccount
 	}
 
 	return c.serializeInstance(account, w)
@@ -64,7 +65,7 @@ func (c *AccountsController) Delete(w http.ResponseWriter, r *http.Request,
 	err := model.DeleteAccount(tx, instanceID(r))
 	if err != nil {
 		if err == apsql.ZeroRowsAffected {
-			return aphttp.NewError(errors.New("No account matched"), 404)
+			return noAccount
 		}
 		log.Printf("%s Error deleting account: %v", config.System, err)
 		return aphttp.DefaultServerError()
@@ -99,7 +100,7 @@ func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Reque
 
 	if err := method(tx); err != nil {
 		if err == apsql.ZeroRowsAffected {
-			return aphttp.NewError(errors.New("No account matched"), 404)
+			return noAccount
 		}
 		validationErrors = account.ValidateFromDatabaseError(err)
 		if !validationErrors.Empty() {
