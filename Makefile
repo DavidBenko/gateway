@@ -70,20 +70,26 @@ runpg:
 test: build
 	go test ./src/...
 
-test_api_sqlite: build
+test_api_sqlite_fast:
 	mkdir -p tmp
-	./bin/gateway -config=./test/gateway.conf -db-migrate & echo "$$!" > ./tmp/server.pid
+	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" & echo "$$!" > ./tmp/server.pid
 	sleep 1
 	rspec test/admin-api --color ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
 
-test_api_postgres: 
+test_api_sqlite: build test_api_sqlite_fast
+	
+test_api_postgres_fast: 
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" & echo "$$!" > ./tmp/server.pid
 	sleep 1
 	rspec test/admin-api --color ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
+	
+test_api_postgres: build test_api_postgres_fast
 
 test_api: test_api_sqlite test_api_postgres
+
+test_api_fast: test_api_sqlite_fast test_api_postgres_fast
 
 test_all: test test_api
 
