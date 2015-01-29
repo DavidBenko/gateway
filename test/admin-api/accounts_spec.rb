@@ -1,4 +1,4 @@
-require_relative './spec_helper'
+require_relative "./spec_helper"
 
 shared_examples "a missing account" do
   it { expect_status(404) }
@@ -15,12 +15,12 @@ describe "accounts" do
     context "empty" do
       before(:all) do
         clear_db!
-        get '/accounts'
+        get "/accounts"
       end
 
       it { expect_status(200) }
       it { expect_json_types({accounts: :array}) }
-      it { expect_json('accounts', []) }
+      it { expect_json("accounts", []) }
     end
 
     context "with data" do
@@ -30,15 +30,15 @@ describe "accounts" do
 
       it "should return all accounts" do
         expect_count_to_equal(0)
-        post '/accounts', fixtures[:accounts][:foo]
+        post "/accounts", fixtures[:accounts][:foo]
         expect_count_to_equal(1)
-        post '/accounts', fixtures[:accounts][:bar]
+        post "/accounts", fixtures[:accounts][:bar]
         expect_count_to_equal(2)
       end
     end
 
     def expect_count_to_equal(num)
-      get '/accounts'
+      get "/accounts"
       expect_json_sizes("accounts", num)
     end
   end
@@ -47,7 +47,7 @@ describe "accounts" do
     context "with valid data" do
       before(:all) do
         clear_db!
-        post '/accounts', fixtures[:accounts][:lulz]
+        post "/accounts", fixtures[:accounts][:lulz]
       end
 
       it_behaves_like "a valid account"
@@ -56,7 +56,7 @@ describe "accounts" do
 
     context "with invalid json" do
       before(:all) do
-        post '/accounts', '{"account":{"name":"LulzCo'
+        post "/accounts", '{"account":{"name":"LulzCo"'
       end
 
       it_behaves_like "invalid json"
@@ -64,7 +64,7 @@ describe "accounts" do
 
     context "without a name" do
       before(:all) do
-        post '/accounts',  {account: { name: ""}}
+        post "/accounts",  {account: { name: ""}}
       end
 
       it { expect_status(400) }
@@ -74,9 +74,9 @@ describe "accounts" do
     context "with a duplicate name" do
       before(:all) do
         clear_db!
-        post '/accounts', fixtures[:accounts][:lulz]
+        post "/accounts", fixtures[:accounts][:lulz]
         expect_status(200)
-        post '/accounts',  fixtures[:accounts][:lulz]
+        post "/accounts",  fixtures[:accounts][:lulz]
       end
 
       it { expect_status(400) }
@@ -87,7 +87,7 @@ describe "accounts" do
   describe "show" do
     before(:all) do
       clear_db!
-      post '/accounts', fixtures[:accounts][:lulz]
+      post "/accounts", fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end
@@ -113,7 +113,7 @@ describe "accounts" do
   describe "update" do
     def setup_account
       clear_db!
-      post '/accounts', fixtures[:accounts][:lulz]
+      post "/accounts", fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end
@@ -150,7 +150,7 @@ describe "accounts" do
     context "with a duplicate name" do
       before(:all) do
         setup_account
-        post '/accounts', {account: { name: "BooBoo Butt"}}
+        post "/accounts", {account: { name: "BooBoo Butt"}}
         expect_status(200)
         put "/accounts/#{@id}", {account: { name: "BooBoo Butt"}}
       end
@@ -172,7 +172,7 @@ describe "accounts" do
   describe "delete" do
     before(:all) do
       clear_db!
-      post '/accounts', fixtures[:accounts][:lulz]
+      post "/accounts", fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end

@@ -1,9 +1,9 @@
-require_relative './spec_helper'
+require_relative "./spec_helper"
 
 shared_examples "empty account users" do
   it { expect_status(200) }
   it { expect_json_types({users: :array}) }
-  it { expect_json('users', []) }
+  it { expect_json("users", []) }
 end
 
 shared_examples "a missing account user" do
@@ -23,9 +23,9 @@ describe "users via accounts" do
   before(:all) do
     clear_db!
 
-    post '/accounts', fixtures[:accounts][:foo]
+    post "/accounts", fixtures[:accounts][:foo]
     @foo_id = json_body[:account][:id]
-    post '/accounts', fixtures[:accounts][:bar]
+    post "/accounts", fixtures[:accounts][:bar]
     @bar_id = json_body[:account][:id]
     @nonexistent_id = @bar_id + 1
   end
@@ -63,7 +63,7 @@ describe "users via accounts" do
         get "/accounts/#{@nonexistent_id}/users"
       end
 
-      # This is arguably inaccurate data, but I'm not sure
+      # This is arguably inaccurate data, but I"m not sure
       # returning 404 is worth adding extra DB calls.
       it_behaves_like "empty account users"
     end
@@ -81,7 +81,7 @@ describe "users via accounts" do
 
     context "with invalid json" do
       before(:all) do
-        post "/accounts/#{@foo_id}/users", '{'
+        post "/accounts/#{@foo_id}/users", "{"
       end
 
       it_behaves_like "invalid json"
