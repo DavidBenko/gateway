@@ -2,12 +2,15 @@ package sql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 )
+
+var ZeroRowsAffected = errors.New("Zero rows affected")
 
 func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err error) {
 	if strings.HasSuffix(baseQuery, ";") {
@@ -32,6 +35,9 @@ func (tx *Tx) UpdateOne(query string, args ...interface{}) error {
 		return err
 	}
 	numRows, err := result.RowsAffected()
+	if err == nil && numRows == 0 {
+		return ZeroRowsAffected
+	}
 	if err != nil || numRows != 1 {
 		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)
 	}

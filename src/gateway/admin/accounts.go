@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -62,6 +63,9 @@ func (c *AccountsController) Delete(w http.ResponseWriter, r *http.Request,
 
 	err := model.DeleteAccount(tx, instanceID(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return aphttp.NewError(errors.New("No account matched"), 404)
+		}
 		log.Printf("%s Error deleting account: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -94,6 +98,9 @@ func (c *AccountsController) insertOrUpdate(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return aphttp.NewError(errors.New("No account matched"), 404)
+		}
 		validationErrors = account.ValidateFromDatabaseError(err)
 		if !validationErrors.Empty() {
 			return SerializableValidationErrors{validationErrors}

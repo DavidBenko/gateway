@@ -220,7 +220,9 @@ describe "accounts" do
         put "/accounts/#{@id+1}", {account: { name: "BooBoo Butt"}}
       end
 
-      it "should return 404"
+      it "should return 404" do
+        expect(response.code).to eq(404)
+      end
     end
   end
 
@@ -256,7 +258,9 @@ describe "accounts" do
         delete "/accounts/#{@id+1}"
       end
 
-      it "should return 404"
+      it "should return 404" do
+        expect(response.code).to eq(404)
+      end
     end
   end
 
