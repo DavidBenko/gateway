@@ -72,6 +72,7 @@ test: build
 
 test_api_sqlite_fast:
 	mkdir -p tmp
+	-rm ./tmp/gateway_test.db
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" > /dev/null & echo "$$!" > ./tmp/server.pid
 	sleep 1
 	rspec test/admin-api --color ; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
