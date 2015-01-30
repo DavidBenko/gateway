@@ -30,9 +30,9 @@ describe "accounts" do
 
       it "should return all accounts" do
         expect_count_to_equal(0)
-        post "/accounts", fixtures[:accounts][:foo]
+        post "/accounts", account: fixtures[:accounts][:foo]
         expect_count_to_equal(1)
-        post "/accounts", fixtures[:accounts][:bar]
+        post "/accounts", account: fixtures[:accounts][:bar]
         expect_count_to_equal(2)
       end
     end
@@ -47,7 +47,7 @@ describe "accounts" do
     context "with valid data" do
       before(:all) do
         clear_db!
-        post "/accounts", fixtures[:accounts][:lulz]
+        post "/accounts", account: fixtures[:accounts][:lulz]
       end
 
       it_behaves_like "a valid account"
@@ -74,9 +74,9 @@ describe "accounts" do
     context "with a duplicate name" do
       before(:all) do
         clear_db!
-        post "/accounts", fixtures[:accounts][:lulz]
+        post "/accounts", account: fixtures[:accounts][:lulz]
         expect_status(200)
-        post "/accounts",  fixtures[:accounts][:lulz]
+        post "/accounts",  account: fixtures[:accounts][:lulz]
       end
 
       it { expect_status(400) }
@@ -87,7 +87,7 @@ describe "accounts" do
   describe "show" do
     before(:all) do
       clear_db!
-      post "/accounts", fixtures[:accounts][:lulz]
+      post "/accounts", account: fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end
@@ -113,7 +113,7 @@ describe "accounts" do
   describe "update" do
     def setup_account
       clear_db!
-      post "/accounts", fixtures[:accounts][:lulz]
+      post "/accounts", account: fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end
@@ -121,7 +121,7 @@ describe "accounts" do
     context "with valid data" do
       before(:all) do
         setup_account
-        put "/accounts/#{@id}", fixtures[:accounts][:foo]
+        put "/accounts/#{@id}", account: fixtures[:accounts][:foo]
       end
 
       it_behaves_like "a valid account"
@@ -172,7 +172,7 @@ describe "accounts" do
   describe "delete" do
     before(:all) do
       clear_db!
-      post "/accounts", fixtures[:accounts][:lulz]
+      post "/accounts", account: fixtures[:accounts][:lulz]
       expect_status(200)
       @id = json_body[:account][:id]
     end

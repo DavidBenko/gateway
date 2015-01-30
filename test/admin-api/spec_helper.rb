@@ -32,13 +32,13 @@ end
 def fixtures
   {
     accounts: {
-      lulz: { account: { name: "LulzCorp" } },
-      foo:  { account: { name: "Foo Corp" } },
-      bar:  { account: { name: "Bar Corp" } },
+      lulz: { name: "LulzCorp" },
+      foo:  { name: "Foo Corp" },
+      bar:  { name: "Bar Corp" },
     },
     users: {
-      geff:  { user: { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" } },
-      brain: { user: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" } },
+      geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" },
+      brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" },
     }
   }
 end

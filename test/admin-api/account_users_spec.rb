@@ -23,9 +23,9 @@ describe "users via accounts" do
   before(:all) do
     clear_db!
 
-    post "/accounts", fixtures[:accounts][:foo]
+    post "/accounts", account: fixtures[:accounts][:foo]
     @foo_id = json_body[:account][:id]
-    post "/accounts", fixtures[:accounts][:bar]
+    post "/accounts", account: fixtures[:accounts][:bar]
     @bar_id = json_body[:account][:id]
     @nonexistent_id = @bar_id + 1
   end
@@ -46,9 +46,9 @@ describe "users via accounts" do
 
       it "should return all users in account" do
         expect_count_to_equal(0)
-        post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+        post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
         expect_count_to_equal(1)
-        post "/accounts/#{@foo_id}/users", fixtures[:users][:brain]
+        post "/accounts/#{@foo_id}/users", user: fixtures[:users][:brain]
         expect_count_to_equal(2)
       end
 
@@ -73,7 +73,7 @@ describe "users via accounts" do
     context "with valid data" do
       before(:all) do
         clear_users!(@foo_id)
-        post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+        post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
       end
 
       it_behaves_like "a valid account user"
@@ -90,7 +90,7 @@ describe "users via accounts" do
     context "without a name" do
       before(:all) do
         clear_users!(@foo_id)
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         post "/accounts/#{@foo_id}/users", {user: geff.without(:name)}
       end
 
@@ -101,7 +101,7 @@ describe "users via accounts" do
     context "without a email" do
       before(:all) do
         clear_users!(@foo_id)
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         post "/accounts/#{@foo_id}/users", {user: geff.without(:email)}
       end
 
@@ -112,11 +112,11 @@ describe "users via accounts" do
     context "with a duplicate email" do
       before(:all) do
         clear_users!(@foo_id)
-        post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+        post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
         expect_status(200)
         brain = fixtures[:users][:brain]
-        brain[:user][:email] = fixtures[:users][:geff][:user][:email]
-        post "/accounts/#{@foo_id}/users",  brain
+        brain[:email] = fixtures[:users][:geff][:email]
+        post "/accounts/#{@foo_id}/users", user: brain
       end
 
       it { expect_status(400) }
@@ -125,7 +125,7 @@ describe "users via accounts" do
 
     context "without a password" do
       before(:all) do
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         post "/accounts/#{@foo_id}/users", {user: geff.without(:password)}
       end
 
@@ -135,7 +135,7 @@ describe "users via accounts" do
 
     context "without a password confirmation" do
       before(:all) do
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         post "/accounts/#{@foo_id}/users", {user: geff.without(:password_confirmation)}
       end
 
@@ -146,8 +146,8 @@ describe "users via accounts" do
     context "without a matching password confirmation" do
       before(:all) do
         geff = fixtures[:users][:geff]
-        geff[:user][:password_confirmation] = geff[:user][:password_confirmation]+"x"
-        post "/accounts/#{@foo_id}/users", geff
+        geff[:password_confirmation] += "x"
+        post "/accounts/#{@foo_id}/users", user: geff
       end
 
       it { expect_status(400) }
@@ -158,7 +158,7 @@ describe "users via accounts" do
   describe "show" do
     before(:all) do
       clear_users!(@foo_id)
-      post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+      post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
       expect_status(200)
       @id = json_body[:user][:id]
     end
@@ -182,7 +182,7 @@ describe "users via accounts" do
 
     context "mismatched account" do
       before(:all) do
-        post "/accounts/#{@bar_id}/users", fixtures[:users][:brain]
+        post "/accounts/#{@bar_id}/users", user: fixtures[:users][:brain]
         expect_status(200)
         @id2 = json_body[:user][:id]
         get "/accounts/#{@foo_id}/users/#{@id}"
@@ -198,7 +198,7 @@ describe "users via accounts" do
     def setup_user
       clear_users!(@foo_id)
       clear_users!(@bar_id)
-      post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+      post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
       expect_status(200)
       @id = json_body[:user][:id]
     end
@@ -220,7 +220,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user].without(:password, :password_confirmation)
+        geff = fixtures[:users][:geff].without(:password, :password_confirmation)
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
 
@@ -237,7 +237,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         geff[:password] = "newpassword"
         geff[:password_confirmation] = "newpassword"
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
@@ -268,7 +268,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user].without(:name)
+        geff = fixtures[:users][:geff].without(:name)
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
 
@@ -280,7 +280,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user].without(:email)
+        geff = fixtures[:users][:geff].without(:email)
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
 
@@ -291,11 +291,11 @@ describe "users via accounts" do
     context "with a duplicate email" do
       before(:all) do
         setup_user
-        post "/accounts/#{@foo_id}/users", fixtures[:users][:brain]
+        post "/accounts/#{@foo_id}/users", user: fixtures[:users][:brain]
         expect_status(200)
 
-        geff = fixtures[:users][:geff][:user]
-        geff[:email] = fixtures[:users][:brain][:user][:email]
+        geff = fixtures[:users][:geff]
+        geff[:email] = fixtures[:users][:brain][:email]
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
 
@@ -307,7 +307,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user].without(:password_confirmation)
+        geff = fixtures[:users][:geff].without(:password_confirmation)
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
 
@@ -319,7 +319,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        geff = fixtures[:users][:geff][:user]
+        geff = fixtures[:users][:geff]
         geff[:password_confirmation] = geff[:password]+"x"
         put "/accounts/#{@foo_id}/users/#{@id}", { user: geff }
       end
@@ -332,7 +332,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        put "/accounts/#{@foo_id}/users/#{@id+1}", fixtures[:users][:geff]
+        put "/accounts/#{@foo_id}/users/#{@id+1}", user: fixtures[:users][:geff]
       end
 
       it_behaves_like "a missing account user"
@@ -342,7 +342,7 @@ describe "users via accounts" do
       before(:all) do
         setup_user
 
-        put "/accounts/#{@bar_id}/users/#{@id}", fixtures[:users][:geff]
+        put "/accounts/#{@bar_id}/users/#{@id}", user: fixtures[:users][:geff]
       end
 
       it_behaves_like "a missing account user"
@@ -353,7 +353,7 @@ describe "users via accounts" do
     before(:all) do
       clear_users!(@foo_id)
       clear_users!(@bar_id)
-      post "/accounts/#{@foo_id}/users", fixtures[:users][:geff]
+      post "/accounts/#{@foo_id}/users", user: fixtures[:users][:geff]
       expect_status(200)
       @id = json_body[:user][:id]
     end

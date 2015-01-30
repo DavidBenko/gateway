@@ -12,12 +12,12 @@ end
 describe "sessions" do
   before(:all) do
     clear_db!
+    @geff = fixtures[:users][:geff]
 
-    post "/accounts", fixtures[:accounts][:foo]
+    post "/accounts", account: fixtures[:accounts][:foo]
     expect_status(200)
-    post "/accounts/#{json_body[:account][:id]}/users", fixtures[:users][:geff]
+    post "/accounts/#{json_body[:account][:id]}/users", user: @geff
     expect_status(200)
-    @geff = fixtures[:users][:geff][:user]
   end
 
   describe "create" do
@@ -87,11 +87,8 @@ describe "sessions" do
   end
 
   def set_auth_cookie
-    unless response && response.cookies && response.cookies.first && response.cookies.first.size >= 2
-      Airborne.configuration.headers = {}
-      return
-    end
-    
+    return unless response && response.cookies && response.cookies.first && response.cookies.first.size >= 2
+
     cookie = response.cookies.first
     Airborne.configuration.headers = {cookies: { cookie[0] => cookie[1].gsub("%3D","=")}}
   end
