@@ -119,8 +119,8 @@ The `data` format isn't fully specced out. Validation has not yet been decided o
 
 Single proxy components execute exactly one remote endpoint call.
 
-* Both `before` and `after` contain arrays of transformation objects. Presently the `type` is always `js`, and the `data` (which may be arbitrary JSON), should always be a JavaScript string. The order is meaningful and should be preserved.
-* `call` is a call to a remote endpoint. Like components, calls are stored separately in the database, and the `id` key should be included in updates.
+* Both `before` and `after` contain arrays of transformation objects. Presently the `type` is always `js`, and the `data` (which may be arbitrary JSON), should always be a JavaScript string. The order is meaningful and should be preserved. Like components, transformation objects are stored in a separate table in the database; they follow the same logic as components for creation/update/delete based on presence or omission of object and `id`.
+* `call` is a call to a remote endpoint. Like components, call objects are stored in a separate table in the database; they follow the same logic as components for creation/update/delete based on presence or omission of object and `id`.
   
   - `endpoint_name_override` is a key that identifies the remote endpoint if its name is unsuitable for some reason
   - `remote_endpoint_id` should only point to a remote endpoint in the same API as this proxy endpoint
