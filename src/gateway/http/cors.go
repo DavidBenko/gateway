@@ -10,6 +10,7 @@ func CORSHeaderHandler(allow string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", allow)
 		w.Header().Set("Access-Control-Request-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "content-type, accept")
 		w.Header().Set("Access-Control-Max-Age", "600")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		handler.ServeHTTP(w, r)
