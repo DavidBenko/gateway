@@ -1,7 +1,9 @@
 package admin
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -66,6 +68,9 @@ func RouteSessions(path string, router aphttp.Router, db *apsql.DB,
 func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 	db *apsql.DB) aphttp.Error {
 
+	// If you're trying to authenticate again, we're logging you out
+	_deleteSession(w, r)
+
 	var credentials struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
@@ -96,14 +101,16 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 // from the session.
 func DeleteSessionHandler(w http.ResponseWriter, r *http.Request,
 	db *apsql.DB) aphttp.Error {
+	_deleteSession(w, r)
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
 
+func _deleteSession(w http.ResponseWriter, r *http.Request) {
 	session := requestSession(r)
 	delete(session.Values, userIDKey)
 	delete(session.Values, accountIDKey)
 	session.Save(r, w)
-
-	w.WriteHeader(http.StatusOK)
-	return nil
 }
 
 // NewSessionAuthRouter wraps a router with session checking behavior.
@@ -129,8 +136,18 @@ func (s *SessionAuthRouter) Wrap(handler http.Handler) http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("401 Unauthorized\n"))
+		var body string
+		data, err := json.MarshalIndent(struct {
+			Error string `json:"error"`
+		}{"Unauthorized"}, "", "    ")
+		if err == nil {
+			body = string(data)
+		} else {
+			// Fall back to non-JSON body
+			body = fmt.Sprintf("%s\n", "Unauthorized\n")
+		}
+
+		http.Error(w, body, http.StatusUnauthorized)
 	})
 }
 
