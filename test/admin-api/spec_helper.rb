@@ -11,9 +11,15 @@ def clear_db!
   end
 end
 
-def clear_users!(id)
+def clear_users!(id, options={})
+  cept = options[:cept]
+  if cept.kind_of? Fixnum
+    cept = [cept]
+  end
+
   get "/accounts/#{id}/users"
   json_body[:users].each do |user|
+    next if cept && cept.include?(user[:id])
     delete "/accounts/#{id}/users/#{user[:id]}"
   end
 end
@@ -39,6 +45,7 @@ def fixtures
     users: {
       geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" },
       brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" },
+      poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password" },
     }
   }
 end
