@@ -98,7 +98,7 @@ func (c *EnvironmentsController) insertOrUpdate(w http.ResponseWriter, r *http.R
 
 	validationErrors := environment.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {

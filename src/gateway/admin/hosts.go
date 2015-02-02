@@ -98,7 +98,7 @@ func (c *HostsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 
 	validationErrors := host.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {

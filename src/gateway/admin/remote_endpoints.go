@@ -98,7 +98,7 @@ func (c *RemoteEndpointsController) insertOrUpdate(w http.ResponseWriter, r *htt
 
 	validationErrors := remoteEndpoint.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {

@@ -98,7 +98,7 @@ func (c *ProxyEndpointsController) insertOrUpdate(w http.ResponseWriter, r *http
 
 	validationErrors := proxyEndpoint.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {
