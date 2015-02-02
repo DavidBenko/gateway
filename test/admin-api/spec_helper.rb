@@ -24,6 +24,13 @@ def clear_users!(id, options={})
   end
 end
 
+def clear_apis!
+  get "/apis"
+  json_body[:apis].each do |api|
+    delete "/apis/#{api[:id]}"
+  end
+end
+
 def login(email, pw)
   post "/sessions", {email: email, password: pw}
   expect_status(200)
@@ -46,6 +53,10 @@ def fixtures
       geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" },
       brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" },
       poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password" },
+    },
+    apis: {
+      widgets: { name: "Widgets", description: "Lots of widgets here", cors_allow: "*"},
+      gadgets: { name: "Gadgets", description: "No widgets", cors_allow: "*"},
     }
   }
 end

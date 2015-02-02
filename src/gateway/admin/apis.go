@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // APIsController manages APIs.
 type APIsController struct{}
+
+var noAPI = aphttp.NewError(errors.New("No API matches"), 404)
 
 // List lists the apis.
 func (c *APIsController) List(w http.ResponseWriter, r *http.Request,
@@ -41,7 +43,7 @@ func (c *APIsController) Show(w http.ResponseWriter, r *http.Request,
 	id := instanceID(r)
 	api, err := model.FindAPIForAccountID(db, id, accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No api with id %d in account", id), 404)
+		return noAPI
 	}
 
 	return c.serializeInstance(api, w)
@@ -60,6 +62,9 @@ func (c *APIsController) Delete(w http.ResponseWriter, r *http.Request,
 
 	err := model.DeleteAPIForAccountID(tx, instanceID(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noAPI
+		}
 		log.Printf("%s Error deleting api: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -90,10 +95,17 @@ func (c *APIsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 
 	validationErrors := api.Validate()
 	if !validationErrors.Empty() {
-		return serialize(wrappedErrors{validationErrors}, w)
+		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noAPI
+		}
+		validationErrors = api.ValidateFromDatabaseError(err)
+		if !validationErrors.Empty() {
+			return SerializableValidationErrors{validationErrors}
+		}
 		log.Printf("%s Error %s api: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}
