@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // ProxyEndpointsController manages ProxyEndpoints.
 type ProxyEndpointsController struct{}
+
+var noProxyEndpoint = aphttp.NewError(errors.New("No proxy endpoint matches"), 404)
 
 // List lists the ProxyEndpoints.
 func (c *ProxyEndpointsController) List(w http.ResponseWriter, r *http.Request,
@@ -42,7 +44,7 @@ func (c *ProxyEndpointsController) Show(w http.ResponseWriter, r *http.Request,
 	proxyEndpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(db, id,
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No proxy endpoint with id %d in api", id), 404)
+		return noProxyEndpoint
 	}
 
 	return c.serializeInstance(proxyEndpoint, w)
@@ -62,6 +64,9 @@ func (c *ProxyEndpointsController) Delete(w http.ResponseWriter, r *http.Request
 	err := model.DeleteProxyEndpointForAPIIDAndAccountID(tx, instanceID(r),
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noProxyEndpoint
+		}
 		log.Printf("%s Error deleting proxy endpoint: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -97,6 +102,9 @@ func (c *ProxyEndpointsController) insertOrUpdate(w http.ResponseWriter, r *http
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noProxyEndpoint
+		}
 		log.Printf("%s Error %s proxy endpoint: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

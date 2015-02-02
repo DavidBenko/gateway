@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // EnvironmentsController manages Environments.
 type EnvironmentsController struct{}
+
+var noEnvironment = aphttp.NewError(errors.New("No environment matches"), 404)
 
 // List lists the environments.
 func (c *EnvironmentsController) List(w http.ResponseWriter, r *http.Request,
@@ -42,7 +44,7 @@ func (c *EnvironmentsController) Show(w http.ResponseWriter, r *http.Request,
 	environment, err := model.FindEnvironmentForAPIIDAndAccountID(db, id,
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No environment with id %d in environment", id), 404)
+		return noEnvironment
 	}
 
 	return c.serializeInstance(environment, w)
@@ -62,6 +64,9 @@ func (c *EnvironmentsController) Delete(w http.ResponseWriter, r *http.Request,
 	err := model.DeleteEnvironmentForAPIIDAndAccountID(tx, instanceID(r),
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noEnvironment
+		}
 		log.Printf("%s Error deleting environment: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -97,6 +102,9 @@ func (c *EnvironmentsController) insertOrUpdate(w http.ResponseWriter, r *http.R
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noEnvironment
+		}
 		log.Printf("%s Error %s environment: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

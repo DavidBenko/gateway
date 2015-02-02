@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // HostsController manages Hosts.
 type HostsController struct{}
+
+var noHost = aphttp.NewError(errors.New("No host matches"), 404)
 
 // List lists the hosts.
 func (c *HostsController) List(w http.ResponseWriter, r *http.Request,
@@ -42,7 +44,7 @@ func (c *HostsController) Show(w http.ResponseWriter, r *http.Request,
 	host, err := model.FindHostForAPIIDAndAccountID(db, id,
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No host with id %d in host", id), 404)
+		return noHost
 	}
 
 	return c.serializeInstance(host, w)
@@ -62,6 +64,9 @@ func (c *HostsController) Delete(w http.ResponseWriter, r *http.Request,
 	err := model.DeleteHostForAPIIDAndAccountID(tx, instanceID(r),
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noHost
+		}
 		log.Printf("%s Error deleting host: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -97,6 +102,9 @@ func (c *HostsController) insertOrUpdate(w http.ResponseWriter, r *http.Request,
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noHost
+		}
 		log.Printf("%s Error %s host: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

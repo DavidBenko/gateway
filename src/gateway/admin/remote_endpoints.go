@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // RemoteEndpointsController manages RemoteEndpoints.
 type RemoteEndpointsController struct{}
+
+var noRemoteEndpoint = aphttp.NewError(errors.New("No remote endpoint matches"), 404)
 
 // List lists the RemoteEndpoints.
 func (c *RemoteEndpointsController) List(w http.ResponseWriter, r *http.Request,
@@ -42,7 +44,7 @@ func (c *RemoteEndpointsController) Show(w http.ResponseWriter, r *http.Request,
 	remoteEndpoint, err := model.FindRemoteEndpointForAPIIDAndAccountID(db, id,
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No remote endpoint with id %d in api", id), 404)
+		return noRemoteEndpoint
 	}
 
 	return c.serializeInstance(remoteEndpoint, w)
@@ -62,6 +64,9 @@ func (c *RemoteEndpointsController) Delete(w http.ResponseWriter, r *http.Reques
 	err := model.DeleteRemoteEndpointForAPIIDAndAccountID(tx, instanceID(r),
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noRemoteEndpoint
+		}
 		log.Printf("%s Error deleting remote endpoint: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -97,6 +102,9 @@ func (c *RemoteEndpointsController) insertOrUpdate(w http.ResponseWriter, r *htt
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noRemoteEndpoint
+		}
 		log.Printf("%s Error %s remote endpoint: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}

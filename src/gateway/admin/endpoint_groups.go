@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	"errors"
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
@@ -14,6 +14,8 @@ import (
 
 // EndpointGroupsController manages EndpointGroups.
 type EndpointGroupsController struct{}
+
+var noEndpointGroup = aphttp.NewError(errors.New("No endpoint group matches"), 404)
 
 // List lists the endpointGroups.
 func (c *EndpointGroupsController) List(w http.ResponseWriter, r *http.Request,
@@ -42,7 +44,7 @@ func (c *EndpointGroupsController) Show(w http.ResponseWriter, r *http.Request,
 	endpointGroup, err := model.FindEndpointGroupForAPIIDAndAccountID(db, id,
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
-		return aphttp.NewError(fmt.Errorf("No endpoint group with id %d in api", id), 404)
+		return noEndpointGroup
 	}
 
 	return c.serializeInstance(endpointGroup, w)
@@ -62,6 +64,9 @@ func (c *EndpointGroupsController) Delete(w http.ResponseWriter, r *http.Request
 	err := model.DeleteEndpointGroupForAPIIDAndAccountID(tx, instanceID(r),
 		apiIDFromPath(r), accountIDFromSession(r))
 	if err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noEndpointGroup
+		}
 		log.Printf("%s Error deleting endpoint group: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
@@ -97,6 +102,9 @@ func (c *EndpointGroupsController) insertOrUpdate(w http.ResponseWriter, r *http
 	}
 
 	if err := method(tx); err != nil {
+		if err == apsql.ZeroRowsAffected {
+			return noEndpointGroup
+		}
 		log.Printf("%s Error %s endpoint group: %v", config.System, desc, err)
 		return aphttp.DefaultServerError()
 	}
