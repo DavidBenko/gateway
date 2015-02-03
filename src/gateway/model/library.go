@@ -29,9 +29,12 @@ func (l *Library) Validate() Errors {
 // into validation errors.
 func (l *Library) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: libraries.api_id, libraries.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "libraries_api_id_name_key"` {
+		errors.add("name", "is already taken")
+	}
 	return errors
 }
-
 
 // AllLibrariesForAPIIDAndAccountID returns all libraries on the Account's API in default order.
 func AllLibrariesForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Library, error) {

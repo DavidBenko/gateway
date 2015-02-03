@@ -25,6 +25,10 @@ func (e *EndpointGroup) Validate() Errors {
 // into validation errors.
 func (e *EndpointGroup) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: endpoint_groups.api_id, endpoint_groups.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "endpoint_groups_api_id_name_key"` {
+		errors.add("name", "is already taken")
+	}
 	return errors
 }
 

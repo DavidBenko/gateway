@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS "libraries" (
   "name" TEXT NOT NULL,
   "description" TEXT,
   "data" TEXT NOT NULL,
+  UNIQUE ("api_id", "name"),
   FOREIGN KEY("api_id") REFERENCES "apis"("id") ON DELETE CASCADE
 );

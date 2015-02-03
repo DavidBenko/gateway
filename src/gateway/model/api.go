@@ -31,7 +31,6 @@ func (a *API) ValidateFromDatabaseError(err error) Errors {
 		err.Error() == `pq: duplicate key value violates unique constraint "apis_account_id_name_key"` {
 		errors.add("name", "is already taken")
 	}
-
 	return errors
 }
 

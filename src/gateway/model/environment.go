@@ -29,9 +29,12 @@ func (e *Environment) Validate() Errors {
 // into validation errors.
 func (e *Environment) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: environments.api_id, environments.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "environments_api_id_name_key"` {
+		errors.add("name", "is already taken")
+	}
 	return errors
 }
-
 
 // AllEnvironmentsForAPIIDAndAccountID returns all environments on the Account's API in default order.
 func AllEnvironmentsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Environment, error) {

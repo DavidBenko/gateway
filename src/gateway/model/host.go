@@ -24,6 +24,10 @@ func (h *Host) Validate() Errors {
 // into validation errors.
 func (h *Host) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: hosts.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "hosts_name_key"` {
+		errors.add("name", "is already taken")
+	}
 	return errors
 }
 

@@ -48,6 +48,10 @@ func (e *ProxyEndpoint) Validate() Errors {
 // into validation errors.
 func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
+	if err.Error() == "UNIQUE constraint failed: proxy_endpoints.api_id, proxy_endpoints.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "proxy_endpoints_api_id_name_key"` {
+		errors.add("name", "is already taken")
+	}
 	return errors
 }
 
