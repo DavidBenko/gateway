@@ -114,13 +114,14 @@ func _deleteSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewSessionAuthRouter wraps a router with session checking behavior.
-func NewSessionAuthRouter(router aphttp.Router) aphttp.Router {
-	return &SessionAuthRouter{router}
+func NewSessionAuthRouter(router aphttp.Router, whitelist []string) aphttp.Router {
+	return &SessionAuthRouter{router, whitelist}
 }
 
 // SessionAuthRouter wraps all Handle calls in an HTTP Basic check.
 type SessionAuthRouter struct {
-	router aphttp.Router
+	router           aphttp.Router
+	whitelistMethods []string
 }
 
 // Handle wraps the handler in the auth check.
@@ -152,6 +153,10 @@ func (s *SessionAuthRouter) Wrap(handler http.Handler) http.Handler {
 }
 
 func (s *SessionAuthRouter) checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.isWhitelisted(r) {
+		return true
+	}
+
 	session := requestSession(r)
 	userID := session.Values[userIDKey]
 	accountID := session.Values[accountIDKey]
@@ -159,4 +164,13 @@ func (s *SessionAuthRouter) checkAuth(w http.ResponseWriter, r *http.Request) bo
 		return false
 	}
 	return userID.(int64) > 0 && accountID.(int64) > 0
+}
+
+func (s *SessionAuthRouter) isWhitelisted(r *http.Request) bool {
+	for _, method := range s.whitelistMethods {
+		if r.Method == method {
+			return true
+		}
+	}
+	return false
 }

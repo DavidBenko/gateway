@@ -45,11 +45,30 @@ describe "apis" do
   context "logged out" do
     before(:all) do
       logout!
-      get "/apis"
     end
 
-    it { expect_status(401) }
-    it { expect_json("error", "Unauthorized") }
+    context "security" do
+      before(:all) do
+        get "/apis"
+      end
+
+      it { expect_status(401) }
+      it { expect_json("error", "Unauthorized") }
+    end
+
+    context "cors preflight" do
+      it "should show options for collection" do
+        options "/apis"
+        expect_status 200
+        expect(headers[:access_control_allow_methods]).to eq("GET, POST, OPTIONS")
+      end
+
+      it "should show options for instance" do
+        options "/apis/1"
+        expect_status 200
+        expect(headers[:access_control_allow_methods]).to eq("GET, PUT, DELETE, OPTIONS")
+      end
+    end
   end
 
   context "logged in" do
