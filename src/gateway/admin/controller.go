@@ -49,3 +49,13 @@ func read(db *apsql.DB, handler DatabaseAwareHandler) http.Handler {
 func write(db *apsql.DB, handler TransactionAwareHandler) http.Handler {
 	return aphttp.JSONErrorCatchingHandler(TransactionWrappedHandler(db, handler))
 }
+
+type BaseController struct{}
+
+func (c *BaseController) accountID(r *http.Request) int64 {
+	return accountIDFromSession(r)
+}
+
+func (c *BaseController) apiID(r *http.Request) int64 {
+	return apiIDFromPath(r)
+}

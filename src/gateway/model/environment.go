@@ -25,6 +25,14 @@ func (e *Environment) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (e *Environment) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	return errors
+}
+
+
 // AllEnvironmentsForAPIIDAndAccountID returns all environments on the Account's API in default order.
 func AllEnvironmentsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Environment, error) {
 	environments := []*Environment{}

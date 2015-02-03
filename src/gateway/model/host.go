@@ -20,6 +20,13 @@ func (h *Host) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (h *Host) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	return errors
+}
+
 // AllHostsForAPIIDAndAccountID returns all hosts on the Account's API in default order.
 func AllHostsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Host, error) {
 	hosts := []*Host{}

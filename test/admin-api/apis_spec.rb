@@ -8,7 +8,7 @@ end
 
 shared_examples "a missing api" do
   it { expect_status(404) }
-  it { expect_json("error", "No API matches") }
+  it { expect_json("error", "No api matches") }
 end
 
 shared_examples "a valid api" do

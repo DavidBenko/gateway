@@ -1,9 +1,6 @@
 package model
 
-import (
-	"fmt"
-	apsql "gateway/sql"
-)
+import apsql "gateway/sql"
 
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
@@ -30,7 +27,6 @@ func (a *API) Validate() Errors {
 // into validation errors.
 func (a *API) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	fmt.Println(err)
 	if err.Error() == "UNIQUE constraint failed: apis.account_id, apis.name" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "apis_account_id_name_key"` {
 		errors.add("name", "is already taken")

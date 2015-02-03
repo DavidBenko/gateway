@@ -21,6 +21,13 @@ func (e *EndpointGroup) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (e *EndpointGroup) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	return errors
+}
+
 // AllEndpointGroupsForAPIIDAndAccountID returns all endpointGroups on the Account's API in default order.
 func AllEndpointGroupsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*EndpointGroup, error) {
 	endpointGroups := []*EndpointGroup{}

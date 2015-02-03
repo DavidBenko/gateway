@@ -37,6 +37,13 @@ func (e *RemoteEndpoint) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	return errors
+}
+
 // AllRemoteEndpointsForAPIIDAndAccountID returns all remoteEndpoints on the Account's API in default order.
 func AllRemoteEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	return _remoteEndpoints(db, 0, apiID, accountID)

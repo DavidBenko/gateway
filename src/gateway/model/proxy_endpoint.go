@@ -44,6 +44,13 @@ func (e *ProxyEndpoint) Validate() Errors {
 	return errors
 }
 
+// ValidateFromDatabaseError translates possible database constraint errors
+// into validation errors.
+func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
+	errors := make(Errors)
+	return errors
+}
+
 // AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
 func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
