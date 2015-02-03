@@ -5,8 +5,6 @@ import (
 	"net/http"
 )
 
-//go:generate ./controller.rb --model User --account --custom-struct --transform-method c.sanitize --transform-type sanitizedUser
-
 // UsersController manages users.
 type UsersController struct {
 	BaseController

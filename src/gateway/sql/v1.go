@@ -7,6 +7,7 @@ func migrateToV1(db *DB) error {
 	tx.MustExec(db.sql("v1/create_apis"))
 	tx.MustExec(db.sql("v1/create_hosts"))
 	tx.MustExec(db.sql("v1/create_environments"))
+	tx.MustExec(db.sql("v1/create_libraries"))
 	tx.MustExec(db.sql("v1/create_remote_endpoints"))
 	tx.MustExec(db.sql("v1/create_remote_endpoint_environment_data"))
 	tx.MustExec(db.sql("v1/create_endpoint_groups"))

@@ -100,6 +100,18 @@ func TestHostsPresence(t *testing.T) {
 }
 
 ////
+/// Libraries
+//
+
+func TestLibrariesPresence(t *testing.T) {
+	db := testDB(1)
+	_, err := db.Query("SELECT COUNT(*) FROM `libraries`;")
+	if err != nil {
+		t.Errorf("Should not error counting hosts: %v", err)
+	}
+}
+
+////
 /// Proxy Endpoint Calls
 //
 

@@ -10,17 +10,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
-	adminRoute := router.NewRoute()
-	if config.Host != "" {
-		adminRoute = adminRoute.Host(config.Host)
-	}
-	if config.PathPrefix != "" {
-		adminRoute = adminRoute.PathPrefix(config.PathPrefix)
-	}
-	return adminRoute.Subrouter()
-}
-
 // Setup sets up the session and adds admin routes.
 func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	setupSessions(conf)
@@ -52,4 +41,15 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 
 	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler))
+}
+
+func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
+	adminRoute := router.NewRoute()
+	if config.Host != "" {
+		adminRoute = adminRoute.Host(config.Host)
+	}
+	if config.PathPrefix != "" {
+		adminRoute = adminRoute.PathPrefix(config.PathPrefix)
+	}
+	return adminRoute.Subrouter()
 }
