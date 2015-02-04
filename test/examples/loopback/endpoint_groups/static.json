@@ -1,0 +1,6 @@
+{
+  "endpoint_group": {
+    "name": "Static",
+    "description": "These routes mock out a back end, so that you don't have to run another server for little experimentation."
+  }
+}

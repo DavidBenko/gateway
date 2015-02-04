@@ -1,0 +1,97 @@
+require 'json'
+require 'erb'
+require 'rest_client'
+
+desc "Seed the server"
+task :seed do |t, args|
+  response = post_file "/accounts", "account.json"
+  account_id = response["account"]["id"]
+
+  response = post_file "/accounts/#{account_id}/users", "user.json"
+  user = response["user"]
+
+  post "/sessions", %|{"email": "#{user["email"]}", "password": "foobar"}|
+
+  apis = Dir.entries(".").reject {|api| %w{. ..}.include?(api) || !File.directory?(api) }
+  apis.each do |api|
+    @api = api
+
+    response = post_file "/apis", "#{api}/api.json"
+    api_id = response["api"]["id"]
+
+    @ids = {}
+    %w{ hosts environments libraries endpoint_groups remote_endpoints proxy_endpoints }.each do |rel|
+      next unless File.exists?("#{api}/#{rel}")
+      files = Dir.entries("#{api}/#{rel}").reject{|x|!x.end_with?(".json")}
+      files.each do |file|
+        response = post_file "/apis/#{api_id}/#{rel}", "#{api}/#{rel}/#{file}"
+        @ids["#{rel}/#{file}"] = response.first[1]["id"]
+      end
+    end
+  end
+end
+
+desc "Deletes all accounts"
+task :clean do
+  response = get "/accounts"
+  response["accounts"].each do |account|
+    delete "/accounts/#{account["id"]}"
+  end
+end
+
+desc "Deletes ../gateway.db"
+task :clean_db do
+  `rm -f ../gateway.db`
+end
+
+def get(path)
+  call(:get, path)
+end
+
+def post(path, data)
+  call(:post, path, data)
+end
+
+def post_file(path, filename)
+  post(path, ERB.new(File.read(filename)).result(binding))
+end
+
+def delete(path)
+  call(:delete, path)
+end
+
+def call(method, path, data=nil)
+  print "#{method.to_s.upcase} #{path}#{tag(data)}"
+  begin
+    if method == :post
+      response = RestClient.send(method, "localhost:5000/admin#{path}", data, @extra)
+    else
+      response = RestClient.send(method, "localhost:5000/admin#{path}", @extra)
+    end
+  rescue => e
+    puts " \e[31merror\e[0m"
+    puts e.response
+    exit(1)
+  end
+
+  puts " \e[32msuccess\e[0m"
+  cookie = response.cookies.first
+  if cookie
+    @extra = {cookies: { cookie[0] => cookie[1].gsub("%3D","=")}}
+  end
+  JSON.parse(response.to_s) rescue nil
+end
+
+def tag(data)
+  if data
+    parsed = JSON.parse(data) rescue nil
+    if parsed && name = parsed.first[1]["name"]
+      return " -- #{name}"
+    end
+  end
+  ""
+end
+
+def script(filename)
+  File.read("#{@api}/scripts/#{filename}").inspect
+end

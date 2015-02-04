@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Hello World",
+    "description": "Everything starts somewhere.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/"
+      }
+    ],
+    "components": [
+      {
+        "type": "js",
+        "conditional": "",
+        "conditional_positive": true,
+        "data": <%= script("hello-world.js") %>
+      }
+    ]
+  }
+}

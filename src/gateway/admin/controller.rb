@@ -14,23 +14,23 @@ custom_struct = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
-  opts.on("--model Model", "Name of model") do |m|
-    singular = m
+  opts.on("--model Model", "Name of model") do |value|
+    singular = value
   end
-  opts.on("--account", "Is model linked to Account?") do |m|
-    account = m
+  opts.on("--account", "Is model linked to Account?") do |value|
+    account = value
   end
-  opts.on("--api", "Is model linked to API?") do |v|
-    api = v
+  opts.on("--api", "Is model linked to API?") do |value|
+    api = value
   end
-  opts.on("--custom-struct", "Using a custom struct?") do |v|
-    custom_struct = v
+  opts.on("--custom-struct", "Using a custom struct?") do |value|
+    custom_struct = value
   end
-  opts.on("--transform-method Method", "Optional custom transform method") do |t|
-    transform_method = t
+  opts.on("--transform-method Method", "Optional custom transform method") do |value|
+    transform_method = value
   end
-  opts.on("--transform-type Type", "Optional custom transform type") do |t|
-    transform_type = t
+  opts.on("--transform-type Type", "Optional custom transform type") do |value|
+    transform_type = value
   end
 end.parse!
 

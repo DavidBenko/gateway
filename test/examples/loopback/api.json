@@ -1,0 +1,7 @@
+{
+  "api": {
+    "name": "Loopback",
+    "description": "A self contained Gateway example that uses itself as its own remote endpoints.",
+    "cors_allow": "*"
+  }
+}

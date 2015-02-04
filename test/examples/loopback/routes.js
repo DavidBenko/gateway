@@ -3,8 +3,7 @@
  * run another server for little experimentation.
  */
  router.get("/", "Acme.Static.HelloWorld");
- router.get("/foo", "Acme.Static.Foo");
- router.get("/bar", "Acme.Static.Bar");
+ 
  router.get("/topsecret", "Acme.Static.TopSecret");
 
 

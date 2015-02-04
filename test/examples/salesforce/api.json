@@ -1,0 +1,7 @@
+{
+  "api": {
+    "name": "Salesforce",
+    "description": "An example that does SOAP with the Salesforce API.",
+    "cors_allow": "*"
+  }
+}

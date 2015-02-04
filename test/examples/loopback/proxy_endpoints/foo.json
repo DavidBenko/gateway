@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Foo",
+    "description": "Static endpoint to feed into the Composite endpoint.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/foo"
+      }
+    ],
+    "components": [
+      {
+        "type": "js",
+        "conditional": "",
+        "conditional_positive": true,
+        "data": <%= script("bar.js") %>
+      }
+    ]
+  }
+}

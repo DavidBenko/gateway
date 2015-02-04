@@ -1,0 +1,7 @@
+{
+  "environment": {
+    "name": "development",
+    "description": "An environment in which to develop.",
+    "data": {}
+  }
+}
