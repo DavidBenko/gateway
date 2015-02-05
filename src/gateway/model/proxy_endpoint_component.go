@@ -1,8 +1,9 @@
 package model
 
 import (
-	"encoding/json"
 	apsql "gateway/sql"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
 const (
@@ -20,7 +21,7 @@ type ProxyEndpointComponent struct {
 	AfterTransformations  []*ProxyEndpointTransformation `json:"after,omitempty"`
 	Call                  *ProxyEndpointCall             `json:"call,omitempty"`
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
-	Data                  json.RawMessage                `json:"data,omitempty"`
+	Data                  types.JsonText                 `json:"data,omitempty"`
 }
 
 // AllProxyEndpointsForAPIIDAndAccountID returns all components of an endpoint.

@@ -58,8 +58,12 @@ func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
 func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
-	return tx.DeleteOne(`DELETE FROM apis WHERE id = ? AND account_id = ?;`,
+	err := tx.DeleteOne(`DELETE FROM apis WHERE id = ? AND account_id = ?;`,
 		id, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("apis", id, apsql.Delete)
 }
 
 // Insert inserts the api into the database as a new row.

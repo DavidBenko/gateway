@@ -16,7 +16,7 @@ func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err er
 	if strings.HasSuffix(baseQuery, ";") {
 		log.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
 	}
-	if tx.Driver == Postgres {
+	if tx.db.Driver == Postgres {
 		query := tx.Q(baseQuery + ` RETURNING "id";`)
 		err = tx.Get(&id, query, args...)
 		return
@@ -75,7 +75,7 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 }
 
 func (tx *Tx) Q(sql string) string {
-	return q(sql, tx.Driver)
+	return tx.db.Q(sql)
 }
 
 func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {

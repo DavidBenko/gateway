@@ -1,8 +1,9 @@
 package model
 
 import (
-	"encoding/json"
 	apsql "gateway/sql"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
 // Environment represents a environment the API is available on.
@@ -10,10 +11,10 @@ type Environment struct {
 	AccountID int64 `json:"-"`
 	APIID     int64 `json:"-" db:"api_id"`
 
-	ID          int64           `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Data        json.RawMessage `json:"data"`
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Data        types.JsonText `json:"data"`
 }
 
 // Validate validates the model.

@@ -1,9 +1,10 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
 	apsql "gateway/sql"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -20,9 +21,9 @@ type RemoteEndpoint struct {
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
-	RemoteEndpointID int64           `json:"-" db:"remote_endpoint_id"`
-	EnvironmentID    int64           `json:"environment_id" db:"environment_id"`
-	Data             json.RawMessage `json:"data"`
+	RemoteEndpointID int64          `json:"-" db:"remote_endpoint_id"`
+	EnvironmentID    int64          `json:"environment_id" db:"environment_id"`
+	Data             types.JsonText `json:"data"`
 }
 
 // Validate validates the model.

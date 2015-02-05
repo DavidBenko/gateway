@@ -47,6 +47,13 @@ func AllHostsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Host
 	return hosts, err
 }
 
+// AllHosts returns all hosts in an unspecified order.
+func AllHosts(db *apsql.DB) ([]*Host, error) {
+	hosts := []*Host{}
+	err := db.Select(&hosts, `SELECT id, name, api_id FROM hosts;`)
+	return hosts, err
+}
+
 // FindHostForAPIIDAndAccountID returns the host with the id, api id, and account_id specified.
 func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Host, error) {
 	host := Host{}
@@ -65,12 +72,16 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 
 // DeleteHostForAPIIDAndAccountID deletes the host with the id, api_id and account_id specified.
 func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	return tx.DeleteOne(
+	err := tx.DeleteOne(
 		`DELETE FROM hosts
 		WHERE hosts.id = ?
 			AND hosts.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?)`,
 		id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("hosts", apiID, apsql.Delete)
 }
 
 // Insert inserts the host into the database as a new row.
@@ -79,16 +90,23 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 		`INSERT INTO hosts (api_id, name)
 		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?)`,
 		h.APIID, h.AccountID, h.Name)
-	return
+	if err != nil {
+		return err
+	}
+	return tx.Notify("hosts", h.APIID, apsql.Insert)
 }
 
 // Update updates the host in the database.
 func (h *Host) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(
+	err := tx.UpdateOne(
 		`UPDATE hosts
 		SET name = ?
 		WHERE hosts.id = ?
 			AND hosts.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?)`,
 		h.Name, h.ID, h.APIID, h.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("hosts", h.APIID, apsql.Update)
 }

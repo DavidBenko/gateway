@@ -1,20 +1,21 @@
 package model
 
 import (
-	"encoding/json"
 	apsql "gateway/sql"
 	"strings"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
 // ProxyEndpointTransformation describes a transformation around a proxy call.
 type ProxyEndpointTransformation struct {
-	ID          int64           `json:"id"`
-	ComponentID *int64          `json:"-" db:"component_id"`
-	CallID      *int64          `json:"-" db:"call_id"`
-	Before      bool            `json:"-" db:"before"`
-	Type        string          `json:"type"`
-	Position    int64           `json:"-"`
-	Data        json.RawMessage `json:"data,omitempty"`
+	ID          int64          `json:"id"`
+	ComponentID *int64         `json:"-" db:"component_id"`
+	CallID      *int64         `json:"-" db:"call_id"`
+	Before      bool           `json:"-" db:"before"`
+	Type        string         `json:"type"`
+	Position    int64          `json:"-"`
+	Data        types.JsonText `json:"data,omitempty"`
 }
 
 // AllProxyEndpointTransformationsForComponentIDsAndCallIDs returns all

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gateway/config"
 	"log"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 
@@ -12,6 +13,14 @@ import (
 	// Add postgres driver
 	_ "github.com/lib/pq"
 )
+
+/**
+ ** Note that I've got DB & Tx methods defined everywhere,
+ ** based on some crappy idea of functionality.
+ **
+ ** TODO: Clean that up. It's confusing.
+ **
+ **/
 
 const currentVersion = 1
 
@@ -28,13 +37,16 @@ const (
 // DB wraps a *sqlx.DB with some convenience methods and data
 type DB struct {
 	*sqlx.DB
-	Driver driverType
+	Driver         driverType
+	listeners      []Listener
+	listenersMutex sync.RWMutex
 }
 
 // Tx wraps a *sql.Tx with the driver we're using
 type Tx struct {
 	*sqlx.Tx
-	Driver driverType
+	db            *DB
+	notifications []*Notification
 }
 
 // Connect opens and returns a database connection.
@@ -50,16 +62,22 @@ func Connect(conf config.Database) (*DB, error) {
 	}
 
 	log.Printf("%s Connecting to database", config.System)
-	db, err := sqlx.Connect(conf.Driver, conf.ConnectionString)
+	sqlxDB, err := sqlx.Connect(conf.Driver, conf.ConnectionString)
 	if err != nil {
 		return nil, err
 	}
+
+	db := DB{sqlxDB, driver, []Listener{}, sync.RWMutex{}}
 
 	if conf.Driver == Sqlite3 {
 		db.Exec("PRAGMA foreign_keys = ON;")
 	}
 
-	return &DB{db, driver}, nil
+	if conf.Driver == Postgres {
+		db.startListening(conf)
+	}
+
+	return &db, nil
 }
 
 // CurrentVersion returns the current version of the database, or an error if
@@ -102,7 +120,7 @@ func (db *DB) Migrate() error {
 // Begin creates a new transaction
 func (db *DB) Begin() (*Tx, error) {
 	tx, err := db.DB.Beginx()
-	return &Tx{tx, db.Driver}, err
+	return &Tx{tx, db, []*Notification{}}, err
 }
 
 func (db *DB) sql(name string) string {

@@ -1,9 +1,10 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
 	apsql "gateway/sql"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
@@ -13,13 +14,13 @@ type ProxyEndpoint struct {
 	EndpointGroupID *int64 `json:"endpoint_group_id" db:"endpoint_group_id"`
 	EnvironmentID   int64  `json:"environment_id" db:"environment_id"`
 
-	ID                int64           `json:"id"`
-	Name              string          `json:"name"`
-	Description       string          `json:"description"`
-	Active            bool            `json:"active"`
-	CORSEnabled       bool            `json:"cors_enabled,omitempty" db:"cors_enabled"`
-	CORSAllowOverride *string         `json:"cors_allow_override,omitempty" db:"cors_allow_override"`
-	Routes            json.RawMessage `json:"routes,omitempty"`
+	ID                int64          `json:"id"`
+	Name              string         `json:"name"`
+	Description       string         `json:"description"`
+	Active            bool           `json:"active"`
+	CORSEnabled       bool           `json:"cors_enabled,omitempty" db:"cors_enabled"`
+	CORSAllowOverride *string        `json:"cors_allow_override,omitempty" db:"cors_allow_override"`
+	Routes            types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
 }
@@ -77,6 +78,25 @@ func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64)
 	return proxyEndpoints, err
 }
 
+// AllActiveProxyEndpointsForRouting returns all proxyEndpoints in an
+// unspecified order, with enough data for routing.
+func AllActiveProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
+	proxyEndpoints := []*ProxyEndpoint{}
+	err := db.Select(&proxyEndpoints,
+		`SELECT id, api_id, routes FROM proxy_endpoints WHERE active = ?;`, true)
+	return proxyEndpoints, err
+}
+
+// AllActiveProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
+// api in an unspecified order, with enough data for routing.
+func AllActiveProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
+	proxyEndpoints := []*ProxyEndpoint{}
+	err := db.Select(&proxyEndpoints,
+		`SELECT id, routes FROM proxy_endpoints WHERE active = ? AND api_id = ?;`,
+		true, apiID)
+	return proxyEndpoints, err
+}
+
 // FindProxyEndpointForAPIIDAndAccountID returns the proxyEndpoint with the id, api id, and account_id specified.
 func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*ProxyEndpoint, error) {
 	proxyEndpoint := ProxyEndpoint{}
@@ -108,12 +128,16 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
 func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	return tx.DeleteOne(
+	err := tx.DeleteOne(
 		`DELETE FROM proxy_endpoints
 		WHERE proxy_endpoints.id = ?
 			AND proxy_endpoints.api_id IN
 					(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("proxy_endpoints", apiID, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -143,7 +167,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
-	return nil
+	return tx.Notify("proxy_endpoints", e.APIID, apsql.Insert)
 }
 
 // Update updates the proxyEndpoint in the database.
@@ -198,5 +222,5 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return nil
+	return tx.Notify("proxy_endpoints", e.APIID, apsql.Update)
 }

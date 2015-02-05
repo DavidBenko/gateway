@@ -23,7 +23,7 @@ type Server struct {
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	router      *mux.Router
-	proxyRouter *mux.Router
+	proxyRouter *proxyRouter
 	db          *sql.DB
 	scripts     map[string]*otto.Script
 }
@@ -45,6 +45,8 @@ func (s *Server) Run() {
 	admin.Setup(s.router, s.db, s.adminConf)
 
 	// Set up proxy
+	s.proxyRouter = newProxyRouter(s.db)
+
 	s.router.Handle("/{path:.*}",
 		aphttp.AccessLoggingHandler(config.Proxy,
 			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
