@@ -27,8 +27,7 @@ func (a *API) Validate() Errors {
 // into validation errors.
 func (a *API) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	if err.Error() == "UNIQUE constraint failed: apis.account_id, apis.name" ||
-		err.Error() == `pq: duplicate key value violates unique constraint "apis_account_id_name_key"` {
+	if apsql.IsUniqueConstraint(err, "apis", "account_id", "name") {
 		errors.add("name", "is already taken")
 	}
 	return errors

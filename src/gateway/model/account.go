@@ -21,8 +21,7 @@ func (a *Account) Validate() Errors {
 // into validation errors.
 func (a *Account) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	if err.Error() == "UNIQUE constraint failed: accounts.name" ||
-		err.Error() == `pq: duplicate key value violates unique constraint "accounts_name_key"` {
+	if sql.IsUniqueConstraint(err, "accounts", "name") {
 		errors.add("name", "is already taken")
 	}
 	return errors

@@ -82,6 +82,25 @@ func Connect(conf config.Database) (*DB, error) {
 	return &db, nil
 }
 
+// IsUniqueConstraint returns whether or not the error looks like a unique constraint error
+func IsUniqueConstraint(err error, table string, keys ...string) bool {
+	errString := err.Error()
+	pgString := fmt.Sprintf("pq: duplicate key value violates unique constraint \"%s_%s_key\"",
+		table, strings.Join(keys, "_"))
+
+	if errString == pgString {
+		return true
+	}
+
+	fullKeys := []string{}
+	for _, k := range keys {
+		fullKeys = append(fullKeys, strings.Join([]string{table, k}, "."))
+	}
+
+	sqliteString := fmt.Sprintf("UNIQUE constraint failed: %s", strings.Join(fullKeys, ", "))
+	return errString == sqliteString
+}
+
 // NQs returns n comma separated '?'s
 func NQs(n int) string {
 	return strings.Join(strings.Split(strings.Repeat("?", n), ""), ",")
