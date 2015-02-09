@@ -173,7 +173,7 @@ func (r *proxyRouter) Notify(n *apsql.Notification) {
 	case n.Table == "hosts":
 		go r.rebuildHosts()
 	case n.Table == "proxy_endpoints":
-		go r.rebuildAPIRouters()
+		go r.rebuildAPIRouterForAPIID(n.APIID)
 	}
 }
 
