@@ -1,26 +1,21 @@
 package sql
 
 import (
+	"encoding/json"
 	"fmt"
 	"gateway/config"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 
 	// Add sqlite3 driver
 	_ "github.com/mattn/go-sqlite3"
-	// Add postgres driver
-	_ "github.com/lib/pq"
-)
 
-/**
- ** Note that I've got DB & Tx methods defined everywhere,
- ** based on some crappy idea of functionality.
- **
- ** TODO: Clean that up. It's confusing.
- **
- **/
+	// Add postgres driver
+	"github.com/lib/pq"
+)
 
 const currentVersion = 1
 
@@ -40,44 +35,6 @@ type DB struct {
 	Driver         driverType
 	listeners      []Listener
 	listenersMutex sync.RWMutex
-}
-
-// Tx wraps a *sql.Tx with the driver we're using
-type Tx struct {
-	*sqlx.Tx
-	db            *DB
-	notifications []*Notification
-}
-
-// Connect opens and returns a database connection.
-func Connect(conf config.Database) (*DB, error) {
-	var driver driverType
-	switch conf.Driver {
-	case "sqlite3", "postgres":
-		driver = driverType(conf.Driver)
-	default:
-		return nil,
-			fmt.Errorf("Database driver must be sqlite3 or postgres (got '%v')",
-				conf.Driver)
-	}
-
-	log.Printf("%s Connecting to database", config.System)
-	sqlxDB, err := sqlx.Connect(conf.Driver, conf.ConnectionString)
-	if err != nil {
-		return nil, err
-	}
-
-	db := DB{sqlxDB, driver, []Listener{}, sync.RWMutex{}}
-
-	if conf.Driver == Sqlite3 {
-		db.Exec("PRAGMA foreign_keys = ON;")
-	}
-
-	if conf.Driver == Postgres {
-		db.startListening(conf)
-	}
-
-	return &db, nil
 }
 
 // CurrentVersion returns the current version of the database, or an error if
@@ -117,17 +74,105 @@ func (db *DB) Migrate() error {
 	return nil
 }
 
-// Begin creates a new transaction
+// Begin creates a new sqlx transaction wrapped in our own code
 func (db *DB) Begin() (*Tx, error) {
 	tx, err := db.DB.Beginx()
 	return &Tx{tx, db, []*Notification{}}, err
 }
 
+// Get wraps sqlx's Get with driver-specific query modifications.
+func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
+	return db.DB.Get(dest, db.q(query), args...)
+}
+
+// Select wraps sqlx's Select with driver-specific query modifications.
+func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
+	return db.DB.Select(dest, db.q(query), args...)
+}
+
+// RegisterListener registers a listener with the database
+func (db *DB) RegisterListener(l Listener) {
+	defer db.listenersMutex.Unlock()
+	db.listenersMutex.Lock()
+	db.listeners = append(db.listeners, l)
+}
+
+func (db *DB) notifyListeners(n *Notification) {
+	defer db.listenersMutex.RUnlock()
+	db.listenersMutex.RLock()
+
+	for _, listener := range db.listeners {
+		listener.Notify(n)
+	}
+}
+
+func (db *DB) notifyListenersOfReconnection() {
+	defer db.listenersMutex.RUnlock()
+	db.listenersMutex.RLock()
+
+	for _, listener := range db.listeners {
+		listener.Reconnect()
+	}
+}
+
+func (db *DB) startListening(conf config.Database) error {
+	listener := pq.NewListener(conf.ConnectionString,
+		2*time.Second,
+		time.Minute,
+		db.listenerConnectionEvent)
+	err := listener.Listen(postgresNotifyChannel)
+	if err != nil {
+		return err
+	}
+	go db.waitForNotification(listener)
+	return nil
+}
+
+func (db *DB) waitForNotification(l *pq.Listener) {
+	for {
+		select {
+		case pgNotification := <-l.Notify:
+			if pgNotification.Channel == postgresNotifyChannel {
+				var notification Notification
+				err := json.Unmarshal([]byte(pgNotification.Extra), &notification)
+				if err != nil {
+					log.Printf("%s Error parsing notification '%s': %v",
+						config.System, pgNotification.Extra, err)
+					continue
+				}
+				db.notifyListeners(&notification)
+			} else {
+				db.notifyListenersOfReconnection()
+			}
+		case <-time.After(90 * time.Second):
+			go func() {
+				l.Ping()
+			}()
+		}
+	}
+}
+
+func (db *DB) listenerConnectionEvent(ev pq.ListenerEventType, err error) {
+	if err != nil {
+		log.Printf("%s Database listener connection problem: %v", config.System, err)
+	}
+}
+
+// returns a sql query from a static file, scoped to driver
 func (db *DB) sql(name string) string {
-	asset := fmt.Sprintf("%s/%s.sql", db.Driver, name)
+	asset := fmt.Sprintf("ansi/%s.sql", name)
 	bytes, err := Asset(asset)
 	if err != nil {
-		log.Fatalf("%s could not find %s", config.System, asset)
+		asset = fmt.Sprintf("%s/%s.sql", db.Driver, name)
+		bytes, err = Asset(asset)
+		if err != nil {
+			log.Fatalf("%s could not find %s", config.System, asset)
+		}
 	}
 	return string(bytes)
+}
+
+// does driver modifications to query
+func (db *DB) q(sql string) string {
+	return q(sql, db.Driver)
 }
