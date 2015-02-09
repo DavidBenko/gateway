@@ -2,7 +2,6 @@ package vm
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
 
 	"github.com/robertkrimen/otto"
@@ -77,7 +76,6 @@ func (p *ProxyVM) sessionDelete(call otto.FunctionCall) otto.Value {
 func (p *ProxyVM) sessionSetOptions(call otto.FunctionCall) otto.Value {
 	sessionName := call.Argument(0).String()
 	optionsString := call.Argument(1).String()
-	fmt.Printf("STRING: '%v'\n", optionsString)
 
 	session, err := p.sessionStore.Get(p.r, sessionName)
 	if err != nil {

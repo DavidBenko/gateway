@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gateway/admin"
 	"gateway/config"
 	aphttp "gateway/http"
-	"gateway/proxy/keys"
+	"gateway/model"
 	"gateway/proxy/vm"
 	sql "gateway/sql"
 
@@ -25,7 +26,6 @@ type Server struct {
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	db          *sql.DB
-	scripts     map[string]*otto.Script
 }
 
 // NewServer builds a new proxy server.
@@ -83,64 +83,61 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
 	}()
 
-	controller := match.Route.GetName()
-
-	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, controller)
-
-	endpointKey, err := keys.ScriptKeyForCodeString(controller)
+	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	endpoint, ok := s.scripts[endpointKey]
-	// FIXME: I think we can guarantee this particular bit won't happen at startup
-	if !ok {
-		err = fmt.Errorf("No code found for '%s'", controller)
-		return aphttp.NewServerError(err)
-	}
-
-	incomingJSON, err := proxyRequestJSON(r, match.Vars)
+	/* TODO: Replace with real one */
+	proxyEndpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(s.db, proxyEndpointID, 0, 0)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	handleScript := fmt.Sprintf("App.handle(JSON.parse(__ap_proxyRequestJSON), %s);", controller)
+	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, proxyEndpoint.Name)
 
-	var scripts = []interface{}{
-		s.scripts["app"], // FIXME Ensure existance & check validity in setup
-		endpoint,
-		handleScript,
-	}
-
-	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.scripts)
-	if err != nil {
-		return aphttp.NewServerError(err)
-	}
-
-	vm.Set("__ap_proxyRequestJSON", incomingJSON)
-
-	var result otto.Value
-	for _, script := range scripts {
-		var err error
-		result, err = vm.Run(script)
-		if err != nil {
-			return aphttp.NewServerError(err)
-		}
-	}
-
-	responseJSON, err := s.objectJSON(vm, result)
-	if err != nil {
-		return aphttp.NewServerError(err)
-	}
-	response, err := proxyResponseFromJSON(responseJSON)
-	if err != nil {
-		return aphttp.NewServerError(err)
-	}
-	proxiedRequestsDuration = vm.ProxiedRequestsDuration
-
-	aphttp.AddHeaders(w.Header(), response.Headers)
-	w.WriteHeader(response.StatusCode)
-	w.Write([]byte(response.Body))
+	// incomingJSON, err := proxyRequestJSON(r, match.Vars)
+	// if err != nil {
+	// 	return aphttp.NewServerError(err)
+	// }
+	//
+	// handleScript := fmt.Sprintf("App.handle(JSON.parse(__ap_proxyRequestJSON), %s);", controller)
+	//
+	// var scripts = []interface{}{
+	// 	s.scripts["app"], // FIXME Ensure existance & check validity in setup
+	// 	endpoint,
+	// 	handleScript,
+	// }
+	//
+	// vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.scripts)
+	// if err != nil {
+	// 	return aphttp.NewServerError(err)
+	// }
+	//
+	// vm.Set("__ap_proxyRequestJSON", incomingJSON)
+	//
+	// var result otto.Value
+	// for _, script := range scripts {
+	// 	var err error
+	// 	result, err = vm.Run(script)
+	// 	if err != nil {
+	// 		return aphttp.NewServerError(err)
+	// 	}
+	// }
+	//
+	// responseJSON, err := s.objectJSON(vm, result)
+	// if err != nil {
+	// 	return aphttp.NewServerError(err)
+	// }
+	// response, err := proxyResponseFromJSON(responseJSON)
+	// if err != nil {
+	// 	return aphttp.NewServerError(err)
+	// }
+	// proxiedRequestsDuration = vm.ProxiedRequestsDuration
+	//
+	// aphttp.AddHeaders(w.Header(), response.Headers)
+	// w.WriteHeader(response.StatusCode)
+	// w.Write([]byte(response.Body))
 	return nil
 }
 

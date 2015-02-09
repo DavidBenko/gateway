@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/proxy/keys"
 	"gateway/proxy/requests"
 
 	"github.com/gorilla/sessions"
@@ -68,6 +67,7 @@ func NewVM(
 		nil,
 	}
 
+	/* FIXME: Need to move keys to Environment for multi-tenant, not config */
 	if conf.AuthKey != "" {
 		sessionConfig := [][]byte{[]byte(conf.AuthKey)}
 		if conf.EncryptionKey != "" {
@@ -76,15 +76,16 @@ func NewVM(
 		vm.sessionStore = sessions.NewCookieStore(sessionConfig...)
 	}
 
-	vm.Set("__ap_log", vm.log)
-	vm.Set("__ap_environment_get", vm.environmentGet)
+	/* TODO: Bind to objects? & evaluate usage */
+	vm.Set("__ap_log", vm.log)                        /* log("foo") instead? */
+	vm.Set("__ap_environment_get", vm.environmentGet) /* env("key") instead? */
 	vm.Set("__ap_session_get", vm.sessionGet)
 	vm.Set("__ap_session_set", vm.sessionSet)
 	vm.Set("__ap_session_is_set", vm.sessionIsSet)
 	vm.Set("__ap_session_delete", vm.sessionDelete)
 	vm.Set("__ap_session_set_options", vm.sessionSetOptions)
-	vm.Set("include", vm.includeLibrary)
-	vm.Set("__ap_makeRequests", vm.makeRequests)
+	// vm.Set("include", vm.includeLibrary)         /* include all by default? */
+	vm.Set("__ap_makeRequests", vm.makeRequests) /* TODO: remove prols */
 
 	for _, script := range scripts {
 		_, err := vm.Run(script)
@@ -101,38 +102,39 @@ func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
-func (p *ProxyVM) includeLibrary(call otto.FunctionCall) otto.Value {
-	libraryName := call.Argument(0).String()
-
-	alreadyIncluded := false
-	for _, name := range p.includedLibraries {
-		if name == libraryName {
-			alreadyIncluded = true
-			break
-		}
-	}
-	if alreadyIncluded {
-		return otto.Value{}
-	}
-	p.includedLibraries = append(p.includedLibraries, libraryName)
-
-	libraryKey, err := keys.ScriptKeyForCodeString(libraryName)
-	if err != nil {
-		runtimeError(fmt.Sprintf("Could not make '%s' to script key", libraryName))
-	}
-
-	library, ok := p.scripts[libraryKey]
-	if !ok {
-		runtimeError(fmt.Sprintf("There is no library named '%s'", libraryName))
-	}
-
-	_, err = p.Run(library)
-	if err != nil {
-		runtimeError(fmt.Sprintf("Error in library '%s': %s", libraryName, err))
-	}
-
-	return otto.Value{}
-}
+/** TODO: Probably 86 all this */
+// func (p *ProxyVM) includeLibrary(call otto.FunctionCall) otto.Value {
+// 	libraryName := call.Argument(0).String()
+//
+// 	alreadyIncluded := false
+// 	for _, name := range p.includedLibraries {
+// 		if name == libraryName {
+// 			alreadyIncluded = true
+// 			break
+// 		}
+// 	}
+// 	if alreadyIncluded {
+// 		return otto.Value{}
+// 	}
+// 	p.includedLibraries = append(p.includedLibraries, libraryName)
+//
+// 	libraryKey, err := keys.ScriptKeyForCodeString(libraryName)
+// 	if err != nil {
+// 		runtimeError(fmt.Sprintf("Could not make '%s' to script key", libraryName))
+// 	}
+//
+// 	library, ok := p.scripts[libraryKey]
+// 	if !ok {
+// 		runtimeError(fmt.Sprintf("There is no library named '%s'", libraryName))
+// 	}
+//
+// 	_, err = p.Run(library)
+// 	if err != nil {
+// 		runtimeError(fmt.Sprintf("Error in library '%s': %s", libraryName, err))
+// 	}
+//
+// 	return otto.Value{}
+// }
 
 func (p *ProxyVM) makeRequests(call otto.FunctionCall) otto.Value {
 	// Parse requests
