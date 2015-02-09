@@ -101,9 +101,9 @@ func (tx *Tx) Commit() error {
 	return err
 }
 
-// returns a sql query from a static file, scoped to driver
-func (tx *Tx) sql(name string) string {
-	return tx.db.sql(name)
+// SQL returns a sql query from a static file, scoped to driver
+func (tx *Tx) SQL(name string) string {
+	return tx.db.SQL(name)
 }
 
 // does driver modifications to query

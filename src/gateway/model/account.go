@@ -31,23 +31,20 @@ func (a *Account) ValidateFromDatabaseError(err error) Errors {
 // AllAccounts returns all accounts in default order.
 func AllAccounts(db *sql.DB) ([]*Account, error) {
 	accounts := []*Account{}
-	err := db.Select(&accounts,
-		`SELECT id, name
-		 FROM accounts
-		 ORDER BY name ASC;`)
+	err := db.Select(&accounts, db.SQL("accounts/all"))
 	return accounts, err
 }
 
 // FindAccount returns the account with the id specified.
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}
-	err := db.Get(&account, `SELECT id, name FROM accounts WHERE id = ?;`, id)
+	err := db.Get(&account, db.SQL("accounts/find"), id)
 	return &account, err
 }
 
 // DeleteAccount deletes the account with the id specified.
 func DeleteAccount(tx *sql.Tx, id int64) error {
-	err := tx.DeleteOne(`DELETE FROM accounts WHERE id = ?;`, id)
+	err := tx.DeleteOne(tx.SQL("accounts/delete"), id)
 	if err != nil {
 		return err
 	}
@@ -56,12 +53,11 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 
 // Insert inserts the account into the database as a new row.
 func (a *Account) Insert(tx *sql.Tx) (err error) {
-	a.ID, err = tx.InsertOne(`INSERT INTO accounts (name) VALUES (?)`, a.Name)
+	a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name)
 	return err
 }
 
 // Update updates the account in the database.
 func (a *Account) Update(tx *sql.Tx) error {
-	return tx.UpdateOne(`UPDATE accounts SET name = ? WHERE id = ?;`,
-		a.Name, a.ID)
+	return tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.ID)
 }

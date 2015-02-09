@@ -158,8 +158,8 @@ func (db *DB) listenerConnectionEvent(ev pq.ListenerEventType, err error) {
 	}
 }
 
-// returns a sql query from a static file, scoped to driver
-func (db *DB) sql(name string) string {
+// SQL returns a sql query from a static file, scoped to driver
+func (db *DB) SQL(name string) string {
 	asset := fmt.Sprintf("ansi/%s.sql", name)
 	bytes, err := Asset(asset)
 	if err != nil {

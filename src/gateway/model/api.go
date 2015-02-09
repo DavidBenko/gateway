@@ -37,29 +37,20 @@ func (a *API) ValidateFromDatabaseError(err error) Errors {
 // AllAPIsForAccountID returns all apis on the Account in default order.
 func AllAPIsForAccountID(db *apsql.DB, accountID int64) ([]*API, error) {
 	apis := []*API{}
-	err := db.Select(&apis,
-		`SELECT id, name, description, cors_allow
-		 FROM apis WHERE account_id = ?
-		 ORDER BY name ASC;`,
-		accountID)
+	err := db.Select(&apis, db.SQL("apis/all"), accountID)
 	return apis, err
 }
 
 // FindAPIForAccountID returns the api with the id and account_id specified.
 func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	api := API{}
-	err := db.Get(&api,
-		`SELECT id, name, description, cors_allow
-		 FROM apis
-		 WHERE id = ? AND account_id = ?;`,
-		id, accountID)
+	err := db.Get(&api, db.SQL("apis/find"), id, accountID)
 	return &api, err
 }
 
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
 func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
-	err := tx.DeleteOne(`DELETE FROM apis WHERE id = ? AND account_id = ?;`,
-		id, accountID)
+	err := tx.DeleteOne(tx.SQL("apis/delete"), id, accountID)
 	if err != nil {
 		return err
 	}
@@ -68,19 +59,13 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 
 // Insert inserts the api into the database as a new row.
 func (a *API) Insert(tx *apsql.Tx) (err error) {
-	a.ID, err = tx.InsertOne(
-		`INSERT INTO apis
-		(account_id, name, description, cors_allow)
-		VALUES (?, ?, ?, ?)`,
+	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllow)
 	return
 }
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(
-		`UPDATE apis
-		 SET name = ?, description = ?, cors_allow = ?
-		 WHERE id = ? AND account_id = ?;`,
+	return tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllow, a.ID, a.AccountID)
 }
