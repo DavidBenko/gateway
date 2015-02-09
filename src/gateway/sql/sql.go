@@ -46,8 +46,8 @@ type Listener interface {
 	Reconnect()
 }
 
-// ZeroRowsAffected is an error returned from updates when 0 rows were changed.
-var ZeroRowsAffected = errors.New("Zero rows affected")
+// ErrZeroRowsAffected is an error returned from updates when 0 rows were changed.
+var ErrZeroRowsAffected = errors.New("Zero rows affected")
 
 var qrx = regexp.MustCompile(`\?`)
 

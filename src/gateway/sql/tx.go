@@ -48,7 +48,7 @@ func (tx *Tx) UpdateOne(query string, args ...interface{}) error {
 	}
 	numRows, err := result.RowsAffected()
 	if err == nil && numRows == 0 {
-		return ZeroRowsAffected
+		return ErrZeroRowsAffected
 	}
 	if err != nil || numRows != 1 {
 		return fmt.Errorf("Expected 1 row to be affected; got %d, error: %v", numRows, err)

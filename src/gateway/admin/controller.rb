@@ -148,7 +148,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   <% end %>
 
   if err != nil {
-    if err == apsql.ZeroRowsAffected {
+    if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
     }
     log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
@@ -190,7 +190,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   }
 
   if err := method(tx); err != nil {
-    if err == apsql.ZeroRowsAffected {
+    if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
     }
     validationErrors = <%= local %>.ValidateFromDatabaseError(err)
