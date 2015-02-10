@@ -167,6 +167,7 @@ func (r *proxyRouter) Notify(n *apsql.Notification) {
 	switch {
 	case n.Table == "accounts" && n.Event == apsql.Delete:
 		go r.rebuildHosts()
+		go r.rebuildAPIRouters()
 	case n.Table == "apis" && n.Event == apsql.Delete:
 		go r.rebuildHosts()
 		go r.deleteAPIRouterForAPIID(n.APIID)
