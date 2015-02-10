@@ -88,8 +88,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		return aphttp.NewServerError(err)
 	}
 
-	/* TODO: Replace with real one */
-	proxyEndpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(s.db, proxyEndpointID, 0, 0)
+	proxyEndpoint, err := model.FindProxyEndpoint(s.db, proxyEndpointID)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

@@ -59,22 +59,7 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
 // AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
 func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints,
-		`SELECT
-			proxy_endpoints.id as id,
-			proxy_endpoints.name as name,
-			proxy_endpoints.description as description,
-			proxy_endpoints.endpoint_group_id as endpoint_group_id,
-			proxy_endpoints.environment_id as environment_id,
-			proxy_endpoints.active as active
-			FROM proxy_endpoints, apis
-		WHERE proxy_endpoints.api_id = ?
-			AND proxy_endpoints.api_id = apis.id
-			AND apis.account_id = ?
-		ORDER BY
-			proxy_endpoints.name ASC,
-			proxy_endpoints.id ASC;`,
-		apiID, accountID)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all"), apiID, accountID)
 	return proxyEndpoints, err
 }
 
@@ -82,8 +67,7 @@ func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64)
 // unspecified order, with enough data for routing.
 func AllActiveProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints,
-		`SELECT id, api_id, routes FROM proxy_endpoints WHERE active = ?;`, true)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing"), true)
 	return proxyEndpoints, err
 }
 
@@ -91,33 +75,27 @@ func AllActiveProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 // api in an unspecified order, with enough data for routing.
 func AllActiveProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints,
-		`SELECT id, routes FROM proxy_endpoints WHERE active = ? AND api_id = ?;`,
-		true, apiID)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing_api"), true, apiID)
 	return proxyEndpoints, err
 }
 
 // FindProxyEndpointForAPIIDAndAccountID returns the proxyEndpoint with the id, api id, and account_id specified.
 func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*ProxyEndpoint, error) {
 	proxyEndpoint := ProxyEndpoint{}
-	err := db.Get(&proxyEndpoint,
-		`SELECT
-			proxy_endpoints.id as id,
-			proxy_endpoints.name as name,
-			proxy_endpoints.description as description,
-			proxy_endpoints.endpoint_group_id as endpoint_group_id,
-			proxy_endpoints.environment_id as environment_id,
-			proxy_endpoints.active as active,
-			proxy_endpoints.cors_enabled as cors_enabled,
-			proxy_endpoints.cors_allow_override as cors_allow_override,
-			proxy_endpoints.routes as routes
-		FROM proxy_endpoints, apis
-		WHERE proxy_endpoints.id = ?
-			AND proxy_endpoints.api_id = ?
-			AND proxy_endpoints.api_id = apis.id
-			AND apis.account_id = ?;`,
-		id, apiID, accountID)
+	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find"), id, apiID, accountID)
+	if err != nil {
+		return nil, err
+	}
 
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	return &proxyEndpoint, err
+}
+
+// FindProxyEndpoint returns the proxyEndpoint with the id specified.
+// This means it is only suitable for use in cases when we are in control of the id.
+func FindProxyEndpoint(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
+	proxyEndpoint := ProxyEndpoint{}
+	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find_id"), id)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +106,7 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
 func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	err := tx.DeleteOne(
-		`DELETE FROM proxy_endpoints
-		WHERE proxy_endpoints.id = ?
-			AND proxy_endpoints.api_id IN
-					(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
-		id, apiID, accountID)
+	err := tx.DeleteOne(tx.SQL("proxy_endpoints/delete"), id, apiID, accountID)
 	if err != nil {
 		return err
 	}
@@ -146,14 +119,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	e.ID, err = tx.InsertOne(
-		`INSERT INTO proxy_endpoints
-			(api_id, name, description, endpoint_group_id, environment_id,
-			 active, cors_enabled, cors_allow_override, routes)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),
-			?, ?,(SELECT id FROM endpoint_groups WHERE id = ? AND api_id = ?),
-			(SELECT id FROM environments WHERE id = ? AND api_id = ?),
-			?, ?, ?, ?)`,
+	e.ID, err = tx.InsertOne(tx.SQL("proxy_endpoints/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, e.CORSAllowOverride, string(routes))
 	if err != nil {
@@ -176,22 +142,7 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	err = tx.UpdateOne(
-		`UPDATE proxy_endpoints
-		SET
-			name = ?,
-			description = ?,
-			endpoint_group_id =
-				(SELECT id FROM endpoint_groups WHERE id = ? AND api_id = ?),
-			environment_id =
-				(SELECT id FROM environments WHERE id = ? AND api_id = ?),
-			active = ?,
-			cors_enabled = ?,
-			cors_allow_override = ?,
-			routes = ?
-		WHERE proxy_endpoints.id = ?
-			AND proxy_endpoints.api_id IN
-					(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
+	err = tx.UpdateOne(tx.SQL("proxy_endpoints/update"),
 		e.Name, e.Description,
 		e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID,
