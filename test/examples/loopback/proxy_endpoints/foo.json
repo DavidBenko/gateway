@@ -17,7 +17,7 @@
         "type": "js",
         "conditional": "",
         "conditional_positive": true,
-        "data": <%= script("bar.js") %>
+        "data": <%= script("foo.js") %>
       }
     ]
   }

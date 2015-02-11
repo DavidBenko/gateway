@@ -114,13 +114,11 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		return aphttp.NewServerError(err)
 	}
 
-	for _, component := range proxyEndpoint.Components {
-		if err = s.runComponent(vm, component); err != nil {
-			return aphttp.NewServerError(err)
-		}
+	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+		return aphttp.NewServerError(err)
 	}
 
-	responseObject, err := vm.Run("AP.log(response.body);response;")
+	responseObject, err := vm.Run("response;")
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -140,16 +138,58 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	return nil
 }
 
+func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpointComponent) error {
+	for _, c := range components {
+		if err := s.runComponent(vm, c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+	err := s.runTransformations(vm, component.BeforeTransformations)
+	if err != nil {
+		return err
+	}
+
 	switch component.Type {
 	case model.ProxyEndpointComponentTypeSingle:
-		return s.runCallComponent(vm, component)
+		err = s.runCallComponent(vm, component)
 	case model.ProxyEndpointComponentTypeMulti:
-		return s.runCallComponent(vm, component)
+		err = s.runCallComponent(vm, component)
 	case model.ProxyEndpointComponentTypeJS:
-		return s.runJSComponent(vm, component)
+		err = s.runJSComponent(vm, component)
+	default:
+		return fmt.Errorf("%s is not a valid component type", component.Type)
 	}
-	return fmt.Errorf("%s is not a valid component type", component.Type)
+	if err != nil {
+		return err
+	}
+
+	err = s.runTransformations(vm, component.AfterTransformations)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) runTransformations(vm *vm.ProxyVM,
+	transformations []*model.ProxyEndpointTransformation) error {
+
+	for _, t := range transformations {
+		switch t.Type {
+		case model.ProxyEndpointTransformationTypeJS:
+			if err := s.runJSTransformation(vm, t); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("%s is not a valid transformation type", t.Type)
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {

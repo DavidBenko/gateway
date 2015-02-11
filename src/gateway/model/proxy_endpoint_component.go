@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -33,6 +34,18 @@ func (c *ProxyEndpointComponent) Validate() Errors {
 	case ProxyEndpointComponentTypeJS:
 	default:
 		errors.add("type", "must be one of 'single', or 'multi', or 'js'")
+	}
+	for i, t := range c.BeforeTransformations {
+		tErrors := t.Validate()
+		if !tErrors.Empty() {
+			errors.add("before", fmt.Sprintf("%d is invalid: %v", i, tErrors))
+		}
+	}
+	for i, t := range c.AfterTransformations {
+		tErrors := t.Validate()
+		if !tErrors.Empty() {
+			errors.add("after", fmt.Sprintf("%d is invalid: %v", i, tErrors))
+		}
 	}
 	return errors
 }

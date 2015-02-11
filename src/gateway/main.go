@@ -14,7 +14,7 @@ import (
 
 func main() {
 	// Setup logging
-	log.SetFlags(log.Ldate | log.Lmicroseconds | log.Llongfile)
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
 	log.SetOutput(os.Stdout)
 
 	// Parse configuration

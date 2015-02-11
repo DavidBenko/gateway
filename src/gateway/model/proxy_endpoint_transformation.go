@@ -24,6 +24,17 @@ type ProxyEndpointTransformation struct {
 	Data        types.JsonText `json:"data,omitempty"`
 }
 
+// Validate validates the model.
+func (t *ProxyEndpointTransformation) Validate() Errors {
+	errors := make(Errors)
+	switch t.Type {
+	case ProxyEndpointTransformationTypeJS:
+	default:
+		errors.add("type", "must be 'js'")
+	}
+	return errors
+}
+
 // AllProxyEndpointTransformationsForComponentIDsAndCallIDs returns all
 // transformations for a set of endpoint component.
 func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
