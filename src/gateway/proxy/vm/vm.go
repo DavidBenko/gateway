@@ -26,6 +26,7 @@ type ProxyVM struct {
 	requestID               string
 	ProxiedRequestsDuration time.Duration
 
+	/* TODO: Do both of the following get removed? */
 	scripts           map[string]*otto.Script
 	includedLibraries []string
 
@@ -87,14 +88,22 @@ func NewVM(
 	// vm.Set("include", vm.includeLibrary)         /* include all by default? */
 	vm.Set("__ap_makeRequests", vm.makeRequests) /* TODO: remove prols */
 
-	for _, script := range scripts {
-		_, err := vm.Run(script)
-		if err != nil {
-			return nil, err
-		}
+	if _, err := vm.RunAll(scripts); err != nil {
+		return nil, err
 	}
 
 	return vm, nil
+}
+
+// RunAll runs all the given scripts
+func (p *ProxyVM) RunAll(scripts []interface{}) (value otto.Value, err error) {
+	for _, script := range scripts {
+		value, err = p.Run(script)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {

@@ -7,6 +7,12 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
+const (
+	ProxyEndpointTransformationTypeJS = "js"
+)
+
+/* TODO: Add validation of Type */
+
 // ProxyEndpointTransformation describes a transformation around a proxy call.
 type ProxyEndpointTransformation struct {
 	ID          int64          `json:"id"`

@@ -24,6 +24,19 @@ type ProxyEndpointComponent struct {
 	Data                  types.JsonText                 `json:"data,omitempty"`
 }
 
+// Validate validates the model.
+func (c *ProxyEndpointComponent) Validate() Errors {
+	errors := make(Errors)
+	switch c.Type {
+	case ProxyEndpointComponentTypeSingle:
+	case ProxyEndpointComponentTypeMulti:
+	case ProxyEndpointComponentTypeJS:
+	default:
+		errors.add("type", "must be one of 'single', or 'multi', or 'js'")
+	}
+	return errors
+}
+
 // AllProxyEndpointsForAPIIDAndAccountID returns all components of an endpoint.
 func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}

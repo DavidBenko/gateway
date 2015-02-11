@@ -42,6 +42,12 @@ func (e *ProxyEndpoint) Validate() Errors {
 			}
 		}
 	}
+	for i, c := range e.Components {
+		cErrors := c.Validate()
+		if !cErrors.Empty() {
+			errors.add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
+		}
+	}
 	return errors
 }
 

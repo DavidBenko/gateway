@@ -95,49 +95,61 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, proxyEndpoint.Name)
 
-	// incomingJSON, err := proxyRequestJSON(r, match.Vars)
-	// if err != nil {
-	// 	return aphttp.NewServerError(err)
-	// }
-	//
-	// handleScript := fmt.Sprintf("App.handle(JSON.parse(__ap_proxyRequestJSON), %s);", controller)
-	//
-	// var scripts = []interface{}{
-	// 	s.scripts["app"], // FIXME Ensure existance & check validity in setup
-	// 	endpoint,
-	// 	handleScript,
-	// }
-	//
-	// vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.scripts)
-	// if err != nil {
-	// 	return aphttp.NewServerError(err)
-	// }
-	//
-	// vm.Set("__ap_proxyRequestJSON", incomingJSON)
-	//
-	// var result otto.Value
-	// for _, script := range scripts {
-	// 	var err error
-	// 	result, err = vm.Run(script)
-	// 	if err != nil {
-	// 		return aphttp.NewServerError(err)
-	// 	}
-	// }
-	//
-	// responseJSON, err := s.objectJSON(vm, result)
-	// if err != nil {
-	// 	return aphttp.NewServerError(err)
-	// }
-	// response, err := proxyResponseFromJSON(responseJSON)
-	// if err != nil {
-	// 	return aphttp.NewServerError(err)
-	// }
-	// proxiedRequestsDuration = vm.ProxiedRequestsDuration
-	//
-	// aphttp.AddHeaders(w.Header(), response.Headers)
-	// w.WriteHeader(response.StatusCode)
-	// w.Write([]byte(response.Body))
+	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, nil)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+
+	/* TODO: Let's see if we can bind the request in directly? */
+	incomingJSON, err := proxyRequestJSON(r, match.Vars)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+	vm.Set("__ap_proxyRequestJSON", incomingJSON)
+	scripts := []interface{}{
+		"var request = JSON.parse(__ap_proxyRequestJSON);",
+		"var response = new AP.HTTP.Response();",
+	}
+	if _, err := vm.RunAll(scripts); err != nil {
+		return aphttp.NewServerError(err)
+	}
+
+	for _, component := range proxyEndpoint.Components {
+		if err = s.runComponent(vm, component); err != nil {
+			return aphttp.NewServerError(err)
+		}
+	}
+
+	responseObject, err := vm.Run("AP.log(response.body);response;")
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+	responseJSON, err := s.objectJSON(vm, responseObject)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+	response, err := proxyResponseFromJSON(responseJSON)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+	proxiedRequestsDuration = vm.ProxiedRequestsDuration
+
+	aphttp.AddHeaders(w.Header(), response.Headers)
+	w.WriteHeader(response.StatusCode)
+	w.Write([]byte(response.Body))
 	return nil
+}
+
+func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+	switch component.Type {
+	case model.ProxyEndpointComponentTypeSingle:
+		return s.runCallComponent(vm, component)
+	case model.ProxyEndpointComponentTypeMulti:
+		return s.runCallComponent(vm, component)
+	case model.ProxyEndpointComponentTypeJS:
+		return s.runJSComponent(vm, component)
+	}
+	return fmt.Errorf("%s is not a valid component type", component.Type)
 }
 
 func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
