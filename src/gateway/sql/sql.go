@@ -71,11 +71,13 @@ func Connect(conf config.Database) (*DB, error) {
 
 	db := DB{sqlxDB, driver, []Listener{}, sync.RWMutex{}}
 
-	if conf.Driver == Sqlite3 {
+	switch conf.Driver {
+	case Sqlite3:
+		// Foreign key support is disabled by default
 		db.Exec("PRAGMA foreign_keys = ON;")
-	}
 
-	if conf.Driver == Postgres {
+	case Postgres:
+		// We use Postgres' NOTIFY to update state in a cluster
 		db.startListening(conf)
 	}
 
