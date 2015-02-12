@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 	"time"
 
 	"os"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	// Setup logging
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
 	log.SetOutput(os.Stdout)
