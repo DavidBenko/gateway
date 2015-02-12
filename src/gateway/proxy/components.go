@@ -22,7 +22,7 @@ func (s *Server) evaluateComponentConditional(vm *vm.ProxyVM, component *model.P
 
 func (s *Server) runJSComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
 	script, err := strconv.Unquote(string(component.Data))
-	if err != nil {
+	if err != nil || script == "" {
 		return err
 	}
 	_, err = vm.Run(script)
