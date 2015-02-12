@@ -148,18 +148,26 @@ func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpoint
 }
 
 func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
-	err := s.runTransformations(vm, component.BeforeTransformations)
+	run, err := s.evaluateComponentConditional(vm, component)
+	if err != nil {
+		return err
+	}
+	if !run {
+		return nil
+	}
+
+	err = s.runTransformations(vm, component.BeforeTransformations)
 	if err != nil {
 		return err
 	}
 
 	switch component.Type {
 	case model.ProxyEndpointComponentTypeSingle:
-		err = s.runCallComponent(vm, component)
+		err = s.runCallComponentCore(vm, component)
 	case model.ProxyEndpointComponentTypeMulti:
-		err = s.runCallComponent(vm, component)
+		err = s.runCallComponentCore(vm, component)
 	case model.ProxyEndpointComponentTypeJS:
-		err = s.runJSComponent(vm, component)
+		err = s.runJSComponentCore(vm, component)
 	default:
 		return fmt.Errorf("%s is not a valid component type", component.Type)
 	}
