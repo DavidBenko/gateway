@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
 )
 
@@ -88,7 +89,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		return aphttp.NewServerError(err)
 	}
 
-	proxyEndpoint, err := model.FindProxyEndpoint(s.db, proxyEndpointID)
+	proxyEndpoint, err := model.FindProxyEndpointForProxy(s.db, proxyEndpointID)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -138,68 +139,6 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	return nil
 }
 
-func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpointComponent) error {
-	for _, c := range components {
-		if err := s.runComponent(vm, c); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
-	run, err := s.evaluateComponentConditional(vm, component)
-	if err != nil {
-		return err
-	}
-	if !run {
-		return nil
-	}
-
-	err = s.runTransformations(vm, component.BeforeTransformations)
-	if err != nil {
-		return err
-	}
-
-	switch component.Type {
-	case model.ProxyEndpointComponentTypeSingle:
-		err = s.runCallComponentCore(vm, component)
-	case model.ProxyEndpointComponentTypeMulti:
-		err = s.runCallComponentCore(vm, component)
-	case model.ProxyEndpointComponentTypeJS:
-		err = s.runJSComponentCore(vm, component)
-	default:
-		return fmt.Errorf("%s is not a valid component type", component.Type)
-	}
-	if err != nil {
-		return err
-	}
-
-	err = s.runTransformations(vm, component.AfterTransformations)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Server) runTransformations(vm *vm.ProxyVM,
-	transformations []*model.ProxyEndpointTransformation) error {
-
-	for _, t := range transformations {
-		switch t.Type {
-		case model.ProxyEndpointTransformationTypeJS:
-			if err := s.runJSTransformation(vm, t); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("%s is not a valid transformation type", t.Type)
-		}
-	}
-
-	return nil
-}
-
 func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
 	jsJSON, err := vm.Object("JSON")
 	if err != nil {
@@ -217,4 +156,13 @@ func accessLoggingNotFoundHandler() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 		}))
+}
+
+func (s *Server) runStoredJSONScript(vm *vm.ProxyVM, jsonScript types.JsonText) error {
+	script, err := strconv.Unquote(string(jsonScript))
+	if err != nil || script == "" {
+		return err
+	}
+	_, err = vm.Run(script)
+	return err
 }

@@ -17,6 +17,9 @@ type RemoteEndpoint struct {
 	Description     string                           `json:"description"`
 	Type            string                           `json:"type"`
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
+
+	// SelectedEnvironmentData is used in proxy to cache specific env data for execution
+	SelectedEnvironmentData types.JsonText `json:"-" db:"data"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
@@ -52,6 +55,33 @@ func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) Errors {
 // AllRemoteEndpointsForAPIIDAndAccountID returns all remoteEndpoints on the Account's API in default order.
 func AllRemoteEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	return _remoteEndpoints(db, 0, apiID, accountID)
+}
+
+// AllRemoteEndpointsForIDsInEnvironment returns all remoteEndpoints with id specified,
+// populated with environment data
+func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmentID int64) ([]*RemoteEndpoint, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	idQuery := apsql.NQs(len(ids))
+	query := `SELECT
+		remote_endpoints.id as id,
+		remote_endpoints.name as name,
+		remote_endpoints.type as type,
+		remote_endpoint_environment_data.data as data
+	FROM remote_endpoints, remote_endpoint_environment_data
+	WHERE remote_endpoints.id IN (` + idQuery + `)
+	  AND remote_endpoints.id == remote_endpoint_environment_data.remote_endpoint_id
+		AND rmeote_endpoint_environment_data.environment_id = ?`
+	args := []interface{}{}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	args = append(args, environmentID)
+	remoteEndpoints := []*RemoteEndpoint{}
+	err := db.Select(&remoteEndpoints, query, args...)
+	return remoteEndpoints, err
 }
 
 // FindRemoteEndpointForAPIIDAndAccountID returns the remoteEndpoint with the id, api id, and account_id specified.

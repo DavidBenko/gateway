@@ -50,6 +50,16 @@ func (c *ProxyEndpointComponent) Validate() Errors {
 	return errors
 }
 
+// AllCalls provides a common interface to iterate through single and multi-call
+// components' calls.
+func (c *ProxyEndpointComponent) AllCalls() []*ProxyEndpointCall {
+	if c.Type == ProxyEndpointComponentTypeSingle {
+		return []*ProxyEndpointCall{c.Call}
+	}
+
+	return c.Calls
+}
+
 // AllProxyEndpointsForAPIIDAndAccountID returns all components of an endpoint.
 func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}

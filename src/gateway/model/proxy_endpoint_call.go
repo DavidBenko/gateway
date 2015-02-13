@@ -12,6 +12,9 @@ type ProxyEndpointCall struct {
 	Position              int64                          `json:"-"`
 	BeforeTransformations []*ProxyEndpointTransformation `json:"before,omitempty"`
 	AfterTransformations  []*ProxyEndpointTransformation `json:"after,omitempty"`
+
+	// RemoteEndpoint is used in proxy to cache remote endpoint data for execution
+	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
 
 // AllProxyEndpointCallsForEndpointID returns all calls of a set of endpoint component.
@@ -94,7 +97,7 @@ func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
 	position int) error {
 	err := tx.UpdateOne(
 		`UPDATE proxy_endpoint_calls
-		SET 
+		SET
 			remote_endpoint_id =
 				(SELECT id FROM remote_endpoints WHERE id = ? AND api_id = ?),
 			endpoint_name_override = ?,

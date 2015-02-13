@@ -97,9 +97,9 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 	return &proxyEndpoint, err
 }
 
-// FindProxyEndpoint returns the proxyEndpoint with the id specified.
-// This means it is only suitable for use in cases when we are in control of the id.
-func FindProxyEndpoint(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
+// FindProxyEndpointForProxy returns the proxyEndpoint with the id specified;
+// it includes all relationships.
+func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint := ProxyEndpoint{}
 	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find_id"), id)
 	if err != nil {
@@ -107,6 +107,29 @@ func FindProxyEndpoint(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	}
 
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	var remoteEndpointIDs []int64
+	callsByRemoteEndpointID := make(map[int64][]*ProxyEndpointCall)
+	for _, component := range proxyEndpoint.Components {
+		for _, call := range component.AllCalls() {
+			remoteEndpointIDs = append(remoteEndpointIDs, call.RemoteEndpointID)
+			callsByRemoteEndpointID[call.RemoteEndpointID] = append(callsByRemoteEndpointID[call.RemoteEndpointID], call)
+		}
+	}
+	remoteEndpoints, err := AllRemoteEndpointsForIDsInEnvironment(db,
+		remoteEndpointIDs, proxyEndpoint.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	for _, remoteEndpoint := range remoteEndpoints {
+		for _, call := range callsByRemoteEndpointID[remoteEndpoint.ID] {
+			call.RemoteEndpoint = remoteEndpoint
+		}
+	}
+
 	return &proxyEndpoint, err
 }
 
