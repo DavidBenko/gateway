@@ -12,14 +12,16 @@ type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
 	APIID     int64 `json:"-" db:"api_id"`
 
-	ID              int64                            `json:"id"`
-	Name            string                           `json:"name"`
-	Description     string                           `json:"description"`
-	Type            string                           `json:"type"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Type        string `json:"type"`
+
+	Data            types.JsonText                   `json:"data" db:"data"`
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
 
 	// SelectedEnvironmentData is used in proxy to cache specific env data for execution
-	SelectedEnvironmentData types.JsonText `json:"-" db:"data"`
+	SelectedEnvironmentData types.JsonText `json:"-" db:"selected_env_data"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
@@ -27,6 +29,12 @@ type RemoteEndpointEnvironmentData struct {
 	RemoteEndpointID int64          `json:"-" db:"remote_endpoint_id"`
 	EnvironmentID    int64          `json:"environment_id" db:"environment_id"`
 	Data             types.JsonText `json:"data"`
+}
+
+// HTTPRemoteEndpointData contains the specific data for am HTTP RemoteEndpoint
+type HTTPRemoteEndpointData struct {
+	Method string `json:"method"`
+	URL    string `json:"url"`
 }
 
 // Validate validates the model.
@@ -69,7 +77,8 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.id as id,
 		remote_endpoints.name as name,
 		remote_endpoints.type as type,
-		remote_endpoint_environment_data.data as data
+		remote_endpoints.data as data,
+		remote_endpoint_environment_data.data as selected_env_data
 	FROM remote_endpoints, remote_endpoint_environment_data
 	WHERE remote_endpoints.id IN (` + idQuery + `)
 	  AND remote_endpoints.id == remote_endpoint_environment_data.remote_endpoint_id
@@ -101,7 +110,8 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	  remote_endpoints.id as id,
 	  remote_endpoints.name as name,
 	  remote_endpoints.description as description,
-	  remote_endpoints.type as type
+	  remote_endpoints.type as type,
+		remote_endpoints.data as data
 	FROM remote_endpoints, apis
 	WHERE `
 	args := []interface{}{}
@@ -172,11 +182,14 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
-	var err error
+	encodedData, err := e.Data.MarshalJSON()
+	if err != nil {
+		return err
+	}
 	e.ID, err = tx.InsertOne(
-		`INSERT INTO remote_endpoints (api_id, name, description, type)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?)`,
-		e.APIID, e.AccountID, e.Name, e.Description, e.Type)
+		`INSERT INTO remote_endpoints (api_id, name, description, type, data)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?)`,
+		e.APIID, e.AccountID, e.Name, e.Description, e.Type, encodedData)
 	if err != nil {
 		return err
 	}
@@ -196,13 +209,17 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
-	err := tx.UpdateOne(
+	encodedData, err := e.Data.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
-		SET name = ?, description = ?
+		SET name = ?, description = ?, data = ?
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
-		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Description, encodedData, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
