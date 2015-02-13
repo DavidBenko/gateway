@@ -10,7 +10,7 @@ import (
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
 type ProxyEndpoint struct {
 	AccountID       int64  `json:"-"`
-	APIID           int64  `json:"-" db:"api_id"`
+	APIID           int64  `json:"api_id" db:"api_id"`
 	EndpointGroupID *int64 `json:"endpoint_group_id" db:"endpoint_group_id"`
 	EnvironmentID   int64  `json:"environment_id" db:"environment_id"`
 

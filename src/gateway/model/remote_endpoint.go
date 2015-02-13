@@ -10,7 +10,7 @@ import (
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
-	APIID     int64 `json:"-" db:"api_id"`
+	APIID     int64 `json:"api_id" db:"api_id"`
 
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
@@ -74,6 +74,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 
 	idQuery := apsql.NQs(len(ids))
 	query := `SELECT
+		remote_endpoints.api_id as api_id,
 		remote_endpoints.id as id,
 		remote_endpoints.name as name,
 		remote_endpoints.type as type,
@@ -107,6 +108,7 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 
 func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	query := `SELECT
+		remote_endpoints.api_id as api_id,
 	  remote_endpoints.id as id,
 	  remote_endpoints.name as name,
 	  remote_endpoints.description as description,
