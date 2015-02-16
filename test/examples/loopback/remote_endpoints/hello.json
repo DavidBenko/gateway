@@ -1,0 +1,10 @@
+{
+    "remote_endpoint": {
+        "name": "hello",
+        "description": "world",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:5000"
+        }
+    }
+}

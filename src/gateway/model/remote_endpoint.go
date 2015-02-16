@@ -21,7 +21,7 @@ type RemoteEndpoint struct {
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
 
 	// SelectedEnvironmentData is used in proxy to cache specific env data for execution
-	SelectedEnvironmentData types.JsonText `json:"-" db:"selected_env_data"`
+	SelectedEnvironmentData *types.JsonText `json:"-" db:"selected_env_data"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
@@ -80,15 +80,15 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.type as type,
 		remote_endpoints.data as data,
 		remote_endpoint_environment_data.data as selected_env_data
-	FROM remote_endpoints, remote_endpoint_environment_data
-	WHERE remote_endpoints.id IN (` + idQuery + `)
-	  AND remote_endpoints.id == remote_endpoint_environment_data.remote_endpoint_id
-		AND rmeote_endpoint_environment_data.environment_id = ?`
-	args := []interface{}{}
+	FROM remote_endpoints
+	LEFT JOIN remote_endpoint_environment_data
+		ON remote_endpoints.id == remote_endpoint_environment_data.remote_endpoint_id
+	 AND remote_endpoint_environment_data.environment_id = ?
+	WHERE remote_endpoints.id IN (` + idQuery + `);`
+	args := []interface{}{environmentID}
 	for _, id := range ids {
 		args = append(args, id)
 	}
-	args = append(args, environmentID)
 	remoteEndpoints := []*RemoteEndpoint{}
 	err := db.Select(&remoteEndpoints, query, args...)
 	return remoteEndpoints, err

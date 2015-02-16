@@ -1,6 +1,9 @@
 package model
 
-import apsql "gateway/sql"
+import (
+	"errors"
+	apsql "gateway/sql"
+)
 
 type ProxyEndpointCall struct {
 	ID                    int64                          `json:"id"`
@@ -147,4 +150,15 @@ func (c *ProxyEndpointCall) Update(tx *apsql.Tx, componentID, apiID int64,
 	}
 
 	return nil
+}
+
+func (c *ProxyEndpointCall) Name() (string, error) {
+	name := c.EndpointNameOverride
+	if name == "" {
+		if c.RemoteEndpoint == nil {
+			return name, errors.New("Remote endpoint is not loaded.")
+		}
+		name = c.RemoteEndpoint.Name
+	}
+	return name, nil
 }

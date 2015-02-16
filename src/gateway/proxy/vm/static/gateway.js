@@ -51,6 +51,28 @@ AP.makeRequests = function(requests) {
   return JSON.parse(rawResponse);
 }
 
+AP.prepareRequests = function() {
+  var requests = [];
+  var numCalls = arguments.length;
+  for (var i = 0; i < numCalls; i++) {
+    var call = arguments[i];
+    if (!call.request) {
+      requests.push(request);
+    } else {
+      requests.push(call.request);
+    }
+  }
+  return JSON.stringify(requests);
+}
+
+AP.insertResponses = function(calls, responses) {
+  var numCalls = calls.length;
+  for (var i = 0; i < numCalls; i++) {
+    var call = calls[i];
+    call.response = responses[i];
+  }
+}
+
 AP.Gateway = function() {
 	this.middleware = [];
 }

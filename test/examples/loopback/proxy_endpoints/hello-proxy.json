@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Hello Proxy",
+    "description": "Everything starts somewhere.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/proxy"
+      }
+    ],
+    "components": [
+      {
+        "type": "single",
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/hello.json"] %>
+        }
+      }
+    ]
+  }
+}

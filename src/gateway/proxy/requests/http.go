@@ -16,6 +16,7 @@ type HTTPRequest struct {
 	URL     string                 `json:"url"`
 	Body    string                 `json:"body"`
 	Headers map[string]interface{} `json:"headers"`
+	Query   map[string]interface{} `json:"query"`
 }
 
 // HTTPResponse encapsulates a response from an HTTPRequest.
