@@ -133,6 +133,9 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	}
 	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
+	if s.proxyConf.RequestIDHeader != "" {
+		response.Headers[s.proxyConf.RequestIDHeader] = requestID
+	}
 	aphttp.AddHeaders(w.Header(), response.Headers)
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
