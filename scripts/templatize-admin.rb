@@ -1,8 +1,5 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
-require 'uri'
-
 meta = /<meta name="([^"]*)" content="([^"]*)" \/>/
 
 path = ARGV[0]
