@@ -48,12 +48,6 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 	}
 
 	funcs := template.FuncMap{
-		"baseHref": func() string {
-			if conf.PathPrefix == "" {
-				return "/"
-			}
-			return conf.PathPrefix
-		},
 		"replacePath": func(input string) string {
 			return pathRegex.ReplaceAllStringFunc(input, func(string) string {
 				if conf.PathPrefix == "" {
