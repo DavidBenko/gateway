@@ -14,7 +14,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var pathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
+var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
+var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
 
 func adminStaticFileHandler(conf config.ProxyAdmin) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -49,12 +50,19 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 
 	funcs := template.FuncMap{
 		"replacePath": func(input string) string {
-			return pathRegex.ReplaceAllStringFunc(input, func(string) string {
+			input = slashPathRegex.ReplaceAllStringFunc(input, func(string) string {
 				if conf.PathPrefix == "" {
 					return ""
 				}
 
 				return strings.TrimRight(conf.PathPrefix, "/")
+			})
+			return pathRegex.ReplaceAllStringFunc(input, func(string) string {
+				if conf.PathPrefix == "" {
+					return ""
+				}
+
+				return strings.TrimLeft(strings.TrimRight(conf.PathPrefix, "/"), "/")
 			})
 		},
 	}
