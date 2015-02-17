@@ -1,0 +1,4 @@
+[submodule "admin"]
+	path = admin
+	url = git@github.com:AnyPresence/gateway-ui.git
+	branch = feature-build-config

@@ -10,9 +10,11 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
+# TODO: For eventual real deployment builds, we need a new keypair
+LICENSE_PUBLIC_KEY := test/dev_public_key_assets
+	
 ifneq ($(MAKECMDGOALS), package)
 	BINDATA_DEBUG = -debug
-	LICENSE_PUBLIC_KEY = test/dev_public_key_assets
 endif
 
 ifdef TDDIUM_DB_NAME
@@ -25,13 +27,8 @@ endif
 default: run
 
 admin:
-	# cd admin; ember build -output-path ../src/gateway/admin/static/
-	# Placeholder:
-	mkdir -p src/gateway/admin/static/js
-	mkdir -p src/gateway/admin/static/css
-	echo "<html></html>" > src/gateway/admin/static/index.html
-	echo "body { color: black; }" > src/gateway/admin/static/css/style.css
-	echo "function foo(){}" > src/gateway/admin/static/js/app.js
+	cd admin; ember build -output-path ../src/gateway/admin/static/ --environment production-embedded
+	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
 assets: install_bindata
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
@@ -42,14 +39,18 @@ assets: install_bindata
 generate: install_goimports
 	go generate gateway/...
 	
-build: vet admin assets generate
+build: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
-	
+
+package: vet admin assets generate
+	go build -o ./build/gateway ./src/gateway/main.go
+		
 keygen:
 	go build -o ./bin/keygen keygen
 
-package: vet assets
-	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
+# Prior package for building for multiple architectures	
+# package: vet assets
+# 	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
 
 jsdoc:
 	jsdoc -c ./jsdoc.conf -r
