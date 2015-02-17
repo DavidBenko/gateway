@@ -50,20 +50,18 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 
 	funcs := template.FuncMap{
 		"replacePath": func(input string) string {
-			input = slashPathRegex.ReplaceAllStringFunc(input, func(string) string {
-				if conf.PathPrefix == "" {
-					return ""
+			pathReplacer := func(path string) func(string) string {
+				return func(string) string {
+					if conf.PathPrefix == "" {
+						return ""
+					}
+					return path
 				}
-
-				return strings.TrimRight(conf.PathPrefix, "/")
-			})
-			return pathRegex.ReplaceAllStringFunc(input, func(string) string {
-				if conf.PathPrefix == "" {
-					return ""
-				}
-
-				return strings.TrimLeft(strings.TrimRight(conf.PathPrefix, "/"), "/")
-			})
+			}
+			rightless := strings.TrimRight(conf.PathPrefix, "/")
+			clean := strings.TrimLeft(rightless, "/")
+			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
+			return pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
 		},
 	}
 
