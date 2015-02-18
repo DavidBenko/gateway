@@ -13,12 +13,9 @@ AP.HTTP = AP.HTTP || {};
  *
  * @class
  * @constructor
- * @param [request] - An incoming request to copy the method, headers, and body.
+ * @param [request] - An incoming request to copy the method, query, headers, and body.
  */
 AP.HTTP.Request = function() {
-  /** @private */
-  this.__ap_type = "HTTP";
-
   /**
    * The HTTP method to use.
    * @type {string}
@@ -26,16 +23,16 @@ AP.HTTP.Request = function() {
   this.method = "GET";
 
   /**
-   * The URL to request.
-   * @type {string}
-   */
-  this.url = null;
-
-  /**
    * The body of the request.
    * @type {string}
    */
   this.body = null;
+
+  /**
+   * The request's query parameters.
+   * @type {Object.<string,string>}
+   */
+  this.query = {};
 
   /**
    * The request's headers.
@@ -45,9 +42,10 @@ AP.HTTP.Request = function() {
 
   if (arguments.length == 1) {
     var request = arguments[0];
-    this.method = request.method;
-    this.headers = request.headers;
-    this.body = request.body;
+    this.method = _.clone(request.method);
+    this.query = _.clone(request.query);
+    this.headers = _.clone(request.headers);
+    this.body = _.clone(request.body);
   }
 }
 
