@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gateway/model"
 	"gateway/proxy/requests"
@@ -147,23 +148,22 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 	}
 	requestsJSON := requestsObject.String()
 
-	var proxiedRequests []*requests.HTTPRequest
-	err = json.Unmarshal([]byte(requestsJSON), &proxiedRequests)
+	var requestData []*json.RawMessage
+	err = json.Unmarshal([]byte(requestsJSON), &requestData)
 	if err != nil {
 		return err
 	}
 
-	/* TODO: Fully integrate with remote endpoint data */
 	var abstractedRequests []requests.Request
-	for i, request := range proxiedRequests {
-		/* TODO: Key off type; change JS to return []string & do multiple JSON decodes */
-		remoteEndpoint := activeCalls[i].RemoteEndpoint
-		var data model.HTTPRemoteEndpointData
-		err = remoteEndpoint.Data.Unmarshal(&data)
+	for i, call := range activeCalls {
+		remoteEndpoint := call.RemoteEndpoint
+		if remoteEndpoint == nil {
+			return errors.New("Remote endpoint is not loaded")
+		}
+		request, err := s.prepareRequest(remoteEndpoint, requestData[i])
 		if err != nil {
 			return err
 		}
-		request.URL = data.URL
 		abstractedRequests = append(abstractedRequests, request)
 	}
 

@@ -17,6 +17,12 @@
         "type": "single",
         "conditional": "request.query[\"test\"] == \"query\"",
         "conditional_positive": true,
+        "before": [
+            {  
+              "type": "js",
+              "data": "debugQuery.request = new AP.HTTP.Request();"
+            }
+        ],
         "call": {
           "remote_endpoint_id": <%= @ids["remote_endpoints/debug-query.json"] %>
         }

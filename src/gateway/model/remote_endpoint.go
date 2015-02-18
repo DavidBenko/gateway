@@ -7,6 +7,10 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
+const (
+	RemoteEndpointTypeHTTP = "http"
+)
+
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
@@ -43,7 +47,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 	if e.Name == "" {
 		errors.add("name", "must not be blank")
 	}
-	if e.Type != "http" {
+	if e.Type != RemoteEndpointTypeHTTP {
 		errors.add("type", "must be 'http'")
 	}
 	return errors

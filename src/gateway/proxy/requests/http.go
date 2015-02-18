@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	aphttp "gateway/http"
 )
@@ -16,7 +17,7 @@ type HTTPRequest struct {
 	URL     string                 `json:"url"`
 	Body    string                 `json:"body"`
 	Headers map[string]interface{} `json:"headers"`
-	Query   map[string]interface{} `json:"query"`
+	Query   map[string]string      `json:"query"`
 }
 
 // HTTPResponse encapsulates a response from an HTTPRequest.
@@ -33,11 +34,20 @@ func NewHTTPRequest(jsonReq string) (*HTTPRequest, error) {
 	return &req, err
 }
 
+// CompleteURL returns the full URL including query params
+func (h *HTTPRequest) CompleteURL() string {
+	params := url.Values{}
+	for k, v := range h.Query {
+		params.Add(k, v)
+	}
+	return fmt.Sprintf("%s?%s", h.URL, params.Encode())
+}
+
 // Perform executes the HTTP request and returns its response.
 func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 	body := bytes.NewReader([]byte(h.Body))
 
-	req, err := http.NewRequest(h.Method, h.URL, body)
+	req, err := http.NewRequest(h.Method, h.CompleteURL(), body)
 	if err != nil {
 		context := fmt.Errorf("Error creating request from %v: %v\n", h, err)
 		c <- responsePayload{index: index, response: NewErrorResponse(context)}
