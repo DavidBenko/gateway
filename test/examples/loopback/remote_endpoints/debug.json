@@ -1,0 +1,10 @@
+{
+    "remote_endpoint": {
+        "name": "debug",
+        "description": "basic debug screen",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:5000/debug"
+        }
+    }
+}

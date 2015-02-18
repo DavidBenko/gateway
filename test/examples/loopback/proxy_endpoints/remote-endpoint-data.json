@@ -1,0 +1,48 @@
+{
+  "proxy_endpoint": {
+    "name": "Remote Endpoint Data Test",
+    "description": "An endpoint to test remote endpoint data management.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/remote-test"
+      }
+    ],
+    "components": [
+      {
+        "type": "single",
+        "conditional": "request.query[\"test\"] == \"query\"",
+        "conditional_positive": true,
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/debug-query.json"] %>
+        }
+      },
+      {
+        "type": "single",
+        "conditional": "request.query[\"test\"] == \"headers\"",
+        "conditional_positive": true,
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/debug-headers.json"] %>
+        }
+      },
+      {
+        "type": "single",
+        "conditional": "request.query[\"test\"] == \"env\"",
+        "conditional_positive": true,
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/debug-env.json"] %>
+        }
+      },
+      {
+        "type": "js",
+        "conditional": "response.body == null;",
+        "conditional_positive": true,
+        "data": <%= script("remote-helper.js") %>
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+    "remote_endpoint": {
+        "name": "debugQuery",
+        "description": "Debug with additional query parameters",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:5000/debug",
+            "query": {
+                "foo": "bar",
+                "baz": "baf"
+            }
+        }
+    }
+}

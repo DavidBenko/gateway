@@ -1,0 +1,14 @@
+{
+    "remote_endpoint": {
+        "name": "debugHeaders",
+        "description": "Debug with additional headers",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:5000/debug",
+            "headers": {
+                "X-Pasta": "spaghetti",
+                "X-Addition": "meatballs"
+            }
+        }
+    }
+}

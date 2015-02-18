@@ -2,7 +2,7 @@ require_relative "./spec_helper"
 
 describe "hello-world.json" do
   before(:all) do
-    get "/"
+    get "/proxy"
   end
   
   it { expect_status(200) }

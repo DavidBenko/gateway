@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Debug",
+    "description": "This endpoint dumps the data contained in its incoming request.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET", "POST", "PUT", "HEAD", "OPTIONS"],
+        "path": "/debug"
+      }
+    ],
+    "components": [
+      {
+        "type": "js",
+        "conditional": "",
+        "conditional_positive": true,
+        "data": <%= script("debug.js") %>
+      }
+    ]
+  }
+}

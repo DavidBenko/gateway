@@ -1,0 +1,26 @@
+{
+    "remote_endpoint": {
+        "name": "debugEnv",
+        "description": "Debug with additional query parameters",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:5000/debug",
+            "query": {
+                "foo": "bar",
+                "baz": "baf"
+            }
+        },
+        "environment_data": [
+            {
+                "environment_id": <%= @ids["environments/development.json"] %>,
+                "data": {
+                    "url": "http://localhost:5000/debug",
+                    "query": {
+                        "foo": "doo",
+                        "dough": "nuts"
+                    }
+                }
+            }
+        ]
+    }
+}
