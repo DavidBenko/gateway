@@ -27,13 +27,6 @@ type HTTPResponse struct {
 	Headers    map[string]interface{} `json:"headers"`
 }
 
-// NewHTTPRequest decodes a JSON string and returns the request.
-func NewHTTPRequest(jsonReq string) (*HTTPRequest, error) {
-	req := HTTPRequest{}
-	err := json.Unmarshal([]byte(jsonReq), &req)
-	return &req, err
-}
-
 // CompleteURL returns the full URL including query params
 func (h *HTTPRequest) CompleteURL() string {
 	params := url.Values{}

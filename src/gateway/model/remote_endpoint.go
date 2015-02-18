@@ -35,12 +35,6 @@ type RemoteEndpointEnvironmentData struct {
 	Data             types.JsonText `json:"data"`
 }
 
-// HTTPRemoteEndpointData contains the specific data for am HTTP RemoteEndpoint
-type HTTPRemoteEndpointData struct {
-	Method string `json:"method"`
-	URL    string `json:"url"`
-}
-
 // Validate validates the model.
 func (e *RemoteEndpoint) Validate() Errors {
 	errors := make(Errors)

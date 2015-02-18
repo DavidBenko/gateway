@@ -1,7 +1,6 @@
 package requests
 
 import (
-	"fmt"
 	"gateway/config"
 	"log"
 	"time"
@@ -22,23 +21,6 @@ type Response interface {
 type responsePayload struct {
 	index    int
 	response Response
-}
-
-// RequestFromData unpacks a request specified by the data.
-func RequestFromData(requestData []string) (Request, error) {
-	if len(requestData) != 2 {
-		return nil, fmt.Errorf("Request data must have type and JSON data")
-	}
-
-	requestType := requestData[0]
-	requestJSON := requestData[1]
-
-	switch requestType {
-	case "HTTP":
-		return NewHTTPRequest(requestJSON)
-	default:
-		return nil, fmt.Errorf("The request type '%s' is not supported", requestType)
-	}
 }
 
 // MakeRequests makes the requests and returns all responses.
