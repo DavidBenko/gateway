@@ -141,7 +141,8 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 		activeCallNames = append(activeCallNames, name)
 	}
 
-	requestScript := "AP.prepareRequests(" + strings.Join(activeCallNames, ",") + ");"
+	requestScript := fmt.Sprintf("AP.prepareRequests(%s);",
+		strings.Join(activeCallNames, ","))
 	requestsObject, err := vm.Run(requestScript)
 	if err != nil {
 		return err
@@ -156,11 +157,10 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 
 	var abstractedRequests []requests.Request
 	for i, call := range activeCalls {
-		remoteEndpoint := call.RemoteEndpoint
-		if remoteEndpoint == nil {
+		if call.RemoteEndpoint == nil {
 			return errors.New("Remote endpoint is not loaded")
 		}
-		request, err := s.prepareRequest(remoteEndpoint, requestData[i])
+		request, err := s.prepareRequest(call.RemoteEndpoint, requestData[i])
 		if err != nil {
 			return err
 		}
