@@ -44,6 +44,13 @@ func AllLibrariesForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*
 	return libraries, err
 }
 
+// AllLibrariesForProxy returns all libraries on the API in default order.
+func AllLibrariesForProxy(db *apsql.DB, apiID int64) ([]*Library, error) {
+	libraries := []*Library{}
+	err := db.Select(&libraries, db.SQL("libraries/all_proxy"), apiID)
+	return libraries, err
+}
+
 // FindLibraryForAPIIDAndAccountID returns the library with the id, api id, and account_id specified.
 func FindLibraryForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Library, error) {
 	library := Library{}

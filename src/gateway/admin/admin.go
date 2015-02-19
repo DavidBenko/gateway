@@ -35,6 +35,7 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	RouteResource(&APIsController{}, "/apis", authAdmin, db, conf)
 	RouteResource(&HostsController{}, "/apis/{apiID}/hosts", authAdmin, db, conf)
 	RouteResource(&EnvironmentsController{}, "/apis/{apiID}/environments", authAdmin, db, conf)
+	RouteResource(&LibrariesController{}, "/apis/{apiID}/libraries", authAdmin, db, conf)
 	RouteResource(&EndpointGroupsController{}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
 	RouteResource(&RemoteEndpointsController{}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)

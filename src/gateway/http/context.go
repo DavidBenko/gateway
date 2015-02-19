@@ -7,6 +7,9 @@ const (
 	// ContextMatchKey is the key to use to store/retrieve the match data.
 	ContextMatchKey ContextKey = iota
 
+	// ContextAPIIDKey is the key to use to store the active API ID
+	ContextAPIIDKey
+
 	// ContextRequestIDKey is the key to use to store/retrieve the request ID.
 	ContextRequestIDKey
 )

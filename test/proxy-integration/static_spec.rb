@@ -8,3 +8,12 @@ describe "hello-world.json" do
   it { expect_status(200) }
   it { expect(body).to eq("Hello, world!\n")}
 end
+
+describe "library.json" do
+  before(:all) do
+    get "/library"
+  end
+  
+  it { expect_status(200) }
+  it { expect_json({library: true}) }
+end

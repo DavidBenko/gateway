@@ -74,6 +74,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	start := time.Now()
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
+	apiID := context.Get(r, aphttp.ContextAPIIDKey).(int64)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 
 	var proxiedRequestsDuration time.Duration
@@ -96,7 +97,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, proxyEndpoint.Name)
 
-	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, nil)
+	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.db, apiID)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

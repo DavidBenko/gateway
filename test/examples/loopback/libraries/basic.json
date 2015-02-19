@@ -1,0 +1,7 @@
+{
+    "library": {
+        "name": "Basic Library",
+        "description": "Does something, anything.",
+        "data": <%= script("basic-lib.js") %>
+    }
+}

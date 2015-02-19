@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Basic Library Test",
+    "description": "Static endpoint to test a little basic library.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/library"
+      }
+    ],
+    "components": [
+      {
+        "type": "js",
+        "conditional": "",
+        "conditional_positive": true,
+        "data": <%= script("basic-lib-endpoint.js") %>
+      }
+    ]
+  }
+}

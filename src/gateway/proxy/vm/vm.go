@@ -3,11 +3,15 @@ package vm
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gateway/config"
+	"gateway/model"
+	"gateway/sql"
 
 	"github.com/gorilla/sessions"
+	"github.com/jmoiron/sqlx/types"
 
 	"github.com/robertkrimen/otto"
 
@@ -22,10 +26,6 @@ type ProxyVM struct {
 	RequestID               string
 	ProxiedRequestsDuration time.Duration
 
-	/* TODO: Do both of the following get removed? */
-	scripts           map[string]*otto.Script
-	includedLibraries []string
-
 	w            http.ResponseWriter
 	r            *http.Request
 	sessionStore *sessions.CookieStore
@@ -37,8 +37,16 @@ func NewVM(
 	w http.ResponseWriter,
 	r *http.Request,
 	conf config.ProxyServer,
-	proxyScripts map[string]*otto.Script,
+	db *sql.DB,
+	apiID int64,
 ) (*ProxyVM, error) {
+
+	vm := &ProxyVM{
+		otto.New(),
+		conf, requestID, 0,
+		w, r,
+		nil,
+	}
 
 	var files = []string{
 		"gateway.js",
@@ -57,12 +65,18 @@ func NewVM(
 		scripts = append(scripts, fileJS)
 	}
 
-	vm := &ProxyVM{
-		otto.New(),
-		conf, requestID, 0,
-		proxyScripts, []string{},
-		w, r,
-		nil,
+	libraries, err := model.AllLibrariesForProxy(db, apiID)
+	if err != nil {
+		return nil, err
+	}
+	for _, library := range libraries {
+		libraryCode, err := scriptFromJSONScript(library.Data)
+		if err != nil {
+			return nil, err
+		}
+		if libraryCode != "" {
+			scripts = append(scripts, libraryCode)
+		}
 	}
 
 	/* FIXME: Need to move keys to Environment for multi-tenant, not config */
@@ -110,4 +124,17 @@ func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
 func runtimeError(err string) {
 	errValue, _ := otto.ToValue(err)
 	panic(errValue)
+}
+
+func (p *ProxyVM) runStoredJSONScript(jsonScript types.JsonText) error {
+	script, err := scriptFromJSONScript(jsonScript)
+	if err != nil || script == "" {
+		return err
+	}
+	_, err = p.Run(script)
+	return err
+}
+
+func scriptFromJSONScript(jsonScript types.JsonText) (string, error) {
+	return strconv.Unquote(string(jsonScript))
 }
