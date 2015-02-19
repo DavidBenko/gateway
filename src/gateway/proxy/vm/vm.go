@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -38,7 +39,7 @@ func NewVM(
 	r *http.Request,
 	conf config.ProxyServer,
 	db *sql.DB,
-	apiID int64,
+	proxyEndpoint *model.ProxyEndpoint,
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
@@ -65,7 +66,9 @@ func NewVM(
 		scripts = append(scripts, fileJS)
 	}
 
-	libraries, err := model.AllLibrariesForProxy(db, apiID)
+	libraries, err := model.AllLibrariesForProxy(db, proxyEndpoint.APIID)
+
+	fmt.Printf("api %d lib count %d", proxyEndpoint.APIID, len(libraries))
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +81,9 @@ func NewVM(
 			scripts = append(scripts, libraryCode)
 		}
 	}
+
+	injectEnvironment := fmt.Sprintf("var env = %s;", string(proxyEndpoint.Environment.Data))
+	scripts = append(scripts, injectEnvironment)
 
 	/* FIXME: Need to move keys to Environment for multi-tenant, not config */
 	if conf.AuthKey != "" {

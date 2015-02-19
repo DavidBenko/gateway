@@ -9,11 +9,21 @@ describe "hello-world.json" do
   it { expect(body).to eq("Hello, world!\n")}
 end
 
-describe "library.json" do
+describe "basic-library.json" do
   before(:all) do
     get "/library"
   end
   
   it { expect_status(200) }
   it { expect_json({library: true}) }
+end
+
+
+describe "env.json" do
+  before(:all) do
+    get "/env"
+  end
+  
+  it { expect_status(200) }
+  it { expect_json({env: { env: "dev"}}) }
 end

@@ -1,4 +1,5 @@
 SELECT
+  api_id,
   id,
   name,
   description,

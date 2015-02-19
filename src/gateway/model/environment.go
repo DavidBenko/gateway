@@ -51,6 +51,13 @@ func FindEnvironmentForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int6
 	return &environment, err
 }
 
+// FindEnvironmentForProxy returns the environment with the id specified.
+func FindEnvironmentForProxy(db *apsql.DB, id int64) (*Environment, error) {
+	environment := Environment{}
+	err := db.Get(&environment, db.SQL("environments/find_proxy"), id)
+	return &environment, err
+}
+
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
 func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	return tx.DeleteOne(tx.SQL("environments/delete"), id, apiID, accountID)

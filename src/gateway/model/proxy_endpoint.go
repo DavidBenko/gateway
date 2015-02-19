@@ -23,6 +23,9 @@ type ProxyEndpoint struct {
 	Routes            types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
+
+	// Environment is used in proxy to cache environment data for execution
+	Environment *Environment `json:"-"`
 }
 
 // Validate validates the model.
@@ -130,7 +133,12 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 		}
 	}
 
-	return &proxyEndpoint, err
+	proxyEndpoint.Environment, err = FindEnvironmentForProxy(db, proxyEndpoint.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proxyEndpoint, nil
 }
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
