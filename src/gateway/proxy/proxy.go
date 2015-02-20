@@ -137,7 +137,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 		response.Headers[s.proxyConf.RequestIDHeader] = requestID
 	}
 
-	response.Headers["Content-Length"] = fmt.Sprintf("%d", len(response.Body))
+	response.Headers["Content-Length"] = len(response.Body)
 	aphttp.AddHeaders(w.Header(), response.Headers)
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
