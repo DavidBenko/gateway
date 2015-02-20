@@ -38,6 +38,7 @@ type ProxyServer struct {
 	EncryptionKey string `flag:"proxy-session-encryption-key" default:""`
 
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
+	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

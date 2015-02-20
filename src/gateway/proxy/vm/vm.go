@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gateway/config"
@@ -68,7 +70,6 @@ func NewVM(
 
 	libraries, err := model.AllLibrariesForProxy(db, proxyEndpoint.APIID)
 
-	fmt.Printf("api %d lib count %d", proxyEndpoint.APIID, len(libraries))
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +85,9 @@ func NewVM(
 
 	injectEnvironment := fmt.Sprintf("var env = %s;", string(proxyEndpoint.Environment.Data))
 	scripts = append(scripts, injectEnvironment)
+	if conf.EnableOSEnv {
+		scripts = append(scripts, osEnvironmentScript())
+	}
 
 	/* FIXME: Need to move keys to Environment for multi-tenant, not config */
 	if conf.AuthKey != "" {
@@ -143,4 +147,17 @@ func (p *ProxyVM) runStoredJSONScript(jsonScript types.JsonText) error {
 
 func scriptFromJSONScript(jsonScript types.JsonText) (string, error) {
 	return strconv.Unquote(string(jsonScript))
+}
+
+func osEnvironmentScript() string {
+	var keypairs []string
+	for _, envPair := range os.Environ() {
+		kv := strings.Split(envPair, "=")
+		keypairs = append(keypairs, fmt.Sprintf("%s:%s",
+			strconv.Quote(kv[0]), strconv.Quote(kv[1])))
+	}
+
+	script := fmt.Sprintf("env = _.extend({%s}, env);",
+		strings.Join(keypairs, ",\n"))
+	return script
 }
