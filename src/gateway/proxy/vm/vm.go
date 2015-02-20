@@ -53,7 +53,6 @@ func NewVM(
 
 	var files = []string{
 		"gateway.js",
-		"environments.js",
 		"sessions.js",
 		"call.js",
 		"http/request.js",
@@ -98,9 +97,9 @@ func NewVM(
 		vm.sessionStore = sessions.NewCookieStore(sessionConfig...)
 	}
 
-	/* TODO: Bind to objects? & evaluate usage */
-	vm.Set("__ap_log", vm.log)                        /* log("foo") instead? */
-	vm.Set("__ap_environment_get", vm.environmentGet) /* env("key") instead? */
+	vm.Set("log", vm.log)
+
+	/* still TODO: Revisit sessions! */
 	vm.Set("__ap_session_get", vm.sessionGet)
 	vm.Set("__ap_session_set", vm.sessionSet)
 	vm.Set("__ap_session_is_set", vm.sessionIsSet)
