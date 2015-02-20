@@ -1,0 +1,30 @@
+{
+  "proxy_endpoint": {
+    "name": "Content Length",
+    "description": "An endpoint that doubles the response body to test content length changes.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/double"
+      }
+    ],
+    "components": [
+      {
+        "type": "single",
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/hello.json"] %>
+        },
+        "after": [
+            {
+                "type": "js",
+                "data": <%= script("double-body.js") %>
+            }
+        ]
+      }
+    ]
+  }
+}
