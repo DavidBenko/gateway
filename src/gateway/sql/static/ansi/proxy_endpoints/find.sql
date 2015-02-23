@@ -7,7 +7,6 @@ SELECT
   proxy_endpoints.environment_id as environment_id,
   proxy_endpoints.active as active,
   proxy_endpoints.cors_enabled as cors_enabled,
-  proxy_endpoints.cors_allow_override as cors_allow_override,
   proxy_endpoints.routes as routes
 FROM proxy_endpoints, apis
 WHERE proxy_endpoints.id = ?

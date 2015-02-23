@@ -14,13 +14,12 @@ type ProxyEndpoint struct {
 	EndpointGroupID *int64 `json:"endpoint_group_id" db:"endpoint_group_id"`
 	EnvironmentID   int64  `json:"environment_id" db:"environment_id"`
 
-	ID                int64          `json:"id"`
-	Name              string         `json:"name"`
-	Description       string         `json:"description"`
-	Active            bool           `json:"active"`
-	CORSEnabled       bool           `json:"cors_enabled,omitempty" db:"cors_enabled"`
-	CORSAllowOverride *string        `json:"cors_allow_override,omitempty" db:"cors_allow_override"`
-	Routes            types.JsonText `json:"routes,omitempty"`
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Active      bool           `json:"active"`
+	CORSEnabled bool           `json:"cors_enabled,omitempty" db:"cors_enabled"`
+	Routes      types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
 
@@ -158,7 +157,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 	}
 	e.ID, err = tx.InsertOne(tx.SQL("proxy_endpoints/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
-		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, e.CORSAllowOverride, string(routes))
+		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, string(routes))
 	if err != nil {
 		return err
 	}
@@ -183,7 +182,7 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		e.Name, e.Description,
 		e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID,
-		e.Active, e.CORSEnabled, e.CORSAllowOverride,
+		e.Active, e.CORSEnabled,
 		string(routes),
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {

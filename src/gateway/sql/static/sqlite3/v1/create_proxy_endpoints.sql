@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS `proxy_endpoints` (
   `description` TEXT,
   `active` BOOLEAN NOT NULL DEFAULT 1,
   `cors_enabled` BOOLEAN NOT NULL DEFAULT 1,
-  `cors_allow_override` TEXT,
   `routes` TEXT,
   UNIQUE (`api_id`, `name`) ON CONFLICT FAIL,
   FOREIGN KEY(`api_id`) REFERENCES `apis`(`id`) ON DELETE CASCADE,
