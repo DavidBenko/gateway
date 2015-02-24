@@ -86,6 +86,11 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
 	}()
 
+	// Let's set this really early so it's available even in error cases
+	if s.proxyConf.RequestIDHeader != "" {
+		w.Header().Set(s.proxyConf.RequestIDHeader, requestID)
+	}
+
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
 		return aphttp.NewServerError(err)
@@ -104,7 +109,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			return aphttp.NewServerError(err)
 		}
 		if !route.HandlesOptions() {
-			return s.corsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			return s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
 		}
 	}
 
@@ -145,8 +150,10 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	}
 	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
-	if s.proxyConf.RequestIDHeader != "" {
-		response.Headers[s.proxyConf.RequestIDHeader] = requestID
+	if proxyEndpoint.CORSEnabled {
+		if err := s.addCORSCommonHeaders(w, proxyEndpoint); err != nil {
+			return aphttp.NewServerError(err)
+		}
 	}
 
 	response.Headers["Content-Length"] = len(response.Body)
@@ -206,17 +213,26 @@ func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
 	return nil, errors.New("No route matched")
 }
 
-func (s *Server) corsHandlerFunc(w http.ResponseWriter, r *http.Request,
+func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute,
 	requestID string) aphttp.Error {
 
-	api, err := model.FindAPIForProxy(s.db, endpoint.APIID)
-	if err != nil {
+	if err := s.addCORSCommonHeaders(w, endpoint); err != nil {
 		return aphttp.NewServerError(err)
 	}
 
-	if s.proxyConf.RequestIDHeader != "" {
-		w.Header().Set(s.proxyConf.RequestIDHeader, requestID)
+	methods := route.Methods
+	methods = append(methods, "OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
+	return nil
+}
+
+func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
+	endpoint *model.ProxyEndpoint) error {
+
+	api, err := model.FindAPIForProxy(s.db, endpoint.APIID)
+	if err != nil {
+		return err
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", api.CORSAllowOrigin)
@@ -228,8 +244,5 @@ func (s *Server) corsHandlerFunc(w http.ResponseWriter, r *http.Request,
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 
-	methods := route.Methods
-	methods = append(methods, "OPTIONS")
-	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
 	return nil
 }
