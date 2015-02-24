@@ -26,3 +26,13 @@ func (r *ProxyEndpointRoute) Validate() Errors {
 	}
 	return errors
 }
+
+// HandlesOptions returns whether this route handles the OPTIONS method explicitly.
+func (r *ProxyEndpointRoute) HandlesOptions() bool {
+	for _, method := range r.Methods {
+		if method == "OPTIONS" {
+			return true
+		}
+	}
+	return false
+}

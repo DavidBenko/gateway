@@ -4,11 +4,15 @@ import apsql "gateway/sql"
 
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
-	AccountID   int64  `json:"-" db:"account_id"`
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CORSAllow   string `json:"cors_allow" db:"cors_allow"`
+	AccountID            int64  `json:"-" db:"account_id"`
+	ID                   int64  `json:"id"`
+	Name                 string `json:"name"`
+	Description          string `json:"description"`
+	CORSAllowOrigin      string `json:"cors_allow_origin" db:"cors_allow_origin"`
+	CORSAllowHeaders     string `json:"cors_allow_headers" db:"cors_allow_headers"`
+	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
+	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
+	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
 }
 
 // Validate validates the model.
@@ -17,8 +21,14 @@ func (a *API) Validate() Errors {
 	if a.Name == "" {
 		errors.add("name", "must not be blank")
 	}
-	if a.CORSAllow == "" {
-		errors.add("cors_allow", "must not be blank (use '*' for everything)")
+	if a.CORSAllowOrigin == "" {
+		errors.add("cors_allow_origin", "must not be blank (use '*' for everything)")
+	}
+	if a.CORSAllowHeaders == "" {
+		errors.add("cors_allow_headers", "must not be blank (use '*' for everything)")
+	}
+	if a.CORSRequestHeaders == "" {
+		errors.add("cors_request_headers", "must not be blank (use '*' for everything)")
 	}
 	return errors
 }
@@ -47,6 +57,13 @@ func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	return &api, err
 }
 
+// FindAPIForAccountID returns the api with the id specified.
+func FindAPIForProxy(db *apsql.DB, id int64) (*API, error) {
+	api := API{}
+	err := db.Get(&api, db.SQL("apis/find_proxy"), id)
+	return &api, err
+}
+
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
 func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 	err := tx.DeleteOne(tx.SQL("apis/delete"), id, accountID)
@@ -59,12 +76,15 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 // Insert inserts the api into the database as a new row.
 func (a *API) Insert(tx *apsql.Tx) (err error) {
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
-		a.AccountID, a.Name, a.Description, a.CORSAllow)
+		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
 	return
 }
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
 	return tx.UpdateOne(tx.SQL("apis/update"),
-		a.Name, a.Description, a.CORSAllow, a.ID, a.AccountID)
+		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
+		a.ID, a.AccountID)
 }

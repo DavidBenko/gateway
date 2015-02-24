@@ -2,6 +2,10 @@
   "api": {
     "name": "Loopback",
     "description": "A self contained Gateway example that uses itself as its own remote endpoints.",
-    "cors_allow": "*"
+    "cors_allow_origin": "*",
+    "cors_allow_headers": "content-type, accept",
+    "cors_allow_credentials": true,
+    "cors_request_headers": "*",
+    "cors_max_age": 600
   }
 }

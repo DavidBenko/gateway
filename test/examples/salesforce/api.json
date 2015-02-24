@@ -2,6 +2,10 @@
   "api": {
     "name": "Salesforce",
     "description": "An example that does SOAP with the Salesforce API.",
-    "cors_allow": "*"
+    "cors_allow_origin": "*",
+    "cors_allow_headers": "content-type, accept",
+    "cors_allow_credentials": true,
+    "cors_request_headers": "*",
+    "cors_max_age": 600
   }
 }

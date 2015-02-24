@@ -157,7 +157,12 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) e
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(endpoint.ID, 10))
 		route.Path(proxyRoute.Path)
-		route.Methods(proxyRoute.Methods...)
+
+		methods := proxyRoute.Methods
+		if endpoint.CORSEnabled && !proxyRoute.HandlesOptions() {
+			methods = append(methods, "OPTIONS")
+		}
+		route.Methods(methods...)
 	}
 
 	return nil

@@ -1,10 +1,12 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"gateway/admin"
@@ -96,6 +98,16 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, proxyEndpoint.Name)
 
+	if r.Method == "OPTIONS" {
+		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
+		if err != nil {
+			return aphttp.NewServerError(err)
+		}
+		if !route.HandlesOptions() {
+			return s.corsHandlerFunc(w, r, proxyEndpoint, route)
+		}
+	}
+
 	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.db, proxyEndpoint)
 	if err != nil {
 		return aphttp.NewServerError(err)
@@ -170,4 +182,49 @@ func (s *Server) runStoredJSONScript(vm *vm.ProxyVM, jsonScript types.JsonText) 
 	}
 	_, err = vm.Run(script)
 	return err
+}
+
+func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
+	r *http.Request) (*model.ProxyEndpointRoute, error) {
+	routes, err := endpoint.GetRoutes()
+	if err != nil {
+		return nil, err
+	}
+	for _, proxyRoute := range routes {
+		route := &mux.Route{}
+		route.Path(proxyRoute.Path)
+		methods := proxyRoute.Methods
+		if !proxyRoute.HandlesOptions() {
+			methods = append(methods, "OPTIONS")
+		}
+		route.Methods(methods...)
+		var match mux.RouteMatch
+		if route.Match(r, &match) {
+			return proxyRoute, nil
+		}
+	}
+	return nil, errors.New("No route matched")
+}
+
+func (s *Server) corsHandlerFunc(w http.ResponseWriter, r *http.Request,
+	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute) aphttp.Error {
+
+	api, err := model.FindAPIForProxy(s.db, endpoint.APIID)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", api.CORSAllowOrigin)
+	w.Header().Set("Access-Control-Request-Headers", api.CORSRequestHeaders)
+	w.Header().Set("Access-Control-Allow-Headers", api.CORSAllowHeaders)
+	w.Header().Set("Access-Control-Max-Age", fmt.Sprintf("%d", api.CORSMaxAge))
+
+	if api.CORSAllowCredentials {
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+
+	methods := route.Methods
+	methods = append(methods, "OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
+	return nil
 }
