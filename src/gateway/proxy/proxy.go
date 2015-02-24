@@ -104,7 +104,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			return aphttp.NewServerError(err)
 		}
 		if !route.HandlesOptions() {
-			return s.corsHandlerFunc(w, r, proxyEndpoint, route)
+			return s.corsHandlerFunc(w, r, proxyEndpoint, route, requestID)
 		}
 	}
 
@@ -207,11 +207,16 @@ func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
 }
 
 func (s *Server) corsHandlerFunc(w http.ResponseWriter, r *http.Request,
-	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute) aphttp.Error {
+	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute,
+	requestID string) aphttp.Error {
 
 	api, err := model.FindAPIForProxy(s.db, endpoint.APIID)
 	if err != nil {
 		return aphttp.NewServerError(err)
+	}
+
+	if s.proxyConf.RequestIDHeader != "" {
+		w.Header().Set(s.proxyConf.RequestIDHeader, requestID)
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", api.CORSAllowOrigin)
