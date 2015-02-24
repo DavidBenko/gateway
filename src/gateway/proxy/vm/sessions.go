@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"math"
 
+	"gateway/model"
+
+	"github.com/gorilla/sessions"
 	"github.com/robertkrimen/otto"
 )
 
@@ -18,7 +21,32 @@ type sessionOptions struct {
 	HTTPOnly bool `json:"httpOnly"`
 }
 
+func (p *ProxyVM) setupSessionStore(env *model.Environment) error {
+	if env.SessionAuthKey == "" {
+		return nil
+	}
+
+	rotating := (env.SessionAuthKeyRotate != "")
+
+	sessionConfig := [][]byte{[]byte(env.SessionAuthKey)}
+	if env.SessionEncryptionKey != "" {
+		sessionConfig = append(sessionConfig, []byte(env.SessionEncryptionKey))
+	} else if rotating {
+		sessionConfig = append(sessionConfig, nil)
+	}
+	if rotating {
+		sessionConfig = append(sessionConfig, []byte(env.SessionAuthKeyRotate))
+		if env.SessionEncryptionKeyRotate != "" {
+			sessionConfig = append(sessionConfig, []byte(env.SessionEncryptionKeyRotate))
+		}
+	}
+	p.sessionStore = sessions.NewCookieStore(sessionConfig...)
+	return nil
+}
+
 func (p *ProxyVM) sessionGet(call otto.FunctionCall) otto.Value {
+	p.ensureSession()
+
 	sessionName := call.Argument(0).String()
 	key := call.Argument(1).String()
 	session, err := p.sessionStore.Get(p.r, sessionName)
@@ -33,6 +61,8 @@ func (p *ProxyVM) sessionGet(call otto.FunctionCall) otto.Value {
 }
 
 func (p *ProxyVM) sessionSet(call otto.FunctionCall) otto.Value {
+	p.ensureSession()
+
 	sessionName := call.Argument(0).String()
 	key := call.Argument(1).String()
 	value := typedSessionValue(call.Argument(2))
@@ -47,6 +77,8 @@ func (p *ProxyVM) sessionSet(call otto.FunctionCall) otto.Value {
 }
 
 func (p *ProxyVM) sessionIsSet(call otto.FunctionCall) otto.Value {
+	p.ensureSession()
+
 	sessionName := call.Argument(0).String()
 	key := call.Argument(1).String()
 	session, err := p.sessionStore.Get(p.r, sessionName)
@@ -62,6 +94,8 @@ func (p *ProxyVM) sessionIsSet(call otto.FunctionCall) otto.Value {
 }
 
 func (p *ProxyVM) sessionDelete(call otto.FunctionCall) otto.Value {
+	p.ensureSession()
+
 	sessionName := call.Argument(0).String()
 	key := call.Argument(1).String()
 	session, err := p.sessionStore.Get(p.r, sessionName)
@@ -74,6 +108,8 @@ func (p *ProxyVM) sessionDelete(call otto.FunctionCall) otto.Value {
 }
 
 func (p *ProxyVM) sessionSetOptions(call otto.FunctionCall) otto.Value {
+	p.ensureSession()
+
 	sessionName := call.Argument(0).String()
 	optionsString := call.Argument(1).String()
 
@@ -95,6 +131,12 @@ func (p *ProxyVM) sessionSetOptions(call otto.FunctionCall) otto.Value {
 
 	session.Save(p.r, p.w)
 	return otto.Value{}
+}
+
+func (p *ProxyVM) ensureSession() {
+	if p.sessionStore == nil {
+		runtimeError("Sessions must be configured in the environment before being used.")
+	}
 }
 
 func typedSessionValue(arg otto.Value) interface{} {

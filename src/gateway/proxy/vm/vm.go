@@ -88,18 +88,11 @@ func NewVM(
 		scripts = append(scripts, osEnvironmentScript())
 	}
 
-	/* FIXME: Need to move keys to Environment for multi-tenant, not config */
-	if conf.AuthKey != "" {
-		sessionConfig := [][]byte{[]byte(conf.AuthKey)}
-		if conf.EncryptionKey != "" {
-			sessionConfig = append(sessionConfig, []byte(conf.EncryptionKey))
-		}
-		vm.sessionStore = sessions.NewCookieStore(sessionConfig...)
+	if err = vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
+		return nil, err
 	}
 
 	vm.Set("log", vm.log)
-
-	/* still TODO: Revisit sessions! */
 	vm.Set("__ap_session_get", vm.sessionGet)
 	vm.Set("__ap_session_set", vm.sessionSet)
 	vm.Set("__ap_session_is_set", vm.sessionIsSet)

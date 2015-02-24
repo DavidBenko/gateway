@@ -15,6 +15,11 @@ type Environment struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Data        types.JsonText `json:"data"`
+
+	SessionAuthKey             string `json:"session_auth_key" db:"session_auth_key"`
+	SessionEncryptionKey       string `json:"session_encryption_key" db:"session_encryption_key"`
+	SessionAuthKeyRotate       string `json:"session_auth_key_rotate" db:"session_auth_key_rotate"`
+	SessionEncryptionKeyRotate string `json:"session_encryption_key_rotate" db:"session_encryption_key_rotate"`
 }
 
 // Validate validates the model.
@@ -70,7 +75,9 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	e.ID, err = tx.InsertOne(tx.SQL("environments/insert"),
-		e.APIID, e.AccountID, e.Name, e.Description, string(data))
+		e.APIID, e.AccountID, e.Name, e.Description, string(data),
+		e.SessionAuthKey, e.SessionEncryptionKey,
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
 	return err
 }
 
@@ -81,5 +88,8 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 		return err
 	}
 	return tx.UpdateOne(tx.SQL("environments/update"),
-		e.Name, e.Description, string(data), e.ID, e.APIID, e.AccountID)
+		e.Name, e.Description, string(data),
+		e.SessionAuthKey, e.SessionEncryptionKey,
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate,
+		e.ID, e.APIID, e.AccountID)
 }

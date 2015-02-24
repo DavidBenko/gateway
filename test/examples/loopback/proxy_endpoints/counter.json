@@ -1,0 +1,24 @@
+{
+  "proxy_endpoint": {
+    "name": "Counter",
+    "description": "Count with a session",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": false,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/count"
+      }
+    ],
+    "components": [
+      {
+        "type": "js",
+        "conditional": "",
+        "conditional_positive": true,
+        "data": <%= script("counter.js") %>
+      }
+    ]
+  }
+}

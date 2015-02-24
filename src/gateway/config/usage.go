@@ -11,9 +11,6 @@ var usageStrings = map[string]string{
 	"proxy-host": "The hostname of the proxy server",
 	"proxy-port": "The port of the proxy server",
 
-	"proxy-session-auth-key":       "The auth key to use for cookie sessions. 64 chars recommended. If unset, they're disabled.",
-	"proxy-session-encryption-key": "The encryption key to use for cookie sessions. 32 chars recommended. If unset, encryption is disabled.",
-
 	"proxy-request-id-header": "The header to send the response ID back in. Not sent if blank.",
 	"proxy-enable-os-env":     "Whether or not to expose the OS's ENV to proxy code.",
 

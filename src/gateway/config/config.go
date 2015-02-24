@@ -34,9 +34,6 @@ type ProxyServer struct {
 	Host string `flag:"proxy-host" default:"localhost"`
 	Port int64  `flag:"proxy-port" default:"5000"`
 
-	AuthKey       string `flag:"proxy-session-auth-key" default:""`
-	EncryptionKey string `flag:"proxy-session-encryption-key" default:""`
-
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
 	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
 }
