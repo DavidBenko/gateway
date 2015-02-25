@@ -65,21 +65,21 @@ func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64)
 
 // Insert inserts the library into the database as a new row.
 func (l *Library) Insert(tx *apsql.Tx) error {
-	data, err := l.Data.MarshalJSON()
+	data, err := marshaledForStorage(l.Data)
 	if err != nil {
 		return err
 	}
 	l.ID, err = tx.InsertOne(tx.SQL("libraries/insert"),
-		l.APIID, l.AccountID, l.Name, l.Description, string(data))
+		l.APIID, l.AccountID, l.Name, l.Description, data)
 	return err
 }
 
 // Update updates the library in the databasl.
 func (l *Library) Update(tx *apsql.Tx) error {
-	data, err := l.Data.MarshalJSON()
+	data, err := marshaledForStorage(l.Data)
 	if err != nil {
 		return err
 	}
 	return tx.UpdateOne(tx.SQL("libraries/update"),
-		l.Name, l.Description, string(data), l.ID, l.APIID, l.AccountID)
+		l.Name, l.Description, data, l.ID, l.APIID, l.AccountID)
 }

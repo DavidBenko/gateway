@@ -182,7 +182,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
-	encodedData, err := e.Data.MarshalJSON()
+	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
@@ -194,12 +194,12 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	for _, envData := range e.EnvironmentData {
-		encodedData, err := envData.Data.MarshalJSON()
+		encodedData, err := marshaledForStorage(envData.Data)
 		if err != nil {
 			return err
 		}
 		err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
-			e.APIID, string(encodedData))
+			e.APIID, encodedData)
 		if err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
-	encodedData, err := e.Data.MarshalJSON()
+	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 
 	for _, envData := range e.EnvironmentData {
-		encodedData, err := envData.Data.MarshalJSON()
+		encodedData, err := marshaledForStorage(envData.Data)
 		if err != nil {
 			return err
 		}
@@ -249,13 +249,13 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 				  SET data = ?
 				WHERE remote_endpoint_id = ?
 				  AND environment_id = ?;`,
-				string(encodedData), e.ID, envData.EnvironmentID)
+				encodedData, e.ID, envData.EnvironmentID)
 			if err != nil {
 				return err
 			}
 		} else {
 			err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
-				e.APIID, string(encodedData))
+				e.APIID, encodedData)
 			if err != nil {
 				return err
 			}

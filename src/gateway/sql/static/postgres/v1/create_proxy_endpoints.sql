@@ -7,9 +7,9 @@ CREATE TABLE IF NOT EXISTS "proxy_endpoints" (
   "description" TEXT,
   "active" BOOLEAN NOT NULL DEFAULT TRUE,
   "cors_enabled" BOOLEAN NOT NULL DEFAULT TRUE,
-  "routes" JSON,
+  "routes" JSONB,
   UNIQUE ("api_id", "name"),
   FOREIGN KEY("api_id") REFERENCES "apis"("id") ON DELETE CASCADE,
   FOREIGN KEY("endpoint_group_id") REFERENCES "endpoint_groups"("id") ON DELETE SET NULL,
-  FOREIGN KEY("environment_id") REFERENCES "environments"("id") ON DELETE RESTRICT
+  FOREIGN KEY("environment_id") REFERENCES "environments"("id") DEFERRABLE INITIALLY DEFERRED
 );

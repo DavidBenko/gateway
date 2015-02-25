@@ -151,13 +151,13 @@ func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID 
 
 // Insert inserts the proxyEndpoint into the database as a new row.
 func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
-	routes, err := e.Routes.MarshalJSON()
+	routes, err := marshaledForStorage(e.Routes)
 	if err != nil {
 		return err
 	}
 	e.ID, err = tx.InsertOne(tx.SQL("proxy_endpoints/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
-		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, string(routes))
+		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, routes)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 
 // Update updates the proxyEndpoint in the database.
 func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
-	routes, err := e.Routes.MarshalJSON()
+	routes, err := marshaledForStorage(e.Routes)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID,
 		e.Active, e.CORSEnabled,
-		string(routes),
+		routes,
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err

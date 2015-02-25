@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS "environments" (
   "api_id" INTEGER NOT NULL,
   "name" TEXT NOT NULL,
   "description" TEXT,
-  "data" JSON NOT NULL,
+  "data" JSONB NOT NULL,
   "session_auth_key" TEXT,
   "session_encryption_key" TEXT,
   "session_auth_key_rotate" TEXT,

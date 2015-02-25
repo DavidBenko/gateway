@@ -70,12 +70,12 @@ func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID in
 
 // Insert inserts the environment into the database as a new row.
 func (e *Environment) Insert(tx *apsql.Tx) error {
-	data, err := e.Data.MarshalJSON()
+	data, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
 	e.ID, err = tx.InsertOne(tx.SQL("environments/insert"),
-		e.APIID, e.AccountID, e.Name, e.Description, string(data),
+		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
 	return err
@@ -83,12 +83,12 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 
 // Update updates the environment in the database.
 func (e *Environment) Update(tx *apsql.Tx) error {
-	data, err := e.Data.MarshalJSON()
+	data, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
 	return tx.UpdateOne(tx.SQL("environments/update"),
-		e.Name, e.Description, string(data),
+		e.Name, e.Description, data,
 		e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate,
 		e.ID, e.APIID, e.AccountID)

@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -150,9 +151,9 @@ func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
 func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 	position int) error {
 
-	data, err := c.Data.MarshalJSON()
+	data, err := marshaledForStorage(c.Data)
 	if err != nil {
-		return err
+		return aperrors.NewWrapped("Marshaling component JSON", err)
 	}
 	c.ID, err = tx.InsertOne(
 		`INSERT INTO proxy_endpoint_components
@@ -160,21 +161,21 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 			 position, type, data)
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		endpointID, c.Conditional, c.ConditionalPositive,
-		position, c.Type, string(data))
+		position, c.Type, data)
 	if err != nil {
-		return err
+		return aperrors.NewWrapped("Inserting component", err)
 	}
 
 	for position, transform := range c.BeforeTransformations {
 		err = transform.InsertForComponent(tx, c.ID, true, position)
 		if err != nil {
-			return err
+			return aperrors.NewWrapped("Inserting before transformation", err)
 		}
 	}
 	for position, transform := range c.AfterTransformations {
 		err = transform.InsertForComponent(tx, c.ID, false, position)
 		if err != nil {
-			return err
+			return aperrors.NewWrapped("Inserting after transformation", err)
 		}
 	}
 
@@ -182,13 +183,13 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 	case ProxyEndpointComponentTypeSingle:
 		err = c.Call.Insert(tx, c.ID, apiID, 0)
 		if err != nil {
-			return err
+			return aperrors.NewWrapped("Inserting single call", err)
 		}
 	case ProxyEndpointComponentTypeMulti:
 		for position, call := range c.Calls {
 			err = call.Insert(tx, c.ID, apiID, position)
 			if err != nil {
-				return err
+				return aperrors.NewWrapped("Inserting multi call", err)
 			}
 		}
 	default:
@@ -201,7 +202,7 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 	position int) error {
 
-	data, err := c.Data.MarshalJSON()
+	data, err := marshaledForStorage(c.Data)
 	if err != nil {
 		return err
 	}
@@ -215,7 +216,7 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 			data = ?
 		WHERE id = ? AND endpoint_id = ?;`,
 		c.Conditional, c.ConditionalPositive,
-		position, c.Type, string(data),
+		position, c.Type, data,
 		c.ID, endpointID)
 	if err != nil {
 		return err

@@ -11,5 +11,5 @@ CREATE TABLE IF NOT EXISTS `proxy_endpoints` (
   UNIQUE (`api_id`, `name`) ON CONFLICT FAIL,
   FOREIGN KEY(`api_id`) REFERENCES `apis`(`id`) ON DELETE CASCADE,
   FOREIGN KEY(`endpoint_group_id`) REFERENCES `endpoint_groups`(`id`) ON DELETE SET NULL,
-  FOREIGN KEY(`environment_id`) REFERENCES `environments`(`id`) ON DELETE RESTRICT
+  FOREIGN KEY(`environment_id`) REFERENCES `environments`(`id`)
 );

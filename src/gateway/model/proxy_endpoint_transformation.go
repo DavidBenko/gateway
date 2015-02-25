@@ -122,7 +122,7 @@ func (t *ProxyEndpointTransformation) InsertForCall(tx *apsql.Tx,
 func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 	ownerID int64, before bool, position int) error {
 
-	data, err := t.Data.MarshalJSON()
+	data, err := marshaledForStorage(t.Data)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (t *ProxyEndpointTransformation) insert(tx *apsql.Tx, ownerCol string,
 		`INSERT INTO proxy_endpoint_transformations
 			(`+ownerCol+`, before, position, type, data)
 		VALUES (?, ?, ?, ?, ?)`,
-		ownerID, before, position, t.Type, string(data))
+		ownerID, before, position, t.Type, data)
 
 	return err
 }
@@ -153,7 +153,7 @@ func (t *ProxyEndpointTransformation) UpdateForCall(tx *apsql.Tx,
 func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
 	ownerID int64, before bool, position int) error {
 
-	data, err := t.Data.MarshalJSON()
+	data, err := marshaledForStorage(t.Data)
 	if err != nil {
 		return err
 	}
@@ -161,5 +161,5 @@ func (t *ProxyEndpointTransformation) update(tx *apsql.Tx, ownerCol string,
 		`UPDATE proxy_endpoint_transformations
 		 SET before = ?, position = ?, type = ?, data = ?
 		 WHERE id = ? AND `+ownerCol+" = ?",
-		before, position, t.Type, string(data), t.ID, ownerID)
+		before, position, t.Type, data, t.ID, ownerID)
 }

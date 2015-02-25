@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS "proxy_endpoint_calls" (
   "conditional_positive" BOOLEAN DEFAULT TRUE,
   "position" INTEGER NOT NULL,
   FOREIGN KEY("component_id") REFERENCES "proxy_endpoint_components"("id") ON DELETE CASCADE,
-  FOREIGN KEY("remote_endpoint_id") REFERENCES "remote_endpoints"("id") ON DELETE RESTRICT
+  FOREIGN KEY("remote_endpoint_id") REFERENCES "remote_endpoints"("id") DEFERRABLE INITIALLY DEFERRED
 );
