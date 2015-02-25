@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -105,12 +106,12 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint := ProxyEndpoint{}
 	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find_id"), id)
 	if err != nil {
-		return nil, err
+		return nil, aperrors.NewWrapped("Finding proxy endpoint", err)
 	}
 
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
 	if err != nil {
-		return nil, err
+		return nil, aperrors.NewWrapped("Fetching components", err)
 	}
 
 	var remoteEndpointIDs []int64
@@ -124,7 +125,7 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	remoteEndpoints, err := AllRemoteEndpointsForIDsInEnvironment(db,
 		remoteEndpointIDs, proxyEndpoint.EnvironmentID)
 	if err != nil {
-		return nil, err
+		return nil, aperrors.NewWrapped("Fetching remote endpoints", err)
 	}
 	for _, remoteEndpoint := range remoteEndpoints {
 		for _, call := range callsByRemoteEndpointID[remoteEndpoint.ID] {
@@ -134,7 +135,7 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 
 	proxyEndpoint.Environment, err = FindEnvironmentForProxy(db, proxyEndpoint.EnvironmentID)
 	if err != nil {
-		return nil, err
+		return nil, aperrors.NewWrapped("Fetching environment", err)
 	}
 
 	return &proxyEndpoint, nil
