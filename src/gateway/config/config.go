@@ -27,6 +27,7 @@ type Database struct {
 	Migrate          bool   `flag:"db-migrate"     default:"false"`
 	Driver           string `flag:"db-driver"      default:"sqlite3"`
 	ConnectionString string `flag:"db-conn-string" default:"/etc/gateway/gateway.db"`
+	MaxConnections   int64  `flag:"db-max-connections" default:"50"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

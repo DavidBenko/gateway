@@ -4,9 +4,10 @@ var usageStrings = map[string]string{
 	"config":  "The path to the configuration file",
 	"license": "The path to a valid Gateway license key",
 
-	"db-migrate":     "Whether or not to migrate the database on startup",
-	"db-driver":      "The database driver; sqlite or postgres",
-	"db-conn-string": "The connection string for your database",
+	"db-migrate":         "Whether or not to migrate the database on startup",
+	"db-driver":          "The database driver; sqlite or postgres",
+	"db-conn-string":     "The connection string for your database",
+	"db-max-connections": "The maximum number of connections to use",
 
 	"proxy-host": "The hostname of the proxy server",
 	"proxy-port": "The port of the proxy server",

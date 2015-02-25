@@ -69,6 +69,8 @@ func Connect(conf config.Database) (*DB, error) {
 		return nil, err
 	}
 
+	sqlxDB.SetMaxOpenConns(int(conf.MaxConnections))
+
 	db := DB{sqlxDB, driver, []Listener{}, sync.RWMutex{}}
 
 	switch conf.Driver {
