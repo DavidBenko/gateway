@@ -80,7 +80,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoint_environment_data.data as selected_env_data
 	FROM remote_endpoints
 	LEFT JOIN remote_endpoint_environment_data
-		ON remote_endpoints.id == remote_endpoint_environment_data.remote_endpoint_id
+		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
 	 AND remote_endpoint_environment_data.environment_id = ?
 	WHERE remote_endpoints.id IN (` + idQuery + `);`
 	args := []interface{}{environmentID}
