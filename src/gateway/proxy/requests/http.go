@@ -11,6 +11,8 @@ import (
 	aphttp "gateway/http"
 )
 
+var client = &http.Client{}
+
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
 	Method  string                 `json:"method"`
@@ -48,7 +50,6 @@ func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 	}
 	aphttp.AddHeaders(req.Header, h.Headers)
 
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		context := fmt.Errorf("Error performing request %v: %v\n", h, err)
