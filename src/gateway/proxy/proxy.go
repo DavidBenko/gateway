@@ -72,7 +72,7 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 	return ok
 }
 
-func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
+func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpErr aphttp.Error) {
 	start := time.Now()
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
@@ -80,6 +80,10 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 	var proxiedRequestsDuration time.Duration
 	defer func() {
+		if httpErr != nil {
+			log.Printf("%s [req %s] [error] %s",
+				config.Proxy, requestID, httpErr.String())
+		}
 		total := time.Since(start)
 		processing := total - proxiedRequestsDuration
 		log.Printf("%s [req %s] [time] %v (processing %v, requests %v)",
