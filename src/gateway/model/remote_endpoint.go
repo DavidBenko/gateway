@@ -231,6 +231,9 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 		WHERE remote_endpoint_id = ?
 		ORDER BY environment_id ASC;`,
 		e.ID)
+	if err != nil {
+		return err
+	}
 
 	for _, envData := range e.EnvironmentData {
 		encodedData, err := envData.Data.MarshalJSON()
