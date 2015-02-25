@@ -17,6 +17,11 @@ type Tx struct {
 	notifications []*Notification
 }
 
+// Select wraps sqlx's Select with driver-specific query modifications.
+func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error {
+	return tx.db.Select(dest, tx.q(query), args...)
+}
+
 // Exec wraps sqlx's Exec with driver-specific query modifications
 func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	return tx.Tx.Exec(tx.q(query), args...)
