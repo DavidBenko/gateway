@@ -122,8 +122,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		return aphttp.NewServerError(err)
 	}
 
-	/* TODO: Let's see if we can bind the request in directly? */
-	incomingJSON, err := proxyRequestJSON(r, match.Vars)
+	incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
