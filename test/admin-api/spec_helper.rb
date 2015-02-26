@@ -55,8 +55,24 @@ def fixtures
       poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password" },
     },
     apis: {
-      widgets: { name: "Widgets", description: "Lots of widgets here", cors_allow: "*"},
-      gadgets: { name: "Gadgets", description: "No widgets", cors_allow: "*"},
+      widgets: { 
+        name: "Widgets", 
+        description: "Lots of widgets here", 
+        cors_allow_origin: "*",
+        cors_allow_headers: "content-type, accept",
+        cors_allow_credentials: true,
+        cors_request_headers: "*",
+        cors_max_age: 600
+      },
+      gadgets: { 
+        name: "Gadgets", 
+        description: "No widgets",         
+        cors_allow_origin: "*",
+        cors_allow_headers: "content-type, accept",
+        cors_allow_credentials: true,
+        cors_request_headers: "*",
+        cors_max_age: 600
+      },
     }
   }
 end

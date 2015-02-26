@@ -13,8 +13,15 @@ end
 
 shared_examples "a valid api" do
   it { expect_status(200) }
-  it { expect_json_types("api", {id: :int, name: :string,
-                                 description: :string, cors_allow: :string}) }
+  it { expect_json_types("api", {id: :int, 
+                                 name: :string,
+                                 description: :string, 
+                                 cors_allow_origin: :string,
+                                 cors_allow_headers: :string,
+                                 cors_allow_credentials: :boolean,
+                                 cors_request_headers: :string,
+                                 cors_max_age: :int
+                                 })}
 end
 
 describe "apis" do
@@ -173,7 +180,7 @@ describe "apis" do
         it_behaves_like "a valid api"
         it { expect_json("api", {id: @id, name: "Widgets",
                                 description: "Lots of widgets here",
-                                cors_allow: "*"}) }
+                                cors_allow_origin: "*"}) }
       end
 
       context "non-existing" do
@@ -212,7 +219,7 @@ describe "apis" do
         it_behaves_like "a valid api"
         it { expect_json("api", {id: @widgets[:id], name: "Wadgets",
                                 description: "Lots of widgets here",
-                                cors_allow: "*"}) }
+                                cors_allow_origin: "*"}) }
       end
 
       context "with invalid json" do

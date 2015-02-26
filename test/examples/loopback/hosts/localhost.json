@@ -1,5 +1,6 @@
 {
   "host": {
-    "name": "localhost"
+    "name": "Localhost",
+    "hostname": "localhost"
   }
 }

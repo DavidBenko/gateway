@@ -1,5 +1,6 @@
 {
   "host": {
-    "name": "loopback.lvh.me"
+    "name": "LVH.me",
+    "hostname": "loopback.lvh.me"
   }
 }
