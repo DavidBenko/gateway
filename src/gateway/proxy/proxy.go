@@ -131,6 +131,10 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		"var request = JSON.parse(__ap_proxyRequestJSON);",
 		"var response = new AP.HTTP.Response();",
 	}
+	scripts = append(scripts,
+		fmt.Sprintf("var session = new AP.Session(%s);",
+			strconv.Quote(proxyEndpoint.Environment.SessionName)))
+
 	if _, err := vm.RunAll(scripts); err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -154,9 +158,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
 	if proxyEndpoint.CORSEnabled {
-		if err := s.addCORSCommonHeaders(w, proxyEndpoint); err != nil {
-			return aphttp.NewServerError(err)
-		}
+		s.addCORSCommonHeaders(w, proxyEndpoint)
 	}
 
 	response.Headers["Content-Length"] = len(response.Body)
@@ -220,10 +222,7 @@ func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute,
 	requestID string) aphttp.Error {
 
-	if err := s.addCORSCommonHeaders(w, endpoint); err != nil {
-		return aphttp.NewServerError(err)
-	}
-
+	s.addCORSCommonHeaders(w, endpoint)
 	methods := route.Methods
 	methods = append(methods, "OPTIONS")
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
@@ -231,12 +230,9 @@ func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 }
 
 func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
-	endpoint *model.ProxyEndpoint) error {
+	endpoint *model.ProxyEndpoint) {
 
-	api, err := model.FindAPIForProxy(s.db, endpoint.APIID)
-	if err != nil {
-		return err
-	}
+	api := endpoint.API
 
 	w.Header().Set("Access-Control-Allow-Origin", api.CORSAllowOrigin)
 	w.Header().Set("Access-Control-Request-Headers", api.CORSRequestHeaders)
@@ -246,6 +242,4 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	if api.CORSAllowCredentials {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-
-	return nil
 }

@@ -26,6 +26,9 @@ type ProxyEndpoint struct {
 
 	// Environment is used in proxy to cache environment data for execution
 	Environment *Environment `json:"-"`
+
+	// API is used in proxy to cache API data for execution
+	API *API `json:"-"`
 }
 
 // Validate validates the model.
@@ -136,6 +139,11 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint.Environment, err = FindEnvironmentForProxy(db, proxyEndpoint.EnvironmentID)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching environment", err)
+	}
+
+	proxyEndpoint.API, err = FindAPIForProxy(db, proxyEndpoint.APIID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching API", err)
 	}
 
 	return &proxyEndpoint, nil

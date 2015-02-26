@@ -5,6 +5,7 @@
     "data": { 
       "env": "dev" 
     },
+    "session_name": "loopback_dev",
     "session_auth_key": "987WttlyupS0465Piy70X6UKPzz1UBf5ZLFCdN160Z5hsL15j7I8JlD2na2e7V6u",
     "session_encryption_key": "N3FbLAMr30Zh8kLh631JVCm45cJEnL78"
   }

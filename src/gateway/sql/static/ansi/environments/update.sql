@@ -3,6 +3,7 @@ SET
   name = ?,
   description = ?,
   data = ?,
+  session_name = ?,
   session_auth_key = ?,
   session_encryption_key = ?,
   session_auth_key_rotate = ?,

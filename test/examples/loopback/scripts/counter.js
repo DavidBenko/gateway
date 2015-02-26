@@ -1,6 +1,4 @@
 (function() {
-    var session = new AP.Session("gateway_id");
-
     if (request.params.clear) {
         session.delete("num");
         response.body = "Cleared!\n";

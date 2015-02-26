@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS `environments` (
   `name` TEXT NOT NULL,
   `description` TEXT,
   `data` TEXT NOT NULL,
+  `session_name` TEXT,
   `session_auth_key` TEXT,
   `session_encryption_key` TEXT,
   `session_auth_key_rotate` TEXT,
