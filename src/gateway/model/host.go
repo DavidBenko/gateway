@@ -7,8 +7,9 @@ type Host struct {
 	AccountID int64 `json:"-"`
 	APIID     int64 `json:"api_id" db:"api_id"`
 
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Hostname string `json:"hostname"`
 }
 
 // Validate validates the model.
@@ -17,6 +18,9 @@ func (h *Host) Validate() Errors {
 	if h.Name == "" {
 		errors.add("name", "must not be blank")
 	}
+	if h.Hostname == "" {
+		errors.add("hostname", "must not be blank")
+	}
 	return errors
 }
 
@@ -24,9 +28,13 @@ func (h *Host) Validate() Errors {
 // into validation errors.
 func (h *Host) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	if err.Error() == "UNIQUE constraint failed: hosts.name" ||
-		err.Error() == `pq: duplicate key value violates unique constraint "hosts_name_key"` {
+	if err.Error() == "UNIQUE constraint failed: hosts.api_id, hosts.name" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "hosts_api_id_name_key"` {
 		errors.add("name", "is already taken")
+	}
+	if err.Error() == "UNIQUE constraint failed: hosts.hostname" ||
+		err.Error() == `pq: duplicate key value violates unique constraint "hosts_hostname_key"` {
+		errors.add("hostname", "is already taken")
 	}
 	return errors
 }
@@ -64,7 +72,7 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) er
 // Insert inserts the host into the database as a new row.
 func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	h.ID, err = tx.InsertOne(tx.SQL("hosts/insert"),
-		h.APIID, h.AccountID, h.Name)
+		h.APIID, h.AccountID, h.Name, h.Hostname)
 	if err != nil {
 		return err
 	}
@@ -74,7 +82,7 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 // Update updates the host in the database.
 func (h *Host) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("hosts/update"),
-		h.Name, h.ID, h.APIID, h.AccountID)
+		h.Name, h.Hostname, h.ID, h.APIID, h.AccountID)
 	if err != nil {
 		return err
 	}

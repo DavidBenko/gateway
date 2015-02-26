@@ -75,7 +75,7 @@ func (r *proxyRouter) rebuildHosts() error {
 	for _, host := range hosts {
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(host.APIID, 10))
-		route.Host(host.Name)
+		route.Host(host.Hostname)
 	}
 
 	defer r.hostsRouterMutex.Unlock()

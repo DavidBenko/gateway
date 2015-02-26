@@ -1,2 +1,2 @@
-SELECT id, name, api_id
+SELECT id, hostname, api_id
 FROM hosts;

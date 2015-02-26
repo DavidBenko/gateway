@@ -1,7 +1,8 @@
 SELECT
   hosts.api_id as api_id,
   hosts.id as id,
-  hosts.name as name
+  hosts.name as name,
+  hosts.hostname as hostname
 FROM hosts, apis
 WHERE hosts.api_id = ?
   AND hosts.api_id = apis.id
