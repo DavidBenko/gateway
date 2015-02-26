@@ -37,6 +37,8 @@ type ProxyServer struct {
 
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
 	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
+
+	HTTPTimeout int64 `flag:"proxy-http-timeout" default:"60"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

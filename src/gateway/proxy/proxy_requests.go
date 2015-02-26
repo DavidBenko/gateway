@@ -78,10 +78,15 @@ func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (strin
 	return string(json), nil
 }
 
-func proxyResponseFromJSON(responseJSON string) (proxyResponse, error) {
+func proxyResponseFromJSON(responseJSON string) (*proxyResponse, error) {
 	response := proxyResponse{}
 	err := json.Unmarshal([]byte(responseJSON), &response)
-	return response, err
+	if err == nil {
+		if response.Headers == nil {
+			response.Headers = make(map[string]interface{})
+		}
+	}
+	return &response, err
 }
 
 func joinSlices(slices ...map[string][]string) map[string][]string {

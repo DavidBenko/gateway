@@ -29,15 +29,19 @@ type Server struct {
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	db          *sql.DB
+	httpClient  *http.Client
 }
 
 // NewServer builds a new proxy server.
 func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
+	httpTimeout := time.Duration(proxyConfig.HTTPTimeout) * time.Second
+
 	return &Server{
-		proxyConf: proxyConfig,
-		adminConf: adminConfig,
-		router:    mux.NewRouter(),
-		db:        db,
+		proxyConf:  proxyConfig,
+		adminConf:  adminConfig,
+		router:     mux.NewRouter(),
+		db:         db,
+		httpClient: &http.Client{Timeout: httpTimeout},
 	}
 }
 

@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"gateway/model"
-	"gateway/proxy/requests"
 )
 
-func (s *Server) prepareRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (requests.Request, error) {
+func (s *Server) prepareRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
 		return s.prepareHTTPRequest(endpoint, data)
@@ -15,13 +14,13 @@ func (s *Server) prepareRequest(endpoint *model.RemoteEndpoint, data *json.RawMe
 	return nil, fmt.Errorf("%s is not a valid call type", endpoint.Type)
 }
 
-func (s *Server) prepareHTTPRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (requests.Request, error) {
-	var request requests.HTTPRequest
+func (s *Server) prepareHTTPRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+	var request HTTPRequest
 	if err := json.Unmarshal(*data, &request); err != nil {
 		return nil, err
 	}
 
-	var endpointData requests.HTTPRequest
+	var endpointData HTTPRequest
 	if err := json.Unmarshal(endpoint.Data, &endpointData); err != nil {
 		return nil, err
 	}
@@ -37,7 +36,7 @@ func (s *Server) prepareHTTPRequest(endpoint *model.RemoteEndpoint, data *json.R
 	return &request, nil
 }
 
-func (s *Server) updateHTTPRequest(request, endpointData *requests.HTTPRequest) {
+func (s *Server) updateHTTPRequest(request, endpointData *HTTPRequest) {
 	if endpointData.Method != "" {
 		request.Method = endpointData.Method
 	}

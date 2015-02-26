@@ -1,0 +1,32 @@
+{
+  "proxy_endpoint": {
+    "name": "Timeout",
+    "description": "An endpoint to test timeouts",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/timeout"
+      }
+    ],
+    "components": [
+      {
+        "type": "single",
+        "conditional": "",
+        "conditional_positive": true,
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/timeout.json"] %>
+        },
+        "after": [
+            {  
+              "type": "js",
+              "data": <%= script("timeout.js") %>
+            }
+        ]
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-package requests
+package proxy
 
 import (
 	"bytes"
@@ -10,8 +10,6 @@ import (
 
 	aphttp "gateway/http"
 )
-
-var client = &http.Client{}
 
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
@@ -39,7 +37,7 @@ func (h *HTTPRequest) CompleteURL() string {
 }
 
 // Perform executes the HTTP request and returns its response.
-func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
+func (h *HTTPRequest) Perform(s *Server, c chan<- responsePayload, index int) {
 	body := bytes.NewReader([]byte(h.Body))
 
 	req, err := http.NewRequest(h.Method, h.CompleteURL(), body)
@@ -50,9 +48,9 @@ func (h *HTTPRequest) Perform(c chan<- responsePayload, index int) {
 	}
 	aphttp.AddHeaders(req.Header, h.Headers)
 
-	resp, err := client.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		context := fmt.Errorf("Error performing request %v: %v\n", h, err)
+		context := fmt.Errorf("%s %s: %s", h.Method, h.URL, err.Error())
 		c <- responsePayload{index: index, response: NewErrorResponse(context)}
 		return
 	}

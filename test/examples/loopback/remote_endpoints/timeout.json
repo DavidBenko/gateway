@@ -1,0 +1,11 @@
+{
+    "remote_endpoint": {
+        "name": "Timeout",
+        "codename": "timeout",
+        "description": "Times out!",
+        "type": "http",
+        "data": {
+            "url": "http://localhost:4567/timeout"
+        }
+    }
+}

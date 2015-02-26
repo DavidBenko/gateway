@@ -1,4 +1,4 @@
-package requests
+package proxy
 
 import (
 	"gateway/config"
@@ -8,7 +8,7 @@ import (
 
 // Request defines the interface for all requests proxy code can make.
 type Request interface {
-	Perform(c chan<- responsePayload, index int)
+	Perform(s *Server, c chan<- responsePayload, index int)
 	Log() string
 }
 
@@ -24,7 +24,7 @@ type responsePayload struct {
 }
 
 // MakeRequests makes the requests and returns all responses.
-func MakeRequests(requests []Request, reqID string) ([]Response, error) {
+func (s *Server) MakeRequests(requests []Request, reqID string) ([]Response, error) {
 	start := time.Now()
 
 	n := len(requests)
@@ -33,7 +33,7 @@ func MakeRequests(requests []Request, reqID string) ([]Response, error) {
 
 	c := make(chan responsePayload)
 	for i, request := range requests {
-		go request.Perform(c, i)
+		go request.Perform(s, c, i)
 	}
 
 	for i := 0; i < n; i++ {

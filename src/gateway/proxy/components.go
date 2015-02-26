@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"gateway/model"
-	"gateway/proxy/requests"
 	"gateway/proxy/vm"
 	"strconv"
 	"strings"
@@ -155,7 +154,7 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 		return err
 	}
 
-	var abstractedRequests []requests.Request
+	var abstractedRequests []Request
 	for i, call := range activeCalls {
 		if call.RemoteEndpoint == nil {
 			return errors.New("Remote endpoint is not loaded")
@@ -192,12 +191,12 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 	return nil
 }
 
-func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []requests.Request) ([]requests.Response, error) {
+func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []Request) ([]Response, error) {
 	start := time.Now()
 	defer func() {
 		vm.ProxiedRequestsDuration += time.Since(start)
 	}()
-	return requests.MakeRequests(proxyRequests, vm.RequestID)
+	return s.MakeRequests(proxyRequests, vm.RequestID)
 }
 
 func (s *Server) runCallComponentFinalize(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
