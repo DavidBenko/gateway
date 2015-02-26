@@ -1,6 +1,7 @@
 {
     "remote_endpoint": {
-        "name": "debugQuery",
+        "name": "Debug Query",
+        "codename": "debugQuery",
         "description": "Debug with additional query parameters",
         "type": "http",
         "data": {

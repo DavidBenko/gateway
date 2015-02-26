@@ -1,6 +1,7 @@
 {
     "remote_endpoint": {
-        "name": "debugEnv",
+        "name": "Debug Environment",
+        "codename": "debugEnv",
         "description": "Debug with additional query parameters",
         "type": "http",
         "data": {

@@ -1,6 +1,7 @@
 {
     "remote_endpoint": {
-        "name": "hello",
+        "name": "Hello World",
+        "codename": "hello",
         "description": "world",
         "type": "http",
         "data": {

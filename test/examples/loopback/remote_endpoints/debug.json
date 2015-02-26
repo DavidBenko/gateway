@@ -1,6 +1,7 @@
 {
     "remote_endpoint": {
-        "name": "debug",
+        "name": "Debug Basic",
+        "codename": "debug",
         "description": "basic debug screen",
         "type": "http",
         "data": {

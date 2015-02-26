@@ -158,7 +158,7 @@ func (c *ProxyEndpointCall) Name() (string, error) {
 		if c.RemoteEndpoint == nil {
 			return name, errors.New("Remote endpoint is not loaded.")
 		}
-		name = c.RemoteEndpoint.Name
+		name = c.RemoteEndpoint.Codename
 	}
 	return name, nil
 }

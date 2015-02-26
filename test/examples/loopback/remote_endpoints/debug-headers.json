@@ -1,6 +1,7 @@
 {
     "remote_endpoint": {
-        "name": "debugHeaders",
+        "name": "Debug Headers",
+        "codename": "debugHeaders",
         "description": "Debug with additional headers",
         "type": "http",
         "data": {

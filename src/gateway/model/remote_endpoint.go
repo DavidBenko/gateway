@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"gateway/code"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -18,6 +19,7 @@ type RemoteEndpoint struct {
 
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
+	Codename    string `json:"codename"`
 	Description string `json:"description"`
 	Type        string `json:"type"`
 
@@ -40,6 +42,15 @@ func (e *RemoteEndpoint) Validate() Errors {
 	errors := make(Errors)
 	if e.Name == "" {
 		errors.add("name", "must not be blank")
+	}
+	if e.Codename == "" {
+		errors.add("codename", "must not be blank")
+	}
+	if code.IsReserved(e.Codename) {
+		errors.add("codename", "is a reserved word and may not be used")
+	}
+	if !code.IsValidVariableIdentifier(e.Codename) {
+		errors.add("codename", "is not a valid variable identifier")
 	}
 	if e.Type != RemoteEndpointTypeHTTP {
 		errors.add("type", "must be 'http'")
@@ -75,6 +86,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.api_id as api_id,
 		remote_endpoints.id as id,
 		remote_endpoints.name as name,
+		remote_endpoints.codename as codename,
 		remote_endpoints.type as type,
 		remote_endpoints.data as data,
 		remote_endpoint_environment_data.data as selected_env_data
@@ -109,6 +121,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		remote_endpoints.api_id as api_id,
 	  remote_endpoints.id as id,
 	  remote_endpoints.name as name,
+		remote_endpoints.codename as codename,
 	  remote_endpoints.description as description,
 	  remote_endpoints.type as type,
 		remote_endpoints.data as data
@@ -187,9 +200,9 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	e.ID, err = tx.InsertOne(
-		`INSERT INTO remote_endpoints (api_id, name, description, type, data)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?)`,
-		e.APIID, e.AccountID, e.Name, e.Description, e.Type, encodedData)
+		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, data)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?)`,
+		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, encodedData)
 	if err != nil {
 		return err
 	}
@@ -215,11 +228,11 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
-		SET name = ?, description = ?, data = ?
+		SET name = ?, codename = ?, description = ?, data = ?
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
-		e.Name, e.Description, encodedData, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Codename, e.Description, encodedData, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
