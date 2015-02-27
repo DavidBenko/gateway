@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"gateway/config"
 	"log"
 	"time"
 )
@@ -24,7 +23,7 @@ type responsePayload struct {
 }
 
 // MakeRequests makes the requests and returns all responses.
-func (s *Server) MakeRequests(requests []Request, reqID string) ([]Response, error) {
+func (s *Server) MakeRequests(requests []Request, logPrefix string) ([]Response, error) {
 	start := time.Now()
 
 	n := len(requests)
@@ -45,8 +44,8 @@ func (s *Server) MakeRequests(requests []Request, reqID string) ([]Response, err
 	}
 
 	for i, request := range requests {
-		log.Printf("%s [req %s] [request] %s %s (%v)", config.Proxy,
-			reqID, request.Log(), responses[i].Log(), requestDurations[i])
+		log.Printf("%s [request] %s %s (%v)", logPrefix,
+			request.Log(), responses[i].Log(), requestDurations[i])
 	}
 
 	return responses, nil

@@ -3,12 +3,15 @@ package proxy
 import (
 	"gateway/config"
 	"gateway/model"
+	aphttp "gateway/http"
 	apsql "gateway/sql"
+
 	"log"
 	"net/http"
 	"strconv"
 	"sync"
 
+	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 )
 
@@ -50,6 +53,7 @@ func (r *proxyRouter) Match(request *http.Request, match *mux.RouteMatch) bool {
 		return false
 	}
 
+	context.Set(request, aphttp.ContextAPIIDKey, apiID)
 	return router.Match(request, match)
 }
 

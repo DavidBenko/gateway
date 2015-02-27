@@ -81,17 +81,21 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
+	apiID := context.Get(r, aphttp.ContextAPIIDKey).(int64)
+
+	logPrefix := fmt.Sprintf("%s [api %d] [req %s]",
+		config.Proxy, apiID, requestID)
+	context.Set(r, aphttp.ContextLogPrefixKey, logPrefix)
 
 	var proxiedRequestsDuration time.Duration
 	defer func() {
 		if httpErr != nil {
-			log.Printf("%s [req %s] [error] %s",
-				config.Proxy, requestID, httpErr.String())
+			log.Printf("%s [error] %s", logPrefix, httpErr.String())
 		}
 		total := time.Since(start)
 		processing := total - proxiedRequestsDuration
-		log.Printf("%s [req %s] [time] %v (processing %v, requests %v)",
-			config.Proxy, requestID, total, processing, proxiedRequestsDuration)
+		log.Printf("%s [time] %v (processing %v, requests %v)",
+			logPrefix, total, processing, proxiedRequestsDuration)
 	}()
 
 	// Let's set this really early so it's available even in error cases
@@ -109,7 +113,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		return aphttp.NewServerError(err)
 	}
 
-	log.Printf("%s [req %s] [route] %s", config.Proxy, requestID, proxyEndpoint.Name)
+	log.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
 
 	if r.Method == "OPTIONS" {
 		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
@@ -121,7 +125,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		}
 	}
 
-	vm, err := vm.NewVM(requestID, w, r, s.proxyConf, s.db, proxyEndpoint)
+	vm, err := vm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

@@ -187,7 +187,7 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []Request) ([]Respon
 	defer func() {
 		vm.ProxiedRequestsDuration += time.Since(start)
 	}()
-	return s.MakeRequests(proxyRequests, vm.RequestID)
+	return s.MakeRequests(proxyRequests, vm.LogPrefix)
 }
 
 func (s *Server) evaluateComponentConditional(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) (bool, error) {

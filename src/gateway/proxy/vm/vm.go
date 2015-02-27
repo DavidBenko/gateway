@@ -26,7 +26,7 @@ import (
 type ProxyVM struct {
 	*otto.Otto
 	conf                    config.ProxyServer
-	RequestID               string
+	LogPrefix               string
 	ProxiedRequestsDuration time.Duration
 
 	w            http.ResponseWriter
@@ -36,7 +36,7 @@ type ProxyVM struct {
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
 func NewVM(
-	requestID string,
+	logPrefix string,
 	w http.ResponseWriter,
 	r *http.Request,
 	conf config.ProxyServer,
@@ -46,7 +46,7 @@ func NewVM(
 
 	vm := &ProxyVM{
 		otto.New(),
-		conf, requestID, 0,
+		conf, logPrefix, 0,
 		w, r,
 		nil,
 	}
@@ -118,7 +118,7 @@ func (p *ProxyVM) RunAll(scripts []interface{}) (value otto.Value, err error) {
 }
 
 func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
-	log.Printf("%s [req %s] [user] %v", config.Proxy, p.RequestID, call.Argument(0).String())
+	log.Printf("%s [user] %v", p.LogPrefix, call.Argument(0).String())
 	return otto.Value{}
 }
 

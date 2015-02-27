@@ -29,8 +29,10 @@ func AccessLoggingHandler(prefix string, handler http.Handler) http.Handler {
 		l := &responseLogger{w: w}
 		handler.ServeHTTP(l, r)
 
+		logPrefix := context.Get(r, ContextLogPrefixKey).(string)
+
 		clf := buildCommonLogLine(r, *r.URL, t, l.Status(), l.Size())
-		log.Printf("%s [req %s] [access] %s", prefix, uuid, clf)
+		log.Printf("%s [access] %s", logPrefix, clf)
 	})
 }
 
