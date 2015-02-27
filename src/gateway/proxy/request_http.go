@@ -50,8 +50,7 @@ func (h *HTTPRequest) Perform(s *Server, c chan<- responsePayload, index int) {
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		context := fmt.Errorf("%s %s: %s", h.Method, h.URL, err.Error())
-		c <- responsePayload{index: index, response: NewErrorResponse(context)}
+		c <- responsePayload{index: index, response: NewErrorResponse(err)}
 		return
 	}
 

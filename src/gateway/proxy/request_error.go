@@ -3,11 +3,13 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 )
 
 // ErrorResponse holds an error string.
 type ErrorResponse struct {
-	Error string `json:"error"`
+	StatusCode int    `json:"statusCode"`
+	Error      string `json:"error"`
 }
 
 // JSON converts this response to JSON format.
@@ -22,5 +24,5 @@ func (r *ErrorResponse) Log() string {
 
 // NewErrorResponse returns a new response that wraps the error.
 func NewErrorResponse(err error) Response {
-	return &ErrorResponse{Error: err.Error()}
+	return &ErrorResponse{http.StatusInternalServerError, err.Error()}
 }
