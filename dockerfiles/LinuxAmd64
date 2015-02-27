@@ -1,0 +1,10 @@
+# anypresence/gateway:linux-amd64-compilation
+# version 0.0.1
+FROM golang:1.4.2-wheezy
+MAINTAINER Jeff Bozek, jbozek@anypresence.com
+
+# Install dependencies
+RUN apt-get -y update && apt-get -y upgrade && \
+    go get golang.org/x/tools/cmd/vet
+
+ENTRYPOINT export GOPATH=${PWD}/_vendor:${PWD}:${GOPATH} && export PATH=${PWD}/_vendor/bin:${PWD}/bin:${PATH} && go build -o ./build/gateway-linux-amd64 ./src/gateway/main.go
