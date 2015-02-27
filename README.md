@@ -10,15 +10,15 @@ On OS X:
 
     brew update
     brew install go
-    
+
 Now set up a global `GOPATH`. Here we'll assume it's going to be `~/go`.
 
     mkdir ~/go
-    
+
 In `~/.bash_profile`, add:
 
     export GOPATH=~/go
-    
+
 Now source the file into your local shell and install a few Go tools:
 
     source ~/.bash_profile
@@ -31,7 +31,7 @@ Now source the file into your local shell and install a few Go tools:
     cd gateway
     make run
 
-This runs a Gateway instance using the configuration specified in 
+This runs a Gateway instance using the configuration specified in
 `test/gateway.conf`, and sample proxy code stored in `test/examples`.
 
 ### Static Assets
@@ -44,16 +44,16 @@ the server if you add a file to one of the static assets folders.
 
 ### `GOPATH`
 
-For building and testing, Gateway manages its own `GOPATH` inside the 
+For building and testing, Gateway manages its own `GOPATH` inside the
 `Makefile`. Still, sometimes you want to have access to that `GOPATH` outside
 of `make`.
 
 The script `gopath.sh` will alter your `GOPATH` to include this project's
 dependent paths (the working directory & `_vendor`). To include it in your
 shell:
-    
+
 	source gopath.sh
-	
+
 This will allow it to be picked up by your IDE and other tools (I'm using Atom
 with [`go-plus`](https://atom.io/packages/go-plus)).
 
@@ -63,7 +63,7 @@ I'm using Ember CLI to manage the front end application found in `admin`.
 
 ## Gateway Setup
 
-The Gateway can be configured using a configuration file, environment 
+The Gateway can be configured using a configuration file, environment
 variables, command line flags, or all three.
 
 The command line flags take precedence, then the environment variables, then
@@ -86,7 +86,7 @@ for validation. A set of keys for development are included in the `test`
 directory. To make compatible keys for production, use:
 
 	ssh-keygen -t rsa -C "AnyPresence Gateway Keypair"
-	
+
 And to extract the public key in a compatible PEM format:
 
 	openssl rsa -in <private key> -pubout -out <public key>
@@ -112,14 +112,14 @@ Setup scripts for the "loopback" data and the other examples are run with
     gem install rake
 
 To seed a fresh server (run with `make run`) with the loopback data:
-    
+
 	cd test/examples
 	rake loopback seed
-    
+
 And to update the proxy code after making changes:
 
     rake loopback update
-    
+
 To completely clear the default Gateway data:
 
     rake clean
@@ -135,3 +135,16 @@ will need to:
 
 	go get github.com/mitchellh/gox
 	gox -build-toolchain
+
+### Building for Linux with Docker
+
+If you have Docker installed locally, you can build the LinuxAmd64 Dockerfile and then compile in there. You can build the Docker image with (from the dockerfiles directory):
+
+    docker build --no-cache -t anypresence/gateway:linux-amd64-compilation -f LinuxAmd64 .
+
+Then, run the following to compile the binary:
+
+    make vet admin assets generate
+    docker run --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:linux-amd64-compilation
+
+Your new binary will be at ./build/gateway-linux-amd64
