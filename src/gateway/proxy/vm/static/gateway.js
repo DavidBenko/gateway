@@ -24,5 +24,9 @@ AP.insertResponses = function(calls, responses) {
   for (var i = 0; i < numCalls; i++) {
     var call = calls[i];
     call.response = responses[i];
+
+    if (numCalls == 1) {
+      response = call.response;
+    }
   }
 }

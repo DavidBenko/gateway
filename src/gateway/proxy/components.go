@@ -76,15 +76,6 @@ func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComp
 		return err
 	}
 
-	switch component.Type {
-	case model.ProxyEndpointComponentTypeSingle:
-		fallthrough
-	case model.ProxyEndpointComponentTypeMulti:
-		if err = s.runCallComponentFinalize(vm, component); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -197,22 +188,6 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []Request) ([]Respon
 		vm.ProxiedRequestsDuration += time.Since(start)
 	}()
 	return s.MakeRequests(proxyRequests, vm.RequestID)
-}
-
-func (s *Server) runCallComponentFinalize(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
-	if component.Call == nil {
-		return nil
-	}
-
-	name, err := component.Call.Name()
-	if err != nil {
-		return err
-	}
-
-	/* TODO: I think we need a default dirty-tracking response object, so that we can overwrite only if !dirty */
-	responseHijack := fmt.Sprintf("response = %s.response;", name)
-	_, err = vm.Run(responseHijack)
-	return err
 }
 
 func (s *Server) evaluateComponentConditional(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) (bool, error) {
