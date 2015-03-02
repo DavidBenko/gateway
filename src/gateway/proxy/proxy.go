@@ -81,11 +81,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
-	apiID := context.Get(r, aphttp.ContextAPIIDKey).(int64)
-
-	logPrefix := fmt.Sprintf("%s [api %d] [req %s]",
-		config.Proxy, apiID, requestID)
-	context.Set(r, aphttp.ContextLogPrefixKey, logPrefix)
+	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 
 	var proxiedRequestsDuration time.Duration
 	defer func() {

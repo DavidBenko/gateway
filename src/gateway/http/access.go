@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"gateway/config"
+
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 )
@@ -23,20 +25,21 @@ func AccessLoggingHandler(prefix string, handler http.Handler) http.Handler {
 			log.Printf("%s Could not generate request UUID", prefix)
 			uuid = "x"
 		}
-
 		context.Set(r, ContextRequestIDKey, uuid)
+
+		var logPrefix string
+		if apiID, ok := context.GetOk(r, ContextAPIIDKey); ok {
+			logPrefix = fmt.Sprintf("%s [api %d] [req %s]", config.Proxy, apiID.(int64), uuid)
+		} else {
+			logPrefix = fmt.Sprintf("%s [req %s]", config.Proxy, uuid)
+		}
+		context.Set(r, ContextLogPrefixKey, logPrefix)
 
 		l := &responseLogger{w: w}
 		handler.ServeHTTP(l, r)
 
-		logPrefix := context.Get(r, ContextLogPrefixKey)
-
 		clf := buildCommonLogLine(r, *r.URL, t, l.Status(), l.Size())
-		if logPrefix != nil {
-			log.Printf("%s [access] %s", logPrefix.(string), clf)
-		} else {
-			log.Printf("%s [req %s] [access] %s", prefix, uuid, clf)
-		}
+		log.Printf("%s [access] %s", logPrefix, clf)
 	})
 }
 
