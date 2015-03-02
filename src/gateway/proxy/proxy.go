@@ -55,11 +55,11 @@ func (s *Server) Run() {
 	s.proxyRouter = newProxyRouter(s.db)
 
 	s.router.Handle("/{path:.*}",
-		aphttp.AccessLoggingHandler(config.Proxy,
+		aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
 			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
 		MatcherFunc(s.isRoutedToEndpoint)
 
-	s.router.NotFoundHandler = accessLoggingNotFoundHandler()
+	s.router.NotFoundHandler = s.accessLoggingNotFoundHandler()
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
@@ -93,11 +93,6 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		log.Printf("%s [time] %v (processing %v, requests %v)",
 			logPrefix, total, processing, proxiedRequestsDuration)
 	}()
-
-	// Let's set this really early so it's available even in error cases
-	if s.proxyConf.RequestIDHeader != "" {
-		w.Header().Set(s.proxyConf.RequestIDHeader, requestID)
-	}
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
@@ -184,8 +179,8 @@ func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
 	return result.String(), nil
 }
 
-func accessLoggingNotFoundHandler() http.Handler {
-	return aphttp.AccessLoggingHandler(config.Proxy,
+func (s *Server) accessLoggingNotFoundHandler() http.Handler {
+	return aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 		}))

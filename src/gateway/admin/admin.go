@@ -15,7 +15,8 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	setupSessions(conf)
 
 	var admin aphttp.Router
-	admin = aphttp.NewAccessLoggingRouter(config.Admin, subrouter(router, conf))
+	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+		subrouter(router, conf))
 
 	if conf.CORSEnabled {
 		admin = aphttp.NewCORSAwareRouter(conf.CORSOrigin, admin)

@@ -53,6 +53,8 @@ type ProxyAdmin struct {
 	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:""`
 	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:""`
 
+	RequestIDHeader string `flag:"admin-request-id-header" default:"X-Gateway-Admin-Request"`
+
 	CORSEnabled bool   `flag:"admin-cors-enabled" default:"true"`
 	CORSOrigin  string `flag:"admin-cors-origin" default:"*"`
 

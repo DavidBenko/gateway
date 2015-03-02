@@ -12,7 +12,7 @@ var usageStrings = map[string]string{
 	"proxy-host": "The hostname of the proxy server",
 	"proxy-port": "The port of the proxy server",
 
-	"proxy-request-id-header": "The header to send the response ID back in. Not sent if blank.",
+	"proxy-request-id-header": "The header to send the proxy request ID back in. Not sent if blank.",
 	"proxy-enable-os-env":     "Whether or not to expose the OS's ENV to proxy code.",
 
 	"proxy-http-timeout": "The timeout in seconds to use for proxied HTTP requests.",
@@ -25,6 +25,8 @@ var usageStrings = map[string]string{
 	"admin-session-encryption-key":        "The encryption key to use for sessions. 32 chars recommended. If unset, encryption is disabled.",
 	"admin-session-auth-key-rotate":       "Same as admin-session-auth-key, to be used during key rotation.",
 	"admin-session-encryption-key-rotate": "Same as admin-session-encryption-key, to be used during key rotation.",
+
+	"admin-request-id-header": "The header to send the admin request ID back in. Not sent if blank.",
 
 	"admin-cors-enabled": "Set to false to disable CORS headers from being added to admin responses.",
 	"admin-cors-origin":  "The Access-Control-Allow-Origin header value to send with admin responses.",

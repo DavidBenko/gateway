@@ -8,15 +8,13 @@ import (
 	"net/http"
 	"time"
 
-	"gateway/config"
-
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 )
 
 // AccessLoggingHandler logs general access notes about a request, plus
 // sets up an ID in the context for other methods to use for logging.
-func AccessLoggingHandler(prefix string, handler http.Handler) http.Handler {
+func AccessLoggingHandler(prefix string, uuidHeader string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 
@@ -27,11 +25,15 @@ func AccessLoggingHandler(prefix string, handler http.Handler) http.Handler {
 		}
 		context.Set(r, ContextRequestIDKey, uuid)
 
+		if uuidHeader != "" {
+			w.Header().Set(uuidHeader, uuid)
+		}
+
 		var logPrefix string
 		if apiID, ok := context.GetOk(r, ContextAPIIDKey); ok {
-			logPrefix = fmt.Sprintf("%s [api %d] [req %s]", config.Proxy, apiID.(int64), uuid)
+			logPrefix = fmt.Sprintf("%s [api %d] [req %s]", prefix, apiID.(int64), uuid)
 		} else {
-			logPrefix = fmt.Sprintf("%s [req %s]", config.Proxy, uuid)
+			logPrefix = fmt.Sprintf("%s [req %s]", prefix, uuid)
 		}
 		context.Set(r, ContextLogPrefixKey, logPrefix)
 
@@ -45,18 +47,19 @@ func AccessLoggingHandler(prefix string, handler http.Handler) http.Handler {
 
 // AccessLoggingRouter wraps all Handle calls in an AccessLoggingHandler.
 type AccessLoggingRouter struct {
-	prefix string
-	router *mux.Router
+	prefix     string
+	uuidHeader string
+	router     *mux.Router
 }
 
 // Handle wraps the handler in an AccessLoggingHandler for the router.
 func (l *AccessLoggingRouter) Handle(pattern string, handler http.Handler) {
-	l.router.Handle(pattern, AccessLoggingHandler(l.prefix, handler))
+	l.router.Handle(pattern, AccessLoggingHandler(l.prefix, l.uuidHeader, handler))
 }
 
 // NewAccessLoggingRouter wraps the router.
-func NewAccessLoggingRouter(prefix string, router *mux.Router) *AccessLoggingRouter {
-	return &AccessLoggingRouter{prefix: prefix, router: router}
+func NewAccessLoggingRouter(prefix, uuidHeader string, router *mux.Router) *AccessLoggingRouter {
+	return &AccessLoggingRouter{prefix: prefix, uuidHeader: uuidHeader, router: router}
 }
 
 // newUUID generates a random UUID according to RFC 4122
