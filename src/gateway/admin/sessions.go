@@ -75,7 +75,7 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := deserialize(&credentials, r); err != nil {
+	if err := deserialize(&credentials, r.Body); err != nil {
 		log.Printf("%s Error reading credentials: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}

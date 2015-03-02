@@ -11,11 +11,11 @@ import (
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
 type ProxyEndpoint struct {
 	AccountID       int64  `json:"-"`
-	APIID           int64  `json:"api_id" db:"api_id"`
-	EndpointGroupID *int64 `json:"endpoint_group_id" db:"endpoint_group_id"`
-	EnvironmentID   int64  `json:"environment_id" db:"environment_id"`
+	APIID           int64  `json:"api_id,omitempty" db:"api_id"`
+	EndpointGroupID *int64 `json:"endpoint_group_id,omitempty" db:"endpoint_group_id"`
+	EnvironmentID   int64  `json:"environment_id,omitempty" db:"environment_id"`
 
-	ID          int64          `json:"id"`
+	ID          int64          `json:"id,omitempty"`
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Active      bool           `json:"active"`
@@ -24,11 +24,13 @@ type ProxyEndpoint struct {
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
 
-	// Environment is used in proxy to cache environment data for execution
-	Environment *Environment `json:"-"`
+	// Export Indices
+	ExportEndpointGroupIndex int `json:"endpoint_group_index,omitempty"`
+	ExportEnvironmentIndex   int `json:"environment_index,omitempty"`
 
-	// API is used in proxy to cache API data for execution
-	API *API `json:"-"`
+	// Proxy Data Cache
+	Environment *Environment `json:"-"`
+	API         *API         `json:"-"`
 }
 
 // Validate validates the model.

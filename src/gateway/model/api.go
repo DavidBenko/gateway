@@ -4,8 +4,9 @@ import apsql "gateway/sql"
 
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
-	AccountID            int64  `json:"-" db:"account_id"`
-	ID                   int64  `json:"id"`
+	AccountID int64 `json:"-" db:"account_id"`
+
+	ID                   int64  `json:"id,omitempty"`
 	Name                 string `json:"name"`
 	Description          string `json:"description"`
 	CORSAllowOrigin      string `json:"cors_allow_origin" db:"cors_allow_origin"`
@@ -13,6 +14,12 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
+
+	Environments    []*Environment    `json:"environments,omitempty"`
+	EndpointGroups  []*EndpointGroup  `json:"endpoint_groups,omitempty"`
+	Libraries       []*Library        `json:"libraries,omitempty"`
+	RemoteEndpoints []*RemoteEndpoint `json:"remote_endpoints,omitempty"`
+	ProxyEndpoints  []*ProxyEndpoint  `json:"proxy_endpoints,omitempty"`
 }
 
 // Validate validates the model.

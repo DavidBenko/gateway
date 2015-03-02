@@ -162,7 +162,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx, isInsert bool) aphttp.Error {
 
-  <%= local %>, httpErr := c.deserializeInstance(r)
+  <%= local %>, httpErr := c.deserializeInstance(r.Body)
   if httpErr != nil {
     return httpErr
   }
@@ -208,13 +208,13 @@ func (c *<%= controller %>) notFound() aphttp.Error {
   return aphttp.NewError(errors.New("No <%= pretty %> matches"), 404)
 }
 
-func (c *<%= controller %>) deserializeInstance(r *http.Request) (*model.<%= singular %>,
+func (c *<%= controller %>) deserializeInstance(file io.Reader) (*model.<%= singular %>,
   aphttp.Error) {
 
   var wrapped struct {
     <%= singular %> *model.<%= singular %> `json:"<%= json_singular %>"`
   }
-  if err := deserialize(&wrapped, r); err != nil {
+  if err := deserialize(&wrapped, file); err != nil {
     return nil, err
   }
   if wrapped.<%= singular %> == nil {

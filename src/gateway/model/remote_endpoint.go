@@ -15,9 +15,9 @@ const (
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
-	APIID     int64 `json:"api_id" db:"api_id"`
+	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
-	ID          int64  `json:"id"`
+	ID          int64  `json:"id,omitempty"`
 	Name        string `json:"name"`
 	Codename    string `json:"codename"`
 	Description string `json:"description"`
@@ -26,15 +26,17 @@ type RemoteEndpoint struct {
 	Data            types.JsonText                   `json:"data" db:"data"`
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
 
-	// SelectedEnvironmentData is used in proxy to cache specific env data for execution
+	// Proxy Data Cache
 	SelectedEnvironmentData *types.JsonText `json:"-" db:"selected_env_data"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
 	RemoteEndpointID int64          `json:"-" db:"remote_endpoint_id"`
-	EnvironmentID    int64          `json:"environment_id" db:"environment_id"`
+	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
 	Data             types.JsonText `json:"data"`
+
+	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
 
 // Validate validates the model.

@@ -33,7 +33,12 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	// protected by requiring login
 	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"})
 	RouteResource(&UsersController{BaseController{}, accountIDFromSession}, "/users", authAdmin, db, conf)
-	RouteResource(&APIsController{}, "/apis", authAdmin, db, conf)
+
+	apisController := &APIsController{}
+	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
+	RouteAPIImport(apisController, "/apis/import", authAdmin, db, conf)
+	RouteResource(apisController, "/apis", authAdmin, db, conf)
+
 	RouteResource(&HostsController{}, "/apis/{apiID}/hosts", authAdmin, db, conf)
 	RouteResource(&EnvironmentsController{}, "/apis/{apiID}/environments", authAdmin, db, conf)
 	RouteResource(&LibrariesController{}, "/apis/{apiID}/libraries", authAdmin, db, conf)

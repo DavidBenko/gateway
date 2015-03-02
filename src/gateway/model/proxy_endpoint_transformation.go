@@ -15,7 +15,7 @@ const (
 
 // ProxyEndpointTransformation describes a transformation around a proxy call.
 type ProxyEndpointTransformation struct {
-	ID          int64          `json:"id"`
+	ID          int64          `json:"id,omitempty"`
 	ComponentID *int64         `json:"-" db:"component_id"`
 	CallID      *int64         `json:"-" db:"call_id"`
 	Before      bool           `json:"-" db:"before"`

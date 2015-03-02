@@ -5,9 +5,9 @@ import apsql "gateway/sql"
 // EndpointGroup is an optional grouping of proxy endpoints.
 type EndpointGroup struct {
 	AccountID int64 `json:"-"`
-	APIID     int64 `json:"api_id" db:"api_id"`
+	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
-	ID          int64  `json:"id"`
+	ID          int64  `json:"id,omitempty"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }

@@ -6,6 +6,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -39,8 +40,8 @@ func parseID(id string) int64 {
 	return i
 }
 
-func deserialize(dest interface{}, r *http.Request) aphttp.Error {
-	body, err := ioutil.ReadAll(r.Body)
+func deserialize(dest interface{}, file io.Reader) aphttp.Error {
+	body, err := ioutil.ReadAll(file)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusInternalServerError)
 	}

@@ -6,9 +6,9 @@ import (
 )
 
 type ProxyEndpointCall struct {
-	ID                    int64                          `json:"id"`
+	ID                    int64                          `json:"id,omitempty"`
 	ComponentID           int64                          `json:"-" db:"component_id"`
-	RemoteEndpointID      int64                          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
+	RemoteEndpointID      int64                          `json:"remote_endpoint_id,omitempty" db:"remote_endpoint_id"`
 	EndpointNameOverride  string                         `json:"endpoint_name_override" db:"endpoint_name_override"`
 	Conditional           string                         `json:"conditional"`
 	ConditionalPositive   bool                           `json:"conditional_positive" db:"conditional_positive"`
@@ -16,7 +16,10 @@ type ProxyEndpointCall struct {
 	BeforeTransformations []*ProxyEndpointTransformation `json:"before,omitempty"`
 	AfterTransformations  []*ProxyEndpointTransformation `json:"after,omitempty"`
 
-	// RemoteEndpoint is used in proxy to cache remote endpoint data for execution
+	// Export Indices
+	ExportRemoteEndpointIndex int `json:"remote_endpoint_index,omitempty"`
+
+	// Proxy Data Cache
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
 
