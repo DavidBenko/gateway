@@ -7,7 +7,6 @@ import (
 	aphttp "gateway/http"
 	"gateway/model"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/handlers"
@@ -87,8 +86,7 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 		if !validationErrors.Empty() {
 			return SerializableValidationErrors{validationErrors}
 		}
-		log.Printf("%s Error importing api: %v", config.System, err)
-		return aphttp.DefaultServerError()
+		return aphttp.NewServerError(err)
 	}
 
 	return c.serializeInstance(api, w)

@@ -20,6 +20,8 @@ type API struct {
 	Libraries       []*Library        `json:"libraries,omitempty"`
 	RemoteEndpoints []*RemoteEndpoint `json:"remote_endpoints,omitempty"`
 	ProxyEndpoints  []*ProxyEndpoint  `json:"proxy_endpoints,omitempty"`
+
+	ExportVersion int64 `json:"export_version,omitempty"`
 }
 
 // Validate validates the model.

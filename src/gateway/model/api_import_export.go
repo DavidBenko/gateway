@@ -1,8 +1,13 @@
 package model
 
 import (
+	"fmt"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+)
+
+const (
+	apiExportCurrentVersion int64 = 1
 )
 
 /***
@@ -21,6 +26,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		return nil, aperrors.NewWrapped("Finding API", err)
 	}
 	api.ID = 0
+	api.ExportVersion = apiExportCurrentVersion
 
 	api.Environments, err = AllEnvironmentsForAPIIDAndAccountID(db, id, accountID)
 	if err != nil {
@@ -110,8 +116,22 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 	return api, nil
 }
 
-// Import imports the whole API definition
+// Import imports any supported version of an API definition
 func (a *API) Import(tx *apsql.Tx) (err error) {
+	defer func() {
+		a.ExportVersion = 0
+	}()
+
+	switch a.ExportVersion {
+	case 1:
+		return a.ImportV1(tx)
+	default:
+		return fmt.Errorf("Export version %d is not supported", a.ExportVersion)
+	}
+}
+
+// ImportV1 imports the whole API definition in v1 format
+func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	err = a.Insert(tx)
 	if err != nil {
 		return err
