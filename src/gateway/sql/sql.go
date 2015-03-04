@@ -105,6 +105,20 @@ func IsUniqueConstraint(err error, table string, keys ...string) bool {
 	return strings.Contains(errString, sqliteString)
 }
 
+// IsNotNullConstraint returns whether or not the error looks like a not null constraint error
+func IsNotNullConstraint(err error, table, column string) bool {
+	errString := err.Error()
+	pgString := fmt.Sprintf("pq: null value in column \"%s\" violates not-null constraint",
+		column)
+
+	if strings.Contains(errString, pgString) {
+		return true
+	}
+
+	sqliteString := fmt.Sprintf("NOT NULL constraint failed: %s.%s", table, column)
+	return strings.Contains(errString, sqliteString)
+}
+
 // NQs returns n comma separated '?'s
 func NQs(n int) string {
 	return strings.Join(strings.Split(strings.Repeat("?", n), ""), ",")
