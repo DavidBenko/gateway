@@ -66,6 +66,9 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
 	if apsql.IsUniqueConstraint(err, "proxy_endpoints", "api_id", "name") {
 		errors.add("name", "is already taken")
 	}
+	if apsql.IsNotNullConstraint(err, "proxy_endpoints", "environment_id") {
+		errors.add("environment_id", "must be a valid environment in this API")
+	}
 	return errors
 }
 
