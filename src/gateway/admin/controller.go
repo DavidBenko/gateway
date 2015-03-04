@@ -9,11 +9,11 @@ import (
 //go:generate ./controller.rb --model Account
 //go:generate ./controller.rb --model API --account
 //go:generate ./controller.rb --model EndpointGroup --account --api
-//go:generate ./controller.rb --model Environment --account --api
+//go:generate ./controller.rb --model Environment --account --api --check-delete
 //go:generate ./controller.rb --model Host --account --api
 //go:generate ./controller.rb --model Library --account --api
 //go:generate ./controller.rb --model ProxyEndpoint --account --api
-//go:generate ./controller.rb --model RemoteEndpoint --account --api
+//go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
 //go:generate ./controller.rb --model User --account --custom-struct --transform-method c.sanitize --transform-type sanitizedUser
 
 // ResourceController defines what we expect a controller to do to route

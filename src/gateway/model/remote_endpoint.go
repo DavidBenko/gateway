@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"gateway/code"
 	apsql "gateway/sql"
@@ -185,6 +186,24 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
+}
+
+// CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
+func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
+	var count int64
+	err := tx.Get(&count,
+		`SELECT COUNT(id) FROM proxy_endpoint_calls
+		 WHERE remote_endpoint_id = ?;`, id)
+
+	if err == nil && count == 0 {
+		return nil
+	}
+
+	if err == nil {
+		return errors.New("There are proxy endpoint calls that reference this endpoint.")
+	}
+
+	return errors.New("Could not check if endpoint could be deleted.")
 }
 
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.

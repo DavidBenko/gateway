@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -62,6 +63,24 @@ func FindEnvironmentForProxy(db *apsql.DB, id int64) (*Environment, error) {
 	environment := Environment{}
 	err := db.Get(&environment, db.SQL("environments/find_proxy"), id)
 	return &environment, err
+}
+
+// CanDeleteEnvironment checks whether deleting would violate any constraints
+func CanDeleteEnvironment(tx *apsql.Tx, id int64) error {
+	var count int64
+	err := tx.Get(&count,
+		`SELECT COUNT(id) FROM proxy_endpoints
+		 WHERE environment_id = ?;`, id)
+
+	if err == nil && count == 0 {
+		return nil
+	}
+
+	if err == nil {
+		return errors.New("There are proxy endpoints that reference this environment.")
+	}
+
+	return errors.New("Could not check if environment could be deleted.")
 }
 
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.

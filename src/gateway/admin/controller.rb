@@ -11,6 +11,7 @@ transform_type = nil
 account = false
 api = false
 custom_struct = false
+check_delete = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -25,6 +26,9 @@ OptionParser.new do |opts|
   end
   opts.on("--custom-struct", "Using a custom struct?") do |value|
     custom_struct = value
+  end
+  opts.on("--check-delete", "Check if delete is possible first?") do |value|
+    check_delete = value
   end
   opts.on("--transform-method Method", "Optional custom transform method") do |value|
     transform_method = value
@@ -138,6 +142,13 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx) aphttp.Error {
 
   id := instanceID(r)
+
+  <% if check_delete %>
+    if err := model.CanDelete<%= singular %>(tx, id); err != nil {
+      return aphttp.NewServerError(err)
+    }
+  <% end %>
+
   <% if account && api %>
     err := model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
       id, c.apiID(r), c.accountID(r))
