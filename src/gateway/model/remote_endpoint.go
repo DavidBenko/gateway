@@ -64,9 +64,11 @@ func (e *RemoteEndpoint) Validate() Errors {
 // into validation errors.
 func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) Errors {
 	errors := make(Errors)
-	if err.Error() == "UNIQUE constraint failed: remote_endpoints.api_id, remote_endpoints.name" ||
-		err.Error() == `pq: duplicate key value violates unique constraint "remote_endpoints_api_id_name_key"` {
+	if apsql.IsUniqueConstraint(err, "remote_endpoints", "api_id", "name") {
 		errors.add("name", "is already taken")
+	}
+	if apsql.IsNotNullConstraint(err, "remote_endpoint_environment_data", "environment_id") {
+		errors.add("environment_data", "must include a valid environment in this API")
 	}
 	return errors
 }
