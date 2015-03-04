@@ -92,7 +92,7 @@ func IsUniqueConstraint(err error, table string, keys ...string) bool {
 	pgString := fmt.Sprintf("pq: duplicate key value violates unique constraint \"%s_%s_key\"",
 		table, strings.Join(keys, "_"))
 
-	if errString == pgString {
+	if strings.Contains(errString, pgString) {
 		return true
 	}
 
@@ -102,7 +102,7 @@ func IsUniqueConstraint(err error, table string, keys ...string) bool {
 	}
 
 	sqliteString := fmt.Sprintf("UNIQUE constraint failed: %s", strings.Join(fullKeys, ", "))
-	return errString == sqliteString
+	return strings.Contains(errString, sqliteString)
 }
 
 // NQs returns n comma separated '?'s

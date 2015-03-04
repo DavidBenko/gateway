@@ -134,7 +134,7 @@ func (a *API) Import(tx *apsql.Tx) (err error) {
 func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	err = a.Insert(tx)
 	if err != nil {
-		return err
+		return aperrors.NewWrapped("Inserting API", err)
 	}
 
 	environmentsIDMap := make(map[int]int64)
