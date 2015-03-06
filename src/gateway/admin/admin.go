@@ -12,8 +12,6 @@ import (
 
 // Setup sets up the session and adds admin routes.
 func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
-	setupSessions(conf)
-
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
 		subrouter(router, conf))
@@ -22,29 +20,41 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 		admin = aphttp.NewCORSAwareRouter(conf.CORSOrigin, admin)
 	}
 
-	// siteAdmin is additionally protected for the site owner
-	siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
-	RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
-	RouteResource(&UsersController{BaseController{}, accountIDFromPath}, "/accounts/{accountID}/users", siteAdmin, db, conf)
+	if !conf.DevMode {
+		setupSessions(conf)
 
-	// sessions are unprotected to allow users to authenticate
-	RouteSessions("/sessions", admin, db, conf)
+		// siteAdmin is additionally protected for the site owner
+		siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
+		RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
+		RouteResource(&UsersController{BaseController{accountID: accountIDFromPath}}, "/accounts/{accountID}/users", siteAdmin, db, conf)
 
-	// protected by requiring login
+		// sessions are unprotected to allow users to authenticate
+		RouteSessions("/sessions", admin, db, conf)
+	}
+
+	// protected by requiring login (except dev mode)
+	accountID := accountIDFromSession
 	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"})
-	RouteResource(&UsersController{BaseController{}, accountIDFromSession}, "/users", authAdmin, db, conf)
+	if conf.DevMode {
+		accountID = accountIDForDevMode(db)
+		authAdmin = admin
+	}
 
-	apisController := &APIsController{}
+	base := BaseController{conf: conf, accountID: accountID}
+
+	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
+
+	apisController := &APIsController{base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
 	RouteAPIImport(apisController, "/apis/import", authAdmin, db, conf)
 	RouteResource(apisController, "/apis", authAdmin, db, conf)
 
-	RouteResource(&HostsController{}, "/apis/{apiID}/hosts", authAdmin, db, conf)
-	RouteResource(&EnvironmentsController{}, "/apis/{apiID}/environments", authAdmin, db, conf)
-	RouteResource(&LibrariesController{}, "/apis/{apiID}/libraries", authAdmin, db, conf)
-	RouteResource(&EndpointGroupsController{}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
-	RouteResource(&RemoteEndpointsController{}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
-	RouteResource(&ProxyEndpointsController{}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
+	RouteResource(&HostsController{base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
+	RouteResource(&EnvironmentsController{base}, "/apis/{apiID}/environments", authAdmin, db, conf)
+	RouteResource(&LibrariesController{base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
+	RouteResource(&EndpointGroupsController{base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
+	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 
 	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler(conf)))

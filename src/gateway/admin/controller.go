@@ -1,20 +1,21 @@
 package admin
 
 import (
+	"gateway/config"
 	aphttp "gateway/http"
 	apsql "gateway/sql"
 	"net/http"
 )
 
 //go:generate ./controller.rb --model Account
-//go:generate ./controller.rb --model API --account
+//go:generate ./controller.rb --model API --account --after-insert-hook
 //go:generate ./controller.rb --model EndpointGroup --account --api
 //go:generate ./controller.rb --model Environment --account --api --check-delete
 //go:generate ./controller.rb --model Host --account --api
 //go:generate ./controller.rb --model Library --account --api
 //go:generate ./controller.rb --model ProxyEndpoint --account --api
 //go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
-//go:generate ./controller.rb --model User --account --custom-struct --transform-method c.sanitize --transform-type sanitizedUser
+//go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
@@ -26,10 +27,9 @@ type ResourceController interface {
 	Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
 }
 
-type BaseController struct{}
-
-func (c *BaseController) accountID(r *http.Request) int64 {
-	return accountIDFromSession(r)
+type BaseController struct {
+	conf      config.ProxyAdmin
+	accountID func(r *http.Request) int64
 }
 
 func (c *BaseController) apiID(r *http.Request) int64 {

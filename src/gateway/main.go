@@ -11,6 +11,7 @@ import (
 
 	"gateway/config"
 	"gateway/license"
+	"gateway/model"
 	"gateway/proxy"
 	"gateway/sql"
 	"gateway/version"
@@ -47,7 +48,7 @@ func main() {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 	if !db.UpToDate() {
-		if conf.Database.Migrate {
+		if conf.Database.Migrate || conf.DevMode() {
 			if err = db.Migrate(); err != nil {
 				log.Fatalf("Error migrating database: %v", err)
 			}
@@ -58,6 +59,15 @@ func main() {
 		}
 	}
 
+	// Set up dev mode account
+	if conf.DevMode() {
+		if _, err := model.FirstAccount(db); err != nil {
+			log.Printf("%s Creating development account", config.System)
+			if err := createDevAccount(db); err != nil {
+				log.Fatalf("Could not create account: %v", err)
+			}
+		}
+	}
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf.Proxy, conf.Admin, db)
@@ -70,4 +80,19 @@ func main() {
 func versionCheck() bool {
 	return len(os.Args) >= 2 &&
 		strings.ToLower(os.Args[1:2][0]) == "-version"
+}
+
+func createDevAccount(db *sql.DB) error {
+	devAccount := &model.Account{Name: "Dev Account"}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	if err = devAccount.Insert(tx); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }

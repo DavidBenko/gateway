@@ -34,6 +34,13 @@ func AllAccounts(db *sql.DB) ([]*Account, error) {
 	return accounts, err
 }
 
+// FirstAccount returns the first account found.
+func FirstAccount(db *sql.DB) (*Account, error) {
+	account := Account{}
+	err := db.Get(&account, db.SQL("accounts/first"))
+	return &account, err
+}
+
 // FindAccount returns the account with the id specified.
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}

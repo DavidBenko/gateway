@@ -4,6 +4,7 @@ var usageStrings = map[string]string{
 	"version": "Whether to print the version and quit",
 	"config":  "The path to the configuration file",
 	"license": "The path to a valid Gateway license key",
+	"server":  "Whether or not to run in server mode",
 
 	"db-migrate":         "Whether or not to migrate the database on startup",
 	"db-driver":          "The database driver; sqlite or postgres",
@@ -37,4 +38,8 @@ var usageStrings = map[string]string{
 	"admin-realm":    "The HTTP Basic realm to use. Optional.",
 
 	"admin-show-version": "Whether or not to expose the Gateway version",
+
+	"admin-add-default-env":  "Whether or not to add a default environment to new APIs in dev mode",
+	"admin-default-env-name": "The name of the default environment to create",
+	"admin-add-localhost":    "Whether or not to add a localhost host to a the first API in dev mode",
 }

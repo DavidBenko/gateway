@@ -93,3 +93,38 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 
 	return c.serializeInstance(api, w)
 }
+
+// AfterInsert does some work after inserting an API
+func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
+	if !c.conf.DevMode {
+		return nil
+	}
+
+	if c.conf.AddDefaultEnvironment {
+		env := &model.Environment{Name: c.conf.DefaultEnvironmentName}
+		env.AccountID = api.AccountID
+		env.APIID = api.ID
+
+		if err := env.Insert(tx); err != nil {
+			return err
+		}
+	}
+
+	if c.conf.AddLocalhost {
+		any, err := model.AnyHostExists(tx)
+		if err != nil {
+			return err
+		}
+		if !any {
+			host := &model.Host{Name: "localhost", Hostname: "localhost"}
+			host.AccountID = api.AccountID
+			host.APIID = api.ID
+
+			if err := host.Insert(tx); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

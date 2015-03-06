@@ -1,6 +1,9 @@
 package model
 
-import apsql "gateway/sql"
+import (
+	"errors"
+	apsql "gateway/sql"
+)
 
 // Host represents a host the API is available on.
 type Host struct {
@@ -51,6 +54,16 @@ func AllHosts(db *apsql.DB) ([]*Host, error) {
 	hosts := []*Host{}
 	err := db.Select(&hosts, db.SQL("hosts/all_routing"))
 	return hosts, err
+}
+
+// AnyHostExists checks whether any hosts are set up.
+func AnyHostExists(tx *apsql.Tx) (bool, error) {
+	var count int64
+	if err := tx.Get(&count, tx.SQL("hosts/count")); err != nil {
+		return false, errors.New("Could not count hosts.")
+	}
+
+	return count > 0, nil
 }
 
 // FindHostForAPIIDAndAccountID returns the host with the id, api id, and account_id specified.

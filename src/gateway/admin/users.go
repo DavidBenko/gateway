@@ -1,15 +1,6 @@
 package admin
 
-import (
-	"gateway/model"
-	"net/http"
-)
-
-// UsersController manages users.
-type UsersController struct {
-	BaseController
-	accountID func(r *http.Request) int64
-}
+import "gateway/model"
 
 type sanitizedUser struct {
 	ID    int64  `json:"id"`

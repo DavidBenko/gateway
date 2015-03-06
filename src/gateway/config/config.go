@@ -13,11 +13,10 @@ import (
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	Version bool `flag:"version" default:"false"`
-
-	File string `flag:"config" default:"/etc/gateway/gateway.conf"`
-
-	License string `flag:"license" default:""`
+	Version bool   `flag:"version" default:"false"`
+	File    string `flag:"config" default:"./gateway.conf"`
+	License string `flag:"license" default:"./license"`
+	Server  bool   `flag:"server" default:"false"`
 
 	Database Database
 	Proxy    ProxyServer
@@ -28,7 +27,7 @@ type Configuration struct {
 type Database struct {
 	Migrate          bool   `flag:"db-migrate"     default:"false"`
 	Driver           string `flag:"db-driver"      default:"sqlite3"`
-	ConnectionString string `flag:"db-conn-string" default:"/etc/gateway/gateway.db"`
+	ConnectionString string `flag:"db-conn-string" default:"./gateway.db"`
 	MaxConnections   int64  `flag:"db-max-connections" default:"50"`
 }
 
@@ -46,6 +45,8 @@ type ProxyServer struct {
 // ProxyAdmin specifies configuration options that apply to the admin section
 // of the proxy.
 type ProxyAdmin struct {
+	DevMode bool
+
 	PathPrefix string `flag:"admin-path-prefix" default:"/admin/"`
 	Host       string `flag:"admin-host"        default:""`
 
@@ -65,6 +66,10 @@ type ProxyAdmin struct {
 	Realm    string `flag:"admin-realm"    default:""`
 
 	ShowVersion bool `flag:"admin-show-version" default:"true"`
+
+	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
+	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
+	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
 }
 
 const envPrefix = "APGATEWAY_"
@@ -92,6 +97,9 @@ func Parse(args []string) (Configuration, error) {
 	}
 	// Override values with flags (including environment)
 	setFromFlags(reflect.ValueOf(&config).Elem())
+
+	// Set final convenience flags
+	config.Admin.DevMode = config.DevMode()
 
 	return config, nil
 }
@@ -125,4 +133,8 @@ func setUnsetFlagsFromEnv() {
 func envValueForFlag(name string) string {
 	key := envPrefix + strings.ToUpper(strings.Replace(name, "-", "_", -1))
 	return os.Getenv(key)
+}
+
+func (c Configuration) DevMode() bool {
+	return !c.Server
 }

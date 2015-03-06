@@ -72,6 +72,13 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			return fmt.Sprintf("<meta name=\"version\" content=\"%s\">\n<meta name=\"commit\" content=\"%s\">",
 				version.Name(), version.Commit())
 		},
+		"devMode": func() string {
+			if !conf.DevMode {
+				return ""
+			}
+
+			return "<meta name=\"dev-mode\" content=\"true\">"
+		},
 	}
 
 	tmpl := template.New("index")

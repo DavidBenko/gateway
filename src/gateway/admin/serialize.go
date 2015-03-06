@@ -6,6 +6,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
+	apsql "gateway/sql"
 	"io"
 	"io/ioutil"
 	"log"
@@ -26,6 +27,16 @@ func accountIDFromPath(r *http.Request) int64 {
 func accountIDFromSession(r *http.Request) int64 {
 	session := requestSession(r)
 	return session.Values[accountIDKey].(int64)
+}
+
+func accountIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
+	return func(r *http.Request) int64 {
+		account, err := model.FirstAccount(db)
+		if err != nil {
+			log.Fatal("Could not get dev mode account")
+		}
+		return account.ID
+	}
 }
 
 func apiIDFromPath(r *http.Request) int64 {

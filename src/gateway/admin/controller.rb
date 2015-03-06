@@ -12,6 +12,7 @@ account = false
 api = false
 custom_struct = false
 check_delete = false
+after_insert = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -24,9 +25,6 @@ OptionParser.new do |opts|
   opts.on("--api", "Is model linked to API?") do |value|
     api = value
   end
-  opts.on("--custom-struct", "Using a custom struct?") do |value|
-    custom_struct = value
-  end
   opts.on("--check-delete", "Check if delete is possible first?") do |value|
     check_delete = value
   end
@@ -35,6 +33,9 @@ OptionParser.new do |opts|
   end
   opts.on("--transform-type Type", "Optional custom transform type") do |value|
     transform_type = value
+  end
+  opts.on("--after-insert-hook", "Does controller have an after insert hook?") do |value|
+    after_insert = value
   end
 end.parse!
 
@@ -76,12 +77,10 @@ import (
   "net/http"
 )
 
-<% unless custom_struct %>
 // <%= controller %> manages <%= plural %>.
 type <%= controller %> struct {
   BaseController
 }
-<% end %>
 
 // List lists the <%= plural %>.
 func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
@@ -211,6 +210,15 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     log.Printf("%s Error %s <%= pretty %>: %v", config.System, desc, err)
     return aphttp.DefaultServerError()
   }
+
+  <% if after_insert %>
+  if isInsert {
+    if err := c.AfterInsert(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after insert: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
 
   return c.serializeInstance(<%= local %>, w)
 }
