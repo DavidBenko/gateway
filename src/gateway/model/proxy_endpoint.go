@@ -69,6 +69,9 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
 	if apsql.IsNotNullConstraint(err, "proxy_endpoints", "environment_id") {
 		errors.add("environment_id", "must be a valid environment in this API")
 	}
+	if apsql.IsNotNullConstraint(err, "proxy_endpoint_calls", "remote_endpoint_id") {
+		errors.add("components", "all calls must reference a valid remote endpoint in this API")
+	}
 	return errors
 }
 
