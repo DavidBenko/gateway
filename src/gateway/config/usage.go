@@ -1,6 +1,7 @@
 package config
 
 var usageStrings = map[string]string{
+	"version": "Whether to print the version and quit",
 	"config":  "The path to the configuration file",
 	"license": "The path to a valid Gateway license key",
 
@@ -34,4 +35,6 @@ var usageStrings = map[string]string{
 	"admin-username": "The username to require with HTTP Basic Auth to protect the site admin functionality",
 	"admin-password": "The password to require with HTTP Basic Auth to protect the site admin functionality",
 	"admin-realm":    "The HTTP Basic realm to use. Optional.",
+
+	"admin-show-version": "Whether or not to expose the Gateway version",
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/version"
 
 	"github.com/gorilla/mux"
 )
@@ -62,6 +63,14 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			clean := strings.TrimLeft(rightless, "/")
 			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
 			return pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+		},
+		"version": func() string {
+			if !conf.ShowVersion {
+				return ""
+			}
+
+			return fmt.Sprintf("<meta name=\"version\" content=\"%s\">\n<meta name=\"commit\" content=\"%s\">",
+				version.Name(), version.Commit())
 		},
 	}
 

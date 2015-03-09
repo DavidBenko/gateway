@@ -13,6 +13,8 @@ import (
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
+	Version bool `flag:"version" default:"false"`
+
 	File string `flag:"config" default:"/etc/gateway/gateway.conf"`
 
 	License string `flag:"license" default:""`
@@ -61,6 +63,8 @@ type ProxyAdmin struct {
 	Username string `flag:"admin-username" default:"admin"`
 	Password string `flag:"admin-password" default:""`
 	Realm    string `flag:"admin-realm"    default:""`
+
+	ShowVersion bool `flag:"admin-show-version" default:"true"`
 }
 
 const envPrefix = "APGATEWAY_"

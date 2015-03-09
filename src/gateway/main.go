@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"runtime"
+	"strings"
 	"time"
 
 	"os"
@@ -11,9 +13,16 @@ import (
 	"gateway/license"
 	"gateway/proxy"
 	"gateway/sql"
+	"gateway/version"
 )
 
 func main() {
+	if strings.ToLower(os.Args[1:2][0]) == "-version" {
+		fmt.Printf("Gateway %s (%s)\n",
+			version.Name(), version.Commit())
+		return
+	}
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Setup logging
@@ -25,6 +34,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s Error parsing config file: %v", config.System, err)
 	}
+
+	log.Printf("%s Running Gateway %s (%s)",
+		config.System, version.Name(), version.Commit())
 
 	// Require a valid license key
 	license.ValidateForever(conf.License, time.Hour)
