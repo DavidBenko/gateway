@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	if strings.ToLower(os.Args[1:2][0]) == "-version" {
+	if versionCheck() {
 		fmt.Printf("Gateway %s (%s)\n",
 			version.Name(), version.Commit())
 		return
@@ -65,4 +65,9 @@ func main() {
 
 	done := make(chan bool)
 	<-done
+}
+
+func versionCheck() bool {
+	return len(os.Args) >= 2 &&
+		strings.ToLower(os.Args[1:2][0]) == "-version"
 }
