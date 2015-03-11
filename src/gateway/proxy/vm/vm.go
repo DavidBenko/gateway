@@ -45,27 +45,13 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		otto.New(),
+		shared.Copy(),
 		conf, logPrefix, 0,
 		w, r,
 		nil,
 	}
 
-	var files = []string{
-		"gateway.js",
-		"sessions.js",
-		"call.js",
-		"http/request.js",
-		"http/response.js",
-	}
 	var scripts = make([]interface{}, 0)
-	for _, filename := range files {
-		fileJS, err := Asset(filename)
-		if err != nil {
-			return nil, err
-		}
-		scripts = append(scripts, fileJS)
-	}
 
 	libraries, err := model.AllLibrariesForProxy(db, proxyEndpoint.APIID)
 
@@ -153,3 +139,28 @@ func osEnvironmentScript() string {
 		strings.Join(keypairs, ",\n"))
 	return script
 }
+
+var shared = func() *otto.Otto {
+	vm := otto.New()
+
+	var files = []string{
+		"gateway.js",
+		"sessions.js",
+		"call.js",
+		"http/request.js",
+		"http/response.js",
+	}
+	for _, filename := range files {
+		fileJS, err := Asset(filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		_, err = vm.Run(fileJS)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return vm
+}()
