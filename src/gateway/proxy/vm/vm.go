@@ -42,6 +42,7 @@ func NewVM(
 	conf config.ProxyServer,
 	db *sql.DB,
 	proxyEndpoint *model.ProxyEndpoint,
+	libraries []*model.Library,
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
@@ -53,11 +54,6 @@ func NewVM(
 
 	var scripts = make([]interface{}, 0)
 
-	libraries, err := model.AllLibrariesForProxy(db, proxyEndpoint.APIID)
-
-	if err != nil {
-		return nil, err
-	}
 	for _, library := range libraries {
 		libraryCode, err := scriptFromJSONScript(library.Data)
 		if err != nil {
@@ -74,7 +70,7 @@ func NewVM(
 		scripts = append(scripts, osEnvironmentScript())
 	}
 
-	if err = vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
+	if err := vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
 		return nil, err
 	}
 

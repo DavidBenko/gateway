@@ -22,12 +22,19 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+// ProxyDataSource defines an interface to get data to serve the proxy
+type ProxyDataSource interface {
+	Endpoint(id int64) (*model.ProxyEndpoint, error)
+	Libraries(apiID int64) ([]*model.Library, error)
+}
+
 // Server encapsulates the proxy server.
 type Server struct {
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	router      *mux.Router
 	proxyRouter *proxyRouter
+	proxyData   ProxyDataSource
 	db          *sql.DB
 	httpClient  *http.Client
 }
@@ -36,10 +43,18 @@ type Server struct {
 func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
 	httpTimeout := time.Duration(proxyConfig.HTTPTimeout) * time.Second
 
+	var source ProxyDataSource
+	if proxyConfig.CacheAPIs {
+		source = newCachingProxyDataSource(db)
+	} else {
+		source = newPassthroughProxyDataSource(db)
+	}
+
 	return &Server{
 		proxyConf:  proxyConfig,
 		adminConf:  adminConfig,
 		router:     mux.NewRouter(),
+		proxyData:  source,
 		db:         db,
 		httpClient: &http.Client{Timeout: httpTimeout},
 	}
@@ -99,7 +114,12 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		return aphttp.NewServerError(err)
 	}
 
-	proxyEndpoint, err := model.FindProxyEndpointForProxy(s.db, proxyEndpointID)
+	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
+	if err != nil {
+		return aphttp.NewServerError(err)
+	}
+
+	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}
@@ -116,7 +136,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		}
 	}
 
-	vm, err := vm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint)
+	vm, err := vm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint, libraries)
 	if err != nil {
 		return aphttp.NewServerError(err)
 	}

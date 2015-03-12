@@ -206,12 +206,16 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	return tx.DeleteOne(
+	err := tx.DeleteOne(
 		`DELETE FROM remote_endpoints
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
 		id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("remote_endpoints", apiID, apsql.Delete)
 }
 
 // Insert inserts the remoteEndpoint into the database as a new row.
@@ -310,7 +314,10 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 		WHERE remote_endpoint_id = ? AND environment_id IN (`+idQuery+`);`,
 		args...)
 
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Notify("remote_endpoints", e.APIID, apsql.Update)
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,

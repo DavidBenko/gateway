@@ -83,7 +83,11 @@ func CanDeleteEnvironment(tx *apsql.Tx, id int64) error {
 
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
 func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	return tx.DeleteOne(tx.SQL("environments/delete"), id, apiID, accountID)
+	err := tx.DeleteOne(tx.SQL("environments/delete"), id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("environments", apiID, apsql.Delete)
 }
 
 // Insert inserts the environment into the database as a new row.
@@ -105,9 +109,13 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.UpdateOne(tx.SQL("environments/update"),
+	err = tx.UpdateOne(tx.SQL("environments/update"),
 		e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate,
 		e.ID, e.APIID, e.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("environments", e.APIID, apsql.Update)
 }

@@ -39,6 +39,8 @@ type ProxyServer struct {
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
 	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
 
+	CacheAPIs bool `flag:"proxy-cache-apis" default:"false"`
+
 	HTTPTimeout int64 `flag:"proxy-http-timeout" default:"60"`
 }
 

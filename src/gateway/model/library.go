@@ -60,7 +60,11 @@ func FindLibraryForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (
 
 // DeleteLibraryForAPIIDAndAccountID deletes the library with the id, api_id and account_id specified.
 func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
-	return tx.DeleteOne(tx.SQL("libraries/delete"), id, apiID, accountID)
+	err := tx.DeleteOne(tx.SQL("libraries/delete"), id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("libraries", apiID, apsql.Delete)
 }
 
 // Insert inserts the library into the database as a new row.
@@ -71,7 +75,10 @@ func (l *Library) Insert(tx *apsql.Tx) error {
 	}
 	l.ID, err = tx.InsertOne(tx.SQL("libraries/insert"),
 		l.APIID, l.AccountID, l.Name, l.Description, data)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Notify("libraries", l.APIID, apsql.Insert)
 }
 
 // Update updates the library in the databasl.
@@ -80,6 +87,10 @@ func (l *Library) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.UpdateOne(tx.SQL("libraries/update"),
+	err = tx.UpdateOne(tx.SQL("libraries/update"),
 		l.Name, l.Description, data, l.ID, l.APIID, l.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("libraries", l.APIID, apsql.Update)
 }
