@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -75,9 +76,17 @@ func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 		StatusCode: response.StatusCode,
 		Headers:    aphttp.DesliceValues(response.Header),
 	}
+	var err error
+	bodyReader := response.Body
+	if response.Header.Get("Content-Encoding") == "gzip" {
+		bodyReader, err = gzip.NewReader(bodyReader)
+		if err != nil {
+			return nil, err
+		}
+	}
+	defer bodyReader.Close()
 
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
