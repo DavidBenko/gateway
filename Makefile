@@ -12,7 +12,7 @@ PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
 # TODO: For eventual real deployment builds, we need a new keypair
 LICENSE_PUBLIC_KEY := test/dev_public_key_assets
-	
+
 ifneq ($(MAKECMDGOALS), package)
 	BINDATA_DEBUG = -debug
 endif
@@ -20,14 +20,14 @@ endif
 ifdef TDDIUM_DB_NAME
 	POSTGRES_DB_NAME =  $$TDDIUM_DB_NAME
 endif
-ifndef POSTGRES_DB_NAME	
+ifndef POSTGRES_DB_NAME
 	POSTGRES_DB_NAME = "gateway_test"
 endif
 
 default: run
 
 admin:
-	cd admin; ember build -output-path ../src/gateway/admin/static/ --environment production-embedded
+	cd admin; ember build -output-path ../src/gateway/admin/static/ --environment production
 	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
 assets: install_bindata
@@ -35,26 +35,26 @@ assets: install_bindata
 	go-bindata -o src/gateway/proxy/vm/bindata.go -pkg vm $(BINDATA_DEBUG) -prefix "src/gateway/proxy/vm/static/" src/gateway/proxy/vm/static/...
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
-	
+
 generate: install_goimports
 	go generate gateway/...
-	
+
 build: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 
 package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
-		
+
 keygen:
 	go build -o ./bin/keygen keygen
 
-# Prior package for building for multiple architectures	
+# Prior package for building for multiple architectures
 # package: vet assets
 # 	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
 
 jsdoc:
 	jsdoc -c ./jsdoc.conf -r
-	
+
 godoc:
 	godoc -http=:6060 -index
 
@@ -62,10 +62,10 @@ godoc:
 fmt:
 	goimports ./src/...
 
-run: 
+run:
 	./bin/gateway -config=./test/gateway.conf -db-migrate
 
-runpg: 
+runpg:
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=gateway_dev sslmode=disable"
 
 test: build
@@ -79,14 +79,14 @@ test_api_sqlite_fast:
 	rspec test/admin-api; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
 
 test_api_sqlite: build test_api_sqlite_fast
-	
-test_api_postgres_fast: 
+
+test_api_postgres_fast:
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" > /dev/null & echo "$$!" > ./tmp/server.pid
 	sleep 1
 	rspec test/admin-api; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
-	
+
 test_api_postgres: build test_api_postgres_fast
 
 test_api: test_api_sqlite test_api_postgres
@@ -137,4 +137,3 @@ install_goimports:
 # go get code.google.com/p/go.tools/cmd/vet
 vet:
 	go vet ./src/...
-
