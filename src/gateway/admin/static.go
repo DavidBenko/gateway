@@ -39,7 +39,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, path string) {
 	}
 
 	content := bytes.NewReader(data)
-	gzipped, err := regexp.MatchString(`(js|css|svg|png|eot|ttf|woff)\z`, path)
+	gzipped, err := regexp.MatchString(`(js|css|svg|png|eot|ttf)\z`, path)
 	if gzipped {
 		w.Header().Set("Content-Encoding", "gzip")
 	}
