@@ -13,7 +13,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
-	"gateway/proxy/vm"
+	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
 
 	"github.com/gorilla/context"
@@ -94,15 +94,13 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 
-	var proxiedRequestsDuration time.Duration
+	var vm *apvm.ProxyVM
+
 	defer func() {
 		if httpErr != nil {
-			log.Printf("%s [error] %s", logPrefix, s.errorToLog(httpErr))
+			s.logError(logPrefix, httpErr)
 		}
-		total := time.Since(start)
-		processing := total - proxiedRequestsDuration
-		log.Printf("%s [time] %v (processing %v, requests %v)",
-			logPrefix, total, processing, proxiedRequestsDuration)
+		s.logDuration(vm, logPrefix, start)
 	}()
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
@@ -132,7 +130,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		}
 	}
 
-	vm, err := vm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint, libraries)
+	vm, err = apvm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint, libraries)
 	if err != nil {
 		return s.httpError(err)
 	}
@@ -170,7 +168,6 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	if err != nil {
 		return s.httpError(err)
 	}
-	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
 	if proxyEndpoint.CORSEnabled {
 		s.addCORSCommonHeaders(w, proxyEndpoint)
@@ -191,7 +188,7 @@ func (s *Server) httpError(err error) aphttp.Error {
 	return aphttp.NewServerError(err)
 }
 
-func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
+func (s *Server) objectJSON(vm *apvm.ProxyVM, object otto.Value) (string, error) {
 	jsJSON, err := vm.Object("JSON")
 	if err != nil {
 		return "", err
@@ -210,7 +207,7 @@ func (s *Server) accessLoggingNotFoundHandler() http.Handler {
 		}))
 }
 
-func (s *Server) runStoredJSONScript(vm *vm.ProxyVM, jsonScript types.JsonText) error {
+func (s *Server) runStoredJSONScript(vm *apvm.ProxyVM, jsonScript types.JsonText) error {
 	script, err := strconv.Unquote(string(jsonScript))
 	if err != nil || script == "" {
 		return err
@@ -267,10 +264,23 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) errorToLog(err aphttp.Error) string {
+func (s *Server) logError(logPrefix string, err aphttp.Error) {
+	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
-		return lines[0]
+		errString = lines[0]
 	}
-	return "Unknown error"
+	log.Printf("%s [error] %s", logPrefix, errString)
+}
+
+func (s *Server) logDuration(vm *apvm.ProxyVM, logPrefix string, start time.Time) {
+	var proxiedRequestsDuration time.Duration
+	if vm != nil {
+		proxiedRequestsDuration = vm.ProxiedRequestsDuration
+	}
+
+	total := time.Since(start)
+	processing := total - proxiedRequestsDuration
+	log.Printf("%s [time] %v (processing %v, requests %v)",
+		logPrefix, total, processing, proxiedRequestsDuration)
 }
