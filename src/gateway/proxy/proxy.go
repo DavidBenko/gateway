@@ -22,19 +22,13 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-// ProxyDataSource defines an interface to get data to serve the proxy
-type ProxyDataSource interface {
-	Endpoint(id int64) (*model.ProxyEndpoint, error)
-	Libraries(apiID int64) ([]*model.Library, error)
-}
-
 // Server encapsulates the proxy server.
 type Server struct {
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	router      *mux.Router
 	proxyRouter *proxyRouter
-	proxyData   ProxyDataSource
+	proxyData   proxyDataSource
 	db          *sql.DB
 	httpClient  *http.Client
 }
@@ -43,7 +37,7 @@ type Server struct {
 func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
 	httpTimeout := time.Duration(proxyConfig.HTTPTimeout) * time.Second
 
-	var source ProxyDataSource
+	var source proxyDataSource
 	if proxyConfig.CacheAPIs {
 		source = newCachingProxyDataSource(db)
 	} else {

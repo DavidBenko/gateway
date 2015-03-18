@@ -9,6 +9,11 @@ import (
 	"sync"
 )
 
+type proxyDataSource interface {
+	Endpoint(id int64) (*model.ProxyEndpoint, error)
+	Libraries(apiID int64) ([]*model.Library, error)
+}
+
 type endpointPassthrough struct {
 	db *apsql.DB
 }
