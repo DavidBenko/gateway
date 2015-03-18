@@ -41,8 +41,9 @@ type ProxyServer struct {
 
 	CacheAPIs bool `flag:"proxy-cache-apis" default:"false"`
 
-	HTTPTimeout int64 `flag:"proxy-http-timeout" default:"60"`
-	CodeTimeout int64 `flag:"proxy-code-timeout" default:"5"`
+	HTTPTimeout   int64 `flag:"proxy-http-timeout" default:"60"`
+	CodeTimeout   int64 `flag:"proxy-code-timeout" default:"5"`
+	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

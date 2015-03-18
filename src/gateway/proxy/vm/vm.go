@@ -114,7 +114,7 @@ func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
 
 	value, err = p.Otto.Run(script)
 	if err != nil {
-		return value, &jsError{err, script}
+		return value, &jsError{err, script, p.conf.NumErrorLines}
 	}
 	return
 }
