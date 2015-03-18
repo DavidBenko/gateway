@@ -24,6 +24,7 @@ import (
 
 // Server encapsulates the proxy server.
 type Server struct {
+	devMode     bool
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	router      *mux.Router
@@ -34,19 +35,20 @@ type Server struct {
 }
 
 // NewServer builds a new proxy server.
-func NewServer(proxyConfig config.ProxyServer, adminConfig config.ProxyAdmin, db *sql.DB) *Server {
-	httpTimeout := time.Duration(proxyConfig.HTTPTimeout) * time.Second
+func NewServer(conf config.Configuration, db *sql.DB) *Server {
+	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	var source proxyDataSource
-	if proxyConfig.CacheAPIs {
+	if conf.Proxy.CacheAPIs {
 		source = newCachingProxyDataSource(db)
 	} else {
 		source = newPassthroughProxyDataSource(db)
 	}
 
 	return &Server{
-		proxyConf:  proxyConfig,
-		adminConf:  adminConfig,
+		devMode:    conf.DevMode(),
+		proxyConf:  conf.Proxy,
+		adminConf:  conf.Admin,
 		router:     mux.NewRouter(),
 		proxyData:  source,
 		db:         db,
@@ -105,17 +107,17 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	log.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
@@ -123,7 +125,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	if r.Method == "OPTIONS" {
 		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
 		if err != nil {
-			return aphttp.NewServerError(err)
+			return s.httpError(err)
 		}
 		if !route.HandlesOptions() {
 			return s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
@@ -132,12 +134,12 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	vm, err := vm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint, libraries)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 	vm.Set("__ap_proxyRequestJSON", incomingJSON)
 	scripts := []interface{}{
@@ -149,24 +151,24 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 			strconv.Quote(proxyEndpoint.Environment.SessionName)))
 
 	if _, err := vm.RunAll(scripts); err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 
 	responseObject, err := vm.Run("response;")
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 	responseJSON, err := s.objectJSON(vm, responseObject)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 	response, err := proxyResponseFromJSON(responseJSON)
 	if err != nil {
-		return aphttp.NewServerError(err)
+		return s.httpError(err)
 	}
 	proxiedRequestsDuration = vm.ProxiedRequestsDuration
 
@@ -179,6 +181,14 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
 	return nil
+}
+
+func (s *Server) httpError(err error) aphttp.Error {
+	if !s.devMode {
+		return aphttp.DefaultServerError()
+	}
+
+	return aphttp.NewServerError(err)
 }
 
 func (s *Server) objectJSON(vm *vm.ProxyVM, object otto.Value) (string, error) {
