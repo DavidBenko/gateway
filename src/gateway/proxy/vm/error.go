@@ -6,9 +6,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/robertkrimen/otto"
 )
 
-var locationRx = regexp.MustCompile(`Line (\d+):(\d+)`)
+var locationRx = regexp.MustCompile(`(\d+):(\d+)`)
 
 type jsError struct {
 	err        error
@@ -17,13 +19,17 @@ type jsError struct {
 }
 
 func (e *jsError) Error() string {
-	defaultError := fmt.Sprintf("JavaScript Error: %v\n\n--\n\n%v", e.err, e.code)
+	errString := e.err.Error()
+	if ottoErr, ok := e.err.(*otto.Error); ok {
+		errString = ottoErr.String()
+	}
+	defaultError := fmt.Sprintf("JavaScript Error: %v\n\n--\n\n%v", errString, e.code)
 
 	script, ok := e.code.(string)
 	if !ok {
 		return defaultError
 	}
-	match := locationRx.FindStringSubmatch(e.err.Error())
+	match := locationRx.FindStringSubmatch(errString)
 	if match == nil {
 		return defaultError
 	}
@@ -37,7 +43,7 @@ func (e *jsError) Error() string {
 	}
 
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("JavaScript Error: %v\n\n--\n\n", e.err))
+	buffer.WriteString(fmt.Sprintf("JavaScript Error: %v\n\n--\n\n", errString))
 	lines := strings.Split(script, "\n")
 	for index, line := range lines {
 		if index >= int(lineNo-e.numContext-1) && index < int(lineNo+e.numContext) {
