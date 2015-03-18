@@ -179,10 +179,9 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	if proxyEndpoint.CORSEnabled {
 		s.addCORSCommonHeaders(w, proxyEndpoint)
 	}
-
 	response.Headers["Content-Length"] = len(response.Body)
-	delete(response.Headers, "Content-Encoding")
 	aphttp.AddHeaders(w.Header(), response.Headers)
+
 	w.WriteHeader(response.StatusCode)
 	w.Write([]byte(response.Body))
 	return nil
