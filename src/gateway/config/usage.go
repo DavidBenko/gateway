@@ -20,6 +20,7 @@ var usageStrings = map[string]string{
 	"proxy-cache-apis": "Whether or not to cache API data when serving proxy calls",
 
 	"proxy-http-timeout": "The timeout in seconds to use for proxied HTTP requests.",
+	"proxy-code-timeout": "The timeout in seconds to use for proxy script code.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",

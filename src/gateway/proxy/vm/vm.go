@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,6 +22,8 @@ import (
 	// Add underscore.js functionality to our VMs
 	_ "github.com/robertkrimen/otto/underscore"
 )
+
+var errCodeTimeout = errors.New("JavaScript took too long to execute")
 
 // ProxyVM is an Otto VM with some helper data stored alongside it.
 type ProxyVM struct {
@@ -86,6 +89,30 @@ func NewVM(
 	}
 
 	return vm, nil
+}
+
+// Run runs the given script, preventing infinite loops and very slow JS
+func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
+	defer func() {
+		if caught := recover(); caught != nil {
+			if caught == errCodeTimeout {
+				err = errCodeTimeout
+				return
+			}
+			panic(caught)
+		}
+	}()
+
+	p.Otto.Interrupt = make(chan func(), 1)
+
+	go func() {
+		time.Sleep(time.Duration(p.conf.CodeTimeout) * time.Second)
+		p.Otto.Interrupt <- func() {
+			panic(errCodeTimeout)
+		}
+	}()
+
+	return p.Otto.Run(script)
 }
 
 // RunAll runs all the given scripts
