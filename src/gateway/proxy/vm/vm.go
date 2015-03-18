@@ -112,7 +112,11 @@ func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
 		}
 	}()
 
-	return p.Otto.Run(script)
+	value, err = p.Otto.Run(script)
+	if err != nil {
+		return value, &jsError{err, script}
+	}
+	return
 }
 
 // RunAll runs all the given scripts

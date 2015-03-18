@@ -97,7 +97,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	var proxiedRequestsDuration time.Duration
 	defer func() {
 		if httpErr != nil {
-			log.Printf("%s [error] %s", logPrefix, httpErr.String())
+			log.Printf("%s [error] %s", logPrefix, s.errorToLog(httpErr))
 		}
 		total := time.Since(start)
 		processing := total - proxiedRequestsDuration
@@ -265,4 +265,12 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	if api.CORSAllowCredentials {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
+}
+
+func (s *Server) errorToLog(err aphttp.Error) string {
+	lines := strings.Split(err.String(), "\n")
+	if len(lines) > 0 {
+		return lines[0]
+	}
+	return "Unknown error"
 }
