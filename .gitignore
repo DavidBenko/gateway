@@ -9,6 +9,7 @@ build
 _obj
 _test
 tmp
+public_keys
 
 # Architecture specific extensions/prefixes
 *.[568vq]

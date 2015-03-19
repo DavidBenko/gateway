@@ -10,8 +10,9 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-# TODO: For eventual real deployment builds, we need a new keypair
-LICENSE_PUBLIC_KEY := test/dev_public_key_assets
+ifndef LICENSE_PUBLIC_KEY
+	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
+endif
 
 ifneq ($(MAKECMDGOALS), package)
 	BINDATA_DEBUG = -debug
