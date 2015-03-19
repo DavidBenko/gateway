@@ -6,6 +6,7 @@ import "time"
 type V1 struct {
 	Name       string
 	Company    string
+	Id         string
 	Expiration *time.Time
 }
 
