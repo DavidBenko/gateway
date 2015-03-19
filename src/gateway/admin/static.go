@@ -3,6 +3,8 @@ package admin
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"mime"
 	"net/http"
 	"regexp"
 	"strings"
@@ -17,6 +19,19 @@ import (
 
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
 var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
+
+// Normalize some mime types across OSes
+var additionalMimeTypes = map[string]string{
+	".svg": "image/svg+xml",
+}
+
+func init() {
+	for k, v := range additionalMimeTypes {
+		if err := mime.AddExtensionType(k, v); err != nil {
+			log.Fatalf("Could not set mime type for %s", k)
+		}
+	}
+}
 
 func adminStaticFileHandler(conf config.ProxyAdmin) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {

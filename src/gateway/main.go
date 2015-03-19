@@ -9,8 +9,6 @@ import (
 
 	"os"
 
-	"mime"
-
 	"gateway/config"
 	"gateway/license"
 	"gateway/model"
@@ -43,12 +41,6 @@ func main() {
 
 	// Require a valid license key
 	license.ValidateForever(conf.License, time.Hour)
-
-	// Make sure we set the MIME type for SVGs correctly (since different OSes return different types)
-	mimeError := mime.AddExtensionType(".svg", "image/svg+xml")
-	if mimeError != nil {
-		log.Fatal("Could not set .svg MIME type.")
-	}
 
 	// Setup the database
 	db, err := sql.Connect(conf.Database)
