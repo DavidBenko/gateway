@@ -91,11 +91,25 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 		return aphttp.DefaultServerError()
 	}
 
+	if err := c.addLocalhost(api, tx); err != nil {
+		return aphttp.DefaultServerError()
+	}
+
 	return c.serializeInstance(api, w)
 }
 
 // AfterInsert does some work after inserting an API
 func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
+	if err := c.addDefaultEnvironment(api, tx); err != nil {
+		return err
+	}
+	if err := c.addLocalhost(api, tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) error {
 	if !c.conf.DevMode {
 		return nil
 	}
@@ -108,6 +122,14 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 		if err := env.Insert(tx); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *APIsController) addLocalhost(api *model.API, tx *apsql.Tx) error {
+	if !c.conf.DevMode {
+		return nil
 	}
 
 	if c.conf.AddLocalhost {
