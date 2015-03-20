@@ -65,9 +65,23 @@ func (h *HTTPRequest) Perform(s *Server, c chan<- responsePayload, index int) {
 	c <- responsePayload{index: index, response: response}
 }
 
-// Log returns the HTTP request basics, e.g. 'GET http://www.google.com'
-func (h *HTTPRequest) Log() string {
-	return fmt.Sprintf("%s %s", h.Method, h.URL)
+// Log returns the HTTP request basics, e.g. 'GET http://www.google.com' when in server mode.
+// When in dev mode the query parameters, headers, and body are also returned.
+func (h *HTTPRequest) Log(s *Server) string {
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.URL))
+	if s.devMode {
+		buffer.WriteString(fmt.Sprintf("\nQuery Parameters:\n"))
+		for k, v := range h.Query {
+			buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+		}
+		buffer.WriteString(fmt.Sprintf("Headers:\n"))
+		for k, v := range h.Headers {
+			buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+		}
+		buffer.WriteString(fmt.Sprintf("Body:\n%s", h.Body))
+	}
+	return buffer.String()
 }
 
 // ParseResponse takes a raw http.Response and creates an HTTPResponse.
