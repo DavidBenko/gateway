@@ -9,7 +9,7 @@ var AP = AP || {};
 AP.HTTP = AP.HTTP || {};
 
 /**
- * Creates a new HTTP request that can be handed to {@link AP.makeRequest}.
+ * Creates a new HTTP request.
  *
  * @class
  * @constructor
@@ -50,14 +50,53 @@ AP.HTTP.Request = function() {
 }
 
 /**
- * Sets the object as the request's body, formatted as JSON.
+ * Sets the object as the request's body, formatted as an HTTP encoded form.
  *
  * This method automatically sets the 'Content-Type' header
  * to 'application/json' to match.
  *
  * @param {object} object The object to serialize and use as the request body
  */
-AP.HTTP.Request.prototype.setJSONBody = function(object) {
-  this.headers["Content-Type"] = "application/json";
-  this.body = JSON.stringify(object);
+AP.HTTP.Request.prototype.setFormBody = function(object) {
+  this.method = "POST";
+  this.headers["Content-Type"] = "application/x-www-form-urlencoded";
+  this.body = AP.HTTP.Request.encodeForm(object);
+}
+
+AP.HTTP.Request.encodeForm = function(object) {
+  var encodeValue = function(encoded, key, value) {
+    if (_.isArray(value)) {
+      return encodeArray(encoded, key, value);
+    }
+    if (_.isObject(value)) {
+      return encodeObject(encoded, key, value);
+    }
+    return key + "=" + encodeURI(value);
+  };
+  var encodeArray = function(encoded, key, arr) {
+    _.map(arr, function(value) {
+      if (encoded != "") {
+        encoded += "&";
+      }
+      encoded += encodeValue(encoded, key + "[]", value);
+    });
+    return encoded;
+  };
+  var encodeObject = function(encoded, key, obj) {
+    _.map(obj, function(value, objKey) {
+      if (encoded != "") {
+        encoded += "&";
+      }
+      encoded += encodeValue(encoded, key + "[" + objKey + "]", value);
+    });
+    return encoded;
+  };
+  var encoded = "";
+  _.map(object, function(v, k) {
+    if (encoded != "") {
+      encoded += "&";
+    }
+    encoded += encodeValue("", k, v);
+  });
+  return encoded;
 }

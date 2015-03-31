@@ -1,0 +1,30 @@
+{
+  "proxy_endpoint": {
+    "name": "Form",
+    "description": "Send an HTTP form.",
+    "environment_id": <%= @ids["environments/development.json"] %>,
+    "endpoint_group_id": <%= @ids["endpoint_groups/static.json"] %>,
+    "active": true,
+    "cors_enabled": true,
+    "routes": [
+      {
+        "methods": ["GET"],
+        "path": "/form"
+      }
+    ],
+    "components": [
+      {
+        "type": "single",
+        "before": [
+            {  
+              "type": "js",
+              "data": <%= script("form.js") %>
+            }
+        ],
+        "call": {
+          "remote_endpoint_id": <%= @ids["remote_endpoints/debug.json"] %>
+        }
+      }
+    ]
+  }
+}
