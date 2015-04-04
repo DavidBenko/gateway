@@ -4,8 +4,11 @@ FROM golang:1.4.2-cross
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
 # Install dependencies
-RUN apt-get -y update && apt-get -y upgrade && \
-    apt-get -y install gcc-mingw-w64 libc6-dev-i386 && \
+RUN echo "deb http://http.debian.net/debian unstable main" >> /etc/apt/sources.list && \
+    dpkg --add-architecture armhf && \
+    apt-get -y update && apt-get -y upgrade && \
+    apt-get -y install gcc-mingw-w64 libc6-dev-i386 gcc-arm-linux-gnueabihf && \
+    ln -s /usr/include/asm-generic /usr/include/asm && \
     go get golang.org/x/tools/cmd/vet
 
 ENTRYPOINT export GOPATH=${PWD}/_vendor:${PWD}:${GOPATH} && \
@@ -13,4 +16,5 @@ ENTRYPOINT export GOPATH=${PWD}/_vendor:${PWD}:${GOPATH} && \
   GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC="gcc" go build -v -o ./build/gateway-linux-amd64 ./src/gateway/main.go && \
   GOOS=linux GOARCH=386 CGO_ENABLED=1 CC="gcc" go build -v -o ./build/gateway-linux-386 ./src/gateway/main.go && \
   GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-amd64.exe ./src/gateway/main.go && \
-  GOOS=windows GOARCH=386 CGO_ENABLED=1 CC="i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-386.exe ./src/gateway/main.go
+  GOOS=windows GOARCH=386 CGO_ENABLED=1 CC="i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-386.exe ./src/gateway/main.go && \
+  GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv6 ./src/gateway/main.go
