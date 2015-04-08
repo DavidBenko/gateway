@@ -14,8 +14,8 @@ import (
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
 	Version bool   `flag:"version" default:"false"`
-	File    string `flag:"config" default:"./gateway.conf"`
-	License string `flag:"license" default:"./license"`
+	File    string `flag:"config" default:"gateway.conf"`
+	License string `flag:"license" default:"license"`
 	Server  bool   `flag:"server" default:"false"`
 
 	Database Database
@@ -27,7 +27,7 @@ type Configuration struct {
 type Database struct {
 	Migrate          bool   `flag:"db-migrate"     default:"false"`
 	Driver           string `flag:"db-driver"      default:"sqlite3"`
-	ConnectionString string `flag:"db-conn-string" default:"./gateway.db"`
+	ConnectionString string `flag:"db-conn-string" default:"gateway.db"`
 	MaxConnections   int64  `flag:"db-max-connections" default:"50"`
 }
 
