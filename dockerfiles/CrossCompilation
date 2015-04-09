@@ -17,4 +17,5 @@ ENTRYPOINT export GOPATH=${PWD}/_vendor:${PWD}:${GOPATH} && \
   GOOS=linux GOARCH=386 CGO_ENABLED=1 CC="gcc" go build -v -o ./build/gateway-linux-386 ./src/gateway/main.go && \
   GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-amd64.exe ./src/gateway/main.go && \
   GOOS=windows GOARCH=386 CGO_ENABLED=1 CC="i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-386.exe ./src/gateway/main.go && \
-  GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv6 ./src/gateway/main.go
+  GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv6 ./src/gateway/main.go && \
+  GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv7 ./src/gateway/main.go
