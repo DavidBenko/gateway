@@ -7,8 +7,8 @@ import (
 
 // Request defines the interface for all requests proxy code can make.
 type Request interface {
-	Perform(s *Server, c chan<- responsePayload, index int)
-	Log(s *Server) string
+	Perform() Response
+	Log(bool) string
 }
 
 // Response defines the interface for the results of Requests.
@@ -32,7 +32,7 @@ func (s *Server) MakeRequests(requests []Request, logPrefix string) ([]Response,
 
 	c := make(chan responsePayload)
 	for i, request := range requests {
-		go request.Perform(s, c, i)
+		go func(j int, r Request) { c <- responsePayload{j, r.Perform()} }(i, request)
 	}
 
 	for i := 0; i < n; i++ {
@@ -45,7 +45,7 @@ func (s *Server) MakeRequests(requests []Request, logPrefix string) ([]Response,
 
 	for i, request := range requests {
 		log.Printf("%s [request] %s %s (%v)", logPrefix,
-			request.Log(s), responses[i].Log(), requestDurations[i])
+			request.Log(s.devMode), responses[i].Log(), requestDurations[i])
 	}
 
 	return responses, nil
