@@ -2,39 +2,13 @@
 
 Welcome to Gateway.
 
-## Developer Setup
+First, make sure you have the [DEPS](doc/DEPS.md).
 
-### Install Go
+To build and test Gateway, read [BUILD.md](doc/BUILD.md).
 
-On OS X:
+Then, take a look over the [examples](#examples) and [Admin API doc](doc/Admin API.md).
 
-    brew update
-    brew install go
-
-Now set up a global `GOPATH`. Here we'll assume it's going to be `~/go`.
-
-    mkdir ~/go
-
-In `~/.bash_profile`, add:
-
-    export GOPATH=~/go
-
-Now source the file into your local shell and install a few Go tools:
-
-    source ~/.bash_profile
-    go get code.google.com/p/go.tools/cmd/godoc
-    go get code.google.com/p/go.tools/cmd/vet
-
-### Fetch, Build & Run
-
-    git clone git@github.com:AnyPresence/gateway.git
-    cd gateway
-    make run
-
-This runs a Gateway instance using the configuration specified in
-`test/gateway.conf`, and sample proxy code stored in `test/examples`.
-
-### Static Assets
+## Static Assets
 
 `make build` and `make run` both use the static assets stored on disk. This
 means that you can edit them and the changes are instantly reflected.
@@ -52,14 +26,12 @@ The script `gopath.sh` will alter your `GOPATH` to include this project's
 dependent paths (the working directory & `_vendor`). To include it in your
 shell:
 
-	source gopath.sh
+```bash
+source gopath.sh
+```
 
 This will allow it to be picked up by your IDE and other tools (I'm using Atom
 with [`go-plus`](https://atom.io/packages/go-plus)).
-
-### Admin Front End
-
-I'm using Ember CLI to manage the front end application found in `admin`.
 
 ## Gateway Setup
 
@@ -85,18 +57,19 @@ key data with an RSA private key, and the public key is embedded in the binary
 for validation. A set of keys for development are included in the `test`
 directory. To make compatible keys for production, use:
 
-	ssh-keygen -t rsa -C "AnyPresence Gateway Keypair"
+        ssh-keygen -t rsa -C "AnyPresence Gateway Keypair"
 
 And to extract the public key in a compatible PEM format:
 
-	openssl rsa -in <private key> -pubout -out <public key>
+        openssl rsa -in <private key> -pubout -out <public key>
 
 To generate license files, use the `keygen` application in `src/keygen`. For
 example, the development license in `test/dev_license` was generated with:
 
     make keygen
     ./bin/keygen v1 -name="Gateway Development Team" \
-	    -company="AnyPresence, Inc" -private-key=./test/license/private_key
+            -company="AnyPresence, Inc" -private-key=./test/license/private_key
+
 
 ## Examples
 
@@ -123,7 +96,6 @@ And to update the proxy code after making changes:
 To completely clear the default Gateway data:
 
     rake clean
-
 
 ## Packaging
 
