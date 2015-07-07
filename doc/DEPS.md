@@ -10,6 +10,15 @@ Building and testing Gateway requires:
  - [sqlite](#sqlite)
  - [postgresql](#postgresql)
 
+Note that gateway uses git submodules.
+
+```bash
+git clone git@github.com:AnyPresence/gateway.git
+cd gateway
+git submodule init
+git submodule update
+```
+
 Mac OS users will want to use [`homebrew`](http://brew.sh) to install packages.
 
 ## Make sure you are not logged in as `root` when installing packages via `npm` or `gem`!
