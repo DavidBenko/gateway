@@ -40,8 +40,18 @@ assets: install_bindata
 generate: install_goimports
 	go generate gateway/...
 
+DeveloperVersionAccounts = 1
+DeveloperVersionUsers = 1
+DeveloperVersionAPIs = 1
+DeveloperVersionProxyEndpoints = 5
+
+LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts $(DeveloperVersionAccounts)\
+ -X gateway/license.developerVersionUsers $(DeveloperVersionUsers)\
+ -X gateway/license.developerVersionAPIs $(DeveloperVersionAPIs)\
+ -X gateway/license.developerVersionProxyEndpoints $(DeveloperVersionProxyEndpoints)"
+
 build: vet assets generate
-	go build -o ./bin/gateway ./src/gateway/main.go
+	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
 package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
@@ -65,6 +75,9 @@ fmt:
 
 run:
 	./bin/gateway -config=./test/gateway.conf -db-migrate
+
+run_developer:
+	./bin/gateway -config=./test/gateway_developer.conf -db-migrate
 
 runpg:
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=gateway_dev sslmode=disable"

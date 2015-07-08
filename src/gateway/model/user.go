@@ -1,8 +1,12 @@
 package model
 
 import (
-	apsql "gateway/sql"
+	"errors"
+	"fmt"
 	"strings"
+
+	"gateway/license"
+	apsql "gateway/sql"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -89,6 +93,14 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 
 // Insert inserts the user into the database as a new row.
 func (u *User) Insert(tx *apsql.Tx) (err error) {
+	if license.DeveloperVersion {
+		var count int
+		tx.Get(&count, tx.SQL("users/count"), u.AccountID)
+		if count >= license.DeveloperVersionUsers {
+			return errors.New(fmt.Sprintf("Developer version allows %v user(s).", license.DeveloperVersionUsers))
+		}
+	}
+
 	if err = u.hashPassword(); err != nil {
 		return err
 	}

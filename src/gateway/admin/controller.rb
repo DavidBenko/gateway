@@ -208,7 +208,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
       return SerializableValidationErrors{validationErrors}
     }
     log.Printf("%s Error %s <%= pretty %>: %v", config.System, desc, err)
-    return aphttp.DefaultServerError()
+    return aphttp.NewServerError(err)
   }
 
   <% if after_insert %>

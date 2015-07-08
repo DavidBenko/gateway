@@ -1,6 +1,11 @@
 package model
 
-import apsql "gateway/sql"
+import (
+	"errors"
+	"fmt"
+	"gateway/license"
+	apsql "gateway/sql"
+)
 
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
@@ -84,6 +89,14 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 
 // Insert inserts the api into the database as a new row.
 func (a *API) Insert(tx *apsql.Tx) (err error) {
+	if license.DeveloperVersion {
+		var count int
+		tx.Get(&count, tx.SQL("apis/count"), a.AccountID)
+		if count >= license.DeveloperVersionAPIs {
+			return errors.New(fmt.Sprintf("Developer version allows %v api(s).", license.DeveloperVersionAPIs))
+		}
+	}
+
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)

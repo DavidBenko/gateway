@@ -47,6 +47,34 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
+
+	//check for sneaky people
+	if conf.License == "" {
+		accounts, _ := model.AllAccounts(db)
+		if len(accounts) > license.DeveloperVersionAccounts {
+			log.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
+		}
+		for _, account := range accounts {
+			var count int
+			db.Get(&count, db.SQL("users/count"), account.ID)
+			if count >= license.DeveloperVersionUsers {
+				log.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
+			}
+
+			apis, _ := model.AllAPIsForAccountID(db, account.ID)
+			if len(apis) > license.DeveloperVersionAPIs {
+				log.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
+			}
+			for _, api := range apis {
+				var count int
+				db.Get(&count, db.SQL("proxy_endpoints/count_active"), api.ID)
+				if count > license.DeveloperVersionProxyEndpoints {
+					log.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
+				}
+			}
+		}
+	}
+
 	if !db.UpToDate() {
 		if conf.Database.Migrate || conf.DevMode() {
 			if err = db.Migrate(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"gateway/config"
 	apcrypto "gateway/crypto"
 	"io/ioutil"
@@ -12,12 +13,39 @@ import (
 	"time"
 )
 
+var DeveloperVersion = false
+var developerVersionAccounts,
+	developerVersionUsers,
+	developerVersionAPIs,
+	developerVersionProxyEndpoints string
+var (
+	DeveloperVersionAccounts = 1
+	DeveloperVersionUsers = 1
+	DeveloperVersionAPIs = 1
+	DeveloperVersionProxyEndpoints = 5
+)
+func init() {
+	if value, err := strconv.Atoi(developerVersionAccounts); err == nil {
+		DeveloperVersionAccounts = value
+	}
+	if value, err := strconv.Atoi(developerVersionUsers); err == nil {
+		DeveloperVersionUsers = value
+	}
+	if value, err := strconv.Atoi(developerVersionAPIs); err == nil {
+		DeveloperVersionAPIs = value
+	}
+	if value, err := strconv.Atoi(developerVersionProxyEndpoints); err == nil {
+		DeveloperVersionProxyEndpoints = value
+	}
+}
+
 // ValidateForever reads the signed license file at path, and validates it
 // immediately, and then again each interval in a separate goroutine.
 // Failure to validate is fatal.
 func ValidateForever(path string, interval time.Duration) {
 	if path == "" {
-		log.Fatal("Please configure Gateway with a valid license key")
+		DeveloperVersion = true
+		return
 	}
 
 	data, err := ioutil.ReadFile(path)
