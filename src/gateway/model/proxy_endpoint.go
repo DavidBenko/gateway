@@ -1,8 +1,10 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	aperrors "gateway/errors"
+	"gateway/license"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -171,6 +173,15 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
+
+	if license.DeveloperVersion {
+		var count int
+		tx.Get(&count, tx.SQL("proxy_endpoints/count"), e.APIID)
+		if count >= license.DeveloperVersionProxyEndpoints {
+			return errors.New(fmt.Sprintf("Developer version allows %v proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
+		}
+	}
+
 	e.ID, err = tx.InsertOne(tx.SQL("proxy_endpoints/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, routes)

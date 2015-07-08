@@ -88,7 +88,7 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 			return SerializableValidationErrors{validationErrors}
 		}
 		log.Printf("%s Error importing api: %v", config.System, err)
-		return aphttp.DefaultServerError()
+		return aphttp.NewServerError(err)
 	}
 
 	if err := c.addLocalhost(api, tx); err != nil {

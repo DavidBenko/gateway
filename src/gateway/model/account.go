@@ -1,6 +1,12 @@
 package model
 
-import "gateway/sql"
+import (
+	"errors"
+	"fmt"
+
+	"gateway/license"
+	"gateway/sql"
+)
 
 // Account represents a single tenant in multi-tenant deployment.
 type Account struct {
@@ -59,6 +65,14 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 
 // Insert inserts the account into the database as a new row.
 func (a *Account) Insert(tx *sql.Tx) (err error) {
+	if license.DeveloperVersion {
+		var count int
+		tx.Get(&count, tx.SQL("accounts/count"))
+		if count >= license.DeveloperVersionAccounts {
+			return errors.New(fmt.Sprintf("Developer version allows %v account(s).", license.DeveloperVersionAccounts))
+		}
+	}
+
 	a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name)
 	return err
 }
