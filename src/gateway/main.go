@@ -67,9 +67,9 @@ func main() {
 			}
 			for _, api := range apis {
 				var count int
-				db.Get(&count, db.SQL("proxy_endpoints/count"), api.ID)
+				db.Get(&count, db.SQL("proxy_endpoints/count_active"), api.ID)
 				if count > license.DeveloperVersionProxyEndpoints {
-					log.Fatalf("Developer version allows %v proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
+					log.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
 				}
 			}
 		}

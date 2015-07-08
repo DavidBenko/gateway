@@ -176,9 +176,9 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 
 	if license.DeveloperVersion {
 		var count int
-		tx.Get(&count, tx.SQL("proxy_endpoints/count"), e.APIID)
+		tx.Get(&count, tx.SQL("proxy_endpoints/count_active"), e.APIID)
 		if count >= license.DeveloperVersionProxyEndpoints {
-			return errors.New(fmt.Sprintf("Developer version allows %v proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
+			return errors.New(fmt.Sprintf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
 		}
 	}
 
@@ -205,6 +205,15 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
+
+	if license.DeveloperVersion && e.Active {
+		var count int
+		tx.Get(&count, tx.SQL("proxy_endpoints/count_active"), e.APIID)
+		if count >= license.DeveloperVersionProxyEndpoints {
+			return errors.New(fmt.Sprintf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
+		}
+	}
+
 	err = tx.UpdateOne(tx.SQL("proxy_endpoints/update"),
 		e.Name, e.Description,
 		e.EndpointGroupID, e.APIID,
