@@ -42,7 +42,7 @@ func init() {
 // ValidateForever reads the signed license file at path, and validates it
 // immediately, and then again each interval in a separate goroutine.
 // Failure to validate is fatal.
-func ValidateForever(path string, interval time.Duration/*, db *sql.DB*/) {
+func ValidateForever(path string, interval time.Duration) {
 	if path == "" {
 		DeveloperVersion = true
 		return
