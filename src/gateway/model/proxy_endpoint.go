@@ -174,7 +174,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 
-	if license.DeveloperVersion {
+	if license.DeveloperVersion && e.Active {
 		var count int
 		tx.Get(&count, tx.SQL("proxy_endpoints/count_active"), e.APIID)
 		if count >= license.DeveloperVersionProxyEndpoints {
