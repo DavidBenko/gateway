@@ -103,14 +103,16 @@ func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
 		}
 	}()
 
-	p.Otto.Interrupt = make(chan func(), 1)
+	if p.Otto.Interrupt == nil {
+		p.Otto.Interrupt = make(chan func(), 1)
 
-	go func() {
-		time.Sleep(time.Duration(p.conf.CodeTimeout) * time.Second)
-		p.Otto.Interrupt <- func() {
-			panic(errCodeTimeout)
-		}
-	}()
+		go func() {
+			time.Sleep(time.Duration(p.conf.CodeTimeout) * time.Second)
+			p.Otto.Interrupt <- func() {
+				panic(errCodeTimeout)
+			}
+		}()
+	}
 
 	value, err = p.Otto.Run(script)
 	if err != nil {
