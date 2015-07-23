@@ -15,4 +15,7 @@ const (
 
 	// ContextLogPrefixKey is the key to use to store/retrieve the log prefix.
 	ContextLogPrefixKey
+
+	// ContextTest is the key to use for test requests.
+	ContextTest
 )

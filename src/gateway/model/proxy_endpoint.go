@@ -25,6 +25,7 @@ type ProxyEndpoint struct {
 	Routes      types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
+	Tests			 []*ProxyEndpointTest		 `json:"tests,omitempty"`
 
 	// Export Indices
 	ExportEndpointGroupIndex int `json:"endpoint_group_index,omitempty"`
@@ -58,6 +59,12 @@ func (e *ProxyEndpoint) Validate() Errors {
 			errors.add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
 		}
 	}
+	for i, t := range e.Tests {
+		tErrors := t.Validate()
+		if !tErrors.Empty() {
+			errors.add("tests", fmt.Sprintf("%d is invalid: %v", i, tErrors))
+		}
+	}
 	return errors
 }
 
@@ -86,17 +93,17 @@ func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64)
 
 // AllActiveProxyEndpointsForRouting returns all proxyEndpoints in an
 // unspecified order, with enough data for routing.
-func AllActiveProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
+func AllProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing"), true)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing"))
 	return proxyEndpoints, err
 }
 
 // AllActiveProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
 // api in an unspecified order, with enough data for routing.
-func AllActiveProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
+func AllProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing_api"), true, apiID)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_routing_api"), apiID)
 	return proxyEndpoints, err
 }
 
@@ -109,6 +116,11 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 	}
 
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, id)
 	return &proxyEndpoint, err
 }
 
@@ -124,6 +136,11 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching components", err)
+	}
+
+	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, id)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching tests", err)
 	}
 
 	var remoteEndpointIDs []int64
@@ -196,6 +213,13 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
+	for _, test := range e.Tests {
+		err = test.Insert(tx, e.ID)
+		if err != nil {
+			return err
+		}
+	}
+
 	return tx.Notify("proxy_endpoints", e.APIID, apsql.Insert)
 }
 
@@ -241,6 +265,26 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		validComponentIDs = append(validComponentIDs, component.ID)
 	}
 	err = DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx, e.ID, validComponentIDs)
+	if err != nil {
+		return err
+	}
+
+	var validTestIDs []int64
+	for _, test := range e.Tests {
+		if test.ID == 0 {
+			err = test.Insert(tx, e.ID)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = test.Update(tx, e.ID)
+			if err != nil {
+				return err
+			}
+		}
+		validTestIDs = append(validTestIDs, test.ID)
+	}
+	err = DeleteProxyEndpointTestsWithEndpointIDAndNotInList(tx, e.ID, validTestIDs)
 	if err != nil {
 		return err
 	}

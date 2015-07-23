@@ -17,7 +17,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const currentVersion = 1
+const currentVersion = 2
 
 type driverType string
 
@@ -68,6 +68,12 @@ func (db *DB) Migrate() error {
 	if version < 1 {
 		if err = migrateToV1(db); err != nil {
 			return fmt.Errorf("Could not migrate to schema v1: %v", err)
+		}
+	}
+
+	if version < 2 {
+		if err = migrateToV2(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v2: %v", err)
 		}
 	}
 
