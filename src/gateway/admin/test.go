@@ -91,83 +91,48 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
       testUrl := fmt.Sprintf("http://%v:%v/justapis/test%v",
         hosts[0].Hostname, c.ProxyServer.Port, test.Route)
       for _, method := range methods {
+        client, values := &http.Client{}, url.Values{}
+        request, err := http.NewRequest(method, testUrl, nil)
+        fmt.Println(err)
+        if err != nil {
+          return aphttp.NewError(err, http.StatusBadRequest)
+        }
+
+        for _, pair := range test.Pairs {
+          switch pair.Type {
+          case model.PairTypeGet:
+            values.Add(pair.Key, pair.Value)
+          case model.PairTypePost:
+          case model.PairTypeHeader:
+            request.Header.Set(pair.Key, pair.Value)
+          }
+        }
+
         switch method {
         case "GET":
-          testUrl := testUrl
-          if len(test.Pairs) > 0 {
-            values := url.Values{}
-            for _, pair := range test.Pairs {
-              values.Add(pair.Key, pair.Value)
-            }
-            testUrl += "?" + values.Encode()
-          }
-
-          response, err := http.Get(testUrl)
-          if err != nil {
-            return aphttp.NewError(err, http.StatusBadRequest)
-          }
-
-          if err := addResponse(method, response); err != nil {
-            return err
-          }
+          request.URL.RawQuery = values.Encode()
         case "POST":
           if len(test.Body) > 0 {
-            body := bytes.NewBufferString(test.Body)
-
-            response, err := http.Post(testUrl, "application/json", body)
-            if err != nil {
-              return aphttp.NewError(err, http.StatusBadRequest)
-            }
-
-            if err := addResponse(method, response); err != nil {
-              return err
-            }
+            request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
+            request.Header.Set("Content-Type", "application/json")
           } else {
-            values := url.Values{}
-            for _, pair := range test.Pairs {
-              values.Add(pair.Key, pair.Value)
-            }
-
-            response, err := http.PostForm(testUrl, values)
-            if err != nil {
-              return aphttp.NewError(err, http.StatusBadRequest)
-            }
-
-            if err := addResponse(method, response); err != nil {
-              return err
-            }
+            request.Body = ioutil.NopCloser(bytes.NewBufferString(values.Encode()))
+            request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
           }
         case "PUT":
-          client, body := &http.Client{}, bytes.NewBufferString(test.Body)
-          request, err := http.NewRequest(method, testUrl, body)
-          if err != nil {
-            return aphttp.NewError(err, http.StatusBadRequest)
-          }
-
-          response, err := client.Do(request)
-          fmt.Println(response)
-          if err != nil {
-            return aphttp.NewError(err, http.StatusBadRequest)
-          }
-
-          if err := addResponse(method, response); err != nil {
-            return err
-          }
+          request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
+          request.Header.Set("Content-Type", "application/json")
         case "DELETE":
-          client := &http.Client{}
-          request, err := http.NewRequest(method, testUrl, nil)
-          if err != nil {
-            return aphttp.NewError(err, http.StatusBadRequest)
-          }
+          // empty
+        }
 
-          response, err := client.Do(request)
-          if err != nil {
-            return aphttp.NewError(err, http.StatusBadRequest)
-          }
+        response, err := client.Do(request)
+        if err != nil {
+          return aphttp.NewError(err, http.StatusBadRequest)
+        }
 
-          if err := addResponse(method, response); err != nil {
-            return err
-          }
+        if err := addResponse(method, response); err != nil {
+          return err
         }
       }
 

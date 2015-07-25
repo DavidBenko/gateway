@@ -5,15 +5,22 @@ import (
 	apsql "gateway/sql"
 )
 
+const (
+	PairTypeGet = "get"
+	PairTypePost = "post"
+	PairTypeHeader = "header"
+)
+
 type ProxyEndpointTestPair struct {
   ID     int64  `json:"id,omitempty"`
+	Type	 string	`json:"type"`
 	Key    string `json:"key"`
   Value  string `json:"value"`
 }
 
 func (p *ProxyEndpointTestPair) Insert(tx *apsql.Tx, testID int64) error {
   var err error
-  p.ID, err = tx.InsertOne(tx.SQL("pairs/insert"), testID, p.Key, p.Value)
+  p.ID, err = tx.InsertOne(tx.SQL("pairs/insert"), testID, p.Type, p.Key, p.Value)
   if err != nil {
     return aperrors.NewWrapped("Inserting pair", err)
   }
@@ -22,7 +29,7 @@ func (p *ProxyEndpointTestPair) Insert(tx *apsql.Tx, testID int64) error {
 }
 
 func (p *ProxyEndpointTestPair) Update(tx *apsql.Tx, testID int64) error {
-  err := tx.UpdateOne(tx.SQL("pairs/update"), p.Key, p.Value, p.ID, testID)
+  err := tx.UpdateOne(tx.SQL("pairs/update"), p.Type, p.Key, p.Value, p.ID, testID)
   if err != nil {
     return aperrors.NewWrapped("Updating pair", err)
   }
