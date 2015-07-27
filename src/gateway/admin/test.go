@@ -98,6 +98,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
           return aphttp.NewError(err, http.StatusBadRequest)
         }
 
+        content_type := ""
         for _, pair := range test.Pairs {
           switch pair.Type {
           case model.PairTypeGet:
@@ -105,6 +106,9 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
           case model.PairTypePost:
           case model.PairTypeHeader:
             request.Header.Set(pair.Key, pair.Value)
+            if pair.Key == "Content-Type" {
+              content_type = pair.Value
+            }
           }
         }
 
@@ -112,16 +116,13 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
         case "GET":
           request.URL.RawQuery = values.Encode()
         case "POST":
-          if len(test.Body) > 0 {
-            request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
-            request.Header.Set("Content-Type", "application/json")
-          } else {
+          if content_type == "application/x-www-form-urlencoded" {
             request.Body = ioutil.NopCloser(bytes.NewBufferString(values.Encode()))
-            request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+          } else {
+            request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
           }
         case "PUT":
           request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
-          request.Header.Set("Content-Type", "application/json")
         case "DELETE":
           // empty
         }
