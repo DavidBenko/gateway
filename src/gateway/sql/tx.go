@@ -79,8 +79,13 @@ func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 // (in memory on a single single box, to be used for development only), whereas
 //  Postgres uses its NOTIFY command and triggers on commit for database-based
 // listeners.
-func (tx *Tx) Notify(table string, apiID int64, event NotificationEventType) error {
-	n := Notification{table, apiID, event}
+func (tx *Tx) Notify(table string, apiID int64, event NotificationEventType, messages ...interface{}) error {
+	n := Notification{
+		Table:    table,
+		APIID:    apiID,
+		Event:    event,
+		Messages: messages,
+	}
 
 	if tx.db.Driver == Sqlite3 {
 		tx.notifications = append(tx.notifications, &n)
