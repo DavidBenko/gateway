@@ -21,13 +21,13 @@ type Specifier interface {
 //
 // import sqls "gateway/db/sqlserver"
 //
-// pools.Connect(db.SQLConfig(
-//         sqls.Connection("hello.com", 4445),
+// pools.Connect(sqls.Config(
+//         sqls.Connection(someSpec),
 //         sqls.MaxOpenIdle(10, 100),
 // ))
 //
-// where DB and MaxIdle are of type Config.
+// where Connection and MaxOpenIdle are of type Configurator.
 type Config func(...Configurator) (Specifier, error)
 
-// configurator is a function for updating a Specifier.
+// Configurator is a function for updating a Specifier.
 type Configurator func(Specifier) error
