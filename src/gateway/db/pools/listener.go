@@ -14,8 +14,8 @@ func (p *Pools) Notify(notif *sql.Notification) {
 	}
 
 	switch notif.Event {
-	case sql.Delete:
-	case sql.Update:
+	case sql.Delete, sql.Update:
+		// Pass through to flush
 	default:
 		return
 	}
