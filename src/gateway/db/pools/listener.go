@@ -9,7 +9,14 @@ import (
 
 // Notify implements gateway/sql Listener Notify to flush db entries.
 func (p *Pools) Notify(notif *sql.Notification) {
-	if notif.Event != sql.Delete || notif.Table != "remote_endpoints" {
+	if notif.Table != "remote_endpoints" {
+		return
+	}
+
+	switch notif.Event {
+	case sql.Delete:
+	case sql.Update:
+	default:
 		return
 	}
 

@@ -304,6 +304,9 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
+	// Get any database config for Flushing if needed.
+	msg := getDBConfig(e)
+
 	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
@@ -374,7 +377,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("remote_endpoints", e.APIID, apsql.Update)
+	return tx.Notify("remote_endpoints", e.APIID, apsql.Update, msg)
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
