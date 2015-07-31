@@ -164,12 +164,12 @@ type DB struct {
 	conf *Spec
 }
 
-// spec returns the db.Specifier for the given DB.
+// Spec returns the db.Specifier for the given DB.
 func (d *DB) Spec() db.Specifier {
 	return d.conf
 }
 
-// update updates an existing DB with the given db.Specifier.
+// Update updates an existing DB with the given db.Specifier.
 func (d *DB) Update(s db.Specifier) error {
 	spec, ok := s.(*Spec)
 	if !ok {
@@ -183,7 +183,7 @@ func (d *DB) Update(s db.Specifier) error {
 	return nil
 }
 
-// newDB creates a new *sqlx.DB, and wraps it with its config in a *DB.
+// NewDB creates a new *sqlx.DB, and wraps it with its config in a *DB.
 func (s *Spec) NewDB() (db.DB, error) {
 	sqlDB, err := sql.Open("mssql", s.ConnectionString())
 	if err != nil {
