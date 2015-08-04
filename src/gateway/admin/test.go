@@ -8,6 +8,7 @@ import (
   "io/ioutil"
   "net/http"
   "net/url"
+  "time"
 
 	"gateway/config"
 	aphttp "gateway/http"
@@ -57,7 +58,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
   }
 
   var responses []*aphttp.TestResponse
-  addResponse := func(method string, response *http.Response) aphttp.Error {
+  addResponse := func(time int64, method string, response *http.Response) aphttp.Error {
     defer response.Body.Close()
     testResponse := &aphttp.TestResponse{}
 
@@ -81,6 +82,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
         testResponse.Headers = append(testResponse.Headers, header)
       }
     }
+    testResponse.Time = (time + 5e5) / 1e6
 
     responses = append(responses, testResponse)
 
@@ -133,12 +135,14 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
           // empty
         }
 
+        start := time.Now()
         response, err := client.Do(request)
+        elapsed := time.Since(start)
         if err != nil {
           return aphttp.NewError(err, http.StatusBadRequest)
         }
 
-        if err := addResponse(method, response); err != nil {
+        if err := addResponse(elapsed.Nanoseconds(), method, response); err != nil {
           return err
         }
       }
