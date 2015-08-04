@@ -75,6 +75,12 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 
     testResponse.Method = method
     testResponse.Status = response.Status
+    for name, values := range response.Header {
+      for _, value := range values {
+        header := &aphttp.TestHeader{Name: name, Value: value}
+        testResponse.Headers = append(testResponse.Headers, header)
+      }
+    }
 
     responses = append(responses, testResponse)
 
