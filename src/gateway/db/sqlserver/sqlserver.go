@@ -86,12 +86,6 @@ func Connection(s Conn) db.Configurator {
 // the database.  A value of 0 for `open` signals unlimited open connections.
 func MaxOpenIdle(open, idle int) db.Configurator {
 	maxOpen, maxIdle := open, idle
-	if maxOpen <= 1 {
-		maxOpen = 10
-	}
-	if maxIdle <= 1 {
-		maxIdle = 10
-	}
 	return func(spec db.Specifier) error {
 		switch sqls := spec.(type) {
 		case *Spec:

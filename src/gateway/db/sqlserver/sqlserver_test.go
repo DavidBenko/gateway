@@ -61,3 +61,56 @@ func (s *SQLServerSuite) TestSQLConfig(c *gc.C) {
 		c.Check(conf.UniqueServer(), gc.Equals, t.expectUnique)
 	}
 }
+
+func (s *SQLServerSuite) TestSQLServerUpdate(c *gc.C) {
+	for i, t := range []struct {
+		should       string
+		givenMaxOpen int
+		givenMaxIdle int
+		newMaxOpen   int
+		newMaxIdle   int
+		expectUpdate bool
+	}{{
+		should:       "not expect update if max open and max idle remain the same",
+		givenMaxOpen: 0,
+		givenMaxIdle: 0,
+		newMaxOpen:   0,
+		newMaxIdle:   0,
+		expectUpdate: false,
+	}, {
+		should:       "expect update if only max open changes",
+		givenMaxOpen: 0,
+		givenMaxIdle: 0,
+		newMaxOpen:   10,
+		newMaxIdle:   0,
+		expectUpdate: true,
+	}, {
+		should:       "expect update if only max idle changes",
+		givenMaxOpen: 0,
+		givenMaxIdle: 0,
+		newMaxOpen:   0,
+		newMaxIdle:   10,
+		expectUpdate: true,
+	}, {
+		should:       "expect update if both max idle and max open change",
+		givenMaxOpen: 0,
+		givenMaxIdle: 0,
+		newMaxOpen:   10,
+		newMaxIdle:   10,
+		expectUpdate: true,
+	}} {
+		c.Logf("Test %d: should %s", i, t.should)
+		conf, err := sqls.Config(
+			sqls.Connection(configs()["simple"]),
+			sqls.MaxOpenIdle(t.givenMaxOpen, t.givenMaxIdle),
+		)
+		c.Assert(err, gc.IsNil)
+		newConf, err := sqls.Config(
+			sqls.Connection(configs()["simple"]),
+			sqls.MaxOpenIdle(t.newMaxOpen, t.newMaxIdle),
+		)
+		c.Assert(err, gc.IsNil)
+		c.Logf("Test %d:\n  old: %+v\n  new: %+v\n", i, conf, newConf)
+		c.Check(conf.NeedsUpdate(newConf), gc.Equals, t.expectUpdate)
+	}
+}
