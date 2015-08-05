@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -30,6 +31,7 @@ type ProxyVM struct {
 	*otto.Otto
 	conf                    config.ProxyServer
 	LogPrefix               string
+	Log											bytes.Buffer
 	ProxiedRequestsDuration time.Duration
 
 	w            http.ResponseWriter
@@ -49,10 +51,12 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		shared.Copy(),
-		conf, logPrefix, 0,
-		w, r,
-		nil,
+		Otto: shared.Copy(),
+		conf: conf,
+		LogPrefix: logPrefix,
+		ProxiedRequestsDuration: 0,
+		w: w,
+		r: r,
 	}
 
 	var scripts = make([]interface{}, 0)
@@ -132,7 +136,9 @@ func (p *ProxyVM) RunAll(scripts []interface{}) (value otto.Value, err error) {
 }
 
 func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
-	log.Printf("%s [user] %v", p.LogPrefix, call.Argument(0).String())
+	line := call.Argument(0).String()
+	log.Printf("%s [user] %v", p.LogPrefix, line)
+	p.Log.WriteString(line + "\n")
 	return otto.Value{}
 }
 

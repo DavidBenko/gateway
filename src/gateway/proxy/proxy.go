@@ -179,9 +179,9 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	w.WriteHeader(response.StatusCode)
 	if test {
-		response := aphttp.TestResponse{Body: response.Body}
-		if value, err := vm.Get("Log"); err == nil {
-    	response.Log, _ = value.ToString()
+		response := aphttp.TestResponse{
+			Body: response.Body,
+			Log: vm.Log.String(),
 		}
 
 		body, err := json.Marshal(&response)

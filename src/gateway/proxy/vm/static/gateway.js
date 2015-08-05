@@ -30,19 +30,3 @@ AP.insertResponses = function(calls, responses) {
     }
   }
 }
-
-var Log = "";
-function takeOverConsole() {
-  function intercept(method) {
-    var original = console[method];
-    console[method] = function() {
-      Log += Array.prototype.slice.apply(arguments).join(' ') + "\n";
-      original.apply(console, arguments);
-    };
-  }
-  var methods = ['log', 'warn', 'error'];
-  for (var i = 0; i < methods.length; i++) {
-    intercept(methods[i]);
-  }
-}
-takeOverConsole();
