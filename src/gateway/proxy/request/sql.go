@@ -1,4 +1,4 @@
-package proxy
+package request
 
 import (
 	"bytes"
@@ -7,31 +7,30 @@ import (
 	"fmt"
 	"log"
 
-	sqls "gateway/db/sqlserver"
+	"github.com/jmoiron/sqlx"
 )
 
-// SQLServerRequest encapsulates a request made to a SQLServer endpoint
-type SQLServerRequest struct {
+// sqlRequest is a generic SQL implementation without a config or generator.
+// Extend this to implement other SQL database types e.g. MySQL, Postgres
+type sqlRequest struct {
 	Query       string        `json:"queryStatement"`
 	Execute     string        `json:"executeStatement"`
 	Parameters  []interface{} `json:"parameters"`
-	Config      sqls.Conn     `json:"config"`
 	Tx          bool          `json:"transactions"`
 	MaxOpenConn int           `json:"maxOpenConn,omitempty"`
 	MaxIdleConn int           `json:"maxIdleConn,omitempty"`
-	conn        *sqls.DB
+	conn        *sqlx.DB
 }
 
-// SQLServerResponse encapsulates a response from a SQLServerRequest.
-// It also contains its transaction, in case it needs to be rolled back.
-type SQLServerResponse struct {
+// sqlResponse encapsulates a response from a sqlRequest.
+type sqlResponse struct {
 	Data         []map[string]interface{} `json:"data"`
 	InsertID     int64                    `json:"insertId,omitempty"`
 	RowsAffected int64                    `json:"rowsAffected,omitempty"`
 }
 
-// Perform executes the SQLServer request and returns its response
-func (r *SQLServerRequest) Perform() Response {
+// Perform executes the sqlRequest and returns its response
+func (r *sqlRequest) Perform() Response {
 	if r.Query != "" {
 		return r.performQuery()
 	} else if r.Execute != "" {
@@ -41,9 +40,7 @@ func (r *SQLServerRequest) Perform() Response {
 	return NewErrorResponse(errors.New("no SQL query or execute specified"))
 }
 
-func (r *SQLServerRequest) performQuery() Response {
-	// TODO(binary132): Much of this could be in package gateway/db.
-	// TODO(binary132): two-phase commits?
+func (r *sqlRequest) performQuery() Response {
 	if r.Tx {
 		return r.transactQuery()
 	}
@@ -51,7 +48,7 @@ func (r *SQLServerRequest) performQuery() Response {
 	log.Printf("Params are %v", r.Parameters)
 
 	if r.conn == nil {
-		return NewSQLServerErrorResponse(errors.New("nil database connection"), "nil database connection")
+		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")
 	}
 
 	rows, err := r.conn.Queryx(r.Query, r.Parameters...)
@@ -61,7 +58,7 @@ func (r *SQLServerRequest) performQuery() Response {
 	}
 
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "failed to execute MSSQL query")
+		return NewSQLErrorResponse(err, "failed to execute SQL query")
 	}
 
 	var dataRows []map[string]interface{}
@@ -70,26 +67,26 @@ func (r *SQLServerRequest) performQuery() Response {
 		newMap := make(map[string]interface{})
 		err := rows.MapScan(newMap)
 		if err != nil {
-			return NewSQLServerErrorResponse(err, "failed to extract results of MSSQL query")
+			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
 		}
 		dataRows = append(dataRows, newMap)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "failed to iterate over rows in MSSQL query response")
+		return NewSQLErrorResponse(err, "failed to iterate over rows in SQL query response")
 	}
 
-	return &SQLServerResponse{Data: dataRows}
+	return &sqlResponse{Data: dataRows}
 }
 
-func (r *SQLServerRequest) transactQuery() Response {
+func (r *sqlRequest) transactQuery() Response {
 	log.Printf("Params are %v", r.Parameters)
 
 	// Begin transaction
 	tx, err := r.conn.Beginx()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "failed to get MSSQL transaction handle")
+		return NewSQLErrorResponse(err, "failed to get SQL transaction handle")
 	}
 
 	rows, err := tx.Queryx(r.Query, r.Parameters...)
@@ -101,10 +98,10 @@ func (r *SQLServerRequest) transactQuery() Response {
 	if err != nil {
 		newErr := tx.Rollback()
 		if newErr != nil {
-			return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL query after error: "+err.Error())
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
 		}
 
-		return NewSQLServerErrorResponse(err, "failed to execute MSSQL query")
+		return NewSQLErrorResponse(err, "failed to execute SQL query")
 	}
 
 	var dataRows []map[string]interface{}
@@ -115,9 +112,9 @@ func (r *SQLServerRequest) transactQuery() Response {
 		if err != nil {
 			newErr := tx.Rollback()
 			if newErr != nil {
-				return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL query after error: "+err.Error())
+				return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
 			}
-			return NewSQLServerErrorResponse(err, "failed to extract results of MSSQL query")
+			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
 		}
 		dataRows = append(dataRows, newMap)
 	}
@@ -126,90 +123,90 @@ func (r *SQLServerRequest) transactQuery() Response {
 	if err != nil {
 		newErr := tx.Rollback()
 		if newErr != nil {
-			return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL query after error: "+err.Error())
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
 		}
-		return NewSQLServerErrorResponse(err, "failed to iterate over rows in MSSQL query response")
+		return NewSQLErrorResponse(err, "failed to iterate over rows in SQL query response")
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "failed to commit MSSQL query")
+		return NewSQLErrorResponse(err, "failed to commit SQL query")
 	}
-	return &SQLServerResponse{Data: dataRows}
+	return &sqlResponse{Data: dataRows}
 }
 
-func (r *SQLServerRequest) performExecute() Response {
+func (r *sqlRequest) performExecute() Response {
 	if r.Tx {
 		return r.transactExecute()
 	}
 	result, err := r.conn.Exec(r.Execute, r.Parameters...)
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "Failed to execute MSSQL update")
+		return NewSQLErrorResponse(err, "Failed to execute SQL update")
 	}
 
 	insertID, err := result.LastInsertId()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "Failed checking for MSSQL insert ID after update")
+		return NewSQLErrorResponse(err, "Failed checking for SQL insert ID after update")
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "Failed checking for MSSQL number of rows affected")
+		return NewSQLErrorResponse(err, "Failed checking for SQL number of rows affected")
 	}
 
-	return &SQLServerResponse{
+	return &sqlResponse{
 		RowsAffected: rowsAffected,
 		InsertID:     insertID,
 	}
 }
 
-func (r *SQLServerRequest) transactExecute() Response {
+func (r *sqlRequest) transactExecute() Response {
 	tx, err := r.conn.Beginx()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "Failed to get exec transaction handle")
+		return NewSQLErrorResponse(err, "Failed to get exec transaction handle")
 	}
 
 	result, err := tx.Exec(r.Execute, r.Parameters...)
 	if err != nil {
 		newErr := tx.Rollback()
 		if newErr != nil {
-			return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL exec after error: "+err.Error())
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL exec after error: "+err.Error())
 		}
-		return NewSQLServerErrorResponse(err, "Failed to execute MSSQL update")
+		return NewSQLErrorResponse(err, "Failed to execute SQL update")
 	}
 
 	insertID, err := result.LastInsertId()
 	if err != nil {
 		newErr := tx.Rollback()
 		if newErr != nil {
-			return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL exec after error: "+err.Error())
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL exec after error: "+err.Error())
 		}
-		return NewSQLServerErrorResponse(err, "Failed checking for MSSQL insert ID after update")
+		return NewSQLErrorResponse(err, "Failed checking for SQL insert ID after update")
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		newErr := tx.Rollback()
 		if newErr != nil {
-			return NewSQLServerErrorResponse(newErr, "failed to roll back MSSQL exec after error: "+err.Error())
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL exec after error: "+err.Error())
 		}
-		return NewSQLServerErrorResponse(err, "Failed checking for MSSQL number of rows affected")
+		return NewSQLErrorResponse(err, "Failed checking for SQL number of rows affected")
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return NewSQLServerErrorResponse(err, "failed to commit MS SQL exec")
+		return NewSQLErrorResponse(err, "failed to commit MS SQL exec")
 	}
 
-	return &SQLServerResponse{
+	return &sqlResponse{
 		RowsAffected: rowsAffected,
 		InsertID:     insertID,
 	}
 }
 
-// Log returns the SQLServer request basics, It returns the SQL statement when in server mode.
+// Log returns the SQL request basics, It returns the SQL statement when in server mode.
 // When in dev mode the query parameters are also returned.
-func (request *SQLServerRequest) Log(devMode bool) string {
+func (request *sqlRequest) Log(devMode bool) string {
 	var buffer bytes.Buffer
 
 	if request.Query != "" {
@@ -222,19 +219,18 @@ func (request *SQLServerRequest) Log(devMode bool) string {
 		if len(request.Parameters) > 0 {
 			buffer.WriteString(fmt.Sprintf("\nParameters: %v", request.Parameters))
 		}
-		buffer.WriteString(fmt.Sprintf("\nConnection: %+v", request.Config))
 		buffer.WriteString(fmt.Sprintf("\nTransactional: %t", request.Tx))
 	}
 	return buffer.String()
 }
 
 // JSON converts this response to JSON format.
-func (r *SQLServerResponse) JSON() ([]byte, error) {
+func (r *sqlResponse) JSON() ([]byte, error) {
 	return json.Marshal(&r)
 }
 
 // Log returns the number of records affected by the statement
-func (r *SQLServerResponse) Log() string {
+func (r *sqlResponse) Log() string {
 	if r.Data != nil {
 		return fmt.Sprintf("Records found: %d", len(r.Data))
 	}
