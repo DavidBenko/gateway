@@ -3,6 +3,7 @@ package mongo
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"sort"
 
   "gopkg.in/mgo.v2"
@@ -120,6 +121,16 @@ type DB struct {
 
 func (d *DB) Spec() db.Specifier {
 	return d.conf
+}
+
+func mongoCloser(d *DB) {
+  d.Close()
+}
+
+func (d *DB) Copy() *DB {
+	copy := &DB{d.Session.Copy(), d.conf}
+	runtime.SetFinalizer(copy, mongoCloser)
+	return copy
 }
 
 func (d *DB) Update(s db.Specifier) error {

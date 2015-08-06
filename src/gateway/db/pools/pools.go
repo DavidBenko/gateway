@@ -12,7 +12,7 @@ import (
 type Pools struct {
 	// Pools must remain threadsafe!
 	sqlPool *serverPool
-	mongoPool *mongo.ServerPool
+	mongoPool *mongoPool
 }
 
 // poolForSpec returns the correct pool for the given db.Specifier.
@@ -41,7 +41,7 @@ type ServerPool interface {
 
 // MakePools returns a new Pools with initialized sub-pools.
 func MakePools() *Pools {
-	return &Pools{sqlPool: makeServerPool(), mongoPool: mongo.MakeServerPool()}
+	return &Pools{sqlPool: makeServerPool(), mongoPool: makeMongoPool()}
 }
 
 // Connect returns a connection to a database with the correct type.  If
