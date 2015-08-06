@@ -33,9 +33,9 @@ func Connection(s Conn) db.Configurator {
 	return func(spec db.Specifier) error {
 		// https://github.com/denisenkom/go-mssqldb#connection-parameters
 		for _, k := range []string{
-			"server",
+			"host",
 			"port",
-			"user id",
+			"username",
 			"password",
 			"database",
 		} {
@@ -72,16 +72,15 @@ func (s *Spec) ConnectionString() string {
   //http://godoc.org/gopkg.in/mgo.v2#Dial
 	var buffer bytes.Buffer
 	buffer.WriteString("mongodb://")
-  if conn["user id"] != nil && conn["password"] != nil {
-    buffer.WriteString(conn["user id"].(string))
+  if conn["username"] != nil && conn["password"] != nil {
+    buffer.WriteString(conn["username"].(string))
     buffer.WriteString(":")
     buffer.WriteString(conn["password"].(string))
     buffer.WriteString("@")
   }
-  buffer.WriteString(conn["server"].(string))
+  buffer.WriteString(conn["host"].(string))
   if conn["port"] != nil {
-    buffer.WriteString(":")
-    buffer.WriteString(conn["port"].(string))
+    buffer.WriteString(fmt.Sprintf(":%v", conn["port"]))
   }
   if conn["database"] != nil {
     buffer.WriteString("/")
