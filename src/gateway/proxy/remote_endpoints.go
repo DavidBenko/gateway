@@ -64,6 +64,10 @@ func newMongoRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *j
 }
 
 func (r *MongoRequest) updateWith(endpointData *MongoRequest) {
+	if endpointData.Arguments != nil {
+		r.Arguments = endpointData.Arguments
+	}
+
 	if endpointData.Config != nil {
 		if r.Config == nil {
 			r.Config = mongo.Conn{}

@@ -163,3 +163,43 @@ AP.SQLServer.Request.prototype.query = function(stmt, params) {
     this.parameters = params;
   }
 }
+
+/**
+ * Mongo holds helper classes for Mongo related tasks
+ *
+ * @namespace
+ */
+AP.Mongo = AP.Mongo || {};
+
+/**
+ * Creates a new SQLServer request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.Mongo.Request = function() {
+  this.arguments = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+
+AP.Mongo.Request.prototype.query = function() {
+  this.arguments = arguments;
+}
+
+function _ObjectId(_id) {
+  if (_id.length != 24) {
+    throw "ObjectId must be 12 bytes long";
+  }
+  this._id = _id;
+}
+_ObjectId.prototype.toJSON = function() {
+  return "ObjectId('" + this._id + "')";
+}
+function ObjectId(_id) {
+  return new _ObjectId(_id);
+}
