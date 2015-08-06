@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gateway/db"
+	"gateway/db/mongo"
 	sqls "gateway/db/sqlserver"
 )
 
@@ -11,6 +12,7 @@ import (
 type Pools struct {
 	// Pools must remain threadsafe!
 	sqlPool *serverPool
+	mongoPool *mongo.ServerPool
 }
 
 // poolForSpec returns the correct pool for the given db.Specifier.
@@ -18,6 +20,8 @@ func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 	switch spec.(type) {
 	case *sqls.Spec:
 		return p.sqlPool, nil
+	case *mongo.Spec:
+		return p.mongoPool, nil
 	default:
 		return nil, fmt.Errorf("no pool defined for spec type %T", spec)
 	}
@@ -37,7 +41,7 @@ type ServerPool interface {
 
 // MakePools returns a new Pools with initialized sub-pools.
 func MakePools() *Pools {
-	return &Pools{sqlPool: makeServerPool()}
+	return &Pools{sqlPool: makeServerPool(), mongoPool: mongo.MakeServerPool()}
 }
 
 // Connect returns a connection to a database with the correct type.  If
@@ -121,6 +125,10 @@ func insertNewDB(pool ServerPool, spec db.Specifier) (db.DB, error) {
 	}
 
 	pool.Put(spec, newDb)
+	newDb, ok := pool.Get(spec)
+	if !ok {
+		return nil, fmt.Errorf("new database not found for %T", spec)
+	}
 	return newDb, nil
 }
 
