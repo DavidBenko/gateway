@@ -12,6 +12,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/db/pools"
 	aphttp "gateway/http"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
@@ -31,20 +32,24 @@ type Server struct {
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	proxyData   proxyDataSource
-	db          *sql.DB
+	ownDb       *sql.DB // in-application datastore
+	dbPools     *pools.Pools
 	httpClient  *http.Client
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, db *sql.DB) *Server {
+func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	var source proxyDataSource
 	if conf.Proxy.CacheAPIs {
-		source = newCachingProxyDataSource(db)
+		source = newCachingProxyDataSource(ownDb)
 	} else {
-		source = newPassthroughProxyDataSource(db)
+		source = newPassthroughProxyDataSource(ownDb)
 	}
+
+	pools := pools.MakePools()
+	ownDb.RegisterListener(pools)
 
 	return &Server{
 		devMode:    conf.DevMode(),
@@ -52,7 +57,8 @@ func NewServer(conf config.Configuration, db *sql.DB) *Server {
 		adminConf:  conf.Admin,
 		router:     mux.NewRouter(),
 		proxyData:  source,
-		db:         db,
+		ownDb:      ownDb,
+		dbPools:    pools,
 		httpClient: &http.Client{Timeout: httpTimeout},
 	}
 }
@@ -61,10 +67,10 @@ func NewServer(conf config.Configuration, db *sql.DB) *Server {
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.Setup(s.router, s.db, s.adminConf, s.proxyConf)
+	admin.Setup(s.router, s.ownDb, s.adminConf, s.proxyConf)
 
 	// Set up proxy
-	s.proxyRouter = newProxyRouter(s.db)
+	s.proxyRouter = newProxyRouter(s.ownDb)
 
 	s.router.Handle("/{path:.*}",
 		aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
@@ -132,7 +138,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrefix, w, r, s.proxyConf, s.db, proxyEndpoint, libraries)
+	vm, err = apvm.NewVM(logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
 	if err != nil {
 		return s.httpError(err)
 	}
@@ -181,7 +187,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	if test {
 		response := aphttp.TestResponse{
 			Body: response.Body,
-			Log: vm.Log.String(),
+			Log:  vm.Log.String(),
 		}
 
 		body, err := json.Marshal(&response)

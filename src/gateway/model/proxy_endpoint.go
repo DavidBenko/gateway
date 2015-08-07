@@ -230,11 +230,19 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	if license.DeveloperVersion && e.Active {
-		var count int
-		tx.Get(&count, tx.SQL("proxy_endpoints/count_active"), e.APIID)
-		if count >= license.DeveloperVersionProxyEndpoints {
-			return errors.New(fmt.Sprintf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
+	if license.DeveloperVersion {
+		proxyEndpoint := ProxyEndpoint{}
+		err := tx.Get(&proxyEndpoint, tx.SQL("proxy_endpoints/find_id"), e.ID)
+		if err != nil {
+			return aperrors.NewWrapped("Finding proxy endpoint", err)
+		}
+
+		if !proxyEndpoint.Active && e.Active {
+			var count int
+			tx.Get(&count, tx.SQL("proxy_endpoints/count_active"), e.APIID)
+			if count >= license.DeveloperVersionProxyEndpoints {
+				return errors.New(fmt.Sprintf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints))
+			}
 		}
 	}
 

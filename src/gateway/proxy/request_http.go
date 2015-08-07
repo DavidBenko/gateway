@@ -19,6 +19,7 @@ type HTTPRequest struct {
 	Body    string                 `json:"body"`
 	Headers map[string]interface{} `json:"headers"`
 	Query   map[string]string      `json:"query"`
+	client  *http.Client
 }
 
 // HTTPResponse encapsulates a response from an HTTPRequest.
@@ -38,39 +39,37 @@ func (h *HTTPRequest) CompleteURL() string {
 }
 
 // Perform executes the HTTP request and returns its response.
-func (h *HTTPRequest) Perform(s *Server, c chan<- responsePayload, index int) {
+func (h *HTTPRequest) Perform() Response {
 	body := bytes.NewReader([]byte(h.Body))
 
 	req, err := http.NewRequest(h.Method, h.CompleteURL(), body)
 	if err != nil {
 		context := fmt.Errorf("Error creating request from %v: %v\n", h, err)
-		c <- responsePayload{index: index, response: NewErrorResponse(context)}
-		return
+		return NewErrorResponse(context)
 	}
 	aphttp.AddHeaders(req.Header, h.Headers)
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := h.client.Do(req)
 	if err != nil {
-		c <- responsePayload{index: index, response: NewErrorResponse(err)}
-		return
+		return NewErrorResponse(err)
 	}
 
 	response, err := ParseResponse(resp)
 	if err != nil {
 		context := fmt.Errorf("Error parsing response %v: %v\n", resp, err)
-		c <- responsePayload{index: index, response: NewErrorResponse(context)}
-		return
+		return NewErrorResponse(context)
 	}
 
-	c <- responsePayload{index: index, response: response}
+	return response
 }
 
 // Log returns the HTTP request basics, e.g. 'GET http://www.google.com' when in server mode.
 // When in dev mode the query parameters, headers, and body are also returned.
-func (h *HTTPRequest) Log(s *Server) string {
+// TODO(binary132): No more "devMode", use a real logger
+func (h *HTTPRequest) Log(devMode bool) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.URL))
-	if s.devMode {
+	if devMode {
 		buffer.WriteString(fmt.Sprintf("\nQuery Parameters:\n"))
 		for k, v := range h.Query {
 			buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))

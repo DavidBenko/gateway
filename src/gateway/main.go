@@ -15,6 +15,8 @@ import (
 	"gateway/proxy"
 	"gateway/sql"
 	"gateway/version"
+
+	_ "github.com/denisenkom/go-mssqldb"
 )
 
 func main() {

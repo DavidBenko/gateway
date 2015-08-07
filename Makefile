@@ -133,7 +133,9 @@ vendor_get: vendor_clean
 	github.com/jmoiron/sqlx \
 	github.com/mattn/go-sqlite3 \
 	github.com/lib/pq \
-	golang.org/x/crypto/bcrypt
+	golang.org/x/crypto/bcrypt \
+	github.com/denisenkom/go-mssqldb \
+	gopkg.in/check.v1
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
