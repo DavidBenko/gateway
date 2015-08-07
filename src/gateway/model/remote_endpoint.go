@@ -66,7 +66,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 	case RemoteEndpointTypeSQLServer:
 		_, err := e.DBConfig()
 		if err != nil {
-			errors.add("config", fmt.Sprintf("error in SQL Server config: %s", err))
+			errors.add("config", fmt.Sprintf("error in database config: %s", err))
 		}
 	default:
 		errors.add("type", fmt.Sprintf("unkown endpoint type %q", e.Type))
