@@ -39,21 +39,26 @@ func normalizeObjectId(m map[string] interface{}) {
 func (r *MongoRequest) Perform() Response {
   response := &MongoResponse{Type: "mongodb"}
   c := r.Arguments["0"]
-  if c == nil {
+  if _, valid := c.(string); !valid {
     response.Error = "Missing collection parameter"
     return response
   }
   collection := r.conn.DB(r.Config["database"].(string)).C(c.(string))
   op := r.Arguments["1"]
-  if op == nil {
+  if _, valid := op.(string); !valid {
     response.Error = "Missing operation parameter"
     return response
   }
+Operation:
   switch op.(string) {
   case "find":
     query := r.Arguments["2"]
     if query == nil {
       query = map[string] interface{}{}
+    }
+    if _, valid := query.(map[string] interface{}); !valid {
+      response.Error = "query parameter is not an object"
+      break
     }
     normalizeObjectId(query.(map[string] interface{}))
     iter := collection.Find(query).Iter()
@@ -66,17 +71,21 @@ func (r *MongoRequest) Perform() Response {
     }
   case "insert":
     arg := r.Arguments["2"]
-    if arg == nil {
-      response.Error = "insert requires a document or an array of documents to insert"
-      break
-    }
     var err error
     if docs, ok := arg.([]interface{}); ok {
       for _, doc := range docs {
+        if _, valid := doc.(map[string] interface{}); !valid {
+          response.Error = "document is not an object"
+          break Operation
+        }
         normalizeObjectId(doc.(map[string] interface{}))
       }
       err = collection.Insert(arg.([]interface{})...)
     } else {
+      if _, valid := arg.(map[string] interface{}); !valid {
+        response.Error = "document is not an object"
+        break
+      }
       normalizeObjectId(arg.(map[string] interface{}))
       err = collection.Insert(arg)
     }
@@ -85,27 +94,35 @@ func (r *MongoRequest) Perform() Response {
     }
   case "update":
     query := r.Arguments["2"]
-    if query == nil {
-      response.Error = "update requires a query parameter"
+    if _, valid := query.(map[string] interface{}); !valid {
+      response.Error = "query parameter is not an object"
       break
     }
     normalizeObjectId(query.(map[string] interface{}))
     update := r.Arguments["3"]
-    if update == nil {
-      response.Error = "update requires an update parameter"
+    if _, valid := update.(map[string] interface{}); !valid {
+      response.Error = "update parameter is not an object"
       break
     }
     normalizeObjectId(update.(map[string] interface{}))
 
     upsert, multi := false, false
     if len(r.Arguments) > 4 {
-      options := r.Arguments["4"].(map[string] interface{})
+      _options := r.Arguments["4"]
+      if _, valid := _options.(map[string] interface{}); !valid {
+        response.Error = "options parameter should be an object"
+        break
+      }
+      options := _options.(map[string] interface{})
       if _upsert := options["upsert"]; _upsert != nil {
         switch _upsert := _upsert.(type) {
         case int64:
           upsert = _upsert == 1
         case bool:
           upsert = _upsert
+        default:
+          response.Error = "upsert should be a boolean value"
+          break Operation
         }
       }
       if _multi := options["multi"]; _multi != nil {
@@ -114,6 +131,9 @@ func (r *MongoRequest) Perform() Response {
           multi = _multi == 1
         case bool:
           multi = _multi
+        default:
+          response.Error = "multi should be a boolean value"
+          break Operation
         }
       }
     }
@@ -131,7 +151,7 @@ func (r *MongoRequest) Perform() Response {
     }
   case "save":
     d := r.Arguments["2"]
-    if d == nil {
+    if _, valid := d.(map[string] interface{}); !valid {
       response.Error = "save requires a document to save"
       break
     }
@@ -151,6 +171,10 @@ func (r *MongoRequest) Perform() Response {
     if query == nil {
       query = map[string] interface{}{}
     }
+    if _, valid := query.(map[string] interface{}); !valid {
+      response.Error = "query parameter is not an object"
+      break
+    }
     normalizeObjectId(query.(map[string] interface{}))
 
     justOne := false
@@ -161,6 +185,9 @@ func (r *MongoRequest) Perform() Response {
         justOne = _justOne == 1
       case bool:
         justOne = _justOne
+      default:
+        response.Error = "just one should be a boolean value"
+        break Operation
       }
     }
 
