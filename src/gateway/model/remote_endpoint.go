@@ -64,12 +64,13 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
+	case RemoteEndpointTypeMongo:
+		fallthrough
 	case RemoteEndpointTypeSQLServer:
 		_, err := e.DBConfig()
 		if err != nil {
 			errors.add("config", fmt.Sprintf("error in database config: %s", err))
 		}
-	case RemoteEndpointTypeMongo:
 	default:
 		errors.add("type", fmt.Sprintf("unkown endpoint type %q", e.Type))
 	}
@@ -268,6 +269,8 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 	switch e.Type {
 	case RemoteEndpointTypeSQLServer:
 		return re.SQLServerConfig(e.Data)
+	case RemoteEndpointTypeMongo:
+		return re.MongoConfig(e.Data)
 	default:
 		return nil, fmt.Errorf("unknown database endpoint type %q", e.Type)
 	}

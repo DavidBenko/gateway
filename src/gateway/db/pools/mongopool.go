@@ -23,7 +23,9 @@ func (s *mongoPool) Put(spec db.Specifier, d db.DB) {
 }
 
 func (s *mongoPool) Delete(spec db.Specifier) {
-  s.dbs[spec.UniqueServer()].Close()
+  if d, ok := s.dbs[spec.UniqueServer()]; ok {
+		d.Close()
+	}
 	delete(s.dbs, spec.UniqueServer())
 }
 
