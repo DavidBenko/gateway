@@ -8,13 +8,13 @@ import (
 )
 
 type ProxyEndpointTest struct {
-  ID      int64                    `json:"id,omitempty"`
+	ID      int64                    `json:"id,omitempty"`
 	Name    string                   `json:"name"`
 	Methods types.JsonText           `json:"methods"`
-  Route   string                   `json:"route"`
-  Body    string                   `json:"body"`
-  Pairs   []*ProxyEndpointTestPair `json:"pairs,omitempty"`
-  Data    types.JsonText           `json:"data,omitempty"`
+	Route   string                   `json:"route"`
+	Body    string                   `json:"body"`
+	Pairs   []*ProxyEndpointTestPair `json:"pairs,omitempty"`
+	Data    types.JsonText           `json:"data,omitempty"`
 }
 
 func (t *ProxyEndpointTest) GetMethods() (methods []string, err error) {
@@ -42,89 +42,89 @@ func (t *ProxyEndpointTest) Validate() Errors {
 }
 
 func (t *ProxyEndpointTest) Insert(tx *apsql.Tx, endpointID int64) error {
-  data, err := marshaledForStorage(t.Data)
+	data, err := marshaledForStorage(t.Data)
 	if err != nil {
 		return aperrors.NewWrapped("Marshaling test JSON", err)
 	}
 
-  methods, err := marshaledForStorage(t.Methods)
-  if err != nil {
-    return aperrors.NewWrapped("Marshaling test methods JSON", err)
-  }
+	methods, err := marshaledForStorage(t.Methods)
+	if err != nil {
+		return aperrors.NewWrapped("Marshaling test methods JSON", err)
+	}
 
-  t.ID, err = tx.InsertOne(tx.SQL("tests/insert"),
-                           endpointID, t.Name, methods,
-                           t.Route, t.Body, data)
-  if err != nil {
-    return aperrors.NewWrapped("Inserting test", err)
-  }
+	t.ID, err = tx.InsertOne(tx.SQL("tests/insert"),
+		endpointID, t.Name, methods,
+		t.Route, t.Body, data)
+	if err != nil {
+		return aperrors.NewWrapped("Inserting test", err)
+	}
 
-  for _, pair := range t.Pairs {
-    err = pair.Insert(tx, t.ID)
-    if err != nil {
-      return err
-    }
-  }
+	for _, pair := range t.Pairs {
+		err = pair.Insert(tx, t.ID)
+		if err != nil {
+			return err
+		}
+	}
 
-  return nil
+	return nil
 }
 
 func (t *ProxyEndpointTest) Update(tx *apsql.Tx, endpointID int64) error {
-  data, err := marshaledForStorage(t.Data)
+	data, err := marshaledForStorage(t.Data)
 	if err != nil {
 		return aperrors.NewWrapped("Marshaling test JSON", err)
 	}
 
-  methods, err := marshaledForStorage(t.Methods)
-  if err != nil {
-    return aperrors.NewWrapped("Marshaling test methods JSON", err)
-  }
+	methods, err := marshaledForStorage(t.Methods)
+	if err != nil {
+		return aperrors.NewWrapped("Marshaling test methods JSON", err)
+	}
 
-  err = tx.UpdateOne(tx.SQL("tests/update"),
-                     t.Name, methods, t.Route, t.Body,
-                     data, t.ID, endpointID)
-  if err != nil {
-    return aperrors.NewWrapped("Updating test", err)
-  }
+	err = tx.UpdateOne(tx.SQL("tests/update"),
+		t.Name, methods, t.Route, t.Body,
+		data, t.ID, endpointID)
+	if err != nil {
+		return aperrors.NewWrapped("Updating test", err)
+	}
 
-  var validPairIDs []int64
-  for _, pair := range t.Pairs {
-    if pair.ID == 0 {
-      err = pair.Insert(tx, t.ID)
-      if err != nil {
-        return err
-      }
-    } else {
-      err = pair.Update(tx, t.ID)
-      if err != nil {
-        return err
-      }
-    }
-    validPairIDs = append(validPairIDs, pair.ID)
-  }
-  err = DeleteProxyEndpointTestPairsWithTestIDAndNotInList(tx, t.ID, validPairIDs)
+	var validPairIDs []int64
+	for _, pair := range t.Pairs {
+		if pair.ID == 0 {
+			err = pair.Insert(tx, t.ID)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = pair.Update(tx, t.ID)
+			if err != nil {
+				return err
+			}
+		}
+		validPairIDs = append(validPairIDs, pair.ID)
+	}
+	err = DeleteProxyEndpointTestPairsWithTestIDAndNotInList(tx, t.ID, validPairIDs)
 	if err != nil {
 		return err
 	}
 
-  return nil
+	return nil
 }
 
 func AllProxyEndpointTestsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointTest, error) {
-  tests := []*ProxyEndpointTest{}
-  err := db.Select(&tests, db.SQL("tests/all"), endpointID)
-  if err != nil {
-    return nil, err
-  }
+	tests := []*ProxyEndpointTest{}
+	err := db.Select(&tests, db.SQL("tests/all"), endpointID)
+	if err != nil {
+		return nil, err
+	}
 
-  for _, test := range tests {
-    test.Pairs, err = AllProxyEndpointTestPairsForTestID(db, test.ID)
-    if err != nil {
-      return nil, err
-    }
-  }
+	for _, test := range tests {
+		test.Pairs, err = AllProxyEndpointTestPairsForTestID(db, test.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-  return tests, err
+	return tests, err
 }
 
 func DeleteProxyEndpointTestsWithEndpointIDAndNotInList(tx *apsql.Tx,

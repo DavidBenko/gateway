@@ -1,12 +1,12 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"gateway/code"
-	sqls "gateway/db/sqlserver"
+	"gateway/db"
+	re "gateway/model/remote_endpoint"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -61,8 +61,15 @@ func (e *RemoteEndpoint) Validate() Errors {
 	if !code.IsValidVariableIdentifier(e.Codename) {
 		errors.add("codename", "is not a valid variable identifier")
 	}
-	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSQLServer {
-		errors.add("type", "must be 'http' or 'sqlserver'")
+	switch e.Type {
+	case RemoteEndpointTypeHTTP:
+	case RemoteEndpointTypeSQLServer:
+		_, err := e.DBConfig()
+		if err != nil {
+			errors.add("config", fmt.Sprintf("error in database config: %s", err))
+		}
+	default:
+		errors.add("type", fmt.Sprintf("unkown endpoint type %q", e.Type))
 	}
 	return errors
 }
@@ -229,7 +236,16 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return fmt.Errorf("found multiple remote endpoints for endpoint id %d", id)
 	}
 	endpoint := endpoints[0]
-	msg := getDBConfig(endpoint)
+	var msg interface{}
+	if endpoint.Type != RemoteEndpointTypeHTTP {
+		conf, err := endpoint.DBConfig()
+		switch err {
+		case nil:
+			msg = conf
+		default:
+			msg = err
+		}
+	}
 
 	err = tx.DeleteOne(
 		`DELETE FROM remote_endpoints
@@ -244,34 +260,14 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 	return tx.Notify("remote_endpoints", apiID, apsql.Delete, msg)
 }
 
-// getDBConfig takes one result of a SQL Select on remote_endpoints and
-// extracts the config of a Database endpoint.
-func getDBConfig(endpoint *RemoteEndpoint) interface{} {
-	var data map[string]interface{}
-	err := json.Unmarshal(endpoint.Data, &data)
-	if err != nil {
-		return err
-	}
-
-	switch endpoint.Type {
+// DBConfig gets a DB Specifier for database endpoints, or nil for non database
+// endpoints, and returns any validation errors generated for the Config.
+func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
+	switch e.Type {
 	case RemoteEndpointTypeSQLServer:
-		conf, ok := data["config"]
-		if !ok {
-			return fmt.Errorf(`SQL Server endpoint data missing "config" key`)
-		}
-
-		confMap, ok := conf.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("SQL Server endpoint expected config as map, got type %T", conf)
-		}
-
-		msg, err := sqls.Config(sqls.Connection(confMap))
-		if err != nil {
-			return err
-		}
-		return msg
+		return re.SQLServerConfig(e.Data)
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown database endpoint type %q", e.Type)
 	}
 }
 
@@ -305,7 +301,16 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	// Get any database config for Flushing if needed.
-	msg := getDBConfig(e)
+	var msg interface{}
+	if e.Type != RemoteEndpointTypeHTTP {
+		conf, err := e.DBConfig()
+		switch err {
+		case nil:
+			msg = conf
+		default:
+			msg = err
+		}
+	}
 
 	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
