@@ -25,6 +25,9 @@ AP.insertResponses = function(calls, responses) {
     var call = calls[i];
     call.response = responses[i];
     if (call.response.type == "mongodb") {
+      if (call.response.error) {
+        throw call.response.error;
+      }
       results = call.response.data;
       for (var i in results) {
         var idObject = results[i]._id

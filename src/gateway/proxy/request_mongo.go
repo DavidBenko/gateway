@@ -38,8 +38,18 @@ func normalizeObjectId(m map[string] interface{}) {
 
 func (r *MongoRequest) Perform() Response {
   response := &MongoResponse{Type: "mongodb"}
-  collection := r.conn.DB(r.Config["database"].(string)).C(r.Arguments["0"].(string))
-  switch r.Arguments["1"].(string) {
+  c := r.Arguments["0"]
+  if c == nil {
+    response.Error = "Missing collection parameter"
+    return response
+  }
+  collection := r.conn.DB(r.Config["database"].(string)).C(c.(string))
+  op := r.Arguments["1"]
+  if op == nil {
+    response.Error = "Missing operation parameter"
+    return response
+  }
+  switch op.(string) {
   case "find":
     query := r.Arguments["2"]
     if query == nil {
@@ -56,6 +66,10 @@ func (r *MongoRequest) Perform() Response {
     }
   case "insert":
     arg := r.Arguments["2"]
+    if arg == nil {
+      response.Error = "insert requires a document or an array of documents to insert"
+      break
+    }
     var err error
     if docs, ok := arg.([]interface{}); ok {
       for _, doc := range docs {
@@ -71,8 +85,16 @@ func (r *MongoRequest) Perform() Response {
     }
   case "update":
     query := r.Arguments["2"]
+    if query == nil {
+      response.Error = "update requires a query parameter"
+      break
+    }
     normalizeObjectId(query.(map[string] interface{}))
     update := r.Arguments["3"]
+    if update == nil {
+      response.Error = "update requires an update parameter"
+      break
+    }
     normalizeObjectId(update.(map[string] interface{}))
 
     upsert, multi := false, false
@@ -108,7 +130,12 @@ func (r *MongoRequest) Perform() Response {
       response.Error = err.Error()
     }
   case "save":
-    doc := r.Arguments["2"].(map[string] interface{})
+    d := r.Arguments["2"]
+    if d == nil {
+      response.Error = "save requires a document to save"
+      break
+    }
+    doc := d.(map[string] interface{})
     normalizeObjectId(doc)
     var err error
     if id := doc["_id"]; id != nil {
@@ -151,6 +178,8 @@ func (r *MongoRequest) Perform() Response {
     if err != nil {
       response.Error = err.Error()
     }
+  default:
+    response.Error = "Invalid operation"
   }
   return response
 }
@@ -167,7 +196,7 @@ func (request *MongoRequest) Log(devMode bool) string {
 type MongoResponse struct {
   Type  string                   `json:"type"`
   Data  []map[string]interface{} `json:"data"`
-  Error string                   `json:"error"`
+  Error string                   `json:"error,omitempty"`
 }
 
 func (r *MongoResponse) JSON() ([]byte, error) {
