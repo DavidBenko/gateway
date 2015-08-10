@@ -15,7 +15,7 @@ import (
 type Configuration struct {
 	Version bool   `flag:"version" default:"false"`
 	File    string `flag:"config" default:"gateway.conf"`
-	License string `flag:"license" default:"license"`
+	License string `flag:"license"`
 	Server  bool   `flag:"server" default:"false"`
 
 	Database Database

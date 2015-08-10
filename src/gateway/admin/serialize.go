@@ -43,6 +43,14 @@ func apiIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["apiID"])
 }
 
+func endpointIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["endpointID"])
+}
+
+func testIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["testID"])
+}
+
 func parseID(id string) int64 {
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 )
 
 // Setup sets up the session and adds admin routes.
-func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
+func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin, psconf config.ProxyServer) {
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
 		subrouter(router, conf))
@@ -48,6 +48,9 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin) {
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
 	RouteAPIImport(apisController, "/apis/import", authAdmin, db, conf)
 	RouteResource(apisController, "/apis", authAdmin, db, conf)
+
+	testController := &TestController{base, psconf}
+	RouteTest(testController, "/apis/{apiID}/proxy_endpoints/{endpointID}/tests/{testID}/test", authAdmin, db, conf)
 
 	RouteResource(&HostsController{base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
 	RouteResource(&EnvironmentsController{base}, "/apis/{apiID}/environments", authAdmin, db, conf)

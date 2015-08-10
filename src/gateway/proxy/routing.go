@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/context"
@@ -92,7 +93,7 @@ func (r *proxyRouter) rebuildHosts() error {
 func (r *proxyRouter) rebuildAPIRouters() error {
 	log.Printf("%s Rebuilding all API routers", config.System)
 
-	proxyEndpoints, err := model.AllActiveProxyEndpointsForRouting(r.db)
+	proxyEndpoints, err := model.AllProxyEndpointsForRouting(r.db)
 	if err != nil {
 		log.Printf("%s Error fetching proxy endpoints for all APIs to route: %v",
 			config.System, err)
@@ -120,7 +121,7 @@ func (r *proxyRouter) rebuildAPIRouters() error {
 func (r *proxyRouter) rebuildAPIRouterForAPIID(apiID int64) error {
 	log.Printf("%s Rebuilding API router for API %d", config.System, apiID)
 
-	proxyEndpoints, err := model.AllActiveProxyEndpointsForRoutingForAPIID(r.db, apiID)
+	proxyEndpoints, err := model.AllProxyEndpointsForRoutingForAPIID(r.db, apiID)
 	if err != nil {
 		log.Printf("%s Error fetching proxy endpoints for API %d to route: %v",
 			config.System, apiID, err)
@@ -149,6 +150,14 @@ func (r *proxyRouter) deleteAPIRouterForAPIID(apiID int64) error {
 	return nil
 }
 
+func isLocalhost(r *http.Request, rm *mux.RouteMatch) bool {
+	if strings.HasPrefix(r.RemoteAddr, "127.0.0.1") {
+		context.Set(r, aphttp.ContextTest, true)
+		return true
+	}
+	return false
+}
+
 func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) error {
 	routes, err := endpoint.GetRoutes()
 	if err != nil {
@@ -157,16 +166,26 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) e
 		return err
 	}
 
-	for _, proxyRoute := range routes {
+	addRoute := func(proxyRoute *model.ProxyEndpointRoute, prefix string) *mux.Route {
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(endpoint.ID, 10))
-		route.Path(proxyRoute.Path)
+		route.Path(prefix + proxyRoute.Path)
 
 		methods := proxyRoute.Methods
 		if endpoint.CORSEnabled && !proxyRoute.HandlesOptions() {
 			methods = append(methods, "OPTIONS")
 		}
 		route.Methods(methods...)
+
+		return route
+	}
+
+	for _, proxyRoute := range routes {
+		if endpoint.Active {
+			addRoute(proxyRoute, "")
+		}
+		/*the testing interface*/
+		addRoute(proxyRoute, "/justapis/test").MatcherFunc(isLocalhost)
 	}
 
 	return nil

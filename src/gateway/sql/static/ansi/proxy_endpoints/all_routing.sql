@@ -1,3 +1,2 @@
-SELECT id, api_id, routes, cors_enabled
-FROM proxy_endpoints
-WHERE active = ?;
+SELECT id, api_id, routes, active, cors_enabled
+FROM proxy_endpoints;

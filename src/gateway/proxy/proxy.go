@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -66,7 +67,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.Setup(s.router, s.ownDb, s.adminConf)
+	admin.Setup(s.router, s.ownDb, s.adminConf, s.proxyConf)
 
 	// Set up proxy
 	s.proxyRouter = newProxyRouter(s.ownDb)
@@ -99,6 +100,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
+	test, _ := context.Get(r, aphttp.ContextTest).(bool)
 
 	var vm *apvm.ProxyVM
 
@@ -182,7 +184,20 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 	aphttp.AddHeaders(w.Header(), response.Headers)
 
 	w.WriteHeader(response.StatusCode)
-	w.Write([]byte(response.Body))
+	if test {
+		response := aphttp.TestResponse{
+			Body: response.Body,
+			Log:  vm.Log.String(),
+		}
+
+		body, err := json.Marshal(&response)
+		if err != nil {
+			return s.httpError(err)
+		}
+		w.Write(body)
+	} else {
+		w.Write([]byte(response.Body))
+	}
 	return nil
 }
 
