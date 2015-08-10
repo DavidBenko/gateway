@@ -33,8 +33,7 @@ func Connection(s Conn) db.Configurator {
 	return func(spec db.Specifier) error {
 		// https://github.com/denisenkom/go-mssqldb#connection-parameters
 		for _, k := range []string{
-			"host",
-			"port",
+			"hosts",
 			"username",
 			"password",
 			"database",
@@ -42,6 +41,19 @@ func Connection(s Conn) db.Configurator {
 			if _, ok := s[k]; !ok {
 				return fmt.Errorf("Mongo Config missing %q key", k)
 			}
+		}
+
+		hasHost := false
+		if hosts := s["hosts"]; hosts != nil {
+			for _, h := range hosts.([]interface{}) {
+				host := h.(map[string] interface{})
+				if host["host"].(string) != "" && host["port"] != nil {
+					hasHost = true
+				}
+			}
+		}
+		if !hasHost {
+			return fmt.Errorf("At least one host must be defined.")
 		}
 
 		switch mongo := spec.(type) {
@@ -78,10 +90,12 @@ func (s *Spec) ConnectionString() string {
     buffer.WriteString(conn["password"].(string))
     buffer.WriteString("@")
   }
-  buffer.WriteString(conn["host"].(string))
-  if conn["port"] != nil {
-    buffer.WriteString(fmt.Sprintf(":%v", conn["port"]))
-  }
+	comma := ""
+	for _, h := range conn["hosts"].([]interface{}) {
+		host := h.(map[string] interface{})
+    buffer.WriteString(fmt.Sprintf("%v%v:%v", comma, host["host"], host["port"]))
+		comma = ","
+	}
   if conn["database"] != nil {
     buffer.WriteString("/")
     buffer.WriteString(conn["database"].(string))
@@ -102,7 +116,15 @@ func (s *Spec) UniqueServer() string {
 
 	var buffer bytes.Buffer
 	for _, key := range keys {
-		buffer.WriteString(fmt.Sprintf("%s=%v;", key, conn[key]))
+		if key == "hosts" {
+			buffer.WriteString(fmt.Sprintf("%s=", key))
+			for _, h := range conn[key].([]interface{}) {
+				host := h.(map[string] interface{})
+				buffer.WriteString(fmt.Sprintf("%v:%v,", host["host"], host["port"]))
+			}
+		} else {
+			buffer.WriteString(fmt.Sprintf("%s=%v;", key, conn[key]))
+		}
 	}
 
 	return buffer.String()
