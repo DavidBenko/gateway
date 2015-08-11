@@ -136,7 +136,8 @@ vendor_get: vendor_clean
 	golang.org/x/crypto/bcrypt \
 	github.com/denisenkom/go-mssqldb \
 	gopkg.in/check.v1 \
-	github.com/juju/testing/checkers
+	github.com/juju/testing/checkers \
+	gopkg.in/mgo.v2
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

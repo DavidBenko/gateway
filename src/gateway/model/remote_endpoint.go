@@ -17,6 +17,7 @@ const (
 	RemoteEndpointTypeHTTP = "http"
 	// RemoteEndpointTypeSQLServer denotes that a remote endpoint is a MS SQL Server database
 	RemoteEndpointTypeSQLServer = "sqlserver"
+	RemoteEndpointTypeMongo     = "mongodb"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -63,6 +64,8 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
+	case RemoteEndpointTypeMongo:
+		fallthrough
 	case RemoteEndpointTypeSQLServer:
 		_, err := e.DBConfig()
 		if err != nil {
@@ -221,7 +224,7 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
-		`SELECT remote_endpoints.type as type, 
+		`SELECT remote_endpoints.type as type,
 			remote_endpoints.data as data
 		FROM remote_endpoints
 		WHERE remote_endpoints.id = ?
@@ -266,6 +269,8 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 	switch e.Type {
 	case RemoteEndpointTypeSQLServer:
 		return re.SQLServerConfig(e.Data)
+	case RemoteEndpointTypeMongo:
+		return re.MongoConfig(e.Data)
 	default:
 		return nil, fmt.Errorf("unknown database endpoint type %q", e.Type)
 	}

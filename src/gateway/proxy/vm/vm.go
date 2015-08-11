@@ -31,7 +31,7 @@ type ProxyVM struct {
 	*otto.Otto
 	conf                    config.ProxyServer
 	LogPrefix               string
-	Log											bytes.Buffer
+	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
 
 	w            http.ResponseWriter
@@ -51,9 +51,9 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		Otto: shared.Copy(),
-		conf: conf,
-		LogPrefix: logPrefix,
+		Otto:                    shared.Copy(),
+		conf:                    conf,
+		LogPrefix:               logPrefix,
 		ProxiedRequestsDuration: 0,
 		w: w,
 		r: r,
