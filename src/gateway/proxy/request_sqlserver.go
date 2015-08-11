@@ -222,7 +222,7 @@ func (request *SQLServerRequest) Log(devMode bool) string {
 		if len(request.Parameters) > 0 {
 			buffer.WriteString(fmt.Sprintf("\nParameters: %v", request.Parameters))
 		}
-		buffer.WriteString(fmt.Sprintf("\nConnection: %s", request.Config))
+		buffer.WriteString(fmt.Sprintf("\nConnection: %+v", request.Config))
 		buffer.WriteString(fmt.Sprintf("\nTransactional: %t", request.Tx))
 	}
 	return buffer.String()
