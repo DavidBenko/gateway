@@ -16,5 +16,4 @@ for fn in $unformatted; do
     echo >&2 "  gofmt -w $PWD/$fn"
 done
 
-echo "EXIT 1"
 exit 1
