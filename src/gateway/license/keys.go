@@ -5,11 +5,11 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"gateway/config"
 	apcrypto "gateway/crypto"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -19,11 +19,12 @@ var developerVersionAccounts,
 	developerVersionAPIs,
 	developerVersionProxyEndpoints string
 var (
-	DeveloperVersionAccounts = 1
-	DeveloperVersionUsers = 1
-	DeveloperVersionAPIs = 1
+	DeveloperVersionAccounts       = 1
+	DeveloperVersionUsers          = 1
+	DeveloperVersionAPIs           = 1
 	DeveloperVersionProxyEndpoints = 5
 )
+
 func init() {
 	if value, err := strconv.Atoi(developerVersionAccounts); err == nil {
 		DeveloperVersionAccounts = value

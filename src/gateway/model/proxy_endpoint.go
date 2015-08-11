@@ -25,7 +25,7 @@ type ProxyEndpoint struct {
 	Routes      types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
-	Tests			 []*ProxyEndpointTest		 `json:"tests,omitempty"`
+	Tests      []*ProxyEndpointTest      `json:"tests,omitempty"`
 
 	// Export Indices
 	ExportEndpointGroupIndex int `json:"endpoint_group_index,omitempty"`

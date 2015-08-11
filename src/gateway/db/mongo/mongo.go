@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"sort"
 
-  "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2"
 
 	"gateway/db"
 )
@@ -15,7 +15,7 @@ type Conn map[string]interface{}
 
 type Spec struct {
 	mongoConn Conn
-	limit int
+	limit     int
 }
 
 func Config(confs ...db.Configurator) (db.Specifier, error) {
@@ -46,7 +46,7 @@ func Connection(s Conn) db.Configurator {
 		hasHost := false
 		if hosts := s["hosts"]; hosts != nil {
 			for _, h := range hosts.([]interface{}) {
-				host := h.(map[string] interface{})
+				host := h.(map[string]interface{})
 				if host["host"].(string) != "" && host["port"] != nil {
 					hasHost = true
 				}
@@ -81,25 +81,25 @@ func PoolLimit(limit int) db.Configurator {
 func (s *Spec) ConnectionString() string {
 	conn := s.mongoConn
 
-  //http://godoc.org/gopkg.in/mgo.v2#Dial
+	//http://godoc.org/gopkg.in/mgo.v2#Dial
 	var buffer bytes.Buffer
 	buffer.WriteString("mongodb://")
-  if conn["username"] != nil && conn["password"] != nil {
-    buffer.WriteString(conn["username"].(string))
-    buffer.WriteString(":")
-    buffer.WriteString(conn["password"].(string))
-    buffer.WriteString("@")
-  }
+	if conn["username"] != nil && conn["password"] != nil {
+		buffer.WriteString(conn["username"].(string))
+		buffer.WriteString(":")
+		buffer.WriteString(conn["password"].(string))
+		buffer.WriteString("@")
+	}
 	comma := ""
 	for _, h := range conn["hosts"].([]interface{}) {
-		host := h.(map[string] interface{})
-    buffer.WriteString(fmt.Sprintf("%v%v:%v", comma, host["host"], host["port"]))
+		host := h.(map[string]interface{})
+		buffer.WriteString(fmt.Sprintf("%v%v:%v", comma, host["host"], host["port"]))
 		comma = ","
 	}
-  if conn["database"] != nil {
-    buffer.WriteString("/")
-    buffer.WriteString(conn["database"].(string))
-  }
+	if conn["database"] != nil {
+		buffer.WriteString("/")
+		buffer.WriteString(conn["database"].(string))
+	}
 
 	return buffer.String()
 }
@@ -109,7 +109,7 @@ func (s *Spec) UniqueServer() string {
 
 	keys := []string{}
 	for key := range conn {
-			keys = append(keys, key)
+		keys = append(keys, key)
 	}
 
 	sort.Strings(keys)
@@ -119,7 +119,7 @@ func (s *Spec) UniqueServer() string {
 		if key == "hosts" {
 			buffer.WriteString(fmt.Sprintf("%s=", key))
 			for _, h := range conn[key].([]interface{}) {
-				host := h.(map[string] interface{})
+				host := h.(map[string]interface{})
 				buffer.WriteString(fmt.Sprintf("%v:%v,", host["host"], host["port"]))
 			}
 		} else {
@@ -145,7 +145,7 @@ func (d *DB) Spec() db.Specifier {
 }
 
 func mongoCloser(d *DB) {
-  d.Close()
+	d.Close()
 }
 
 func (d *DB) Copy() *DB {
@@ -166,7 +166,7 @@ func (d *DB) Update(s db.Specifier) error {
 }
 
 func (s *Spec) NewDB() (db.DB, error) {
-	mongo, err :=  mgo.Dial(s.ConnectionString())
+	mongo, err := mgo.Dial(s.ConnectionString())
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@ import (
 // Pools handles concurrent access to databases with connection pools.
 type Pools struct {
 	// Pools must remain threadsafe!
-	sqlPool *serverPool
+	sqlPool   *serverPool
 	mongoPool *mongoPool
 }
 

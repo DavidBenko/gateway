@@ -13,9 +13,9 @@ type mongoPool struct {
 
 func (s *mongoPool) Get(spec db.Specifier) (db.DB, bool) {
 	if d, ok := s.dbs[spec.UniqueServer()]; ok {
-	  return d.Copy(), ok
-  }
-  return nil, false
+		return d.Copy(), ok
+	}
+	return nil, false
 }
 
 func (s *mongoPool) Put(spec db.Specifier, d db.DB) {
@@ -23,7 +23,7 @@ func (s *mongoPool) Put(spec db.Specifier, d db.DB) {
 }
 
 func (s *mongoPool) Delete(spec db.Specifier) {
-  if d, ok := s.dbs[spec.UniqueServer()]; ok {
+	if d, ok := s.dbs[spec.UniqueServer()]; ok {
 		d.Close()
 	}
 	delete(s.dbs, spec.UniqueServer())

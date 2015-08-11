@@ -17,7 +17,7 @@ const (
 	RemoteEndpointTypeHTTP = "http"
 	// RemoteEndpointTypeSQLServer denotes that a remote endpoint is a MS SQL Server database
 	RemoteEndpointTypeSQLServer = "sqlserver"
-	RemoteEndpointTypeMongo = "mongodb"
+	RemoteEndpointTypeMongo     = "mongodb"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.

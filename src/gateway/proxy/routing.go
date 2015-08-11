@@ -2,8 +2,8 @@ package proxy
 
 import (
 	"gateway/config"
-	"gateway/model"
 	aphttp "gateway/http"
+	"gateway/model"
 	apsql "gateway/sql"
 
 	"log"
