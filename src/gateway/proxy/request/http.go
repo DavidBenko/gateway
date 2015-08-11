@@ -1,15 +1,17 @@
-package proxy
+package request
 
 import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	aphttp "gateway/http"
+	"gateway/model"
 )
 
 // HTTPRequest encapsulates a request made over HTTP(s).
@@ -116,4 +118,56 @@ func (r *HTTPResponse) JSON() ([]byte, error) {
 // Log returns the status code
 func (r *HTTPResponse) Log() string {
 	return fmt.Sprintf("(%d)", r.StatusCode)
+}
+
+func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+	request := &HTTPRequest{}
+	if err := json.Unmarshal(*data, request); err != nil {
+		return nil, err
+	}
+
+	endpointData := &HTTPRequest{}
+	if err := json.Unmarshal(endpoint.Data, endpointData); err != nil {
+		return nil, err
+	}
+	request.updateWith(endpointData)
+
+	if endpoint.SelectedEnvironmentData != nil {
+		if err := json.Unmarshal(*endpoint.SelectedEnvironmentData, endpointData); err != nil {
+			return nil, err
+		}
+		request.updateWith(endpointData)
+	}
+
+	if client == nil {
+		return nil, errors.New("no client defined")
+	}
+
+	request.client = client
+
+	return request, nil
+}
+
+func (r *HTTPRequest) updateWith(endpointData *HTTPRequest) {
+	if endpointData.Method != "" {
+		r.Method = endpointData.Method
+	}
+	if endpointData.URL != "" {
+		r.URL = endpointData.URL
+	}
+	if endpointData.Body != "" {
+		r.Body = endpointData.Body
+	}
+	for name, value := range endpointData.Query {
+		if r.Query == nil {
+			r.Query = make(map[string]string)
+		}
+		r.Query[name] = value
+	}
+	for name, value := range endpointData.Headers {
+		if r.Headers == nil {
+			r.Headers = make(map[string]interface{})
+		}
+		r.Headers[name] = value
+	}
 }

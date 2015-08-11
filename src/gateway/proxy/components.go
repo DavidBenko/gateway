@@ -2,13 +2,12 @@ package proxy
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"gateway/model"
-	"gateway/proxy/vm"
 	"strconv"
 	"strings"
-	"time"
+
+	"gateway/model"
+	"gateway/proxy/vm"
 )
 
 /**
@@ -131,40 +130,22 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 		activeCallNames = append(activeCallNames, name)
 	}
 
-	requestScript := fmt.Sprintf("AP.prepareRequests(%s);",
-		strings.Join(activeCallNames, ","))
-	requestsObject, err := vm.Run(requestScript)
-	if err != nil {
-		return err
-	}
-	requestsJSON := requestsObject.String()
-
-	var requestData []*json.RawMessage
-	err = json.Unmarshal([]byte(requestsJSON), &requestData)
+	requests, err := s.getRequests(vm, activeCallNames, activeCalls)
 	if err != nil {
 		return err
 	}
 
-	var abstractedRequests []Request
-	for i, call := range activeCalls {
-		if call.RemoteEndpoint == nil {
-			return errors.New("Remote endpoint is not loaded")
-		}
-		request, err := s.prepareRequest(call.RemoteEndpoint, requestData[i])
-		if err != nil {
-			return err
-		}
-		abstractedRequests = append(abstractedRequests, request)
-	}
-
-	responses, err := s.makeRequests(vm, abstractedRequests)
+	responses, err := s.makeRequests(vm, requests)
 	if err != nil {
 		return err
 	}
+
 	responsesJSON, err := json.Marshal(responses)
 	if err != nil {
 		return err
 	}
+
+	// TODO(binary132): move this into "gateway/proxy/vm" calls.go
 	responsesScript := fmt.Sprintf("AP.insertResponses([%s],%s);",
 		strings.Join(activeCallNames, ","), responsesJSON)
 	_, err = vm.Run(responsesScript)
@@ -180,14 +161,6 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 	}
 
 	return nil
-}
-
-func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []Request) ([]Response, error) {
-	start := time.Now()
-	defer func() {
-		vm.ProxiedRequestsDuration += time.Since(start)
-	}()
-	return s.MakeRequests(proxyRequests, vm.LogPrefix)
 }
 
 func (s *Server) evaluateComponentConditional(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) (bool, error) {

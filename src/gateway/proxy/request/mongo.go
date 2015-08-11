@@ -1,13 +1,16 @@
-package proxy
+package request
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"gopkg.in/mgo.v2/bson"
 
 	"gateway/db/mongo"
+	"gateway/db/pools"
+	"gateway/model"
 )
 
 type MongoRequest struct {
@@ -236,4 +239,62 @@ func (r *MongoResponse) Log() string {
 	}
 
 	return r.Error
+}
+
+func NewMongoRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+	request := &MongoRequest{}
+	if err := json.Unmarshal(*data, request); err != nil {
+		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
+	}
+
+	endpointData := &MongoRequest{}
+	if err := json.Unmarshal(endpoint.Data, endpointData); err != nil {
+		return nil, fmt.Errorf("Unable to unmarshal endpoint configuration: %v", err)
+	}
+	request.updateWith(endpointData)
+
+	if endpoint.SelectedEnvironmentData != nil {
+		if err := json.Unmarshal(*endpoint.SelectedEnvironmentData, endpointData); err != nil {
+			return nil, err
+		}
+		request.updateWith(endpointData)
+	}
+
+	if pools == nil {
+		return nil, errors.New("database pools not set up")
+	}
+
+	conn, err := pools.Connect(mongo.Config(
+		mongo.Connection(request.Config),
+		mongo.PoolLimit(request.Limit),
+	))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
+	}
+
+	if mongoConn, ok := conn.(*mongo.DB); ok {
+		request.conn = mongoConn
+		return request, nil
+	}
+
+	return nil, fmt.Errorf("need Mongo connection, got %T", conn)
+}
+
+func (r *MongoRequest) updateWith(endpointData *MongoRequest) {
+	if endpointData.Arguments != nil {
+		r.Arguments = endpointData.Arguments
+	}
+
+	if endpointData.Config != nil {
+		if r.Config == nil {
+			r.Config = mongo.Conn{}
+		}
+		for key, value := range endpointData.Config {
+			r.Config[key] = value
+		}
+	}
+
+	if r.Limit != endpointData.Limit {
+		r.Limit = endpointData.Limit
+	}
 }

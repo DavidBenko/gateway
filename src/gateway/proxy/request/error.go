@@ -1,4 +1,4 @@
-package proxy
+package request
 
 import (
 	"encoding/json"
@@ -44,8 +44,8 @@ type SQLServerErrorResponse struct {
 	LineNo     int32  `json:"lineNumber,omitempty"`
 }
 
-// NewSQLServerErrorResponse returns a new response that wraps the error.
-func NewSQLServerErrorResponse(err error, wrapMessage string) Response {
+// NewSQLErrorResponse returns a new response that wraps the error.
+func NewSQLErrorResponse(err error, wrapMessage string) Response {
 	var errorMessage string
 
 	if wrapMessage == "" {
@@ -56,10 +56,10 @@ func NewSQLServerErrorResponse(err error, wrapMessage string) Response {
 
 	switch t := err.(type) {
 	case mssql.Error:
-		log.Printf("Encountered an MS SQL error: %v\n", t)
+		log.Printf("Encountered a SQL error: %v\n", t)
 		return &SQLServerErrorResponse{&ErrorResponse{http.StatusInternalServerError, errorMessage}, t.Number, t.State, t.Class, t.Message, t.ServerName, t.ProcName, t.LineNo}
 	default:
-		log.Printf("Encountered an error, but not an  MS SQL error: %v\n", t)
-		return &SQLServerErrorResponse{ErrorResponse: &ErrorResponse{http.StatusInternalServerError, errorMessage}}
+		log.Printf("Encountered an error, but not a SQL error: %v\n", t)
+		return &ErrorResponse{http.StatusInternalServerError, errorMessage}
 	}
 }
