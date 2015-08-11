@@ -9,6 +9,7 @@ import (
 	gc "gopkg.in/check.v1"
 
 	"gateway/db"
+	pq "gateway/db/postgres"
 	sqls "gateway/db/sqlserver"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
@@ -23,7 +24,7 @@ var _ = gc.Suite(&RemoteEndpointSuite{})
 
 func data() map[string]interface{} {
 	return map[string]interface{}{
-		"simple": map[string]interface{}{
+		"sqls-simple": map[string]interface{}{
 			"config": map[string]interface{}{
 				"server":   "some.url.net",
 				"port":     1234,
@@ -33,7 +34,7 @@ func data() map[string]interface{} {
 				"schema":   "dbschema",
 			},
 		},
-		"complicated": map[string]interface{}{
+		"sqls-complicated": map[string]interface{}{
 			"config": map[string]interface{}{
 				"server":             "some.url.net",
 				"port":               1234,
@@ -46,21 +47,63 @@ func data() map[string]interface{} {
 			"maxOpenConn": 80,
 			"maxIdleConn": 100,
 		},
-		"badConfig": map[string]interface{}{
+		"sqls-badConfig": map[string]interface{}{
 			"config": map[string]interface{}{
 				"server": "some.url.net",
 			},
 		},
-		"badConfigType": map[string]interface{}{
+		"sqls-badConfigType": map[string]interface{}{
 			"config": 8,
 		},
-		"badMaxIdleType": map[string]interface{}{
+		"sqls-badMaxIdleType": map[string]interface{}{
 			"config": map[string]interface{}{
 				"server":   "some.url.net",
 				"port":     1234,
 				"user id":  "user",
 				"password": "pass",
 				"database": "db",
+				"schema":   "dbschema",
+			},
+			"maxOpenConn": "hello",
+		},
+		"pq-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"host":     "some.url.net",
+				"port":     1234,
+				"user":     "user",
+				"password": "pass",
+				"dbname":   "db",
+				"schema":   "dbschema",
+			},
+		},
+		"pq-complicated": map[string]interface{}{
+			"config": map[string]interface{}{
+				"host":               "some.url.net",
+				"port":               1234,
+				"user":               "user",
+				"password":           "pass",
+				"dbname":             "db",
+				"schema":             "dbschema",
+				"connection_timeout": 30,
+			},
+			"maxOpenConn": 80,
+			"maxIdleConn": 100,
+		},
+		"pq-badConfig": map[string]interface{}{
+			"config": map[string]interface{}{
+				"host": "some.url.net",
+			},
+		},
+		"pq-badConfigType": map[string]interface{}{
+			"config": 8,
+		},
+		"pq-badMaxIdleType": map[string]interface{}{
+			"config": map[string]interface{}{
+				"host":     "some.url.net",
+				"port":     1234,
+				"user":     "user",
+				"password": "pass",
+				"dbname":   "db",
 				"schema":   "dbschema",
 			},
 			"maxOpenConn": "hello",
@@ -74,9 +117,13 @@ func specs() map[string]db.Specifier {
 		name string
 		kind string
 	}{{
-		"simple", model.RemoteEndpointTypeSQLServer,
+		"sqls-simple", model.RemoteEndpointTypeSQLServer,
 	}, {
-		"complicated", model.RemoteEndpointTypeSQLServer,
+		"sqls-complicated", model.RemoteEndpointTypeSQLServer,
+	}, {
+		"pq-simple", model.RemoteEndpointTypePostgres,
+	}, {
+		"pq-complicated", model.RemoteEndpointTypePostgres,
 	}} {
 		switch which.kind {
 		case model.RemoteEndpointTypeSQLServer:
@@ -98,6 +145,25 @@ func specs() map[string]db.Specifier {
 				panic(err)
 			}
 			specs[which.name] = s
+		case model.RemoteEndpointTypePostgres:
+			d := data()[which.name].(map[string]interface{})
+			js, err := json.Marshal(d)
+			if err != nil {
+				panic(err)
+			}
+			var conf re.Postgres
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+			s, err := pq.Config(
+				pq.Connection(conf.Config),
+				pq.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			)
+			if err != nil {
+				panic(err)
+			}
+			specs[which.name] = s
 		default:
 		}
 	}
@@ -112,30 +178,55 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		expectSpec  string
 		expectError string
 	}{{
-		should:      "work with a simple config",
-		givenConfig: "simple",
+		should:      "(SQL) work with a simple config",
+		givenConfig: "sqls-simple",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectSpec:  "simple",
+		expectSpec:  "sqls-simple",
 	}, {
-		should:      "work with a complex config",
-		givenConfig: "complicated",
+		should:      "(SQL) work with a complex config",
+		givenConfig: "sqls-complicated",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectSpec:  "complicated",
+		expectSpec:  "sqls-complicated",
 	}, {
-		should:      "fail with a bad config",
-		givenConfig: "badConfig",
+		should:      "(SQL) fail with a bad config",
+		givenConfig: "sqls-badConfig",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `SQL Config missing "port" key`,
 	}, {
-		should:      "fail with a bad config type",
-		givenConfig: "badConfigType",
+		should:      "(SQL) fail with a bad config type",
+		givenConfig: "sqls-badConfigType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: json: cannot unmarshal number into Go value of type sqlserver.Conn`,
 	}, {
-		should:      "fail with a bad max idle type",
-		givenConfig: "badMaxIdleType",
+		should:      "(SQL) fail with a bad max idle type",
+		givenConfig: "sqls-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: json: cannot unmarshal string into Go value of type int`,
+	}, {
+		should:      "(PSQL) work with a simple config",
+		givenConfig: "pq-simple",
+		givenType:   model.RemoteEndpointTypePostgres,
+		expectSpec:  "pq-simple",
+	}, {
+		should:      "(PSQL) work with a complex config",
+		givenConfig: "pq-complicated",
+		givenType:   model.RemoteEndpointTypePostgres,
+		expectSpec:  "pq-complicated",
+	}, {
+		should:      "(PSQL) fail with a bad config",
+		givenConfig: "pq-badConfig",
+		givenType:   model.RemoteEndpointTypePostgres,
+		expectError: `Postgres Config missing "port" key`,
+	}, {
+		should:      "(PSQL) fail with a bad config type",
+		givenConfig: "pq-badConfigType",
+		givenType:   model.RemoteEndpointTypePostgres,
+		expectError: `bad JSON for Postgres config: json: cannot unmarshal number into Go value of type postgres.Conn`,
+	}, {
+		should:      "(PSQL) fail with a bad max idle type",
+		givenConfig: "pq-badMaxIdleType",
+		givenType:   model.RemoteEndpointTypePostgres,
+		expectError: `bad JSON for Postgres config: json: cannot unmarshal string into Go value of type int`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		data := data()[t.givenConfig]

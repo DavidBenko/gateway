@@ -17,8 +17,7 @@ type SQLServer struct {
 	MaxIdleConn int       `json:"maxIdleConn,omitempty"`
 }
 
-// DBConfig gets a DB Specifier for database endpoints, or nil for non database
-// endpoints, and returns any validation errors generated for the Config.
+// SQLServerConfig gets a "gateway/db/sqlserver" Config and returns any errors.
 func SQLServerConfig(data types.JsonText) (db.Specifier, error) {
 	var conf SQLServer
 	err := json.Unmarshal(data, &conf)

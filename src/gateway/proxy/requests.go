@@ -48,6 +48,8 @@ func (s *Server) prepareRequest(
 		return request.NewHTTPRequest(s.httpClient, endpoint, data)
 	case model.RemoteEndpointTypeSQLServer:
 		return request.NewSQLServerRequest(s.dbPools, endpoint, data)
+	case model.RemoteEndpointTypePostgres:
+		return request.NewPostgresRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeMongo:
 		return request.NewMongoRequest(s.dbPools, endpoint, data)
 	}
