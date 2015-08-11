@@ -43,16 +43,26 @@ func Connection(s Conn) db.Configurator {
 			}
 		}
 
-		hasHost := false
+		hasValidHost := false
 		if hosts := s["hosts"]; hosts != nil {
-			for _, h := range hosts.([]interface{}) {
-				host := h.(map[string]interface{})
-				if host["host"].(string) != "" && host["port"] != nil {
-					hasHost = true
+			if hosts, valid := hosts.([]interface{}); valid {
+				for _, host := range hosts {
+					if host, valid := host.(map[string]interface{}); valid {
+						_host, hasHost := host["host"].(string)
+						hasHost = hasHost && _host != ""
+						_, hasPort := host["port"].(float64)
+						if hasHost && hasPort {
+							hasValidHost = true
+						} else if !hasHost {
+							return fmt.Errorf("Host name is required")
+						} else {
+							return fmt.Errorf("Port is required")
+						}
+					}
 				}
 			}
 		}
-		if !hasHost {
+		if !hasValidHost {
 			return fmt.Errorf("At least one host must be defined.")
 		}
 
