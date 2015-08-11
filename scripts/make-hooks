@@ -1,0 +1,21 @@
+#!/bin/bash
+
+pcmtarget=".git/hooks/pre-commit"
+pcmpath="$(pwd)/scripts/hooks/pre-commit"
+
+# If it exists and isn't a symlink, we should use the official one
+if [[ -e "${pcmtarget}" && ! -h "${pcmtarget}" ]]; then
+  echo 'You have a custom pre-commit hook.  Please remove it and re-run this script.'
+  exit 1
+fi
+
+if [ ! -h "${pcmtarget}" ]; then
+  echo 'Missing pre-commit hook.'
+  makelink="ln -sf ${pcmpath} ${pcmtarget}"
+  echo "${makelink}"
+  if [[ $(${makelink}) -ne 0 ]]; then
+    echo "Failed to make link: $?"
+    exit 1
+  fi
+  chmod +x "${pcmtarget}"
+fi
