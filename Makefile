@@ -154,4 +154,5 @@ install_goimports:
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet
 vet:
-	go vet ./src/...
+	./scripts/make-hooks
+	./scripts/hooks/pre-commit
