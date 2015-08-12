@@ -36,7 +36,6 @@ func configs() map[string]map[string]interface{} {
 			"user":            "user name",
 			"password":        "pass's",
 			"dbname":          "db",
-			"hostaddr":        "8.8.8.8",
 			"connect_timeout": 30,
 		},
 	}
@@ -57,12 +56,12 @@ func (s *PostgresSuite) TestPostgresConfig(c *gc.C) {
 	}, {
 		should:       "work with a complicated config",
 		given:        configs()["complicated"],
-		expectString: `connect_timeout=30 dbname=db host=some.url.net hostaddr=8.8.8.8 password=pass\'s port=1234 user='user name'`,
-		expectUnique: `dbname=db host=some.url.net hostaddr=8.8.8.8 password=pass\'s port=1234 user='user name'`,
+		expectString: `connect_timeout=30 dbname=db host=some.url.net password=pass\'s port=1234 user='user name'`,
+		expectUnique: `dbname=db host=some.url.net password=pass\'s port=1234 user='user name'`,
 	}, {
 		should:      "not work with a bad config",
 		given:       configs()["bad"],
-		expectError: "Postgres Config missing host or hostaddr",
+		expectError: `Postgres Config missing "host" key`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		conf, err := psql.Config(psql.Connection(t.given))

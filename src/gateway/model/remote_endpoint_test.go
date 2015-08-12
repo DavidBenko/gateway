@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx/types"
@@ -73,18 +74,16 @@ func data() map[string]interface{} {
 				"user":     "user",
 				"password": "pass",
 				"dbname":   "db",
-				"schema":   "dbschema",
 			},
 		},
 		"pq-complicated": map[string]interface{}{
 			"config": map[string]interface{}{
-				"host":               "some.url.net",
-				"port":               1234,
-				"user":               "user",
-				"password":           "pass",
-				"dbname":             "db",
-				"schema":             "dbschema",
-				"connection_timeout": 30,
+				"host":            "some.url.net",
+				"port":            1234,
+				"user":            "user",
+				"password":        "pass",
+				"dbname":          "db",
+				"connect_timeout": 30,
 			},
 			"maxOpenConn": 80,
 			"maxIdleConn": 100,
@@ -104,7 +103,6 @@ func data() map[string]interface{} {
 				"user":     "user",
 				"password": "pass",
 				"dbname":   "db",
-				"schema":   "dbschema",
 			},
 			"maxOpenConn": "hello",
 		},
@@ -125,47 +123,40 @@ func specs() map[string]db.Specifier {
 	}, {
 		"pq-complicated", model.RemoteEndpointTypePostgres,
 	}} {
+		d := data()[which.name].(map[string]interface{})
+		js, err := json.Marshal(d)
+		if err != nil {
+			panic(err)
+		}
+		var s db.Specifier
 		switch which.kind {
 		case model.RemoteEndpointTypeSQLServer:
-			d := data()[which.name].(map[string]interface{})
-			js, err := json.Marshal(d)
-			if err != nil {
-				panic(err)
-			}
 			var conf re.SQLServer
 			err = json.Unmarshal(js, &conf)
 			if err != nil {
 				panic(err)
 			}
-			s, err := sqls.Config(
+			s, err = sqls.Config(
 				sqls.Connection(conf.Config),
 				sqls.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
 			)
-			if err != nil {
-				panic(err)
-			}
-			specs[which.name] = s
 		case model.RemoteEndpointTypePostgres:
-			d := data()[which.name].(map[string]interface{})
-			js, err := json.Marshal(d)
-			if err != nil {
-				panic(err)
-			}
 			var conf re.Postgres
 			err = json.Unmarshal(js, &conf)
 			if err != nil {
 				panic(err)
 			}
-			s, err := pq.Config(
+			s, err = pq.Config(
 				pq.Connection(conf.Config),
 				pq.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
 			)
-			if err != nil {
-				panic(err)
-			}
-			specs[which.name] = s
 		default:
+			err = fmt.Errorf("no such type %q", which.kind)
 		}
+		if err != nil {
+			panic(err)
+		}
+		specs[which.name] = s
 	}
 	return specs
 }
