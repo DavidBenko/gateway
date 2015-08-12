@@ -24,7 +24,7 @@ func normalizeObjectId(m map[string]interface{}) {
 	for key, value := range m {
 		switch value := value.(type) {
 		case map[string]interface{}:
-			if id := value["_id"]; id != nil && len(value) == 1 {
+			if id, _type := value["_id"], value["type"]; id != nil && _type == "id" && len(value) == 2 {
 				m[key] = bson.ObjectIdHex(id.(string))
 			} else {
 				normalizeObjectId(value)
@@ -68,9 +68,10 @@ Operation:
 		record := bson.M{}
 		for iter.Next(&record) {
 			if id, valid := record["_id"].(bson.ObjectId); valid {
-				record["_id"] = map[string]interface{}{"_id": id.Hex()}
+				record["_id"] = map[string]interface{}{"_id": id.Hex(), "type": "id"}
 			}
 			response.Data, record = append(response.Data, record), bson.M{}
+			response.Count++
 		}
 	case "insert":
 		arg := r.Arguments["2"]
@@ -208,6 +209,61 @@ Operation:
 		if err != nil {
 			response.Error = err.Error()
 		}
+	case "aggregate":
+		length := len(r.Arguments)
+		if length < 3 {
+			response.Error = "aggregate requires at least one pipline stage"
+			break
+		}
+
+		var stages []map[string]interface{}
+		if arg, valid := r.Arguments["2"].([]interface{}); valid {
+			stages = make([]map[string]interface{}, len(arg))
+			for i, stage := range arg {
+				if stage, valid := stage.(map[string]interface{}); valid {
+					stages[i] = stage
+				} else {
+					response.Error = "stage is not an object"
+					break Operation
+				}
+			}
+		} else {
+			stages = make([]map[string]interface{}, length-2)
+			for i := 2; i < length; i++ {
+				if stage, valid := r.Arguments[fmt.Sprintf("%v", i)].(map[string]interface{}); valid {
+					stages[i-2] = stage
+				} else {
+					response.Error = "stage is not an object"
+					break Operation
+				}
+			}
+		}
+		for _, stage := range stages {
+			normalizeObjectId(stage)
+		}
+		response.Data = []map[string]interface{}{}
+		err := collection.Pipe(stages).All(&response.Data)
+		if err != nil {
+			response.Error = err.Error()
+			break
+		}
+		response.Count = len(response.Data)
+	case "count":
+		query := r.Arguments["2"]
+		if query == nil {
+			query = map[string]interface{}{}
+		}
+		if _, valid := query.(map[string]interface{}); !valid {
+			response.Error = "query parameter is not an object"
+			break
+		}
+		normalizeObjectId(query.(map[string]interface{}))
+		n, err := collection.Find(query).Count()
+		if err != nil {
+			response.Error = err.Error()
+			break
+		}
+		response.Count = n
 	default:
 		response.Error = "Invalid operation"
 	}
@@ -226,6 +282,7 @@ func (request *MongoRequest) Log(devMode bool) string {
 type MongoResponse struct {
 	Type  string                   `json:"type"`
 	Data  []map[string]interface{} `json:"data"`
+	Count int                      `json:"count"`
 	Error string                   `json:"error,omitempty"`
 }
 

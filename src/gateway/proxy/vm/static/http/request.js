@@ -259,6 +259,7 @@ function _ObjectId(_id) {
     throw "ObjectId must be 12 bytes long";
   }
   this._id = _id;
+  this.type = "id";
 }
 _ObjectId.prototype.toJSON = function() {
   return "ObjectId('" + this._id + "')";
