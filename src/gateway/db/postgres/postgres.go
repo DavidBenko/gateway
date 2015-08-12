@@ -68,15 +68,21 @@ func Connection(s Conn) db.Configurator {
 			"user",
 			"password",
 			"dbname",
+			"host",
 		} {
 			if _, ok := s[k]; !ok {
 				return fmt.Errorf("Postgres Config missing %q key", k)
 			}
 		}
-		if _, ok := s["host"]; !ok {
-			if _, ok = s["hostaddr"]; !ok {
-				return fmt.Errorf("Postgres Config missing host or hostaddr")
+
+		if len(s) == 6 {
+			if _, ok := s["connect_timeout"]; !ok {
+				return fmt.Errorf("unexpected key in Postgres connection %+v", s)
 			}
+		}
+
+		if len(s) > 6 {
+			return fmt.Errorf("bad Postgres connection map %+v", s)
 		}
 
 		switch pqSpec := spec.(type) {
