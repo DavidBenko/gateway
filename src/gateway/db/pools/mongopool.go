@@ -31,13 +31,11 @@ func (s *mongoPool) Delete(spec db.Specifier) {
 
 // Iterator implements ServerPool.Iterator.
 func (m *mongoPool) Iterator() <-chan db.Specifier {
-	m.RLock()
 	iter := make(chan db.Specifier, len(m.dbs))
 	for _, d := range m.dbs {
 		iter <- d.Spec()
 	}
 	close(iter)
-	m.RUnlock()
 	return iter
 }
 

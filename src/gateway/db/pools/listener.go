@@ -33,7 +33,9 @@ func (p *Pools) flushByMsg(msg interface{}) {
 		if err != nil {
 			log.Printf("error flushing DB cache: %s", err.Error())
 		}
+		pool.Lock()
 		FlushEntry(pool, m)
+		pool.Unlock()
 	case error:
 		log.Printf("tried to flush db entry but received error: %s", m.Error())
 	default:
@@ -47,8 +49,10 @@ func (p *Pools) Reconnect() {
 		p.pqPool,
 		p.mongoPool,
 	} {
+		pool.Lock()
 		for spec := range pool.Iterator() {
 			FlushEntry(pool, spec)
 		}
+		pool.Unlock()
 	}
 }

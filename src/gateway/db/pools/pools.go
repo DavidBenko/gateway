@@ -147,7 +147,5 @@ func insertNewDB(pool ServerPool, spec db.Specifier) (db.DB, error) {
 // FlushEntry can be used to flush an entry from a correct pool.  Note that if a
 // handle to the entry still exists, it will remain in memory until released.
 func FlushEntry(pool ServerPool, spec db.Specifier) {
-	pool.Lock()
 	pool.Delete(spec)
-	pool.Unlock()
 }
