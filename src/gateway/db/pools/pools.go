@@ -5,13 +5,15 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
+	pq "gateway/db/postgres"
 	sqls "gateway/db/sqlserver"
 )
 
 // Pools handles concurrent access to databases with connection pools.
 type Pools struct {
 	// Pools must remain threadsafe!
-	sqlPool   *serverPool
+	sqlsPool  *sqlPool
+	pqPool    *sqlPool
 	mongoPool *mongoPool
 }
 
@@ -19,7 +21,9 @@ type Pools struct {
 func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 	switch spec.(type) {
 	case *sqls.Spec:
-		return p.sqlPool, nil
+		return p.sqlsPool, nil
+	case *pq.Spec:
+		return p.pqPool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
 	default:
@@ -37,11 +41,19 @@ type ServerPool interface {
 	Get(db.Specifier) (db.DB, bool)
 	Put(db.Specifier, db.DB)
 	Delete(db.Specifier)
+
+	// Iterator should return a full, closed, buffered channel of
+	// the Specifiers for each db.DB in the ServerPool.
+	Iterator() <-chan db.Specifier
 }
 
 // MakePools returns a new Pools with initialized sub-pools.
 func MakePools() *Pools {
-	return &Pools{sqlPool: makeServerPool(), mongoPool: makeMongoPool()}
+	return &Pools{
+		sqlsPool:  makeSqlPool(),
+		pqPool:    makeSqlPool(),
+		mongoPool: makeMongoPool(),
+	}
 }
 
 // Connect returns a connection to a database with the correct type.  If
@@ -135,7 +147,5 @@ func insertNewDB(pool ServerPool, spec db.Specifier) (db.DB, error) {
 // FlushEntry can be used to flush an entry from a correct pool.  Note that if a
 // handle to the entry still exists, it will remain in memory until released.
 func FlushEntry(pool ServerPool, spec db.Specifier) {
-	pool.Lock()
 	pool.Delete(spec)
-	pool.Unlock()
 }

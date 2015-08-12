@@ -29,6 +29,16 @@ func (s *mongoPool) Delete(spec db.Specifier) {
 	delete(s.dbs, spec.UniqueServer())
 }
 
+// Iterator implements ServerPool.Iterator.
+func (m *mongoPool) Iterator() <-chan db.Specifier {
+	iter := make(chan db.Specifier, len(m.dbs))
+	for _, d := range m.dbs {
+		iter <- d.Spec()
+	}
+	close(iter)
+	return iter
+}
+
 func makeMongoPool() *mongoPool {
 	return &mongoPool{dbs: make(map[string]*mongo.DB)}
 }

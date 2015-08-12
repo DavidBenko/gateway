@@ -191,12 +191,12 @@ func (d *DB) Update(s db.Specifier) error {
 
 // NewDB creates a new *sqlx.DB, and wraps it with its config in a *DB.
 func (s *Spec) NewDB() (db.DB, error) {
-	sqlDB, err := sql.Open("mssql", s.ConnectionString())
+	pqDB, err := sql.Open("postgres", s.ConnectionString())
 	if err != nil {
 		return nil, err
 	}
 
-	db := sqlx.NewDb(sqlDB, "mssql")
+	db := sqlx.NewDb(pqDB, "postgres")
 
 	db.SetMaxIdleConns(s.maxIdle)
 	db.SetMaxOpenConns(s.maxOpen)

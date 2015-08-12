@@ -33,7 +33,9 @@ func (p *Pools) flushByMsg(msg interface{}) {
 		if err != nil {
 			log.Printf("error flushing DB cache: %s", err.Error())
 		}
+		pool.Lock()
 		FlushEntry(pool, m)
+		pool.Unlock()
 	case error:
 		log.Printf("tried to flush db entry but received error: %s", m.Error())
 	default:
@@ -42,11 +44,15 @@ func (p *Pools) flushByMsg(msg interface{}) {
 
 // Reconnect implements gateway/sql Listener Reconnect by flushing all db's.
 func (p *Pools) Reconnect() {
-	for _, pool := range []*serverPool{
-		p.sqlPool,
+	for _, pool := range []ServerPool{
+		p.sqlsPool,
+		p.pqPool,
+		p.mongoPool,
 	} {
-		for _, db := range pool.dbs {
-			FlushEntry(pool, db.Spec())
+		pool.Lock()
+		for spec := range pool.Iterator() {
+			FlushEntry(pool, spec)
 		}
+		pool.Unlock()
 	}
 }
