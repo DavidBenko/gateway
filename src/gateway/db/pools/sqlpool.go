@@ -29,11 +29,13 @@ func (s *sqlPool) Delete(spec db.Specifier) {
 
 // Iterator implements ServerPool.Iterator.
 func (s *sqlPool) Iterator() <-chan db.Specifier {
+	s.RLock()
 	iter := make(chan db.Specifier, len(s.dbs))
 	for _, d := range s.dbs {
 		iter <- d.Spec()
 	}
 	close(iter)
+	s.RUnlock()
 	return iter
 }
 

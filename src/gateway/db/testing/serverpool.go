@@ -24,10 +24,12 @@ func (s *ServerPool) Delete(spec db.Specifier) {
 }
 
 func (s *ServerPool) Iterator() <-chan db.Specifier {
+	s.RLock()
 	iter := make(chan db.Specifier, len(s.DBs))
 	for _, d := range s.DBs {
 		iter <- d.Spec()
 	}
 	close(iter)
+	s.RUnlock()
 	return iter
 }
