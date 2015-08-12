@@ -22,3 +22,12 @@ func (s *ServerPool) Put(spec db.Specifier, d db.DB) {
 func (s *ServerPool) Delete(spec db.Specifier) {
 	delete(s.DBs, spec.UniqueServer())
 }
+
+func (s *ServerPool) Iterator() <-chan db.Specifier {
+	iter := make(chan db.Specifier, len(s.DBs))
+	for _, d := range s.DBs {
+		iter <- d.Spec()
+	}
+	close(iter)
+	return iter
+}

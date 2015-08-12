@@ -41,6 +41,10 @@ type ServerPool interface {
 	Get(db.Specifier) (db.DB, bool)
 	Put(db.Specifier, db.DB)
 	Delete(db.Specifier)
+
+	// Iterator should return a full, closed, buffered channel of
+	// the Specifiers for each db.DB in the ServerPool.
+	Iterator() <-chan db.Specifier
 }
 
 // MakePools returns a new Pools with initialized sub-pools.

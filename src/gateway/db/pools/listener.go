@@ -42,11 +42,13 @@ func (p *Pools) flushByMsg(msg interface{}) {
 
 // Reconnect implements gateway/sql Listener Reconnect by flushing all db's.
 func (p *Pools) Reconnect() {
-	for _, pool := range []*serverPool{
-		p.sqlPool,
+	for _, pool := range []ServerPool{
+		p.sqlsPool,
+		p.pqPool,
+		p.mongoPool,
 	} {
-		for _, db := range pool.dbs {
-			FlushEntry(pool, db.Spec())
+		for spec := range pool.Iterator() {
+			FlushEntry(pool, spec)
 		}
 	}
 }

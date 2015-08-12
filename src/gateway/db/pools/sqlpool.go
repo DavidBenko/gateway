@@ -27,6 +27,16 @@ func (s *sqlPool) Delete(spec db.Specifier) {
 	delete(s.dbs, spec.UniqueServer())
 }
 
+// Iterator implements ServerPool.Iterator.
+func (s *sqlPool) Iterator() <-chan db.Specifier {
+	iter := make(chan db.Specifier, len(s.dbs))
+	for _, d := range s.dbs {
+		iter <- d.Spec()
+	}
+	close(iter)
+	return iter
+}
+
 // makeSqlPool makes a sqlPool with a prepared connection map.
 func makeSqlPool() *sqlPool {
 	return &sqlPool{dbs: make(map[string]db.DB)}
