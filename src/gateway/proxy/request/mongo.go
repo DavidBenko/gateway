@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"gateway/db/mongo"
@@ -264,6 +265,49 @@ Operation:
 			break
 		}
 		response.Count = n
+	case "mapReduce":
+		query := r.Arguments["2"]
+		if _, valid := query.(map[string]interface{}); !valid {
+			response.Error = "query parameter is not an object"
+			break
+		}
+		normalizeObjectId(query.(map[string]interface{}))
+		mr := mgo.MapReduce{}
+		if _map, valid := r.Arguments["3"].(string); valid {
+			mr.Map = _map
+		} else {
+			response.Error = "map parameter is not a string"
+			break
+		}
+		if reduce, valid := r.Arguments["4"].(string); valid {
+			mr.Reduce = reduce
+		} else {
+			response.Error = "reduce parameter is not a string"
+			break
+		}
+		if finalize, valid := r.Arguments["5"].(string); valid {
+			mr.Finalize = finalize
+		} else {
+			response.Error = "finalize parameter is not a string"
+			break
+		}
+		_query := collection.Find(query)
+		if out, valid := r.Arguments["6"].(map[string]interface{}); valid {
+			mr.Out = out
+			_, err := _query.MapReduce(&mr, nil)
+			if err != nil {
+				response.Error = err.Error()
+				break
+			}
+		} else {
+			response.Data = []map[string]interface{}{}
+			_, err := _query.MapReduce(&mr, &response.Data)
+			if err != nil {
+				response.Error = err.Error()
+				break
+			}
+			response.Count = len(response.Data)
+		}
 	default:
 		response.Error = "Invalid operation"
 	}
