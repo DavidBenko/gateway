@@ -5,13 +5,15 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
+	pq "gateway/db/postgres"
 	sqls "gateway/db/sqlserver"
 )
 
 // Pools handles concurrent access to databases with connection pools.
 type Pools struct {
 	// Pools must remain threadsafe!
-	sqlPool   *serverPool
+	sqlsPool  *sqlPool
+	pqPool    *sqlPool
 	mongoPool *mongoPool
 }
 
@@ -19,7 +21,9 @@ type Pools struct {
 func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 	switch spec.(type) {
 	case *sqls.Spec:
-		return p.sqlPool, nil
+		return p.sqlsPool, nil
+	case *pq.Spec:
+		return p.pqPool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
 	default:
@@ -41,7 +45,11 @@ type ServerPool interface {
 
 // MakePools returns a new Pools with initialized sub-pools.
 func MakePools() *Pools {
-	return &Pools{sqlPool: makeServerPool(), mongoPool: makeMongoPool()}
+	return &Pools{
+		sqlsPool:  makeSqlPool(),
+		pqPool:    makeSqlPool(),
+		mongoPool: makeMongoPool(),
+	}
 }
 
 // Connect returns a connection to a database with the correct type.  If
