@@ -165,6 +165,69 @@ AP.SQLServer.Request.prototype.query = function(stmt, params) {
 }
 
 /**
+ * Postgres holds helper classes for Postgres related tasks
+ *
+ * @namespace
+ */
+AP.Postgres = AP.Postgres || {};
+
+
+/**
+ * Creates a new Postgres request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.Postgres.Request = function() {
+
+  /**
+   * The request's SQL statement to be executed.  Must be a query that does
+   * not modify data
+   * @type {string}
+   */
+  this.queryStatement = null;
+
+  /**
+   * The request's SQL statement to be executed.  Must be an update that modifies
+   * data.
+   * @type {string}
+   */
+  this.executeStatement = null;
+
+  /**
+   * The request's parameters to the SQL statement.
+   * @type {Array.<object>}
+   */
+  this.parameters = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.query = _.clone(request.queryStatement);
+    this.execute = _.clone(request.executeStatement);
+    this.parameters = _.clone(request.parameters);
+  }
+}
+
+AP.Postgres.Request.prototype.execute = function(stmt, params) {
+  this.executeStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+AP.Postgres.Request.prototype.query = function(stmt, params) {
+  this.queryStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+/**
  * Mongo holds helper classes for Mongo related tasks
  *
  * @namespace
