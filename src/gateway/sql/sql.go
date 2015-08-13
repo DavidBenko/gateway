@@ -1,6 +1,7 @@
 package sql
 
 import (
+	drvr "database/sql/driver"
 	"errors"
 	"fmt"
 	"gateway/config"
@@ -11,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 // NotificationEventType determined what happened in a notified update.
@@ -65,7 +67,7 @@ func Connect(conf config.Database) (*DB, error) {
 	}
 
 	log.Printf("%s Connecting to database", config.System)
-	sqlxDB, err := sqlx.Connect(conf.Driver, conf.ConnectionString)
+	sqlxDB, err := sqlx.Open(conf.Driver, conf.ConnectionString)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +78,29 @@ func Connect(conf config.Database) (*DB, error) {
 
 	switch conf.Driver {
 	case Sqlite3:
-		// Foreign key support is disabled by default
-		db.Exec("PRAGMA foreign_keys = ON;")
-
+		// Foreign key support is disabled by default for each new sqlite connection.
+		// Before actually establishing the connection (by calling 'Ping'),
+		// add a ConnectHook that turns foreign_keys on.  This ensures that any
+		// new sqlite connection that is added to the connection pool has foreign
+		// keys enabled.
+		if sqliteDriver, ok := db.DB.Driver().(*sqlite3.SQLiteDriver); ok {
+			sqliteDriver.ConnectHook = func(conn *sqlite3.SQLiteConn) error {
+				_, err := conn.Exec("PRAGMA foreign_keys=ON;", []drvr.Value{})
+				return err
+			}
+		}
+		// ConnectHook is set up successfully, so Ping to establish the connection
+		err := db.Ping()
+		if err != nil {
+			return nil, err
+		}
 	case Postgres:
+		// Establish the connection by executing the Ping first
+		err := db.Ping()
+		if err != nil {
+			return nil, err
+		}
+		// Connection is established, proceed with listener
 		// We use Postgres' NOTIFY to update state in a cluster
 		db.startListening(conf)
 	}
