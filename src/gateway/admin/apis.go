@@ -71,7 +71,8 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 
 	api, httpErr := c.deserializeInstance(export)
 	if httpErr != nil {
-		return httpErr
+		log.Printf("Encountered an error deserializing API export: %s", httpErr)
+		return aphttp.NewError(errors.New("API file is invalid"), httpErr.Code())
 	}
 
 	api.Name = r.FormValue("name")
