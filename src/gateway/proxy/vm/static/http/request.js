@@ -241,17 +241,28 @@ AP.Mongo = AP.Mongo || {};
  * @constructor
  * @param [request] - An incoming request to copy the statement and parameters
  */
+
+ function convertFunctions(args) {
+   for (var i = 0; i < args.length; i++) {
+     if (_.isFunction(args[i])) {
+       args[i] = new String(args[i]);
+     }
+   }
+ }
+
 AP.Mongo.Request = function() {
   this.arguments = [];
 
   if (arguments.length == 1) {
     var request = arguments[0];
     this.arguments = _.clone(request.arguments);
+    convertFunctions(this.arguments);
   }
 }
 
 AP.Mongo.Request.prototype.query = function() {
   this.arguments = arguments;
+  convertFunctions(this.arguments);
 }
 
 function _ObjectId(_id) {

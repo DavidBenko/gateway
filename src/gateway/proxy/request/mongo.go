@@ -286,26 +286,32 @@ func operationMapReduce(arguments map[string]interface{},
 	}
 	normalizeObjectId(query.(map[string]interface{}))
 	mr := mgo.MapReduce{}
-	if _map, valid := arguments["3"].(string); valid {
+	if scope, valid := arguments["3"].(map[string]interface{}); valid {
+		mr.Scope = scope
+	} else {
+		response.Error = "scope parameter is not an object"
+		return
+	}
+	if _map, valid := arguments["4"].(string); valid {
 		mr.Map = _map
 	} else {
 		response.Error = "map parameter is not a string"
 		return
 	}
-	if reduce, valid := arguments["4"].(string); valid {
+	if reduce, valid := arguments["5"].(string); valid {
 		mr.Reduce = reduce
 	} else {
 		response.Error = "reduce parameter is not a string"
 		return
 	}
-	if finalize, valid := arguments["5"].(string); valid {
+	if finalize, valid := arguments["6"].(string); valid {
 		mr.Finalize = finalize
 	} else {
 		response.Error = "finalize parameter is not a string"
 		return
 	}
 	_query := collection.Find(query)
-	if out, valid := arguments["6"].(map[string]interface{}); valid {
+	if out, valid := arguments["7"].(map[string]interface{}); valid {
 		mr.Out = out
 		_, err := _query.MapReduce(&mr, nil)
 		if err != nil {
