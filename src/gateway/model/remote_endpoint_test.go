@@ -10,6 +10,7 @@ import (
 	gc "gopkg.in/check.v1"
 
 	"gateway/db"
+	"gateway/db/mongo"
 	pq "gateway/db/postgres"
 	sqls "gateway/db/sqlserver"
 	"gateway/model"
@@ -106,6 +107,20 @@ func data() map[string]interface{} {
 			},
 			"maxOpenConn": "hello",
 		},
+		"mongo-complicated": map[string]interface{}{
+			"config": map[string]interface{}{
+				"hosts": []interface{}{
+					map[string]interface{}{
+						"host": "test.com",
+						"port": float64(123),
+					},
+				},
+				"username": "user",
+				"password": "pass",
+				"database": "db",
+			},
+			"limit": 123,
+		},
 	}
 }
 
@@ -122,6 +137,8 @@ func specs() map[string]db.Specifier {
 		"pq-simple", model.RemoteEndpointTypePostgres,
 	}, {
 		"pq-complicated", model.RemoteEndpointTypePostgres,
+	}, {
+		"mongo-complicated", model.RemoteEndpointTypeMongo,
 	}} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
@@ -149,6 +166,16 @@ func specs() map[string]db.Specifier {
 			s, err = pq.Config(
 				pq.Connection(conf.Config),
 				pq.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			)
+		case model.RemoteEndpointTypeMongo:
+			var conf re.Mongo
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+			s, err = mongo.Config(
+				mongo.Connection(conf.Config),
+				mongo.PoolLimit(conf.Limit),
 			)
 		default:
 			err = fmt.Errorf("no such type %q", which.kind)
@@ -218,6 +245,11 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		givenConfig: "pq-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypePostgres,
 		expectError: `bad JSON for Postgres config: json: cannot unmarshal string into Go value of type int`,
+	}, {
+		should:      "Mongo work with a complex config",
+		givenConfig: "mongo-complicated",
+		givenType:   model.RemoteEndpointTypeMongo,
+		expectSpec:  "mongo-complicated",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		data := data()[t.givenConfig]

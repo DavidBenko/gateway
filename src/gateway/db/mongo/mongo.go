@@ -3,8 +3,8 @@ package mongo
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"runtime"
-	"sort"
 
 	"gopkg.in/mgo.v2"
 
@@ -44,20 +44,18 @@ func Connection(s Conn) db.Configurator {
 		}
 
 		hasValidHost := false
-		if hosts := s["hosts"]; hosts != nil {
-			if hosts, valid := hosts.([]interface{}); valid {
-				for _, host := range hosts {
-					if host, valid := host.(map[string]interface{}); valid {
-						_host, hasHost := host["host"].(string)
-						hasHost = hasHost && _host != ""
-						_, hasPort := host["port"].(float64)
-						if hasHost && hasPort {
-							hasValidHost = true
-						} else if !hasHost {
-							return fmt.Errorf("Host name is required")
-						} else {
-							return fmt.Errorf("Port is required")
-						}
+		if hosts, valid := s["hosts"].([]interface{}); valid {
+			for _, host := range hosts {
+				if host, valid := host.(map[string]interface{}); valid {
+					_host, hasHost := host["host"].(string)
+					hasHost = hasHost && _host != ""
+					_, hasPort := host["port"].(float64)
+					if hasHost && hasPort {
+						hasValidHost = true
+					} else if !hasHost {
+						return fmt.Errorf("Host name is required")
+					} else {
+						return fmt.Errorf("Port is required")
 					}
 				}
 			}
@@ -94,50 +92,26 @@ func (s *Spec) ConnectionString() string {
 	//http://godoc.org/gopkg.in/mgo.v2#Dial
 	var buffer bytes.Buffer
 	buffer.WriteString("mongodb://")
-	if conn["username"] != nil && conn["password"] != nil {
-		buffer.WriteString(conn["username"].(string))
-		buffer.WriteString(":")
-		buffer.WriteString(conn["password"].(string))
-		buffer.WriteString("@")
-	}
+	buffer.WriteString(url.QueryEscape(conn["username"].(string)))
+	buffer.WriteString(":")
+	buffer.WriteString(url.QueryEscape(conn["password"].(string)))
+	buffer.WriteString("@")
+
 	comma := ""
 	for _, h := range conn["hosts"].([]interface{}) {
 		host := h.(map[string]interface{})
 		buffer.WriteString(fmt.Sprintf("%v%v:%v", comma, host["host"], host["port"]))
 		comma = ","
 	}
-	if conn["database"] != nil {
-		buffer.WriteString("/")
-		buffer.WriteString(conn["database"].(string))
-	}
+
+	buffer.WriteString("/")
+	buffer.WriteString(conn["database"].(string))
 
 	return buffer.String()
 }
 
 func (s *Spec) UniqueServer() string {
-	conn := s.mongoConn
-
-	keys := []string{}
-	for key := range conn {
-		keys = append(keys, key)
-	}
-
-	sort.Strings(keys)
-
-	var buffer bytes.Buffer
-	for _, key := range keys {
-		if key == "hosts" {
-			buffer.WriteString(fmt.Sprintf("%s=", key))
-			for _, h := range conn[key].([]interface{}) {
-				host := h.(map[string]interface{})
-				buffer.WriteString(fmt.Sprintf("%v:%v,", host["host"], host["port"]))
-			}
-		} else {
-			buffer.WriteString(fmt.Sprintf("%s=%v;", key, conn[key]))
-		}
-	}
-
-	return buffer.String()
+	return s.ConnectionString()
 }
 
 func (s *Spec) NeedsUpdate(spec db.Specifier) bool {
@@ -182,6 +156,7 @@ func (s *Spec) NewDB() (db.DB, error) {
 	}
 
 	mongo.SetPoolLimit(s.limit)
-
-	return &DB{mongo, s}, nil
+	d := &DB{mongo, s}
+	runtime.SetFinalizer(d, mongoCloser)
+	return d, nil
 }
