@@ -61,7 +61,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 		errors.add("codename", "is a reserved word and may not be used")
 	}
 	if !code.IsValidVariableIdentifier(e.Codename) {
-		errors.add("codename", "is not a valid variable identifier")
+		errors.add("codename", "must start with A-Z a-z _ and may only contain A-Z a-z 0-9 _")
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
