@@ -182,6 +182,7 @@ func (s *Spec) NewDB() (db.DB, error) {
 	}
 
 	mongo.SetPoolLimit(s.limit)
-
-	return &DB{mongo, s}, nil
+	d := &DB{mongo, s}
+	runtime.SetFinalizer(d, mongoCloser)
+	return d, nil
 }
