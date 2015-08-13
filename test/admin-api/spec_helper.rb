@@ -7,9 +7,6 @@ end
 def clear_db!
   get "/accounts"
   json_body[:accounts].each do |account|
-    # Manually clear users for each account - there's a bug in SQLite where cascading
-    # deletes are not always honored.
-    clear_users! account[:id]
     delete "/accounts/#{account[:id]}"
   end
 end
