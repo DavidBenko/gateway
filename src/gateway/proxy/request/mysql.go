@@ -10,13 +10,13 @@ import (
 	"gateway/model"
 )
 
-// PostgresRequest encapsulates a request made to a Postgres endpoint.
-type PostgresRequest struct {
+// MySQLRequest encapsulates a request made to a MySQL endpoint.
+type MySQLRequest struct {
 	sqlRequest
-	Config *sql.PostgresSpec `json:"config"`
+	Config *sql.MySQLSpec `json:"config"`
 }
 
-func (r *PostgresRequest) Log(devMode bool) string {
+func (r *MySQLRequest) Log(devMode bool) string {
 	s := r.sqlRequest.Log(devMode)
 	if devMode {
 		s += fmt.Sprintf("\nConnection: %+v", r.Config)
@@ -24,13 +24,13 @@ func (r *PostgresRequest) Log(devMode bool) string {
 	return s
 }
 
-func NewPostgresRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
-	request := &PostgresRequest{}
+func NewMySQLRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+	request := &MySQLRequest{}
 	if err := json.Unmarshal(*data, request); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
 	}
 
-	endpointData := &PostgresRequest{}
+	endpointData := &MySQLRequest{}
 	if err := json.Unmarshal(endpoint.Data, endpointData); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal endpoint configuration: %v", err)
 	}
@@ -63,16 +63,16 @@ func NewPostgresRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data
 		return request, nil
 	}
 
-	return nil, fmt.Errorf("need Postgres connection, got %T", conn)
+	return nil, fmt.Errorf("need MySQL connection, got %T", conn)
 }
 
-// TODO - refactor to DRY this code up across different data sources
-func (r *PostgresRequest) updateWith(endpointData *PostgresRequest) {
+func (r *MySQLRequest) updateWith(endpointData *MySQLRequest) {
 	if endpointData.Config != nil {
 		if r.Config == nil {
-			r.Config = &sql.PostgresSpec{}
+			r.Config = &sql.MySQLSpec{}
 		}
 		r.Config.UpdateWith(endpointData.Config)
 	}
+
 	r.sqlRequest.updateWith(endpointData.sqlRequest)
 }

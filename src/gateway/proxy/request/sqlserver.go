@@ -6,14 +6,14 @@ import (
 	"fmt"
 
 	"gateway/db/pools"
-	sqls "gateway/db/sqlserver"
+	sql "gateway/db/sql"
 	"gateway/model"
 )
 
 // SQLServerRequest encapsulates a request made to a SQLServer endpoint.
 type SQLServerRequest struct {
 	sqlRequest
-	Config sqls.Conn `json:"config"`
+	Config *sql.SQLServerSpec `json:"config"`
 }
 
 func (r *SQLServerRequest) Log(devMode bool) string {
@@ -47,15 +47,15 @@ func NewSQLServerRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, dat
 		return nil, errors.New("database pools not set up")
 	}
 
-	conn, err := pools.Connect(sqls.Config(
-		sqls.Connection(request.Config),
-		sqls.MaxOpenIdle(request.MaxOpenConn, request.MaxIdleConn),
+	conn, err := pools.Connect(sql.Config(
+		sql.Connection(request.Config),
+		sql.MaxOpenIdle(request.MaxOpenConn, request.MaxIdleConn),
 	))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	if sqlConn, ok := conn.(*sqls.DB); ok {
+	if sqlConn, ok := conn.(*sql.DB); ok {
 		if sqlConn.DB == nil {
 			return nil, fmt.Errorf("got nil database connection")
 		}
@@ -70,34 +70,10 @@ func NewSQLServerRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, dat
 func (r *SQLServerRequest) updateWith(endpointData *SQLServerRequest) {
 	if endpointData.Config != nil {
 		if r.Config == nil {
-			r.Config = sqls.Conn{}
+			r.Config = &sql.SQLServerSpec{}
 		}
-		for key, value := range endpointData.Config {
-			r.Config[key] = value
-		}
+		r.Config.UpdateWith(endpointData.Config)
 	}
 
-	if endpointData.Execute != "" {
-		r.Execute = endpointData.Execute
-	}
-
-	if endpointData.Query != "" {
-		r.Query = endpointData.Query
-	}
-
-	if endpointData.Parameters != nil {
-		r.Parameters = endpointData.Parameters
-	}
-
-	if endpointData.Tx {
-		r.Tx = endpointData.Tx
-	}
-
-	if r.MaxOpenConn != endpointData.MaxOpenConn {
-		r.MaxOpenConn = endpointData.MaxOpenConn
-	}
-
-	if r.MaxIdleConn != endpointData.MaxIdleConn {
-		r.MaxIdleConn = endpointData.MaxIdleConn
-	}
+	r.sqlRequest.updateWith(endpointData.sqlRequest)
 }
