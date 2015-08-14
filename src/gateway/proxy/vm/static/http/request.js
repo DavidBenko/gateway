@@ -234,21 +234,50 @@ AP.Postgres.Request.prototype.query = function(stmt, params) {
  */
 AP.Mongo = AP.Mongo || {};
 
+AP.Mongo.convertFunctions = function(args) {
+  for (var i = 0; i < args.length; i++) {
+    if (_.isFunction(args[i])) {
+      args[i] = new String(args[i]);
+    }
+  }
+}
+
+AP.Mongo.ObjectId = function(_id) {
+  if (_id.length != 24) {
+    throw "ObjectId must be 12 bytes long";
+  }
+  this._id = _id;
+  this.type = "id";
+}
+
+AP.Mongo.ObjectId.prototype.toJSON = function() {
+  return "ObjectId('" + this._id + "')";
+}
+
+function ObjectId(_id) {
+  return new AP.Mongo.ObjectId(_id);
+}
+
+AP.Mongo.unnormalizeObjectId = function(hash) {
+  for (var i in hash) {
+    var item = hash[i];
+    if (item !== null && typeof item === 'object') {
+      if (item._id !== null && item.type === 'id' && _.size(item) == 2) {
+        hash[i] = ObjectId(item._id);
+      } else {
+        AP.Mongo.unnormalizeObjectId(item);
+      }
+    }
+  }
+}
+
 /**
- * Creates a new SQLServer request.
+ * Creates a new Mongo request.
  *
  * @class
  * @constructor
- * @param [request] - An incoming request to copy the statement and parameters
+ * @param [request] - An incoming request to copy the parameters
  */
-
- function convertFunctions(args) {
-   for (var i = 0; i < args.length; i++) {
-     if (_.isFunction(args[i])) {
-       args[i] = new String(args[i]);
-     }
-   }
- }
 
 AP.Mongo.Request = function() {
   this.arguments = [];
@@ -256,25 +285,11 @@ AP.Mongo.Request = function() {
   if (arguments.length == 1) {
     var request = arguments[0];
     this.arguments = _.clone(request.arguments);
-    convertFunctions(this.arguments);
+    AP.Mongo.convertFunctions(this.arguments);
   }
 }
 
 AP.Mongo.Request.prototype.query = function() {
   this.arguments = arguments;
-  convertFunctions(this.arguments);
-}
-
-function _ObjectId(_id) {
-  if (_id.length != 24) {
-    throw "ObjectId must be 12 bytes long";
-  }
-  this._id = _id;
-  this.type = "id";
-}
-_ObjectId.prototype.toJSON = function() {
-  return "ObjectId('" + this._id + "')";
-}
-function ObjectId(_id) {
-  return new _ObjectId(_id);
+  AP.Mongo.convertFunctions(this.arguments);
 }

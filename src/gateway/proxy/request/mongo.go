@@ -40,6 +40,23 @@ func normalizeObjectId(m map[string]interface{}) {
 	}
 }
 
+func unnormalizeObjectId(m map[string]interface{}) {
+	for key, value := range m {
+		switch value := value.(type) {
+		case bson.ObjectId:
+			m[key] = map[string]interface{}{"_id": value.Hex(), "type": "id"}
+		case map[string]interface{}:
+			unnormalizeObjectId(value)
+		case []interface{}:
+			for _, value := range value {
+				if value, valid := value.(map[string]interface{}); valid {
+					unnormalizeObjectId(value)
+				}
+			}
+		}
+	}
+}
+
 type operation func(arguments map[string]interface{},
 	collection *mgo.Collection, response *MongoResponse)
 
@@ -54,15 +71,13 @@ func operationFind(arguments map[string]interface{},
 		return
 	}
 	normalizeObjectId(query.(map[string]interface{}))
-	iter := collection.Find(query).Iter()
-	record := bson.M{}
-	for iter.Next(&record) {
-		if id, valid := record["_id"].(bson.ObjectId); valid {
-			record["_id"] = map[string]interface{}{"_id": id.Hex(), "type": "id"}
-		}
-		response.Data, record = append(response.Data, record), bson.M{}
-		response.Count++
+	response.Data = []map[string]interface{}{}
+	err := collection.Find(query).All(&response.Data)
+	if err != nil {
+		response.Error = err.Error()
+		return
 	}
+	response.Count = len(response.Data)
 }
 
 func operationInsert(arguments map[string]interface{},
@@ -356,6 +371,9 @@ func (r *MongoRequest) Perform() Response {
 	}
 	if op, valid := operations[op.(string)]; valid {
 		op(r.Arguments, collection, response)
+		for _, item := range response.Data {
+			unnormalizeObjectId(item)
+		}
 	} else {
 		response.Error = "Invalid operation"
 	}
