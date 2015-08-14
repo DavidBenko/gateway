@@ -114,16 +114,43 @@ func MaxOpenIdle(open, idle int) db.Configurator {
 // string.
 func (s *Spec) ConnectionString() string {
 	conn := s.pqConn
-	// http://godoc.org/github.com/lib/pq#hdr-Connection_String_Parameters
-	// Get a sorted array of keys of s.
-	keys := make([]string, len(conn))
-	var i int
-	for key := range conn {
-		keys[i] = key
-		i++
+
+	buf := bytes.NewBufferString("postgres://")
+
+	if username, ok := conn["user"]; ok {
+		if usernameStr, ok := username.(string); ok {
+			buf.WriteString(usernameStr)
+			if password, ok := conn["password"]; ok {
+				if passwordStr, ok := password.(string); ok {
+					buf.WriteString(":")
+					buf.WriteString(passwordStr)
+				}
+			}
+			buf.WriteString("@")
+		}
 	}
 
-	return conn.serializeFor(keys)
+	if host, ok := conn["host"]; ok {
+		if hostStr, ok := host.(string); ok {
+			buf.WriteString(hostStr)
+		}
+	}
+
+	if port, ok := conn["port"]; ok {
+		if portStr, ok := port.(string); ok {
+			buf.WriteString(":")
+			buf.WriteString(portStr)
+		}
+	}
+
+	if dbname, ok := conn["dbname"]; ok {
+		if dbnameStr, ok := dbname.(string); ok {
+			buf.WriteString("/")
+			buf.WriteString(dbnameStr)
+		}
+	}
+
+	return buf.String()
 }
 
 // UniqueServer serializes the unique parts of the given *Spec.
@@ -197,12 +224,12 @@ func (d *DB) Update(s db.Specifier) error {
 
 // NewDB creates a new *sqlx.DB, and wraps it with its config in a *DB.
 func (s *Spec) NewDB() (db.DB, error) {
-	pqDB, err := sql.Open("postgres", s.ConnectionString())
+	pqDB, err := sql.Open("pgx", s.ConnectionString())
 	if err != nil {
 		return nil, err
 	}
 
-	db := sqlx.NewDb(pqDB, "postgres")
+	db := sqlx.NewDb(pqDB, "pgx")
 
 	db.SetMaxIdleConns(s.maxIdle)
 	db.SetMaxOpenConns(s.maxOpen)

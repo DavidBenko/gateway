@@ -51,12 +51,12 @@ func (s *PostgresSuite) TestPostgresConfig(c *gc.C) {
 	}{{
 		should:       "work with a simple config",
 		given:        configs()["simple"],
-		expectString: "dbname=db host=some.url.net password=pass port=1234 user=user",
+		expectString: "postgres://user:pass@some.url.net/db",
 		expectUnique: "dbname=db host=some.url.net password=pass port=1234 user=user",
 	}, {
 		should:       "work with a complicated config",
 		given:        configs()["complicated"],
-		expectString: `connect_timeout=30 dbname=db host=some.url.net password=pass\'s port=1234 user='user name'`,
+		expectString: `postgres://user name:pass's@some.url.net/db`,
 		expectUnique: `dbname=db host=some.url.net password=pass\'s port=1234 user='user name'`,
 	}, {
 		should:      "not work with a bad config",
