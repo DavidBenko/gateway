@@ -117,7 +117,7 @@ func (s *Spec) ConnectionString() string {
 
 	buf := bytes.NewBufferString("postgres://")
 
-	if username, ok := conn["username"]; ok {
+	if username, ok := conn["user"]; ok {
 		if usernameStr, ok := username.(string); ok {
 			buf.WriteString(usernameStr)
 			if password, ok := conn["password"]; ok {

@@ -17,7 +17,6 @@ import (
 	"gateway/version"
 
 	_ "github.com/denisenkom/go-mssqldb"
-	//_ "github.com/lib/pq"
 	_ "github.com/jackc/pgx/stdlib"
 )
 
