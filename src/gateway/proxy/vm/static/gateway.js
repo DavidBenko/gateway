@@ -30,11 +30,7 @@ AP.insertResponses = function(calls, responses) {
       }
       results = call.response.data;
       for (var i in results) {
-        var idObject = results[i]._id
-        if (idObject !== null && typeof idObject === 'object' &&
-            idObject._id !== null && idObject.type == "id") {
-          results[i]._id = ObjectId(idObject._id);
-        }
+        AP.Mongo.unnormalizeObjectId(results[i]);
       }
     }
     if (numCalls == 1) {
