@@ -250,10 +250,6 @@ AP.Mongo.ObjectId = function(_id) {
   this.type = "id";
 }
 
-AP.Mongo.ObjectId.prototype.toJSON = function() {
-  return "ObjectId('" + this._id + "')";
-}
-
 function ObjectId(_id) {
   return new AP.Mongo.ObjectId(_id);
 }
