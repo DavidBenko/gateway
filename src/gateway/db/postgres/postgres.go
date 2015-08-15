@@ -2,11 +2,14 @@ package postgres
 
 import (
 	"bytes"
-	"database/sql"
+	"crypto/tls"
 	"fmt"
+	"net/url"
 	"regexp"
 	"sort"
 
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 
 	"gateway/db"
@@ -150,6 +153,14 @@ func (s *Spec) ConnectionString() string {
 		}
 	}
 
+	if sslmode, ok := conn["sslmode"]; ok {
+		if sslmodeStr, ok := sslmode.(string); ok {
+			buf.WriteString("?")
+			buf.WriteString("sslmode=")
+			buf.WriteString(sslmodeStr)
+		}
+	}
+
 	return buf.String()
 }
 
@@ -224,15 +235,58 @@ func (d *DB) Update(s db.Specifier) error {
 
 // NewDB creates a new *sqlx.DB, and wraps it with its config in a *DB.
 func (s *Spec) NewDB() (db.DB, error) {
-	pqDB, err := sql.Open("pgx", s.ConnectionString())
+	connConfig, err := connConfig(s.ConnectionString())
 	if err != nil {
 		return nil, err
 	}
 
-	db := sqlx.NewDb(pqDB, "pgx")
+	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		return nil, err
+	}
+
+	pgDB, err := stdlib.OpenFromConnPool(pool)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to create connection pool: %v", err)
+	}
+
+	db := sqlx.NewDb(pgDB, "pgx")
 
 	db.SetMaxIdleConns(s.maxIdle)
 	db.SetMaxOpenConns(s.maxOpen)
 
 	return &DB{db, s}, nil
+}
+
+func connConfig(connString string) (pgx.ConnConfig, error) {
+	connConfig, err := pgx.ParseURI(connString)
+	if err != nil {
+		return connConfig, err
+	}
+
+	url, err := url.Parse(connString)
+	sslmode := url.Query().Get("sslmode")
+
+	// see https://github.com/jackc/pgx/blob/master/conn.go#L384-L400
+	if sslmode == "" {
+		sslmode = "prefer"
+	}
+
+	switch sslmode {
+	case "disable":
+	case "allow":
+		connConfig.UseFallbackTLS = true
+		connConfig.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
+	case "prefer":
+		connConfig.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		connConfig.UseFallbackTLS = true
+		connConfig.FallbackTLSConfig = nil
+	case "require", "verify-ca", "verify-full":
+		connConfig.TLSConfig = &tls.Config{
+			ServerName: connConfig.Host,
+		}
+	}
+
+	return connConfig, nil
 }
