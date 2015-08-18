@@ -3,7 +3,6 @@ package sql
 import (
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"gateway/db"
@@ -53,7 +52,7 @@ func (m *MySQLSpec) ConnectionString() string {
 }
 
 func (m *MySQLSpec) UniqueServer() string {
-	return fmt.Sprintf("%s:%s@%s(%s:%d)/%s",
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s",
 		m.Username,
 		m.Password,
 		"tcp",
@@ -61,36 +60,11 @@ func (m *MySQLSpec) UniqueServer() string {
 		m.Port,
 		m.DbName,
 	)
+	return conn
 }
 
 func (m *MySQLSpec) NewDB() (db.DB, error) {
 	return newDB(m)
-}
-
-func (m *MySQLSpec) NeedsUpdate(s db.Specifier) bool {
-	if tSpec, ok := dbSpec.(*MySQLSpec); ok {
-		return m.Timeout != tSpec.Timeout || m.spec.NeedsUpdate(s)
-	}
-	log.Panicf("tried to compare wrong database kinds: SQL and %T", dbSpec)
-	return false
-}
-
-func (m *MySQLSpec) Update(s db.Specifier) error {
-	spec, ok := s.(*MySQLSpec)
-	if !ok {
-		return fmt.Errorf("can't update MySQLSpec with %T", s)
-	}
-
-	err := spec.validate()
-	if err != nil {
-		return err
-	}
-
-	if spec.Timeout != m.Timeout {
-		m.Timeout = spec.Timeout
-	}
-
-	return nil
 }
 
 // UpdateWith validates `mysqlSpec` and updates `m` with its contents if it is
