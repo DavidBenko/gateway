@@ -52,11 +52,12 @@ func (m *MySQLSpec) ConnectionString() string {
 }
 
 func (m *MySQLSpec) UniqueServer() string {
-	conn := fmt.Sprintf("%s:%s@%s(%s)/%s",
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s",
 		m.Username,
 		m.Password,
 		"tcp",
 		m.Server,
+		m.Port,
 		m.DbName,
 	)
 	return conn
