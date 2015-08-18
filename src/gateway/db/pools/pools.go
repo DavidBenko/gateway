@@ -5,8 +5,7 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
-	pq "gateway/db/postgres"
-	sqls "gateway/db/sqlserver"
+	"gateway/db/sql"
 )
 
 // Pools handles concurrent access to databases with connection pools.
@@ -14,16 +13,19 @@ type Pools struct {
 	// Pools must remain threadsafe!
 	sqlsPool  *sqlPool
 	pqPool    *sqlPool
+	mySqlPool *sqlPool
 	mongoPool *mongoPool
 }
 
 // poolForSpec returns the correct pool for the given db.Specifier.
 func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 	switch spec.(type) {
-	case *sqls.Spec:
+	case *sql.SQLServerSpec:
 		return p.sqlsPool, nil
-	case *pq.Spec:
+	case *sql.PostgresSpec:
 		return p.pqPool, nil
+	case *sql.MySQLSpec:
+		return p.mySqlPool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
 	default:
@@ -52,6 +54,7 @@ func MakePools() *Pools {
 	return &Pools{
 		sqlsPool:  makeSqlPool(),
 		pqPool:    makeSqlPool(),
+		mySqlPool: makeSqlPool(),
 		mongoPool: makeMongoPool(),
 	}
 }
@@ -61,11 +64,11 @@ func MakePools() *Pools {
 //
 // Usage:
 //
-// import sqls "gateway/db/sqlserver"
+// import sql "gateway/db/sql"
 //
-// p.Connect(sqls.Config(
-//         sqls.Connection(someSpec),
-//         sqls.MaxOpenIdle(100, 10),
+// p.Connect(sql.Config(
+//         sql.Connection(conn),
+//         sql.MaxOpenIdle(100, 10),
 // ))
 //
 // This method is thread-safe.
@@ -96,8 +99,7 @@ func Connect(pool ServerPool, spec db.Specifier) (db.DB, error) {
 			pool.Lock()
 			// By now, someone else may have updated it already.
 			if db.Spec().NeedsUpdate(spec) {
-				err := db.Update(spec)
-				if err != nil {
+				if err := db.Update(spec); err != nil {
 					pool.Unlock()
 					return nil, err
 				}
@@ -123,8 +125,7 @@ func insertNewDB(pool ServerPool, spec db.Specifier) (db.DB, error) {
 	if db, ok := pool.Get(spec); ok {
 		// Someone else may have already come along and added it
 		if db.Spec().NeedsUpdate(spec) {
-			err := db.Update(spec)
-			if err != nil {
+			if err := db.Update(spec); err != nil {
 				return nil, err
 			}
 		}

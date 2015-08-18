@@ -17,6 +17,7 @@ const (
 	RemoteEndpointTypeHTTP = "http"
 	// RemoteEndpointTypeSQLServer denotes that a remote endpoint is a MS SQL Server database
 	RemoteEndpointTypeSQLServer = "sqlserver"
+	RemoteEndpointTypeMySQL     = "mysql"
 	RemoteEndpointTypePostgres  = "postgres"
 	RemoteEndpointTypeMongo     = "mongodb"
 )
@@ -65,7 +66,8 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
-	case RemoteEndpointTypeSQLServer, RemoteEndpointTypeMongo, RemoteEndpointTypePostgres:
+	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
+		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
 		if err != nil {
 			errors.add("base", fmt.Sprintf("error in database config: %s", err))
@@ -270,6 +272,8 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 		return re.SQLServerConfig(e.Data)
 	case RemoteEndpointTypePostgres:
 		return re.PostgresConfig(e.Data)
+	case RemoteEndpointTypeMySQL:
+		return re.MySQLConfig(e.Data)
 	case RemoteEndpointTypeMongo:
 		return re.MongoConfig(e.Data)
 	default:

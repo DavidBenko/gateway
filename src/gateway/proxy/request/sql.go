@@ -237,3 +237,29 @@ func (r *sqlResponse) Log() string {
 
 	return fmt.Sprintf("Records affected: %d", r.RowsAffected)
 }
+
+func (r *sqlRequest) updateWith(endpointData sqlRequest) {
+	if endpointData.Execute != "" {
+		r.Execute = endpointData.Execute
+	}
+
+	if endpointData.Query != "" {
+		r.Query = endpointData.Query
+	}
+
+	if endpointData.Parameters != nil {
+		r.Parameters = endpointData.Parameters
+	}
+
+	if endpointData.Tx {
+		r.Tx = endpointData.Tx
+	}
+
+	if r.MaxOpenConn != endpointData.MaxOpenConn {
+		r.MaxOpenConn = endpointData.MaxOpenConn
+	}
+
+	if r.MaxIdleConn != endpointData.MaxIdleConn {
+		r.MaxIdleConn = endpointData.MaxIdleConn
+	}
+}

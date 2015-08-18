@@ -20,18 +20,23 @@ type Spec struct {
 
 func Config(confs ...db.Configurator) (db.Specifier, error) {
 	spec := &Spec{}
+	var ok bool
 	for _, conf := range confs {
-		err := conf(spec)
+		s, err := conf(spec)
 		if err != nil {
 			return nil, err
+		}
+		spec, ok = s.(*Spec)
+		if !ok {
+			return nil, fmt.Errorf("Mongo Config expected *Spec, got %T", s)
 		}
 	}
 	return spec, nil
 }
 
 func Connection(s Conn) db.Configurator {
-	return func(spec db.Specifier) error {
-		// https://github.com/denisenkom/go-mssqldb#connection-parameters
+	return func(spec db.Specifier) (db.Specifier, error) {
+		// https://godoc.org/gopkg.in/mgo.v2
 		for _, k := range []string{
 			"hosts",
 			"username",
@@ -39,7 +44,7 @@ func Connection(s Conn) db.Configurator {
 			"database",
 		} {
 			if _, ok := s[k]; !ok {
-				return fmt.Errorf("Mongo Config missing %q key", k)
+				return nil, fmt.Errorf("Mongo Config missing %q key", k)
 			}
 		}
 
@@ -53,35 +58,35 @@ func Connection(s Conn) db.Configurator {
 					if hasHost && hasPort {
 						hasValidHost = true
 					} else if !hasHost {
-						return fmt.Errorf("Host name is required")
+						return nil, fmt.Errorf("Host name is required")
 					} else {
-						return fmt.Errorf("Port is required")
+						return nil, fmt.Errorf("Port is required")
 					}
 				}
 			}
 		}
 		if !hasValidHost {
-			return fmt.Errorf("At least one host must be defined.")
+			return nil, fmt.Errorf("At least one host must be defined.")
 		}
 
 		switch mongo := spec.(type) {
 		case *Spec:
 			mongo.mongoConn = s
-			return nil
+			return mongo, nil
 		default:
-			return fmt.Errorf("Mongo Server Connection requires Conn, got %T", spec)
+			return nil, fmt.Errorf("Mongo Server Connection requires Conn, got %T", spec)
 		}
 	}
 }
 
 func PoolLimit(limit int) db.Configurator {
-	return func(spec db.Specifier) error {
+	return func(spec db.Specifier) (db.Specifier, error) {
 		switch mongo := spec.(type) {
 		case *Spec:
 			mongo.limit = limit
-			return nil
+			return mongo, nil
 		default:
-			return fmt.Errorf("Mongo PoolLimit requires mongo.Conn, got %T", spec)
+			return nil, fmt.Errorf("Mongo PoolLimit requires mongo.Conn, got %T", spec)
 		}
 	}
 }
