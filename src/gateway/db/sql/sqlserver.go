@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 
 	"gateway/db"
@@ -92,28 +91,6 @@ func (s *SQLServerSpec) serialize(m map[string]interface{}) string {
 
 func (s *SQLServerSpec) NewDB() (db.DB, error) {
 	return newDB(s)
-}
-
-func (s *SQLServerSpec) NeedsUpdate(sp db.Specifier) bool {
-	if spec, ok := sp.(*SQLServerSpec); ok {
-		return sp.Timeout != s.Timeout || s.NeedsUpdate(sp)
-	}
-
-	log.Panicf("tried to compare *SQLServerSpec to %T!", sp)
-}
-
-func (s *SQLServerSpec) Update(sp db.Specifier) error {
-	spec, ok := sp.(*SQLServerSpec)
-	if !ok {
-		return fmt.Errorf("can't update SQLServerSpec with %T", s)
-	}
-
-	err := spec.validate()
-	if err != nil {
-		return err
-	}
-
-	s.Timeout = spec.Timeout
 }
 
 // UpdateWith validates the given sqlsSpec and updates the caller with it.
