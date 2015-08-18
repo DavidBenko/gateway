@@ -61,6 +61,10 @@ type PostgresSpec struct {
 }
 
 func (p *PostgresSpec) validate() error {
+	if p.SSLMode == "" {
+		p.SSLMode = string(sslModePrefer)
+	}
+
 	sslModeOk := !sslModes.MatchString(p.SSLMode)
 
 	return validate(p, []validation{

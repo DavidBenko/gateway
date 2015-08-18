@@ -69,11 +69,11 @@ func (s *PostgresSuite) TestPostgresConfig(c *gc.C) {
 	}, {
 		should:      "not work with a bad config",
 		given:       pqConfigs()["bad"],
-		expectError: `pgx config errors: bad value "" for "password"; bad value "" for "host"; bad value "" for "sslmode"`,
+		expectError: `pgx config errors: bad value "" for "password"; bad value "" for "host"`,
 	}, {
 		should:      "not work with a bad config",
 		given:       pqConfigs()["badport"],
-		expectError: `pgx config errors: bad value -1234 for "port"; bad value "" for "host"; bad value "" for "sslmode"`,
+		expectError: `pgx config errors: bad value -1234 for "port"; bad value "" for "host"`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		pqConn := &sql.PostgresSpec{}
