@@ -275,6 +275,31 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: json: cannot unmarshal string into Go value of type int`,
 	}, {
+		should:      "(MySQL) work with a simple config",
+		givenConfig: "mysql-simple",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectSpec:  "mysql-simple",
+	}, {
+		should:      "(MySQL) work with a complex config",
+		givenConfig: "mysql-complicated",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectSpec:  "mysql-complicated",
+	}, {
+		should:      "(MySQL) fail with a bad config",
+		givenConfig: "mysql-badConfig",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `mysql config errors: bad value "" for "username"; bad value "" for "password"; bad value "" for "dbname"`,
+	}, {
+		should:      "(MySQL) fail with a bad config type",
+		givenConfig: "mysql-badConfigType",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `bad JSON for MySQL config: json: cannot unmarshal number into Go value of type sql.MySQLSpec`,
+	}, {
+		should:      "(MySQL) fail with a bad max idle type",
+		givenConfig: "mysql-badMaxIdleType",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `bad JSON for MySQL config: json: cannot unmarshal string into Go value of type int`,
+	}, {
 		should:      "(PSQL) work with a simple config",
 		givenConfig: "pq-simple",
 		givenType:   model.RemoteEndpointTypePostgres,
