@@ -77,8 +77,6 @@ func (p *PostgresSpec) driver() driver {
 	return postgres
 }
 
-// ConnectionString serializes the Postgres connection parameters into a usable
-// string.
 func (p *PostgresSpec) ConnectionString() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		p.User,
@@ -114,6 +112,8 @@ func (p *PostgresSpec) NewDB() (db.DB, error) {
 	return wrapDB(pgDB, p)
 }
 
+// UpdateWith validates `pSpec` and updates `p` with its contents if it is
+// valid.
 func (p *PostgresSpec) UpdateWith(pSpec *PostgresSpec) error {
 	if pSpec == nil {
 		return errors.New("cannot update a PostgresSpec with a nil Specifier")
@@ -125,6 +125,8 @@ func (p *PostgresSpec) UpdateWith(pSpec *PostgresSpec) error {
 	return nil
 }
 
+// connConfig prepares a `github.com/jackc/pgx` ConnConfig from the given
+// PostgresSpec connection string.
 func connConfig(connString string) (pgx.ConnConfig, error) {
 	connConfig, err := pgx.ParseURI(connString)
 	if err != nil {

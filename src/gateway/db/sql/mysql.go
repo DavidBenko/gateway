@@ -10,6 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// MySQLSpec implements db.Specifier for MySQL connections.
 type MySQLSpec struct {
 	spec
 	Username string `json:"username"`
@@ -65,6 +66,8 @@ func (m *MySQLSpec) NewDB() (db.DB, error) {
 	return newDB(m)
 }
 
+// UpdateWith validates `mysqlSpec` and updates `m` with its contents if it is
+// valid.
 func (m *MySQLSpec) UpdateWith(mysqlSpec *MySQLSpec) error {
 	if mysqlSpec == nil {
 		return errors.New("cannot update a MySQLSpec with a nil Specifier")

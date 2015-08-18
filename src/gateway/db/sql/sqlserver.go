@@ -93,6 +93,7 @@ func (s *SQLServerSpec) NewDB() (db.DB, error) {
 	return newDB(s)
 }
 
+// UpdateWith validates the given sqlsSpec and updates the caller with it.
 func (s *SQLServerSpec) UpdateWith(sqlsSpec *SQLServerSpec) error {
 	if sqlsSpec == nil {
 		return errors.New("cannot update a SQLServerSpec with a nil Specifier")

@@ -29,6 +29,7 @@ type Specifier interface {
 // where Connection and MaxOpenIdle are of type Configurator.
 type Config func(...Configurator) (Specifier, error)
 
-// Configurator is a function for updating a Specifier.  It should not attempt
-// to modify the Specifier argument.
+// Configurator is a transformer for a Specifier.  It should not attempt
+// to modify the Specifier argument.  Its return value can be daisy-chained
+// through Config.
 type Configurator func(Specifier) (Specifier, error)
