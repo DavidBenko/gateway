@@ -25,11 +25,6 @@ func PostgresConfig(data types.JsonText) (db.Specifier, error) {
 		return nil, fmt.Errorf("bad JSON for Postgres config: %s", err.Error())
 	}
 
-	// default sslmode to 'prefer' if not provided
-	if conf.Config.SSLMode == "" {
-		conf.Config.SSLMode = "prefer"
-	}
-
 	spec, err := sql.Config(
 		sql.Connection(conf.Config),
 		sql.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),

@@ -288,7 +288,7 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		should:      "(PSQL) fail with a bad config",
 		givenConfig: "pq-badConfig",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `pgx config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "dbname"; bad value "" for "host"`,
+		expectError: `pgx config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "dbname"; bad value "" for "host"; bad value "" for "sslmode"`,
 	}, {
 		should:      "(PSQL) fail with a bad config type",
 		givenConfig: "pq-badConfigType",
