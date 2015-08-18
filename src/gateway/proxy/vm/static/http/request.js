@@ -228,6 +228,69 @@ AP.Postgres.Request.prototype.query = function(stmt, params) {
 }
 
 /**
+ * MySQL holds helper classes for MySQL related tasks
+ *
+ * @namespace
+ */
+AP.MySQL = AP.MySQL || {};
+
+
+/**
+ * Creates a new MySQL request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.MySQL.Request = function() {
+
+  /**
+   * The request's SQL statement to be executed.  Must be a query that does
+   * not modify data
+   * @type {string}
+   */
+  this.queryStatement = null;
+
+  /**
+   * The request's SQL statement to be executed.  Must be an update that modifies
+   * data.
+   * @type {string}
+   */
+  this.executeStatement = null;
+
+  /**
+   * The request's parameters to the SQL statement.
+   * @type {Array.<object>}
+   */
+  this.parameters = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.query = _.clone(request.queryStatement);
+    this.execute = _.clone(request.executeStatement);
+    this.parameters = _.clone(request.parameters);
+  }
+}
+
+AP.MySQL.Request.prototype.execute = function(stmt, params) {
+  this.executeStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+AP.MySQL.Request.prototype.query = function(stmt, params) {
+  this.queryStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+/**
  * Mongo holds helper classes for Mongo related tasks
  *
  * @namespace
