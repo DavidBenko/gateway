@@ -356,18 +356,24 @@ var operations = map[string]operation{
 	"mapReduce": operationMapReduce,
 }
 
-func (r *MongoRequest) Perform() Response {
+func (r *MongoRequest) Perform() (_response Response) {
 	response := &MongoResponse{Type: "mongodb"}
+	_response = response
+	defer func() {
+		if r := recover(); r != nil {
+			response.Error = fmt.Sprintf("%v", r)
+		}
+	}()
 	c := r.Arguments["0"]
 	if _, valid := c.(string); !valid {
 		response.Error = "Missing collection parameter"
-		return response
+		return
 	}
 	collection := r.conn.DB(r.Config["database"].(string)).C(c.(string))
 	op := r.Arguments["1"]
 	if _, valid := op.(string); !valid {
 		response.Error = "Missing operation parameter"
-		return response
+		return
 	}
 	if op, valid := operations[op.(string)]; valid {
 		op(r.Arguments, collection, response)
@@ -377,7 +383,7 @@ func (r *MongoRequest) Perform() Response {
 	} else {
 		response.Error = "Invalid operation"
 	}
-	return response
+	return
 }
 
 func (request *MongoRequest) Log(devMode bool) string {
