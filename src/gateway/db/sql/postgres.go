@@ -1,16 +1,11 @@
 package sql
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 
 	"gateway/db"
-
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/stdlib"
 
 	_ "github.com/jackc/pgx/stdlib"
 )
@@ -97,23 +92,7 @@ func (p *PostgresSpec) UniqueServer() string {
 }
 
 func (p *PostgresSpec) NewDB() (db.DB, error) {
-	connConfig, err := connConfig(p.ConnectionString())
-	if err != nil {
-		return nil, err
-	}
-
-	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		return nil, err
-	}
-
-	pgDB, err := stdlib.OpenFromConnPool(pool)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create Postgres connection pool: %v", err)
-	}
-
-	return wrapDB(pgDB, p)
+	return newDB(p)
 }
 
 // UpdateWith validates `pSpec` and updates `p` with its contents if it is
@@ -127,38 +106,4 @@ func (p *PostgresSpec) UpdateWith(pSpec *PostgresSpec) error {
 	}
 	*p = *pSpec
 	return nil
-}
-
-// connConfig prepares a `github.com/jackc/pgx` ConnConfig from the given
-// PostgresSpec connection string.
-func connConfig(connString string) (pgx.ConnConfig, error) {
-	connConfig, err := pgx.ParseURI(connString)
-	if err != nil {
-		return connConfig, err
-	}
-
-	url, err := url.Parse(connString)
-	sslmode := url.Query().Get("sslmode")
-
-	// see https://github.com/jackc/pgx/blob/master/conn.go#L384-L400
-	if sslmode == "" {
-		sslmode = "prefer"
-	}
-
-	switch sslmode {
-	case "disable":
-	case "allow":
-		connConfig.UseFallbackTLS = true
-		connConfig.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
-	case "prefer":
-		connConfig.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-		connConfig.UseFallbackTLS = true
-		connConfig.FallbackTLSConfig = nil
-	case "require", "verify-ca", "verify-full":
-		connConfig.TLSConfig = &tls.Config{
-			ServerName: connConfig.Host,
-		}
-	}
-
-	return connConfig, nil
 }
