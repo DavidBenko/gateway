@@ -21,7 +21,7 @@ func init() {
 		string(prepareRequests),
 	}
 
-	knownFuncs = regexp.MustCompile("(" + strings.Join(funcs, ")|(") + ")")
+	knownFuncs = regexp.MustCompile(strings.Join(funcs, "|"))
 }
 
 // makeCall ensures the given call is in the set of known AP functions defined

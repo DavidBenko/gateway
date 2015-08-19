@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"gateway/db/pools"
 	sql "gateway/db/sql"
@@ -14,6 +15,22 @@ import (
 type MySQLRequest struct {
 	sqlRequest
 	Config *sql.MySQLSpec `json:"config"`
+}
+
+// Perform executes the sqlRequest and returns its response
+func (r *MySQLRequest) Perform() Response {
+	isQuery, isExec := r.Query != "", r.Execute != ""
+
+	switch {
+	case isQuery && !r.Tx:
+		return r.performQuery()
+	case isQuery && r.Tx:
+		return r.transactQuery()
+	case isExec:
+		return r.sqlRequest.Perform()
+	default:
+		return NewErrorResponse(errors.New("no SQL query or execute specified"))
+	}
 }
 
 func (r *MySQLRequest) Log(devMode bool) string {
@@ -75,4 +92,126 @@ func (r *MySQLRequest) updateWith(endpointData *MySQLRequest) {
 	}
 
 	r.sqlRequest.updateWith(endpointData.sqlRequest)
+}
+
+// performQuery is like sql.performQuery, but uses prepared statements.
+func (r *MySQLRequest) performQuery() Response {
+	log.Printf("Params are %v", r.Parameters)
+
+	if r.conn == nil {
+		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")
+	}
+
+	q, err := r.conn.Preparex(r.Query)
+	if q != nil {
+		defer q.Close()
+	}
+
+	if err != nil {
+		return NewSQLErrorResponse(err, "failed to prepare SQL query")
+	}
+
+	rows, err := q.Queryx(r.Parameters...)
+	if rows != nil {
+		defer rows.Close()
+	}
+
+	if err != nil {
+		return NewSQLErrorResponse(err, "failed to execute SQL query")
+	}
+
+	var dataRows []map[string]interface{}
+
+	for rowNum := 0; rows.Next(); rowNum++ {
+		newMap := make(map[string]interface{})
+
+		err = rows.MapScan(newMap)
+		if err != nil {
+			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
+		}
+
+		dataRows = append(dataRows, newMap)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return NewSQLErrorResponse(err, "failed to iterate over rows in SQL query response")
+	}
+
+	return &sqlResponse{Data: dataRows}
+}
+
+// transactQuery is like sql.transactQuery, but uses prepared statements.
+func (r *MySQLRequest) transactQuery() Response {
+	log.Printf("Params are %v", r.Parameters)
+
+	if r.conn == nil {
+		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")
+	}
+
+	// Begin transaction
+	tx, err := r.conn.Beginx()
+	if err != nil {
+		return NewSQLErrorResponse(err, "failed to get SQL transaction handle")
+	}
+
+	q, err := tx.Preparex(r.Query) //, r.Parameters...)
+
+	if q != nil {
+		defer q.Close()
+	}
+
+	if err != nil {
+		newErr := tx.Rollback()
+		if newErr != nil {
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
+		}
+
+		return NewSQLErrorResponse(err, "failed to prepare SQL query")
+	}
+
+	rows, err := q.Queryx(r.Parameters...)
+
+	if rows != nil {
+		defer rows.Close()
+	}
+
+	if err != nil {
+		newErr := tx.Rollback()
+		if newErr != nil {
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
+		}
+
+		return NewSQLErrorResponse(err, "failed to execute SQL query")
+	}
+
+	var dataRows []map[string]interface{}
+
+	for rowNum := 0; rows.Next(); rowNum++ {
+		newMap := make(map[string]interface{})
+		err := rows.MapScan(newMap)
+		if err != nil {
+			newErr := tx.Rollback()
+			if newErr != nil {
+				return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
+			}
+			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
+		}
+		dataRows = append(dataRows, newMap)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		newErr := tx.Rollback()
+		if newErr != nil {
+			return NewSQLErrorResponse(newErr, "failed to roll back SQL query after error: "+err.Error())
+		}
+		return NewSQLErrorResponse(err, "failed to iterate over rows in SQL query response")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return NewSQLErrorResponse(err, "failed to commit SQL query")
+	}
+	return &sqlResponse{Data: dataRows}
 }
