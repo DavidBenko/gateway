@@ -42,6 +42,8 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin, psconf config
 
 	base := BaseController{conf: conf, accountID: accountID}
 
+	RouteLogging("/apis/logs", authAdmin)
+
 	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
 
 	apisController := &APIsController{base}

@@ -18,4 +18,10 @@ const (
 
 	// ContextTest is the key to use for test requests.
 	ContextTest
+
+	// ContextAccountIDKey is the key to use to store/retrieve the Account ID.
+	ContextAccountIDKey
+
+	// ContextEndpointIDKey is the key to use to store/retrieve the Endpoint ID.
+	ContextEndpointIDKey
 )

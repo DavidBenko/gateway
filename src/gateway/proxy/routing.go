@@ -19,6 +19,7 @@ import (
 type proxyRouter struct {
 	db               *apsql.DB
 	hostsRouter      *mux.Router
+	accountIDs       map[int64]int64
 	hostsRouterMutex sync.RWMutex
 
 	apiRouters      map[int64]*mux.Router
@@ -54,8 +55,17 @@ func (r *proxyRouter) Match(request *http.Request, match *mux.RouteMatch) bool {
 		return false
 	}
 
+	context.Set(request, aphttp.ContextAccountIDKey, r.accountIDs[apiID])
 	context.Set(request, aphttp.ContextAPIIDKey, apiID)
-	return router.Match(request, match)
+	matched := router.Match(request, match)
+	if match.Route != nil {
+		endpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
+		if err != nil {
+			log.Fatalf("%s Error converting EndpointID to int64: %v", config.System, err)
+		}
+		context.Set(request, aphttp.ContextEndpointIDKey, endpointID)
+	}
+	return matched
 }
 
 func (r *proxyRouter) rebuildAll() error {
@@ -76,16 +86,18 @@ func (r *proxyRouter) rebuildHosts() error {
 		return err
 	}
 
-	router := mux.NewRouter()
+	router, accountIDs := mux.NewRouter(), make(map[int64]int64)
 	for _, host := range hosts {
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(host.APIID, 10))
 		route.Host(host.Hostname)
+		accountIDs[host.APIID] = host.AccountID
 	}
 
 	defer r.hostsRouterMutex.Unlock()
 	r.hostsRouterMutex.Lock()
 	r.hostsRouter = router
+	r.accountIDs = accountIDs
 
 	return nil
 }
