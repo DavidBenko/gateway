@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/gorilla/context"
@@ -150,12 +149,9 @@ func (r *proxyRouter) deleteAPIRouterForAPIID(apiID int64) error {
 	return nil
 }
 
-func isLocalhost(r *http.Request, rm *mux.RouteMatch) bool {
-	if strings.HasPrefix(r.RemoteAddr, "127.0.0.1") {
-		context.Set(r, aphttp.ContextTest, true)
-		return true
-	}
-	return false
+func isTest(r *http.Request, rm *mux.RouteMatch) bool {
+	context.Set(r, aphttp.ContextTest, true)
+	return true
 }
 
 func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) error {
@@ -185,7 +181,7 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) e
 			addRoute(proxyRoute, "")
 		}
 		/*the testing interface*/
-		addRoute(proxyRoute, "/justapis/test").MatcherFunc(isLocalhost)
+		addRoute(proxyRoute, "/justapis/test").MatcherFunc(isTest)
 	}
 
 	return nil
