@@ -57,6 +57,11 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 		return aphttp.NewError(errors.New("A host needs to be defined."), http.StatusBadRequest)
 	}
 
+	selectedHost := "127.0.0.1"
+	if c.Host != "" {
+		selectedHost = c.Host
+	}
+
 	var responses []*aphttp.TestResponse
 	addResponse := func(time int64, method string, response *http.Response) aphttp.Error {
 		defer response.Body.Close()
@@ -97,14 +102,15 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 			}
 
 			testUrl := fmt.Sprintf("http://%v:%v/justapis/test%v",
-				hosts[0].Hostname, c.ProxyServer.Port, test.Route)
+				selectedHost, c.ProxyServer.Port, test.Route)
 			for _, method := range methods {
 				client, values := &http.Client{}, url.Values{}
 				request, err := http.NewRequest(method, testUrl, nil)
-				fmt.Println(err)
 				if err != nil {
 					return aphttp.NewError(err, http.StatusBadRequest)
 				}
+
+				request.Host = hosts[0].Hostname
 
 				content_type := ""
 				for _, pair := range test.Pairs {
