@@ -3,6 +3,6 @@
 :tests:
     - make test_all
 :postgresql:
-    :version: '9.3'
+    :version: '9.4'
 nodejs:
   version: 0.10.33
