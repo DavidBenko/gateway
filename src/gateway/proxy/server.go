@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,7 +95,7 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 	return ok
 }
 
-func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpErr aphttp.Error) {
+func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	start := time.Now()
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
@@ -104,97 +105,109 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) (httpE
 
 	var vm *apvm.ProxyVM
 
-	defer func() {
-		if httpErr != nil {
-			s.logError(logPrefix, httpErr)
-		}
-		s.logDuration(vm, logPrefix, start)
-	}()
+	logBuffer := &bytes.Buffer{}
+	logger := log.New(logBuffer, "", log.Ldate|log.Lmicroseconds)
+	var response *proxyResponse
+	handler := func() (httpErr aphttp.Error) {
+		defer func() {
+			if httpErr != nil {
+				s.logError(logger, logPrefix, httpErr)
+			}
+			s.logDuration(vm, logger, logPrefix, start)
+			log.Print(logBuffer.String())
+		}()
 
-	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
-	if err != nil {
-		return s.httpError(err)
-	}
-
-	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
-	if err != nil {
-		return s.httpError(err)
-	}
-
-	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
-	if err != nil {
-		return s.httpError(err)
-	}
-
-	log.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
-
-	if r.Method == "OPTIONS" {
-		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
+		proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 		if err != nil {
 			return s.httpError(err)
 		}
-		if !route.HandlesOptions() {
-			return s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+
+		proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
+		if err != nil {
+			return s.httpError(err)
 		}
+
+		libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
+		if err != nil {
+			return s.httpError(err)
+		}
+
+		logger.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
+
+		if r.Method == "OPTIONS" {
+			route, err := s.matchingRouteForOptions(proxyEndpoint, r)
+			if err != nil {
+				return s.httpError(err)
+			}
+			if !route.HandlesOptions() {
+				return s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			}
+		}
+
+		vm, err = apvm.NewVM(logger, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
+		if err != nil {
+			return s.httpError(err)
+		}
+
+		incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
+		if err != nil {
+			return s.httpError(err)
+		}
+		vm.Set("__ap_proxyRequestJSON", incomingJSON)
+		scripts := []interface{}{
+			"var request = JSON.parse(__ap_proxyRequestJSON);",
+			"var response = new AP.HTTP.Response();",
+		}
+		scripts = append(scripts,
+			fmt.Sprintf("var session = new AP.Session(%s);",
+				strconv.Quote(proxyEndpoint.Environment.SessionName)))
+
+		if _, err := vm.RunAll(scripts); err != nil {
+			return s.httpError(err)
+		}
+
+		if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+			return s.httpError(err)
+		}
+
+		responseObject, err := vm.Run("response;")
+		if err != nil {
+			return s.httpError(err)
+		}
+		responseJSON, err := s.objectJSON(vm, responseObject)
+		if err != nil {
+			return s.httpError(err)
+		}
+		response, err = proxyResponseFromJSON(responseJSON)
+		if err != nil {
+			return s.httpError(err)
+		}
+
+		if proxyEndpoint.CORSEnabled {
+			s.addCORSCommonHeaders(w, proxyEndpoint)
+		}
+		response.Headers["Content-Length"] = len(response.Body)
+		aphttp.AddHeaders(w.Header(), response.Headers)
+
+		w.WriteHeader(response.StatusCode)
+		return nil
 	}
 
-	vm, err = apvm.NewVM(logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
-	if err != nil {
-		return s.httpError(err)
-	}
-
-	incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
-	if err != nil {
-		return s.httpError(err)
-	}
-	vm.Set("__ap_proxyRequestJSON", incomingJSON)
-	scripts := []interface{}{
-		"var request = JSON.parse(__ap_proxyRequestJSON);",
-		"var response = new AP.HTTP.Response();",
-	}
-	scripts = append(scripts,
-		fmt.Sprintf("var session = new AP.Session(%s);",
-			strconv.Quote(proxyEndpoint.Environment.SessionName)))
-
-	if _, err := vm.RunAll(scripts); err != nil {
-		return s.httpError(err)
-	}
-
-	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		return s.httpError(err)
-	}
-
-	responseObject, err := vm.Run("response;")
-	if err != nil {
-		return s.httpError(err)
-	}
-	responseJSON, err := s.objectJSON(vm, responseObject)
-	if err != nil {
-		return s.httpError(err)
-	}
-	response, err := proxyResponseFromJSON(responseJSON)
-	if err != nil {
-		return s.httpError(err)
-	}
-
-	if proxyEndpoint.CORSEnabled {
-		s.addCORSCommonHeaders(w, proxyEndpoint)
-	}
-	response.Headers["Content-Length"] = len(response.Body)
-	aphttp.AddHeaders(w.Header(), response.Headers)
-
-	w.WriteHeader(response.StatusCode)
-	if test {
+	if httpErr := handler(); test {
 		response := aphttp.TestResponse{
 			Body: response.Body,
-			Log:  vm.Log.String(),
+			Log:  logBuffer.String(),
 		}
 
 		body, err := json.Marshal(&response)
 		if err != nil {
+			log.Printf("%s [error] %s", logPrefix, err)
 			return s.httpError(err)
 		}
 		w.Write(body)
+		return httpErr
+	} else if httpErr != nil {
+		return httpErr
 	} else {
 		w.Write([]byte(response.Body))
 	}
@@ -285,16 +298,16 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
 		errString = lines[0]
 	}
-	log.Printf("%s [error] %s", logPrefix, errString)
+	logger.Printf("%s [error] %s", logPrefix, errString)
 }
 
-func (s *Server) logDuration(vm *apvm.ProxyVM, logPrefix string, start time.Time) {
+func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {
 	var proxiedRequestsDuration time.Duration
 	if vm != nil {
 		proxiedRequestsDuration = vm.ProxiedRequestsDuration
@@ -302,6 +315,6 @@ func (s *Server) logDuration(vm *apvm.ProxyVM, logPrefix string, start time.Time
 
 	total := time.Since(start)
 	processing := total - proxiedRequestsDuration
-	log.Printf("%s [time] %v (processing %v, requests %v)",
+	logger.Printf("%s [time] %v (processing %v, requests %v)",
 		logPrefix, total, processing, proxiedRequestsDuration)
 }

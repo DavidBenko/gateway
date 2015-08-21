@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"gateway/model"
@@ -86,7 +85,7 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []request.Request) (
 	}
 
 	for i, req := range proxyRequests {
-		log.Printf("%s [request] %s %s (%v)", vm.LogPrefix,
+		vm.Logger.Printf("%s [request] %s %s (%v)", vm.LogPrefix,
 			req.Log(s.devMode), responses[i].Log(), requestDurations[i])
 	}
 

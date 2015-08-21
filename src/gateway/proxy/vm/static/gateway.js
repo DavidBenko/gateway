@@ -38,3 +38,13 @@ AP.insertResponses = function(calls, responses) {
     }
   }
 }
+
+console.log = function() {
+  data = "";
+  space = "";
+  for (var i = 0; i < arguments.length; i++) {
+    data += space + String(arguments[i]);
+    space = " ";
+  }
+  log(data);
+}
