@@ -107,7 +107,7 @@ test_api: test_api_sqlite test_api_postgres
 
 test_api_fast: test_api_sqlite_fast test_api_postgres_fast
 
-test_all: test test_api
+test_all: admin assets test test_api
 
 vendor_clean:
 	rm -dRf ./_vendor/src
