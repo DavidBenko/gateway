@@ -161,7 +161,7 @@ func (s *Spec) NewDB() (db.DB, error) {
 	}
 
 	poolLimit := 16
-	if s.limit <= 0 {
+	if s.limit > 0 {
 		poolLimit = s.limit
 	}
 
