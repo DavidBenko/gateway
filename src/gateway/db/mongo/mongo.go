@@ -160,7 +160,12 @@ func (s *Spec) NewDB() (db.DB, error) {
 		return nil, err
 	}
 
-	mongo.SetPoolLimit(s.limit)
+	poolLimit := 16
+	if s.limit <= 0 {
+		poolLimit = s.limit
+	}
+
+	mongo.SetPoolLimit(poolLimit)
 	d := &DB{mongo, s}
 	runtime.SetFinalizer(d, mongoCloser)
 	return d, nil
