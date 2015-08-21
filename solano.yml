@@ -5,4 +5,4 @@
 :postgresql:
     :version: '9.3'
 nodejs:
-  version: 0.10.33
+  version: 0.10.31
