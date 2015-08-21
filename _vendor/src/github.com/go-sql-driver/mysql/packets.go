@@ -1095,10 +1095,10 @@ func (rows *binaryRows) readRow(dest []driver.Value) error {
 			continue
 
 		// Length coded Binary Strings
-		case fieldTypeDecimal, fieldTypeNewDecimal, fieldTypeVarChar,
-			fieldTypeBit, fieldTypeEnum, fieldTypeSet, fieldTypeTinyBLOB,
+		case fieldTypeDecimal, fieldTypeNewDecimal, fieldTypeBit,
+			fieldTypeEnum, fieldTypeSet, fieldTypeTinyBLOB,
 			fieldTypeMediumBLOB, fieldTypeLongBLOB, fieldTypeBLOB,
-			fieldTypeVarString, fieldTypeString, fieldTypeGeometry:
+			fieldTypeGeometry:
 			var isNull bool
 			var n int
 			dest[i], isNull, n, err = readLengthEncodedString(data[pos:])
@@ -1113,6 +1113,20 @@ func (rows *binaryRows) readRow(dest []driver.Value) error {
 			}
 			return err
 
+		// Length coded binary strings for Go string type
+		case fieldTypeVarChar, fieldTypeVarString, fieldTypeString:
+			var isNull bool
+			var n int
+			dest[i], isNull, n, err = readLengthEncodedString(data[pos:])
+			pos += n
+			if err == nil {
+				if isNull {
+					dest[i] = nil
+				} else {
+					dest[i] = string(dest[i].([]byte))
+				}
+				continue
+			}
 		case
 			fieldTypeDate, fieldTypeNewDate, // Date YYYY-MM-DD
 			fieldTypeTime,                         // Time [-][H]HH:MM:SS[.fractal]
