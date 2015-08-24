@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 
@@ -26,15 +27,12 @@ var knownDrivers *regexp.Regexp
 
 // init prepares a RE of our known drivers.
 func init() {
-	var drivers string
-	for _, drv := range []string{
+	drivers := []string{
 		string(mysql),
 		string(mssql),
 		string(postgres),
-	} {
-		drivers += fmt.Sprintf("(%s)|", drv)
 	}
-	knownDrivers = regexp.MustCompile(drivers[:len(drivers)-1])
+	knownDrivers = regexp.MustCompile(strings.Join(drivers, "|"))
 }
 
 // sqlSpec defines the extra methods a db.Specifier for SQL must implement.
