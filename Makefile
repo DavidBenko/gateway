@@ -53,6 +53,13 @@ LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts $(DeveloperVersi
 build: vet assets generate
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
+build_race: vet assets generate
+	go build $(LDFLAGS) -race -o ./bin/gateway ./src/gateway/main.go
+
+debug: vet assets generate
+	go build $(DEBUG_LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
+	dlv exec ./bin/gateway -- -config=./test/gateway.conf -db-migrate
+
 package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
 
@@ -138,7 +145,8 @@ vendor_get: vendor_clean
 	gopkg.in/check.v1 \
 	github.com/juju/testing/checkers \
 	gopkg.in/mgo.v2 \
-	github.com/jackc/pgx
+	github.com/jackc/pgx \
+	github.com/derekparker/delve/cmd/dlv
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
