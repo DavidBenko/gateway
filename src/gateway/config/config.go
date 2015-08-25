@@ -21,6 +21,7 @@ type Configuration struct {
 	Database Database
 	Proxy    ProxyServer
 	Admin    ProxyAdmin
+	Soap     Soap
 }
 
 // Database specifies configuration options for your database
@@ -29,6 +30,11 @@ type Database struct {
 	Driver           string `flag:"db-driver"      default:"sqlite3"`
 	ConnectionString string `flag:"db-conn-string" default:"gateway.db"`
 	MaxConnections   int64  `flag:"db-max-connections" default:"50"`
+}
+
+// Soap specifies configuration options pertaining to remote SOAP endpoints
+type Soap struct {
+	JdkPath string `flag:"soap-jdk-path" default:""`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.
