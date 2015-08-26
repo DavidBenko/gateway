@@ -12,6 +12,7 @@ import (
 const bin = "bin"
 const wsimport = "wsimport"
 const java = "java"
+const minSupportedJdkVersion = 8 // as in Java 1.8
 
 var jdkHome string
 var fullJavaCommandPath = java
@@ -45,7 +46,7 @@ func Configure(soap config.Soap) error {
 	}
 
 	javaVersion, _ := strconv.Atoi(javaVersionRegex.FindStringSubmatch(string(output))[1])
-	if javaVersion < 8 {
+	if javaVersion < minSupportedJdkVersion {
 		javaAvailable = false
 		return fmt.Errorf("Invalid Java version: Java must be version 1.8 or higher")
 	}
@@ -59,3 +60,5 @@ func Configure(soap config.Soap) error {
 
 	return nil
 }
+
+//func Wsimport(io.Reader)
