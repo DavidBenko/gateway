@@ -13,6 +13,7 @@ import (
 	"gateway/license"
 	"gateway/model"
 	"gateway/proxy"
+	"gateway/soap"
 	"gateway/sql"
 	"gateway/version"
 )
@@ -46,6 +47,12 @@ func main() {
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
+	}
+
+	// Configure SOAP
+	err = soap.Configure(conf.Soap)
+	if err != nil {
+		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
 	}
 
 	//check for sneaky people
