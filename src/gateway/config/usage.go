@@ -46,4 +46,8 @@ var usageStrings = map[string]string{
 	"admin-add-default-env":  "Whether or not to add a default environment to new APIs in dev mode",
 	"admin-default-env-name": "The name of the default environment to create",
 	"admin-add-localhost":    "Whether or not to add a localhost host to a the first API in dev mode",
+
+	"elastic-logging-domain":   "The domain name of the elastic server",
+	"elastic-logging-username": "The user name for the elastic server",
+	"elastic-logging-password": "The password for the elasitic server",
 }

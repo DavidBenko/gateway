@@ -14,6 +14,7 @@ import (
 	"gateway/license"
 	"gateway/model"
 	"gateway/proxy"
+	"gateway/service"
 	"gateway/sql"
 	"gateway/version"
 
@@ -100,6 +101,9 @@ func main() {
 			}
 		}
 	}
+
+	service.ElasticLoggingService(conf.Elastic)
+
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)

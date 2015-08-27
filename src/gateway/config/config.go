@@ -21,6 +21,7 @@ type Configuration struct {
 	Database Database
 	Proxy    ProxyServer
 	Admin    ProxyAdmin
+	Elastic  ElasticLogging
 }
 
 // Database specifies configuration options for your database
@@ -74,6 +75,12 @@ type ProxyAdmin struct {
 	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
+}
+
+type ElasticLogging struct {
+	Domain   string `flag:"elastic-logging-domain" default:""`
+	Username string `flag:"elastic-logging-username" default:""`
+	Password string `flag:"elastic-logging-password" default:""`
 }
 
 const envPrefix = "APGATEWAY_"
