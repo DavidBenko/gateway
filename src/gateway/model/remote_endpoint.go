@@ -75,7 +75,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 			errors.add("base", fmt.Sprintf("error in database config: %s", err))
 		}
 	default:
-		errors.add("base", fmt.Sprintf("unkown endpoint type %q", e.Type))
+		errors.add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
 	return errors
 }
