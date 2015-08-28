@@ -20,6 +20,8 @@ const (
 	RemoteEndpointTypeMySQL     = "mysql"
 	RemoteEndpointTypePostgres  = "postgres"
 	RemoteEndpointTypeMongo     = "mongodb"
+	// RemoteEndpointTypeSOAP denotes that a remote endpoint is a SOAP service
+	RemoteEndpointTypeSoap = "soap"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -65,7 +67,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 		errors.add("codename", "must start with A-Z a-z _ and may only contain A-Z a-z 0-9 _")
 	}
 	switch e.Type {
-	case RemoteEndpointTypeHTTP:
+	case RemoteEndpointTypeHTTP, RemoteEndpointTypeSoap:
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
