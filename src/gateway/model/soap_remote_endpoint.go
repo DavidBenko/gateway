@@ -191,10 +191,7 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record: %v", err)
 	}
 
-	err = endpoint.afterSave(tx)
-	if err != nil {
-		return fmt.Errorf("Error occured in afterSave hook for SoapRemoteEndpoint while trying to insert: %v", err)
-	}
+	endpoint.afterSave(tx)
 
 	return tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Insert)
 }
@@ -219,95 +216,115 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) err
 	}
 
 	if fireAfterSave {
-		err = endpoint.afterSave(tx)
-		if err != nil {
-			return fmt.Errorf("Error occured in afterSave hook for SoapRemoteEndpoint while trying to update: %v", err)
-		}
+		endpoint.afterSave(tx)
 	}
 
 	return nil
 }
 
-func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
+func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) {
 	go func() {
-		log.Printf("%s Starting wsdl ingestion", "[debug]")
-
-		// TODO - wrap this inside a panic/recover block
-		dir, err := ensureJarPath()
-
-		// write wsdl file to directory
-		filePerm := os.FileMode(os.ModeDir | 0600)
-		filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
-		err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), filePerm)
-		if err != nil {
-			// TODO
-		}
-
-		// invoke wsimport
-		outputfile := path.Join(dir, fmt.Sprintf("%d.jar", endpoint.ID))
-		err = soap.Wsimport(filename, outputfile)
-		if err != nil {
-			// TODO
-			log.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
-		}
-
-		// update the DB with the generated jars bytes!
-		bytes, err := ioutil.ReadFile(outputfile)
-		if err != nil {
-			// TODO
-			log.Printf("%s Couldn't read bytes! %v", "[debug]", err)
-		}
-		endpoint.generatedJar = bytes
-		checksum := md5.Sum(bytes)
-		endpoint.generatedJarThumbprint = hex.EncodeToString(checksum[:])
-
-		// TODO
 		tx, err := tx.DB.Begin()
 		if err != nil {
-			// TODO
-			log.Printf("%s Unable to begin tx! %v", "[debug]", err)
-		}
-		err = endpoint.update(tx, false)
-		if err != nil {
-			log.Printf("%s Unable to execute update! %v", "[debug]", err)
-			// TODO
-			rbErr := tx.Rollback()
-			if rbErr != nil {
-				// TODO
-				log.Printf("%s Unable to rollback tx! %v", "[debug]", rbErr)
+			log.Printf("%s Unable to execute afterSave hook - beginning tx failed: %v", config.System, err)
+		} else {
+			err = endpoint.ingestWsdl(tx)
+			if err != nil {
+				log.Printf("%s Attempting to rollback -- received err attempting to ingest WSDL: %v", config.System, err)
+				rbErr := tx.Rollback()
+				if rbErr != nil {
+					log.Printf("%s Encountered error attempting to rollback: %v", config.System, rbErr)
+				}
+			} else {
+				err = tx.Commit()
+				if err != nil {
+					log.Printf("%s Encountered an error trying to commit: %v", config.System, err)
+				} else {
+					endpoint.Status = SoapRemoteEndpointStatusSuccess
+					endpoint.Message = ""
+				}
 			}
-			// TODO
 		}
 
-		err = tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
 		if err != nil {
-			// TODO
-			log.Printf("%s Unable to notify of update: %v", "[debug]", err)
-			// TODO actually handle notification on listener side ...
+			endpoint.Status = SoapRemoteEndpointStatusFailed
+			endpoint.Message = err.Error()
 		}
 
-		// report success or failure
-		// TODO
-		endpoint.Status = SoapRemoteEndpointStatusSuccess
-		err = endpoint.update(tx, false)
+		tx, err = tx.DB.Begin()
 		if err != nil {
-			// TODO
-			log.Printf("%s Unable to update status for SoapRemoteEndpoint: %v", "[debug]", err)
+			log.Printf("%s Unable to update status due to failure to begin tx: %v", config.System, err)
+		} else {
+			err = endpoint.update(tx, false)
+			if err != nil {
+				log.Printf("%s Received error attempting to update status on soap_remote_endpoint: %v", "[debug]", err)
+				rbErr := tx.Rollback()
+				if rbErr != nil {
+					log.Printf("%s Encountered error attempting to rollback: %v", config.System, rbErr)
+				}
+			} else {
+				err = tx.Commit()
+				if err != nil {
+					log.Printf("%s Encountered error attempting to commit: %v", config.System, err)
+				}
+			}
 		}
-
-		// TODO
-		err = tx.Commit()
-		if err != nil {
-			log.Printf("%s Unable to commit tx! %v", "[debug]", err)
-		}
-
-		// clean up wsdl
-		err = os.Remove(filename)
-		if err != nil {
-			// TODO
-		}
-
-		log.Printf("%s Finished wsdl ingestion", "[debug]")
 	}()
+}
+
+func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
+	log.Printf("%s Starting wsdl ingestion", "[debug]")
+
+	dir, err := ensureJarPath()
+	if err != nil {
+		return err
+	}
+
+	// write wsdl file to directory
+	filePerm := os.FileMode(os.ModeDir | 0600)
+	filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
+
+	err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), filePerm)
+	if err != nil {
+		return err
+	}
+
+	// invoke wsimport
+	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", endpoint.ID))
+	err = soap.Wsimport(filename, outputfile)
+	if err != nil {
+		log.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
+		return err
+	}
+
+	// update the DB with the generated jars bytes!
+	bytes, err := ioutil.ReadFile(outputfile)
+	if err != nil {
+		log.Printf("%s Couldn't read bytes! %v", "[debug]", err)
+		return err
+	}
+	endpoint.generatedJar = bytes
+	checksum := md5.Sum(bytes)
+	endpoint.generatedJarThumbprint = hex.EncodeToString(checksum[:])
+
+	err = endpoint.update(tx, false)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
+	if err != nil {
+		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
+		return err
+	}
+
+	// clean up wsdl
+	err = os.Remove(filename)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%s Finished wsdl ingestion", "[debug]")
+
 	return nil
 }
