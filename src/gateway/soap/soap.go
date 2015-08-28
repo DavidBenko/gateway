@@ -3,6 +3,7 @@ package soap
 import (
 	"fmt"
 	"gateway/config"
+	"log"
 	"os/exec"
 	"path"
 	"regexp"
@@ -41,15 +42,15 @@ func Configure(soap config.Soap) error {
 	cmd := exec.Command(fullJavaCommandPath, "-version")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		javaAvailable = false
 		return fmt.Errorf("Received error checking for existence of java command: %s", err)
 	}
 
 	javaVersion, _ := strconv.Atoi(javaVersionRegex.FindStringSubmatch(string(output))[1])
 	if javaVersion < minSupportedJdkVersion {
-		javaAvailable = false
 		return fmt.Errorf("Invalid Java version: Java must be version 1.8 or higher")
 	}
+
+	javaAvailable = true
 
 	cmd = exec.Command(fullWsimportCommandPath, "-version")
 	output, err = cmd.CombinedOutput()
@@ -58,7 +59,26 @@ func Configure(soap config.Soap) error {
 		return fmt.Errorf("Received error checking for existince of wsimport command: %s", err)
 	}
 
+	wsimportAvailable = true
+
+	// TODO launch the JVM
+
 	return nil
 }
 
-//func Wsimport(io.Reader)
+// Wsimport runs the java utility 'wsimport' if it is available on the local system
+func Wsimport(wsdlFile string, jarOutputFile string) error {
+	if !Available() {
+		return fmt.Errorf("Wsimport is not configured on this system")
+	}
+
+	cmd := exec.Command(fullWsimportCommandPath, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Error invoking wsimport: %v", err)
+	}
+
+	log.Println(string(output))
+
+	return nil
+}
