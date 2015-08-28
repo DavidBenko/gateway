@@ -55,6 +55,9 @@ func main() {
 		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
 	}
 
+	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
+	model.StartSoapRemoteEndpointUpdateListener(db)
+
 	//check for sneaky people
 	if conf.License == "" {
 		accounts, _ := model.AllAccounts(db)

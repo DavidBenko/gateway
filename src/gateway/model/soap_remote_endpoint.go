@@ -2,6 +2,7 @@ package model
 
 import (
 	"crypto/md5"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -9,12 +10,13 @@ import (
 	"os"
 	"path"
 
+	"gateway/config"
 	"gateway/model/remote_endpoint"
 	"gateway/soap"
+	apsql "gateway/sql"
 
 	"github.com/vincent-petithory/dataurl"
 )
-import apsql "gateway/sql"
 
 const (
 	// SoapRemoteEndpointStatusUninitialized is one of the possible statuses for the Status field on
@@ -47,6 +49,86 @@ type SoapRemoteEndpoint struct {
 	Message                string `json:"message"`
 }
 
+type notificationListener struct {
+	*apsql.DB
+}
+
+// Notify tells the listener a particular notification was fired
+func (listener *notificationListener) Notify(n *apsql.Notification) {
+	switch {
+	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Update:
+		err := cacheJarFile(listener.DB, n.APIID)
+		if err != nil {
+			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
+		}
+	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Delete:
+		// TODO
+		log.Printf("Received delete notification for %v", n)
+	}
+}
+
+// Reconnect tells the listener that we may have been disconnected, but
+// have reconnected. They should update all state that could have changed.
+func (listener *notificationListener) Reconnect() {
+	// TODO anything to do here?
+}
+
+func writeToJarFile(bytes []byte, filename string) error {
+	return ioutil.WriteFile(filename, bytes, os.ModeDir|0600)
+}
+
+func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+	jarDir, err := ensureJarPath()
+	if err != nil {
+		return err
+	}
+
+	// check if jar exists
+	jarFileName := path.Join(jarDir, fmt.Sprintf("%d.jar", soapRemoteEndpointID))
+	fileBytes, err := ioutil.ReadFile(jarFileName)
+
+	var hexsum string
+	if err != nil && os.IsNotExist(err) {
+		// copy to file system
+		hexsum = ""
+	} else if err != nil {
+		return fmt.Errorf("Unable to open jar file: %v", err)
+	} else {
+		// jar exists! get its MD5 hash and compare against record from DB.
+		checksum := md5.Sum(fileBytes)
+		hexsum = hex.EncodeToString(checksum[:])
+	}
+
+	fileBytes, err = GetSoapRemoteEndpointGeneratedJarBytesIfStale(db, soapRemoteEndpointID, hexsum)
+	if err != nil {
+		return fmt.Errorf("Unable to get bytes from database: %v", err)
+	}
+
+	if fileBytes != nil {
+		// copy to file system
+		err := writeToJarFile(fileBytes, jarFileName)
+		if err != nil {
+			return fmt.Errorf("Unable to write jar %s to file system: %v", jarFileName, err)
+		}
+	}
+
+	return nil
+}
+
+func ensureJarPath() (string, error) {
+	dirPerm := os.FileMode(os.ModeDir | 0700)
+
+	dir := path.Clean(path.Join(".", "tmp", "jaxws"))
+	err := os.MkdirAll(dir, dirPerm)
+	return dir, err
+}
+
+// StartSoapRemoteEndpointUpdateListener registers a listener for updates from
+func StartSoapRemoteEndpointUpdateListener(db *apsql.DB) {
+	listener := &notificationListener{db}
+	db.RegisterListener(listener)
+}
+
 // NewSoapRemoteEndpoint creates a new SoapRemoteEndpoint struct
 func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, error) {
 	soap := SoapRemoteEndpoint{RemoteEndpointID: remoteEndpoint.ID, Status: SoapRemoteEndpointStatusUninitialized}
@@ -76,6 +158,23 @@ func (endpoint *SoapRemoteEndpoint) validate() error {
 	}
 
 	return nil
+}
+
+// GetSoapRemoteEndpointGeneratedJarBytesIfStale returns the bytes of the generated_jar file for the soap_remote_endpoint with the specified ID,
+// if and only if the checksum does not matched the generated_jar_thumbprint stored in the DB
+func GetSoapRemoteEndpointGeneratedJarBytesIfStale(db *apsql.DB, soapRemoteEndpointID int64, checksum string) ([]byte, error) {
+	query := `SELECT generated_jar FROM soap_remote_endpoints WHERE id = ? AND generated_jar_thumbprint != ?`
+
+	var dest []byte
+	err := db.Get(&dest, query, soapRemoteEndpointID, checksum)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("Unable to get generated jar bytes from soap_remote_entpoints for ID %v: %v", soapRemoteEndpointID, err)
+	}
+
+	return dest, nil
 }
 
 // Insert inserts a new SoapRemoteEndpoint record into the database
@@ -131,21 +230,13 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) err
 
 func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 	go func() {
-		log.Println("Starting wsdl ingestion")
+		log.Printf("%s Starting wsdl ingestion", "[debug]")
 
 		// TODO - wrap this inside a panic/recover block
-
-		dirPerm := os.FileMode(os.ModeDir | 0700)
-		filePerm := os.FileMode(os.ModeDir | 0600)
-
-		// ensure directory exists
-		dir := path.Clean(path.Join(".", "tmp", "jaxws"))
-		err := os.MkdirAll(dir, dirPerm)
-		if err != nil {
-			// TODO
-		}
+		dir, err := ensureJarPath()
 
 		// write wsdl file to directory
+		filePerm := os.FileMode(os.ModeDir | 0600)
 		filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
 		err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), filePerm)
 		if err != nil {
@@ -157,14 +248,14 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 		err = soap.Wsimport(filename, outputfile)
 		if err != nil {
 			// TODO
-			log.Printf("Tried to invoke wsimport: %v", err)
+			log.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
 		}
 
 		// update the DB with the generated jars bytes!
 		bytes, err := ioutil.ReadFile(outputfile)
 		if err != nil {
 			// TODO
-			log.Printf("Couldn't read bytes! %v", err)
+			log.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		}
 		endpoint.generatedJar = bytes
 		checksum := md5.Sum(bytes)
@@ -174,16 +265,16 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 		tx, err := tx.DB.Begin()
 		if err != nil {
 			// TODO
-			log.Printf("Unable to begin tx! %v", err)
+			log.Printf("%s Unable to begin tx! %v", "[debug]", err)
 		}
 		err = endpoint.update(tx, false)
 		if err != nil {
-			log.Printf("Unable to execute update! %v", err)
+			log.Printf("%s Unable to execute update! %v", "[debug]", err)
 			// TODO
 			rbErr := tx.Rollback()
 			if rbErr != nil {
 				// TODO
-				log.Printf("Unable to rollback tx! %v", rbErr)
+				log.Printf("%s Unable to rollback tx! %v", "[debug]", rbErr)
 			}
 			// TODO
 		}
@@ -191,7 +282,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 		err = tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
 		if err != nil {
 			// TODO
-			log.Printf("Unable to notify of update: %v", err)
+			log.Printf("%s Unable to notify of update: %v", "[debug]", err)
 			// TODO actually handle notification on listener side ...
 		}
 
@@ -201,13 +292,13 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 		err = endpoint.update(tx, false)
 		if err != nil {
 			// TODO
-			log.Printf("Unable to update status for SoapRemoteEndpoint: %v", err)
+			log.Printf("%s Unable to update status for SoapRemoteEndpoint: %v", "[debug]", err)
 		}
 
 		// TODO
 		err = tx.Commit()
 		if err != nil {
-			log.Printf("Unable to commit tx! %v", err)
+			log.Printf("%s Unable to commit tx! %v", "[debug]", err)
 		}
 
 		// clean up wsdl
@@ -216,7 +307,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 			// TODO
 		}
 
-		log.Println("Finished wsdl ingestion")
+		log.Printf("%s Finished wsdl ingestion", "[debug]")
 	}()
 	return nil
 }
