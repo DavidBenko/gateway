@@ -1,6 +1,8 @@
 package model
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -37,11 +39,12 @@ const (
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"remote_endpoint_id,omitempty" db:"remote_endpoint_id"`
 
-	ID           int64 `json:"id,omitempty"`
-	wsdl         string
-	generatedJar []byte
-	Status       string `json:"status"`
-	Message      string `json:"message"`
+	ID                     int64 `json:"id,omitempty"`
+	wsdl                   string
+	generatedJar           []byte
+	generatedJarThumbprint string
+	Status                 string `json:"status"`
+	Message                string `json:"message"`
 }
 
 // NewSoapRemoteEndpoint creates a new SoapRemoteEndpoint struct
@@ -104,14 +107,14 @@ func (endpoint *SoapRemoteEndpoint) Update(tx *apsql.Tx) error {
 
 func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) error {
 	query := `UPDATE soap_remote_endpoints
-            SET wsdl = ?, generated_jar = ?, status = ?, message = ?
+            SET wsdl = ?, generated_jar = ?, generated_jar_thumbprint = ?, status = ?, message = ?
             WHERE id = ?`
 	err := endpoint.validate()
 	if err != nil {
 		return fmt.Errorf("Can't insert SoapRemoteEndpoint due to validation error: %v", err)
 	}
 
-	err = tx.UpdateOne(query, endpoint.wsdl, endpoint.generatedJar, endpoint.Status, endpoint.Message, endpoint.ID)
+	err = tx.UpdateOne(query, endpoint.wsdl, endpoint.generatedJar, endpoint.generatedJarThumbprint, endpoint.Status, endpoint.Message, endpoint.ID)
 	if err != nil {
 		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
 	}
@@ -132,18 +135,19 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 
 		// TODO - wrap this inside a panic/recover block
 
-		perm := os.FileMode(os.ModeDir | 0700)
+		dirPerm := os.FileMode(os.ModeDir | 0700)
+		filePerm := os.FileMode(os.ModeDir | 0600)
 
 		// ensure directory exists
 		dir := path.Clean(path.Join(".", "tmp", "jaxws"))
-		err := os.MkdirAll(dir, perm)
+		err := os.MkdirAll(dir, dirPerm)
 		if err != nil {
 			// TODO
 		}
 
 		// write wsdl file to directory
 		filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
-		err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), perm)
+		err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), filePerm)
 		if err != nil {
 			// TODO
 		}
@@ -163,6 +167,8 @@ func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) error {
 			log.Printf("Couldn't read bytes! %v", err)
 		}
 		endpoint.generatedJar = bytes
+		checksum := md5.Sum(bytes)
+		endpoint.generatedJarThumbprint = hex.EncodeToString(checksum[:])
 
 		// TODO
 		tx, err := tx.DB.Begin()
