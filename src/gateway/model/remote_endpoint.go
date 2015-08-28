@@ -40,6 +40,8 @@ type RemoteEndpoint struct {
 
 	// Proxy Data Cache
 	SelectedEnvironmentData *types.JsonText `json:"-" db:"selected_env_data"`
+
+	Soap *SoapRemoteEndpoint `json:"soap,omitempty"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
