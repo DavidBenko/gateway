@@ -13,6 +13,9 @@ api = false
 custom_struct = false
 check_delete = false
 after_insert = false
+after_update = false
+before_insert = false
+before_update = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -37,6 +40,16 @@ OptionParser.new do |opts|
   opts.on("--after-insert-hook", "Does controller have an after insert hook?") do |value|
     after_insert = value
   end
+  opts.on("--after-update-hook", "Does controller have an after update hook?") do |value|
+    after_update = value
+  end
+  opts.on("--before-insert-hook", "Does controller have a before insert hook?") do |value|
+    before_insert = value
+  end
+  opts.on("--before-update-hook", "Does controller have a before update hook?") do |value|
+    before_update = value
+  end
+
 end.parse!
 
 plural = singular.pluralize
@@ -199,6 +212,23 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     return SerializableValidationErrors{validationErrors}
   }
 
+  <% if before_insert %>
+  if isInsert {
+    if err := c.BeforeInsert( <%= local %>, tx); err != nil {
+      log.Printf("%s Error before insert: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+  <% if before_update %>
+  if !isInsert {
+    if err := c.BeforeUpdate( <%= local %>, tx); err != nil {
+      log.Printf("%s Error before update: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+
   if err := method(tx); err != nil {
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
@@ -215,6 +245,14 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   if isInsert {
     if err := c.AfterInsert(<%= local %>, tx); err != nil {
       log.Printf("%s Error after insert: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+  <% if after_update %>
+  if !isInsert {
+    if err := c.AfterUpdate(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after update: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }
