@@ -222,52 +222,40 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) err
 	return nil
 }
 
-func (endpoint *SoapRemoteEndpoint) afterSave(tx *apsql.Tx) {
+func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
+	db := origTx.DB
 	go func() {
-		tx, err := tx.DB.Begin()
-		if err != nil {
-			log.Printf("%s Unable to execute afterSave hook - beginning tx failed: %v", config.System, err)
-		} else {
-			err = endpoint.ingestWsdl(tx)
-			if err != nil {
-				log.Printf("%s Attempting to rollback -- received err attempting to ingest WSDL: %v", config.System, err)
-				rbErr := tx.Rollback()
-				if rbErr != nil {
-					log.Printf("%s Encountered error attempting to rollback: %v", config.System, rbErr)
-				}
-			} else {
-				err = tx.Commit()
-				if err != nil {
-					log.Printf("%s Encountered an error trying to commit: %v", config.System, err)
-				} else {
-					endpoint.Status = SoapRemoteEndpointStatusSuccess
-					endpoint.Message = ""
-				}
-			}
-		}
+		endpoint.Status = SoapRemoteEndpointStatusProcessing
+		endpoint.Message = ""
+
+		// In a new transaction, update the status to processing before we do anything
+		err := db.DoInTransaction(func(tx *apsql.Tx) error {
+			return endpoint.update(tx, false, false)
+		})
 
 		if err != nil {
+			log.Printf("%s Unable to update status to %v.  Processing will continue anyway.", config.System, SoapRemoteEndpointStatusProcessing)
+		}
+
+		err = db.DoInTransaction(func(tx *apsql.Tx) error {
+			return endpoint.ingestWsdl(tx)
+		})
+
+		if err != nil {
+			log.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
 			endpoint.Status = SoapRemoteEndpointStatusFailed
 			endpoint.Message = err.Error()
+		} else {
+			endpoint.Status = SoapRemoteEndpointStatusSuccess
+			endpoint.Message = ""
 		}
 
-		tx, err = tx.DB.Begin()
+		err = db.DoInTransaction(func(tx *apsql.Tx) error {
+			return endpoint.update(tx, false, false)
+		})
+
 		if err != nil {
-			log.Printf("%s Unable to update status due to failure to begin tx: %v", config.System, err)
-		} else {
-			err = endpoint.update(tx, false)
-			if err != nil {
-				log.Printf("%s Received error attempting to update status on soap_remote_endpoint: %v", "[debug]", err)
-				rbErr := tx.Rollback()
-				if rbErr != nil {
-					log.Printf("%s Encountered error attempting to rollback: %v", config.System, rbErr)
-				}
-			} else {
-				err = tx.Commit()
-				if err != nil {
-					log.Printf("%s Encountered error attempting to commit: %v", config.System, err)
-				}
-			}
+			log.Printf("%s Unable to update status of RemoteSoapEndpoint due to error: %v", config.System, err)
 		}
 	}()
 }
