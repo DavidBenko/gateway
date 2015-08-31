@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	// SoapRemoteEndpointStatusUninitialized is one of the possible statuses for the Status field on
-	// the SoapRemoteEndpoint struct.  Uninitialized indicates that no processing has yet been attempted
+	// SoapRemoteEndpointStatusPending is one of the possible statuses for the Status field on
+	// the SoapRemoteEndpoint struct.  Pending indicates that no processing has yet been attempted
 	// on the SoapRemoteEndpoint
-	SoapRemoteEndpointStatusUninitialized = "Uninitialized"
+	SoapRemoteEndpointStatusPending = "Pending"
 	// SoapRemoteEndpointStatusProcessing is one of the possible statuses for the Status field on
 	// the SoapRemoteEndpoint struct.  Processing indicates that the WSDL file is actively being processed,
 	// and is pending final outcome.
@@ -41,12 +41,12 @@ const (
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"remote_endpoint_id,omitempty" db:"remote_endpoint_id"`
 
-	ID                     int64 `json:"id,omitempty"`
-	wsdl                   string
+	ID                     int64  `json:"id,omitempty" db:"id"`
+	Wsdl                   string `json:"-"`
 	generatedJar           []byte
-	generatedJarThumbprint string
-	Status                 string `json:"status"`
-	Message                string `json:"message"`
+	GeneratedJarThumbprint string `json:"-" db:"generated_jar_thumbprint"`
+	Status                 string `json:"status" db:"status"`
+	Message                string `json:"message" db:"message"`
 }
 
 type notificationListener struct {
@@ -56,7 +56,7 @@ type notificationListener struct {
 // Notify tells the listener a particular notification was fired
 func (listener *notificationListener) Notify(n *apsql.Notification) {
 	switch {
-	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Update:
+	case n.Table == "soap_remote_endpoints" && (n.Event == apsql.Update || n.Event == apsql.Insert):
 		err := cacheJarFile(listener.DB, n.APIID)
 		if err != nil {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
@@ -131,7 +131,7 @@ func StartSoapRemoteEndpointUpdateListener(db *apsql.DB) {
 
 // NewSoapRemoteEndpoint creates a new SoapRemoteEndpoint struct
 func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, error) {
-	soap := SoapRemoteEndpoint{RemoteEndpointID: remoteEndpoint.ID, Status: SoapRemoteEndpointStatusUninitialized}
+	soap := SoapRemoteEndpoint{RemoteEndpointID: remoteEndpoint.ID, Status: SoapRemoteEndpointStatusPending}
 
 	data := remoteEndpoint.Data
 	soapConfig, err := remote_endpoint.SoapConfig(data)
@@ -139,12 +139,14 @@ func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, 
 		return soap, fmt.Errorf("Encountered an error attempting to extract soap config: %v", err)
 	}
 
-	decoded, err := dataurl.DecodeString(soapConfig.WSDL)
-	if err != nil {
-		return soap, fmt.Errorf("Encountered an error attempting to decode WSDL: %v", err)
-	}
+	if soapConfig.WSDL != "" {
+		decoded, err := dataurl.DecodeString(soapConfig.WSDL)
+		if err != nil {
+			return soap, fmt.Errorf("Encountered an error attempting to decode WSDL: %v", err)
+		}
 
-	soap.wsdl = string(decoded.Data)
+		soap.Wsdl = string(decoded.Data)
+	}
 
 	return soap, nil
 }
@@ -152,8 +154,9 @@ func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, 
 func (endpoint *SoapRemoteEndpoint) validate() error {
 	switch endpoint.Status {
 	case SoapRemoteEndpointStatusFailed, SoapRemoteEndpointStatusProcessing,
-		SoapRemoteEndpointStatusSuccess, SoapRemoteEndpointStatusUninitialized:
+		SoapRemoteEndpointStatusSuccess, SoapRemoteEndpointStatusPending:
 	default:
+		log.Printf("Here ya go!  %v", endpoint)
 		return fmt.Errorf("Invalid value for soap.Status: %s", endpoint.Status)
 	}
 
@@ -186,7 +189,7 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return fmt.Errorf("Can't insert SoapRemoteEndpoint due to validation error: %v", err)
 	}
 
-	endpoint.ID, err = tx.InsertOne(query, endpoint.RemoteEndpointID, endpoint.wsdl, endpoint.Status, endpoint.Message)
+	endpoint.ID, err = tx.InsertOne(query, endpoint.RemoteEndpointID, endpoint.Wsdl, endpoint.Status, endpoint.Message)
 	if err != nil {
 		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record: %v", err)
 	}
@@ -196,21 +199,50 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	return tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Insert)
 }
 
-// Update updates an existing SoapRemoteEndpoint record in the database
-func (endpoint *SoapRemoteEndpoint) Update(tx *apsql.Tx) error {
-	return endpoint.update(tx, true)
-}
+// FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
+func FindSoapRemoteEndpointByRemoteEndpointID(db *apsql.DB, remoteEndpointID int64) (*SoapRemoteEndpoint, error) {
+	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint, status, message
+            FROM soap_remote_endpoints
+            WHERE remote_endpoint_id = ?`
 
-func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) error {
-	query := `UPDATE soap_remote_endpoints
-            SET wsdl = ?, generated_jar = ?, generated_jar_thumbprint = ?, status = ?, message = ?
-            WHERE id = ?`
-	err := endpoint.validate()
+	soapRemoteEndpoint := &SoapRemoteEndpoint{}
+	err := db.Get(soapRemoteEndpoint, query, remoteEndpointID)
 	if err != nil {
-		return fmt.Errorf("Can't insert SoapRemoteEndpoint due to validation error: %v", err)
+		return nil, fmt.Errorf("Unable to fetch SoapRemoteEndpoint from the database for remote_endpoint_id %d: %v", remoteEndpointID, err)
 	}
 
-	err = tx.UpdateOne(query, endpoint.wsdl, endpoint.generatedJar, endpoint.generatedJarThumbprint, endpoint.Status, endpoint.Message, endpoint.ID)
+	return soapRemoteEndpoint, nil
+}
+
+// Update updates an existing SoapRemoteEndpoint record in the database
+func (endpoint *SoapRemoteEndpoint) Update(tx *apsql.Tx) error {
+	return endpoint.update(tx, true, false)
+}
+
+func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGeneratedJar bool) error {
+	var query string
+	if updateGeneratedJar {
+		query = `UPDATE soap_remote_endpoints
+              SET wsdl = ?, generated_jar = ?, generated_jar_thumbprint = ?, status = ?, message = ?
+              WHERE id = ?`
+	} else {
+		query = `UPDATE soap_remote_endpoints
+              SET wsdl = ?,
+              status = ?, message = ?
+              WHERE id = ?`
+	}
+
+	err := endpoint.validate()
+	if err != nil {
+		return fmt.Errorf("Can't update SoapRemoteEndpoint due to validation error: %v", err)
+	}
+
+	if updateGeneratedJar {
+		err = tx.UpdateOne(query, endpoint.Wsdl, endpoint.generatedJar, endpoint.GeneratedJarThumbprint, endpoint.Status, endpoint.Message, endpoint.ID)
+	} else {
+		err = tx.UpdateOne(query, endpoint.Wsdl, endpoint.Status, endpoint.Message, endpoint.ID)
+	}
+
 	if err != nil {
 		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
 	}
@@ -219,7 +251,7 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave bool) err
 		endpoint.afterSave(tx)
 	}
 
-	return nil
+	return tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
 }
 
 func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
@@ -272,7 +304,7 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 	filePerm := os.FileMode(os.ModeDir | 0600)
 	filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
 
-	err = ioutil.WriteFile(filename, []byte(endpoint.wsdl), filePerm)
+	err = ioutil.WriteFile(filename, []byte(endpoint.Wsdl), filePerm)
 	if err != nil {
 		return err
 	}
@@ -293,9 +325,9 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 	}
 	endpoint.generatedJar = bytes
 	checksum := md5.Sum(bytes)
-	endpoint.generatedJarThumbprint = hex.EncodeToString(checksum[:])
+	endpoint.GeneratedJarThumbprint = hex.EncodeToString(checksum[:])
 
-	err = endpoint.update(tx, false)
+	err = endpoint.update(tx, false, true)
 	if err != nil {
 		return err
 	}

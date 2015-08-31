@@ -32,7 +32,27 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 		return nil
 	}
 
-	// TODO
+	soap, err := model.NewSoapRemoteEndpoint(remoteEndpoint)
+	if err != nil {
+		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object for update: %v", err)
+	}
+
+	if soap.Wsdl == "" {
+		return nil
+	}
+
+	soapRemoteEndpoint, err := model.FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, remoteEndpoint.ID)
+	if err != nil {
+		return fmt.Errorf("Unable to fetch SoapRemoteEndpoint with remote_endpoint_id of %d: %v", remoteEndpoint.ID, err)
+	}
+
+	remoteEndpoint.Soap = soapRemoteEndpoint
+	remoteEndpoint.Data = types.JsonText(json.RawMessage([]byte("null")))
+
+	soapRemoteEndpoint.Wsdl = soap.Wsdl
+	soapRemoteEndpoint.GeneratedJarThumbprint = ""
+	soapRemoteEndpoint.Status = model.SoapRemoteEndpointStatusPending
+	soapRemoteEndpoint.Message = ""
 
 	return nil
 }
@@ -46,7 +66,7 @@ func (c *RemoteEndpointsController) AfterInsert(remoteEndpoint *model.RemoteEndp
 	remoteEndpoint.Soap.RemoteEndpointID = remoteEndpoint.ID
 	err := remoteEndpoint.Soap.Insert(tx)
 	if err != nil {
-		return fmt.Errorf("Unable to insert SoapRemoteEndpoint: %v: ", err)
+		return fmt.Errorf("Unable to insert SoapRemoteEndpoint: %v", err)
 	}
 
 	return nil
@@ -58,7 +78,10 @@ func (c *RemoteEndpointsController) AfterUpdate(remoteEndpoint *model.RemoteEndp
 		return nil
 	}
 
-	// TODO
+	err := remoteEndpoint.Soap.Update(tx)
+	if err != nil {
+		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+	}
 
 	return nil
 }
