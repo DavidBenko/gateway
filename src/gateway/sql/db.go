@@ -188,3 +188,31 @@ func (db *DB) SQL(name string) string {
 func (db *DB) q(sql string) string {
 	return q(sql, db.Driver)
 }
+
+// DoInTransaction takes a function, which is executed
+// inside a new database transaction.  Any transaction-related
+// errors are reported to the caller via the returned error
+func (db *DB) DoInTransaction(logic func(tx *Tx) error) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("Unable to begin transaction due to error: %v", err)
+	}
+
+	//err = endpoint.update(tx, false, false)
+	err = logic(tx)
+
+	if err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil {
+			return fmt.Errorf(`Encountered an error and attempted to rollback, but received error: "%v".  Original error was "%v"`, rbErr, err)
+		}
+		return fmt.Errorf("Rolled back transaction due to the following error: %v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("Failed to commit transaction due to the following error: %v", err)
+	}
+
+	return nil
+}
