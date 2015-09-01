@@ -39,9 +39,9 @@ const (
 
 // SoapRemoteEndpoint contains attributes for a remote endpoint of type Soap
 type SoapRemoteEndpoint struct {
-	RemoteEndpointID int64 `json:"remote_endpoint_id,omitempty" db:"remote_endpoint_id"`
+	RemoteEndpointID int64 `json:"-" db:"remote_endpoint_id"`
 
-	ID                     int64  `json:"id,omitempty" db:"id"`
+	ID                     int64  `json:"-" db:"id"`
 	Wsdl                   string `json:"-"`
 	generatedJar           []byte
 	GeneratedJarThumbprint string `json:"-" db:"generated_jar_thumbprint"`
