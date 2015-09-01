@@ -15,6 +15,7 @@ func (c *RemoteEndpointsController) BeforeInsert(remoteEndpoint *model.RemoteEnd
 		return nil
 	}
 
+	remoteEndpoint.Status = apsql.MakeNullString(model.RemoteEndpointStatusPending)
 	soap, err := model.NewSoapRemoteEndpoint(remoteEndpoint)
 	if err != nil {
 		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object: %v", err)
@@ -51,8 +52,10 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 
 	soapRemoteEndpoint.Wsdl = soap.Wsdl
 	soapRemoteEndpoint.GeneratedJarThumbprint = ""
-	soapRemoteEndpoint.Status = model.SoapRemoteEndpointStatusPending
-	soapRemoteEndpoint.Message = ""
+	soapRemoteEndpoint.RemoteEndpoint = remoteEndpoint
+
+	remoteEndpoint.Status = apsql.MakeNullString(model.RemoteEndpointStatusPending)
+	remoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
 
 	return nil
 }

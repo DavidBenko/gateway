@@ -20,7 +20,7 @@ const (
 	RemoteEndpointTypeMySQL     = "mysql"
 	RemoteEndpointTypePostgres  = "postgres"
 	RemoteEndpointTypeMongo     = "mongodb"
-	// RemoteEndpointTypeSOAP denotes that a remote endpoint is a SOAP service
+	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
 	RemoteEndpointTypeSoap = "soap"
 )
 
@@ -29,11 +29,13 @@ type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
-	ID          int64  `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Codename    string `json:"codename"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
+	ID            int64            `json:"id,omitempty"`
+	Name          string           `json:"name"`
+	Codename      string           `json:"codename"`
+	Description   string           `json:"description"`
+	Type          string           `json:"type"`
+	Status        apsql.NullString `json:"status,omitempty"`
+	StatusMessage apsql.NullString `json:"status_message,omitempty" db:"status_message"`
 
 	Data            types.JsonText                   `json:"data" db:"data"`
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
@@ -41,7 +43,8 @@ type RemoteEndpoint struct {
 	// Proxy Data Cache
 	SelectedEnvironmentData *types.JsonText `json:"-" db:"selected_env_data"`
 
-	Soap *SoapRemoteEndpoint `json:"soap,omitempty"`
+	// Soap specific attributes
+	Soap *SoapRemoteEndpoint `json:"-"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
@@ -79,6 +82,16 @@ func (e *RemoteEndpoint) Validate() Errors {
 	default:
 		errors.add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
+	if e.Status.Valid {
+		val, _ := e.Status.Value()
+		switch val {
+		case RemoteEndpointStatusFailed, RemoteEndpointStatusProcessing,
+			RemoteEndpointStatusSuccess, RemoteEndpointStatusPending:
+		default:
+			errors.add("status", fmt.Sprintf("Invalid value for status: %v", val))
+		}
+	}
+
 	return errors
 }
 
@@ -115,7 +128,9 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.codename as codename,
 		remote_endpoints.type as type,
 		remote_endpoints.data as data,
-		remote_endpoint_environment_data.data as selected_env_data
+		remote_endpoint_environment_data.data as selected_env_data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message
 	FROM remote_endpoints
 	LEFT JOIN remote_endpoint_environment_data
 		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
@@ -150,7 +165,9 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		remote_endpoints.codename as codename,
 	  remote_endpoints.description as description,
 	  remote_endpoints.type as type,
-		remote_endpoints.data as data
+		remote_endpoints.data as data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message
 	FROM remote_endpoints, apis
 	WHERE `
 	args := []interface{}{}
@@ -292,9 +309,9 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	e.ID, err = tx.InsertOne(
-		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, data)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?)`,
-		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, encodedData)
+		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, status, status_message, data)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?,?,?)`,
+		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, e.Status, e.StatusMessage, encodedData)
 	if err != nil {
 		return err
 	}
@@ -332,11 +349,11 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
-		SET name = ?, codename = ?, description = ?, data = ?
+		SET name = ?, codename = ?, description = ?, status = ?, status_message = ?, data = ?
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
-		e.Name, e.Codename, e.Description, encodedData, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Codename, e.Description, e.Status, e.StatusMessage, encodedData, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
