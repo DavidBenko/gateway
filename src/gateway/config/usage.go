@@ -50,4 +50,7 @@ var usageStrings = map[string]string{
 	"elastic-logging-domain":   "The domain name of the elastic server",
 	"elastic-logging-username": "The user name for the elastic server",
 	"elastic-logging-password": "The password for the elasitic server",
+
+	"bleve-logging-file":         "The bleve file to store logs in",
+	"bleve-logging-delete-after": "How long in days to keep logs",
 }

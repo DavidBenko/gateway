@@ -22,6 +22,7 @@ type Configuration struct {
 	Proxy    ProxyServer
 	Admin    ProxyAdmin
 	Elastic  ElasticLogging
+	Bleve    BleveLogging
 }
 
 // Database specifies configuration options for your database
@@ -81,6 +82,11 @@ type ElasticLogging struct {
 	Domain   string `flag:"elastic-logging-domain" default:""`
 	Username string `flag:"elastic-logging-username" default:""`
 	Password string `flag:"elastic-logging-password" default:""`
+}
+
+type BleveLogging struct {
+	File        string `flag:"bleve-logging-file" default:""`
+	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
 }
 
 const envPrefix = "APGATEWAY_"

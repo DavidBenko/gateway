@@ -184,11 +184,15 @@ func (m *BleveMessage) Id() string {
 	return fmt.Sprintf("%x", sha1.Sum(data))
 }
 
-func BleveLoggingService() {
+func BleveLoggingService(conf config.BleveLogging) {
+	if conf.File == "" {
+		return
+	}
+
 	mapping := bleve.NewIndexMapping()
-	index, err := bleve.New("logs.bleve", mapping)
+	index, err := bleve.New(conf.File, mapping)
 	if err != nil {
-		index, err = bleve.Open("logs.bleve")
+		index, err = bleve.Open(conf.File)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -215,7 +219,8 @@ func BleveLoggingService() {
 	deleteTicker := time.NewTicker(24 * time.Hour)
 	go func() {
 		for _ = range deleteTicker.C {
-			end := time.Now().Add(-30 * 24 * time.Hour).Format("2006-01-02T15:04:05Z")
+			days := time.Duration(conf.DeleteAfter)
+			end := time.Now().Add(-days * 24 * time.Hour).Format("2006-01-02T15:04:05Z")
 			for {
 				query := bleve.NewDateRangeQuery(nil, &end)
 				query.SetField("logDate")
