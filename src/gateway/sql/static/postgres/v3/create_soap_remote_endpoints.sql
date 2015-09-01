@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS "soap_remote_endpoints" (
   "id" SERIAL PRIMARY KEY,
-  "remote_endpoint_id" INTEGER NOT NULL,
+  "remote_endpoint_id" INTEGER UNIQUE NOT NULL,
   "wsdl" TEXT NOT NULL,
   "generated_jar" BYTEA,
   "generated_jar_thumbprint" TEXT,

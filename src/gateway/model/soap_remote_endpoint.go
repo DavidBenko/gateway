@@ -63,8 +63,7 @@ func (listener *notificationListener) Notify(n *apsql.Notification) {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Delete:
-		// TODO
-		log.Printf("Received delete notification for %v", n)
+		DeleteJarFile(n.APIID)
 	}
 }
 
@@ -76,6 +75,19 @@ func (listener *notificationListener) Reconnect() {
 
 func writeToJarFile(bytes []byte, filename string) error {
 	return ioutil.WriteFile(filename, bytes, os.ModeDir|0600)
+}
+
+func DeleteJarFile(soapRemoteEndpointID int64) error {
+	log.Printf("Received a request to delete jar file for soapRemoteEndpointID %d", soapRemoteEndpointID)
+	jarDir, err := ensureJarPath()
+	if err != nil {
+		return err
+	}
+
+	jarFileName := path.Join(jarDir, fmt.Sprintf("%d.jar", soapRemoteEndpointID))
+	_ = os.Remove(jarFileName)
+
+	return nil
 }
 
 func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
@@ -177,7 +189,7 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	var err error
 	endpoint.ID, err = tx.InsertOne(query, endpoint.RemoteEndpointID, endpoint.Wsdl)
 	if err != nil {
-		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record: %v", err)
+		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record %v: %v", endpoint.RemoteEndpointID, err)
 	}
 
 	endpoint.afterSave(tx)

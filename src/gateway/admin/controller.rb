@@ -14,8 +14,10 @@ custom_struct = false
 check_delete = false
 after_insert = false
 after_update = false
+after_delete = false
 before_insert = false
 before_update = false
+before_delete = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -43,11 +45,17 @@ OptionParser.new do |opts|
   opts.on("--after-update-hook", "Does controller have an after update hook?") do |value|
     after_update = value
   end
+  opts.on("--after-delete-hook", "Does controller have an after delete hook?") do |value|
+    after_delete = value
+  end
   opts.on("--before-insert-hook", "Does controller have a before insert hook?") do |value|
     before_insert = value
   end
   opts.on("--before-update-hook", "Does controller have a before update hook?") do |value|
     before_update = value
+  end
+  opts.on("--before-delete-hook", "Does controller have a before delete hook?") do |value|
+    before_delete = value
   end
 
 end.parse!
@@ -155,19 +163,50 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   id := instanceID(r)
 
+  var err error
+  <% if after_delete || before_delete %>
+    db := tx.DB
+
+    <% if account && api %>
+      <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
+        id, c.apiID(r), c.accountID(r))
+    <% elsif account %>
+      <%= local %>, err := model.Find<%= singular %>ForAccountID(db, id, c.accountID(r))
+    <% else %>
+      <%= local %>, err := model.Find<%= singular %>(db, id)
+    <% end %>
+    if err != nil {
+      return c.notFound()
+    }
+  <% end %>
+
   <% if check_delete %>
-    if err := model.CanDelete<%= singular %>(tx, id); err != nil {
+    if err = model.CanDelete<%= singular %>(tx, id); err != nil {
       return aphttp.NewServerError(err)
     }
   <% end %>
 
+  <% if before_delete %>
+    if err = c.BeforeDelete(<%= local %>, tx); err != nil {
+      log.Printf("%s Error before delete: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  <% end %>
+
   <% if account && api %>
-    err := model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
+    err = model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
       id, c.apiID(r), c.accountID(r))
   <% elsif account %>
-    err := model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r))
+    err = model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r))
   <% else %>
-    err := model.Delete<%= singular %>(tx, id)
+    err = model.Delete<%= singular %>(tx, id)
+  <% end %>
+
+  <% if after_delete %>
+    if err := c.AfterDelete(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after delete: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
   <% end %>
 
   if err != nil {

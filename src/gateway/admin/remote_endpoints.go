@@ -3,8 +3,10 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
+	"gateway/config"
 	"gateway/model"
 	apsql "gateway/sql"
+	"log"
 
 	"github.com/jmoiron/sqlx/types"
 )
@@ -29,6 +31,10 @@ func (c *RemoteEndpointsController) BeforeInsert(remoteEndpoint *model.RemoteEnd
 
 // BeforeUpdate does some work before updataing a RemoteEndpoint
 func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
+	if remoteEndpoint.Status.String == model.RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to update remote endpoint -- status is currently %s", model.RemoteEndpointStatusPending)
+	}
+
 	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
 		return nil
 	}
@@ -84,6 +90,41 @@ func (c *RemoteEndpointsController) AfterUpdate(remoteEndpoint *model.RemoteEndp
 	err := remoteEndpoint.Soap.Update(tx)
 	if err != nil {
 		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+	}
+
+	return nil
+}
+
+// BeforeDelete does some work before delete
+func (c *RemoteEndpointsController) BeforeDelete(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
+	if remoteEndpoint.Status.String == model.RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to delete remote endpoint -- status is currently %s", model.RemoteEndpointStatusPending)
+	}
+	return nil
+}
+
+// AfterDelete does some work after delete
+func (c *RemoteEndpointsController) AfterDelete(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
+	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	var err error
+	remoteEndpoint.Soap, err = model.FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, remoteEndpoint.ID)
+	if err != nil {
+		// we can ignore this -- only result will be that we won't be able to delete the file on the file
+		// system -- no big deal
+		return nil
+	}
+
+	err = model.DeleteJarFile(remoteEndpoint.Soap.ID)
+	if err != nil {
+		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+	}
+
+	err = tx.Notify("soap_remote_endpoints", remoteEndpoint.Soap.ID, apsql.Delete)
+	if err != nil {
+		log.Printf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
 	}
 
 	return nil
