@@ -185,19 +185,20 @@ func (m *BleveMessage) Id() string {
 }
 
 func BleveLoggingService() {
+	mapping := bleve.NewIndexMapping()
+	index, err := bleve.New("logs.bleve", mapping)
+	if err != nil {
+		index, err = bleve.Open("logs.bleve")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	admin.Bleve = index
+
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
 
-		mapping := bleve.NewIndexMapping()
-		index, err := bleve.New("logs.bleve", mapping)
-		if err != nil {
-			index, err = bleve.Open("logs.bleve")
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		admin.Bleve = index
 		add := func(message string) {
 			bleveMessage := NewBleveMessage(message)
 			if bleveMessage == nil {
@@ -209,5 +210,30 @@ func BleveLoggingService() {
 			}
 		}
 		processLogs(logs, add)
+	}()
+
+	deleteTicker := time.NewTicker(24 * time.Hour)
+	go func() {
+		for _ = range deleteTicker.C {
+			end := time.Now().Add(-30 * 24 * time.Hour).Format("2006-01-02T15:04:05Z")
+			for {
+				query := bleve.NewDateRangeQuery(nil, &end)
+				query.SetField("logDate")
+				search := bleve.NewSearchRequest(query)
+				search.Size = 1024
+				searchResults, err := index.Search(search)
+				if err != nil {
+					log.Printf("[bleve-delete] %v", err)
+				}
+				if len(searchResults.Hits) == 0 {
+					break
+				}
+				batch := index.NewBatch()
+				for _, hit := range searchResults.Hits {
+					batch.Delete(hit.ID)
+				}
+				index.Batch(batch)
+			}
+		}
 	}()
 }
