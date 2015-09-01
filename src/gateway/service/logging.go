@@ -197,6 +197,7 @@ func BleveLoggingService() {
 				log.Fatal(err)
 			}
 		}
+		admin.Bleve = index
 		add := func(message string) {
 			bleveMessage := NewBleveMessage(message)
 			if bleveMessage == nil {

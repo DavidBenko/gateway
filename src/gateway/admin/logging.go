@@ -2,12 +2,22 @@ package admin
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
+	"strconv"
+	"time"
 
+	"gateway/config"
 	aphttp "gateway/http"
+	apsql "gateway/sql"
 
+	"github.com/blevesearch/bleve"
+	"github.com/gorilla/handlers"
+	elasti "github.com/mattbaird/elastigo/lib"
 	"golang.org/x/net/websocket"
 )
 
@@ -149,4 +159,205 @@ func logHandler(ws *websocket.Conn) {
 			}
 		}
 	}
+}
+
+var Bleve bleve.Index
+
+func RouteLogSearch(controller *LogSearchController, path string,
+	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
+
+	routes := map[string]http.Handler{
+		"GET":  read(db, controller.Search),
+		"POST": read(db, controller.Search),
+	}
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
+	}
+
+	router.Handle(path, handlers.MethodHandler(routes))
+}
+
+type LogSearchController struct {
+	config.ElasticLogging
+	BaseController
+}
+
+type LogSearchResult struct {
+	Text string `json:"text"`
+}
+
+func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
+	e := elasti.NewConn()
+	e.Domain = c.Domain
+
+	queryMust := []interface{}{}
+	convert := func(t string) string {
+		tt, _ := time.Parse("2006-01-02T15:04:05Z", t)
+		return tt.Format("2006/01/02 15:04:05") + ".000000"
+	}
+
+	if len(r.Form["start"]) != 1 {
+		httperr = aphttp.NewError(errors.New("start is required"), http.StatusBadRequest)
+		return
+	}
+	queryLogDate := map[string]interface{}{
+		"gte": convert(r.Form["start"][0]),
+	}
+	if len(r.Form["end"]) == 1 {
+		queryLogDate["lte"] = convert(r.Form["end"][0])
+	}
+	queryLogDate = map[string]interface{}{
+		"range": map[string]interface{}{
+			"logDate": queryLogDate,
+		},
+	}
+	queryMust = append(queryMust, queryLogDate)
+	account := c.accountID(r)
+	queryAccount := map[string]interface{}{
+		"term": map[string]interface{}{
+			"account": float64(account),
+		},
+	}
+	queryMust = append(queryMust, queryAccount)
+	if len(r.Form["api"]) == 1 {
+		api, _ := strconv.Atoi(r.Form["api"][0])
+		queryAPI := map[string]interface{}{
+			"term": map[string]interface{}{
+				"api": float64(api),
+			},
+		}
+		queryMust = append(queryMust, queryAPI)
+	}
+	if len(r.Form["endpoint"]) == 1 {
+		endpoint, _ := strconv.Atoi(r.Form["endpoint"][0])
+		queryEndpoint := map[string]interface{}{
+			"term": map[string]interface{}{
+				"endpoint": float64(endpoint),
+			},
+		}
+		queryMust = append(queryMust, queryEndpoint)
+	}
+	if len(r.Form["query"]) == 1 {
+		queryQuery := map[string]interface{}{
+			"term": map[string]interface{}{
+				"text": r.Form["query"][0],
+			},
+		}
+		queryMust = append(queryMust, queryQuery)
+	}
+
+	query := map[string]interface{}{
+		"size": float64(100),
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": queryMust,
+			},
+		},
+	}
+	jsonQuery, err := json.Marshal(query)
+	if err != nil {
+		httperr = aphttp.NewError(err, http.StatusBadRequest)
+		return
+	}
+	out, err := e.Search("gateway", "log", nil, jsonQuery)
+	results = make([]LogSearchResult, len(out.Hits.Hits))
+	for i, hit := range out.Hits.Hits {
+		json.Unmarshal(*hit.Source, &results[i])
+	}
+	if err != nil {
+		httperr = aphttp.NewError(err, http.StatusBadRequest)
+		return
+	}
+
+	return
+}
+
+func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
+	if Bleve == nil {
+		httperr = aphttp.NewError(errors.New("Can't find bleve index."), http.StatusBadRequest)
+		return
+	}
+
+	query := []bleve.Query{}
+	if len(r.Form["start"]) != 1 {
+		httperr = aphttp.NewError(errors.New("start is required"), http.StatusBadRequest)
+		return
+	}
+	start := r.Form["start"][0]
+	var end *string
+	if len(r.Form["end"]) == 1 {
+		end = &r.Form["end"][0]
+	}
+	queryDate := bleve.NewDateRangeQuery(&start, end)
+	queryDate.SetField("logDate")
+	query = append(query, queryDate)
+	account := c.accountID(r)
+	minAccount, maxAccount := float64(account), float64(account+1)
+	queryAccount := bleve.NewNumericRangeQuery(&minAccount, &maxAccount)
+	queryAccount.SetField("account")
+	query = append(query, queryAccount)
+	if len(r.Form["api"]) == 1 {
+		api, _ := strconv.Atoi(r.Form["api"][0])
+		minAPI, maxAPI := float64(api), float64(api+1)
+		queryAPI := bleve.NewNumericRangeQuery(&minAPI, &maxAPI)
+		queryAPI.SetField("api")
+		query = append(query, queryAPI)
+	}
+	if len(r.Form["endpoint"]) == 1 {
+		endpoint, _ := strconv.Atoi(r.Form["endpoint"][0])
+		minEndpoint, maxEndpoint := float64(endpoint), float64(endpoint+1)
+		queryEndpoint := bleve.NewNumericRangeQuery(&minEndpoint, &maxEndpoint)
+		queryEndpoint.SetField("endpoint")
+		query = append(query, queryEndpoint)
+	}
+	if len(r.Form["query"]) == 1 {
+		queryQuery := bleve.NewMatchQuery(r.Form["query"][0])
+		query = append(query, queryQuery)
+	}
+	search := bleve.NewSearchRequest(bleve.NewConjunctionQuery(query))
+	search.Size = 100
+	search.Fields = []string{"text"}
+	searchResults, err := Bleve.Search(search)
+	if err != nil {
+		httperr = aphttp.NewError(err, http.StatusBadRequest)
+		return
+	}
+	results = make([]LogSearchResult, len(searchResults.Hits))
+	for i, hit := range searchResults.Hits {
+		results[i].Text = hit.Fields["text"].(string)
+	}
+
+	return
+}
+
+func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
+	var results []LogSearchResult
+	r.ParseForm()
+	if c.Domain == "" {
+		var httperr aphttp.Error
+		results, httperr = c.BleveSearch(r)
+		if httperr != nil {
+			return httperr
+		}
+	} else {
+		var httperr aphttp.Error
+		results, httperr = c.ElasticSearch(r)
+		if httperr != nil {
+			return httperr
+		}
+	}
+
+	result := struct {
+		Results []LogSearchResult `json:"results"`
+	}{
+		results,
+	}
+	body, err := json.MarshalIndent(&result, "", "    ")
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(body)
+	return nil
 }
