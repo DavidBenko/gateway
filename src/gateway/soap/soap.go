@@ -3,7 +3,9 @@ package soap
 import (
 	"fmt"
 	"gateway/config"
+	aperrors "gateway/errors"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 	"regexp"
@@ -21,22 +23,36 @@ var fullWsimportCommandPath = wsimport
 
 var javaAvailable = false
 var wsimportAvailable = false
+var soapAvailable = false
 
 var javaVersionRegex = regexp.MustCompile("^java version \"1\\.(\\d+)\\..+\"")
+
+var jvmCmd *exec.Cmd
 
 // Available indicates whether or not the dependencies are met so that SOAP
 // remote endpoints may be available
 func Available() bool {
-	return javaAvailable && wsimportAvailable
+	return javaAvailable && wsimportAvailable && soapAvailable
 }
 
 // Configure initializes the soap package
 func Configure(soap config.Soap) error {
 	jdkHome = soap.JdkPath
 
+	var err error
 	if jdkHome != "" {
 		fullJavaCommandPath = path.Join(path.Clean(jdkHome), bin, java)
 		fullWsimportCommandPath = path.Join(path.Clean(jdkHome), bin, wsimport)
+	}
+
+	// ensure that we have valid full paths to each executable
+	fullJavaCommandPath, err = exec.LookPath(fullJavaCommandPath)
+	if err != nil {
+		return fmt.Errorf("Received error attempting to execute LookPath for java")
+	}
+	fullWsimportCommandPath, err = exec.LookPath(fullWsimportCommandPath)
+	if err != nil {
+		return fmt.Errorf("Received error attempting to execute LookPath for wsimport")
 	}
 
 	cmd := exec.Command(fullJavaCommandPath, "-version")
@@ -61,9 +77,14 @@ func Configure(soap config.Soap) error {
 
 	wsimportAvailable = true
 
-	// TODO launch the JVM
+	jarFile, err := inflateSoapClient()
+	if err != nil {
+		return err
+	}
 
-	return nil
+	soapAvailable = true
+
+	return launchJvm(soap, jarFile)
 }
 
 // Wsimport runs the java utility 'wsimport' if it is available on the local system
@@ -90,4 +111,50 @@ func EnsureJarPath() (string, error) {
 	dir := path.Clean(path.Join(".", "tmp", "jaxws"))
 	err := os.MkdirAll(dir, dirPerm)
 	return dir, err
+}
+
+func inflateSoapClient() (string, error) {
+	jarBytes, err := Asset("soapclient-all.jar")
+
+	if err != nil {
+		log.Printf("%s Could not find embedded soapclient", config.System)
+		return "", err
+	}
+
+	jarPath, err := EnsureJarPath()
+	if err != nil {
+		return "", aperrors.NewWrapped("[soap.go] Unable to ensure jar path!", err)
+	}
+
+	// Write the soapclient jar out to the filesystem
+	jarDestFilename := path.Join(jarPath, "soapclient.jar")
+	file, err := os.Create(jarDestFilename)
+	if err != nil {
+		return "", aperrors.NewWrapped("[soap.go] Unable to open file to write soapclient.jar", err)
+	}
+	defer file.Close()
+
+	_, err = file.Write(jarBytes)
+	if err != nil {
+		return "", aperrors.NewWrapped("[soap.go] Error occurred while writing soapclient.jar", err)
+	}
+
+	return jarDestFilename, nil
+}
+
+func launchJvm(soap config.Soap, clientJarFile string) error {
+	if jvmCmd != nil {
+		return fmt.Errorf("Unable to start JVM -- JVM may already be running?")
+	}
+
+	cmd := exec.Command(fullJavaCommandPath, "-cp", clientJarFile, "com.anypresence.wsinvoker.Main")
+	err := cmd.Start()
+
+	if err != nil {
+		return aperrors.NewWrapped("[soap.go] Error creating command for running soap client", err)
+	}
+
+	jvmCmd = cmd
+
+	return nil
 }
