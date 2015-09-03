@@ -82,3 +82,12 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 
 	return nil
 }
+
+// EnsureJarPath makes certain that the directory in which jar files are stored exists
+func EnsureJarPath() (string, error) {
+	dirPerm := os.FileMode(os.ModeDir | 0700)
+
+	dir := path.Clean(path.Join(".", "tmp", "jaxws"))
+	err := os.MkdirAll(dir, dirPerm)
+	return dir, err
+}

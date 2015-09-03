@@ -79,7 +79,7 @@ func writeToJarFile(bytes []byte, filename string) error {
 
 func DeleteJarFile(soapRemoteEndpointID int64) error {
 	log.Printf("Received a request to delete jar file for soapRemoteEndpointID %d", soapRemoteEndpointID)
-	jarDir, err := ensureJarPath()
+	jarDir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func DeleteJarFile(soapRemoteEndpointID int64) error {
 }
 
 func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
-	jarDir, err := ensureJarPath()
+	jarDir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
 	}
@@ -126,14 +126,6 @@ func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 	}
 
 	return nil
-}
-
-func ensureJarPath() (string, error) {
-	dirPerm := os.FileMode(os.ModeDir | 0700)
-
-	dir := path.Clean(path.Join(".", "tmp", "jaxws"))
-	err := os.MkdirAll(dir, dirPerm)
-	return dir, err
 }
 
 // StartSoapRemoteEndpointUpdateListener registers a listener for updates from
@@ -304,7 +296,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 	log.Printf("%s Starting wsdl ingestion", "[debug]")
 
-	dir, err := ensureJarPath()
+	dir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
 	}
