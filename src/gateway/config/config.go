@@ -34,7 +34,9 @@ type Database struct {
 
 // Soap specifies configuration options pertaining to remote SOAP endpoints
 type Soap struct {
-	JdkPath string `flag:"soap-jdk-path" default:""`
+	JdkPath        string `flag:"soap-jdk-path"    default:""`
+	SoapClientHost string `flag:"soap-client-host" default:"localhost"`
+	SoapClientPort int64  `flag:"soap-client-port" default:"19083"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

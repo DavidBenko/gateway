@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gateway/config"
+	aperrors "gateway/errors"
 	"gateway/model"
 	"gateway/soap"
 	"log"
@@ -21,6 +23,8 @@ type SoapRequest struct {
 	URL                     string                   `json:"url"`
 	JarURL                  string                   `json:"jarUrl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
+
+	soapConf *config.Soap
 }
 
 // WssePasswordCredentials represents credentials for a SOAP request as specified
@@ -32,11 +36,14 @@ type WssePasswordCredentials struct {
 
 // SoapResponse encapsulates a response from a SoapRequest
 type SoapResponse struct {
+	Body *json.RawMessage `json:"body"`
 }
 
 // NewSoapRequest constructs a new SoapRequest
-func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf *config.Soap) (Request, error) {
 	request := new(SoapRequest)
+
+	request.soapConf = soapConf
 
 	if err := json.Unmarshal(*data, request); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
@@ -100,7 +107,7 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 			passwordStr := strings.Replace(soapRequest.WssePasswordCredentials.Password, "", "*", len(soapRequest.WssePasswordCredentials.Password))
 			buffer.WriteString(fmt.Sprintf("\nWssePasswordCredentials:\n  Username:  %s\n  Password:  %s", soapRequest.WssePasswordCredentials.Username, passwordStr))
 		}
-		buffer.WriteString(fmt.Sprintf("\nParams: %v", soapRequest.Params))
+		buffer.WriteString(fmt.Sprintf("\nParams: %v\n", soapRequest.Params))
 	} else {
 		buffer.WriteString(fmt.Sprintf("%s, %s, %s, %s, %s", soapRequest.ServiceName, soapRequest.EndpointName, soapRequest.OperationName, soapRequest.ActionName, soapRequest.URL))
 	}
@@ -109,49 +116,65 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
-	// TODO - placeholder for SOAP
-
-	bytes, err := json.Marshal(&soapRequest)
+	requestBytes, err := json.Marshal(&soapRequest)
 	if err != nil {
-		// TODO handle
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Unmarshaling request data", err))
 	}
 
-	// TODO - make port and host configurable ...
-	conn, err := net.Dial("tcp", "localhost:11111")
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", soapRequest.soapConf.SoapClientHost, soapRequest.soapConf.SoapClientPort))
 	if err != nil {
-		// TODO handle error
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Connecting to soapclient", err))
 	}
-	fmt.Fprintf(conn, "%s\n\n", string(bytes))
 
-	var buf = make([]byte, 1024)
+	defer conn.Close()
+
+	message := fmt.Sprintf("%s\n\n", string(requestBytes))
+	_, err = conn.Write([]byte(message))
+
+	if err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Sending data to soapclient", err))
+	}
+
+	buf := bytes.NewBuffer([]byte{})
 	for {
-		readlen, err := conn.Read(buf)
+
+		var responseBytes = make([]byte, 1024)
+		readlen, err := conn.Read(responseBytes)
 		if err != nil {
 			log.Printf("Error when reading from socket: %s", err)
-			// TODO Handle
+			return NewErrorResponse(aperrors.NewWrapped("[soap] Reading data from soapclient", err))
 		}
 		if readlen == 0 {
-			log.Println("Connection closed by remote host")
-			// TODO handle
 			break
 		}
 
-		log.Printf("Server says '%s'", buf)
+		buf.Write(responseBytes)
 	}
 
-	return &SoapResponse{}
+	rawMessage := new(json.RawMessage)
+	decoder := json.NewDecoder(bytes.NewReader(buf.Bytes()))
+	err = decoder.Decode(rawMessage)
+	if err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Marshaling response", err))
+	}
+
+	return &SoapResponse{Body: rawMessage}
 }
 
 // JSON marshals the SoapResponse to JSON
 func (soapResponse *SoapResponse) JSON() ([]byte, error) {
-	return json.Marshal(&soapResponse)
+	log.Printf("Attempting to marshal soap response")
+	bytes, err := json.Marshal(&soapResponse)
+	if err != nil {
+		log.Printf("FOUND AN ERROR %s", err)
+	}
+	return bytes, err
 }
 
 // Log returns a string containing the deatils to be logged pertaining to the SoapResponse
 func (soapResponse *SoapResponse) Log() string {
 	var buffer bytes.Buffer
-
-	// TODO - placeholder for logging reponse
-
+	bytes := []byte(*soapResponse.Body)
+	buffer.Write(bytes)
 	return buffer.String()
 }

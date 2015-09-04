@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 )
@@ -121,8 +122,12 @@ func JarURLForRemoteEndpointID(remoteEndpointID int64) (string, error) {
 		return "", err
 	}
 
-	fullFilePath := path.Join(jarPath, fmt.Sprintf("%d.jar", remoteEndpointID))
-	return fmt.Sprintf("file:///%s", fullFilePath), nil
+	filePath := path.Join(jarPath, fmt.Sprintf("%d.jar", remoteEndpointID))
+	fullFilePath, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("file://%s", fullFilePath), nil
 }
 
 func inflateSoapClient() (string, error) {
