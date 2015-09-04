@@ -122,7 +122,8 @@ func (soapRequest *SoapRequest) Perform() Response {
 		return NewErrorResponse(aperrors.NewWrapped("[soap] Unmarshaling request data", err))
 	}
 
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", soapRequest.soapConf.SoapClientHost, soapRequest.soapConf.SoapClientPort))
+	hostPort := fmt.Sprintf("%s:%d", soapRequest.soapConf.SoapClientHost, soapRequest.soapConf.SoapClientPort)
+	conn, err := net.Dial("tcp", hostPort)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[soap] Connecting to soapclient", err))
 	}
