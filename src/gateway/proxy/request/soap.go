@@ -8,6 +8,7 @@ import (
 	aperrors "gateway/errors"
 	"gateway/model"
 	"gateway/soap"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -136,13 +137,17 @@ func (soapRequest *SoapRequest) Perform() Response {
 	}
 
 	buf := bytes.NewBuffer([]byte{})
-	for {
+	done := false
+	for !done {
 
 		var responseBytes = make([]byte, 1024)
 		readlen, err := conn.Read(responseBytes)
 		if err != nil {
-			log.Printf("Error when reading from socket: %s", err)
-			return NewErrorResponse(aperrors.NewWrapped("[soap] Reading data from soapclient", err))
+			if err != io.EOF {
+				log.Printf("Error when reading from socket: %s", err)
+				return NewErrorResponse(aperrors.NewWrapped("[soap] Reading data from soapclient", err))
+			}
+			done = true
 		}
 		if readlen == 0 {
 			break
