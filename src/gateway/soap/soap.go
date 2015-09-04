@@ -165,6 +165,8 @@ func launchJvm(soap config.Soap, clientJarFile string) error {
 	}
 
 	cmd := exec.Command(fullJavaCommandPath, "-cp", clientJarFile, "com.anypresence.wsinvoker.Main")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 
 	if err != nil {
