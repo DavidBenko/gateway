@@ -11,7 +11,9 @@ var usageStrings = map[string]string{
 	"db-conn-string":     "The connection string for your database",
 	"db-max-connections": "The maximum number of connections to use",
 
-	"soap-jdk-path": "The home directory of your JDK 1.8 installation",
+	"soap-jdk-path":    "The home directory of your JDK 1.8 installation",
+	"soap-client-host": "The hostname for the soap client.  Defaults to localhost.",
+	"soap-client-port": "The port number to listen on for the soap client.  Defaults to 19083",
 
 	"proxy-host": "The hostname of the proxy server",
 	"proxy-port": "The port of the proxy server",
