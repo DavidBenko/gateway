@@ -164,7 +164,7 @@ func launchJvm(soap config.Soap, clientJarFile string) error {
 		return fmt.Errorf("Unable to start JVM -- JVM may already be running?")
 	}
 
-	cmd := exec.Command(fullJavaCommandPath, "-cp", clientJarFile, "com.anypresence.wsinvoker.Main")
+	cmd := exec.Command(fullJavaCommandPath, "-cp", clientJarFile, "com.anypresence.wsinvoker.Main", soap.SoapClientHost, fmt.Sprintf("%d", soap.SoapClientPort))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
