@@ -24,9 +24,31 @@ func (c *RemoteEndpointsController) BeforeInsert(remoteEndpoint *model.RemoteEnd
 	}
 
 	remoteEndpoint.Soap = &soap
-	remoteEndpoint.Data = types.JsonText(json.RawMessage([]byte("null")))
+
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(remoteEndpoint.Data, "wsdl"); err != nil {
+		return err
+	}
+	remoteEndpoint.Data = newVal
 
 	return nil
+}
+
+func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText, error) {
+	dataAsByteArray := []byte(json.RawMessage(jsonText))
+	targetMap := make(map[string]interface{})
+	err := json.Unmarshal(dataAsByteArray, &targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to decode data: %v", err)
+	}
+
+	delete(targetMap, fieldName)
+	result, err := json.Marshal(targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to encode data: %v", err)
+	}
+
+	return types.JsonText(json.RawMessage(result)), nil
 }
 
 // BeforeUpdate does some work before updataing a RemoteEndpoint
@@ -54,7 +76,11 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 	}
 
 	remoteEndpoint.Soap = soapRemoteEndpoint
-	remoteEndpoint.Data = types.JsonText(json.RawMessage([]byte("null")))
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(remoteEndpoint.Data, "wsdl"); err != nil {
+		return err
+	}
+	remoteEndpoint.Data = newVal
 
 	soapRemoteEndpoint.Wsdl = soap.Wsdl
 	soapRemoteEndpoint.GeneratedJarThumbprint = ""
