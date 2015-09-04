@@ -25,7 +25,7 @@ type SoapRequest struct {
 	JarURL                  string                   `json:"jarUrl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
 
-	soapConf *config.Soap
+	soapConf config.Soap
 }
 
 // WssePasswordCredentials represents credentials for a SOAP request as specified
@@ -41,7 +41,7 @@ type SoapResponse struct {
 }
 
 // NewSoapRequest constructs a new SoapRequest
-func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf *config.Soap) (Request, error) {
+func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf config.Soap) (Request, error) {
 	request := new(SoapRequest)
 
 	request.soapConf = soapConf
