@@ -26,9 +26,9 @@ func closeFunc(c io.Closer) func() error {
 	}
 }
 
-func closeCloser(c io.Closer) func(c io.Closer) error {
-	return func(c io.Closer) error {
-		return c.Close()
+func closeCloser(c io.Closer) func(io.Closer) error {
+	return func(cl io.Closer) error {
+		return cl.Close()
 	}
 }
 
