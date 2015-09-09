@@ -112,10 +112,10 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[act %d\\].*", act)))
 	}
 	request.ParseForm()
-	if api, valid := request.Form["api"]; valid {
+	if api, valid := request.Form["api_id"]; valid {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[api %v\\].*", api)))
 	}
-	if end, valid := request.Form["end"]; valid {
+	if end, valid := request.Form["proxy_endpoint_id"]; valid {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[end %v\\].*", end)))
 	}
 	buffer := &bytes.Buffer{}
@@ -196,22 +196,21 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		return tt.Format("2006/01/02 15:04:05") + ".000000"
 	}
 
-	if len(r.Form["start"]) != 1 {
-		httperr = aphttp.NewError(errors.New("start is required"), http.StatusBadRequest)
-		return
+	if len(r.Form["start"]) == 1 || len(r.Form["end"]) == 1 {
+		queryLogDate := map[string]interface{}{}
+		if len(r.Form["start"]) == 1 {
+			queryLogDate["gte"] = convert(r.Form["start"][0])
+		}
+		if len(r.Form["end"]) == 1 {
+			queryLogDate["lte"] = convert(r.Form["end"][0])
+		}
+		queryLogDate = map[string]interface{}{
+			"range": map[string]interface{}{
+				"logDate": queryLogDate,
+			},
+		}
+		queryMust = append(queryMust, queryLogDate)
 	}
-	queryLogDate := map[string]interface{}{
-		"gte": convert(r.Form["start"][0]),
-	}
-	if len(r.Form["end"]) == 1 {
-		queryLogDate["lte"] = convert(r.Form["end"][0])
-	}
-	queryLogDate = map[string]interface{}{
-		"range": map[string]interface{}{
-			"logDate": queryLogDate,
-		},
-	}
-	queryMust = append(queryMust, queryLogDate)
 	account := c.accountID(r)
 	queryAccount := map[string]interface{}{
 		"term": map[string]interface{}{
@@ -219,8 +218,8 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		},
 	}
 	queryMust = append(queryMust, queryAccount)
-	if len(r.Form["api"]) == 1 {
-		api, _ := strconv.Atoi(r.Form["api"][0])
+	if len(r.Form["api_id"]) == 1 {
+		api, _ := strconv.Atoi(r.Form["api_id"][0])
 		queryAPI := map[string]interface{}{
 			"term": map[string]interface{}{
 				"api": float64(api),
@@ -228,8 +227,8 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		}
 		queryMust = append(queryMust, queryAPI)
 	}
-	if len(r.Form["endpoint"]) == 1 {
-		endpoint, _ := strconv.Atoi(r.Form["endpoint"][0])
+	if len(r.Form["proxy_endpoint_id"]) == 1 {
+		endpoint, _ := strconv.Atoi(r.Form["proxy_endpoint_id"][0])
 		queryEndpoint := map[string]interface{}{
 			"term": map[string]interface{}{
 				"endpoint": float64(endpoint),
@@ -279,32 +278,33 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 	}
 
 	query := []bleve.Query{}
-	if len(r.Form["start"]) != 1 {
-		httperr = aphttp.NewError(errors.New("start is required"), http.StatusBadRequest)
-		return
+	if len(r.Form["start"]) == 1 || len(r.Form["end"]) == 1 {
+		var start *string
+		if len(r.Form["start"]) == 1 {
+			start = &r.Form["start"][0]
+		}
+		var end *string
+		if len(r.Form["end"]) == 1 {
+			end = &r.Form["end"][0]
+		}
+		queryDate := bleve.NewDateRangeQuery(start, end)
+		queryDate.SetField("logDate")
+		query = append(query, queryDate)
 	}
-	start := r.Form["start"][0]
-	var end *string
-	if len(r.Form["end"]) == 1 {
-		end = &r.Form["end"][0]
-	}
-	queryDate := bleve.NewDateRangeQuery(&start, end)
-	queryDate.SetField("logDate")
-	query = append(query, queryDate)
 	account := c.accountID(r)
 	minAccount, maxAccount := float64(account), float64(account+1)
 	queryAccount := bleve.NewNumericRangeQuery(&minAccount, &maxAccount)
 	queryAccount.SetField("account")
 	query = append(query, queryAccount)
-	if len(r.Form["api"]) == 1 {
-		api, _ := strconv.Atoi(r.Form["api"][0])
+	if len(r.Form["api_id"]) == 1 {
+		api, _ := strconv.Atoi(r.Form["api_id"][0])
 		minAPI, maxAPI := float64(api), float64(api+1)
 		queryAPI := bleve.NewNumericRangeQuery(&minAPI, &maxAPI)
 		queryAPI.SetField("api")
 		query = append(query, queryAPI)
 	}
-	if len(r.Form["endpoint"]) == 1 {
-		endpoint, _ := strconv.Atoi(r.Form["endpoint"][0])
+	if len(r.Form["proxy_endpoint_id"]) == 1 {
+		endpoint, _ := strconv.Atoi(r.Form["proxy_endpoint_id"][0])
 		minEndpoint, maxEndpoint := float64(endpoint), float64(endpoint+1)
 		queryEndpoint := bleve.NewNumericRangeQuery(&minEndpoint, &maxEndpoint)
 		queryEndpoint.SetField("endpoint")
@@ -347,10 +347,14 @@ func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db 
 		}
 	}
 
+	logs := ""
+	for _, result := range results {
+		logs += result.Text
+	}
 	result := struct {
-		Results []LogSearchResult `json:"results"`
+		Logs string `json:"logs"`
 	}{
-		results,
+		logs,
 	}
 	body, err := json.MarshalIndent(&result, "", "    ")
 	if err != nil {
