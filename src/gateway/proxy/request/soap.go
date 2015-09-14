@@ -21,7 +21,7 @@ type SoapRequest struct {
 	OperationName           string                   `json:"operationName,omitempty"`
 	ActionName              string                   `json:"actionName,omitempty"`
 	Params                  *json.RawMessage         `json:"params"`
-	URL                     string                   `json:"url"`
+	URL                     string                   `json:"url,omitempty"`
 	JarURL                  string                   `json:"jarUrl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
 
