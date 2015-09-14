@@ -50,7 +50,7 @@ func main() {
 	}
 
 	// Configure SOAP
-	err = soap.Configure(conf.Soap)
+	err = soap.Configure(conf.Soap, conf.DevMode())
 	if err != nil {
 		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
 	}

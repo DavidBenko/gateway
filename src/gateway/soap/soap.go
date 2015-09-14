@@ -17,6 +17,8 @@ const bin = "bin"
 const wsimport = "wsimport"
 const java = "java"
 const minSupportedJdkVersion = 8 // as in Java 1.8
+const classpathOption = "-cp"
+const soapMainClass = "com.anypresence.wsclient.Main"
 
 var jdkHome string
 var fullJavaCommandPath = java
@@ -37,7 +39,7 @@ func Available() bool {
 }
 
 // Configure initializes the soap package
-func Configure(soap config.Soap) error {
+func Configure(soap config.Soap, devMode bool) error {
 	jdkHome = soap.JdkPath
 
 	var err error
@@ -85,7 +87,7 @@ func Configure(soap config.Soap) error {
 
 	soapAvailable = true
 
-	return launchJvm(soap, jarFile)
+	return launchJvm(soap, jarFile, devMode)
 }
 
 // Wsimport runs the java utility 'wsimport' if it is available on the local system
@@ -159,12 +161,19 @@ func inflateSoapClient() (string, error) {
 	return jarDestFilename, nil
 }
 
-func launchJvm(soap config.Soap, clientJarFile string) error {
+func launchJvm(soap config.Soap, clientJarFile string, devMode bool) error {
 	if jvmCmd != nil {
 		return fmt.Errorf("Unable to start JVM -- JVM may already be running?")
 	}
 
-	cmd := exec.Command(fullJavaCommandPath, "-cp", clientJarFile, "com.anypresence.wsinvoker.Main", soap.SoapClientHost, fmt.Sprintf("%d", soap.SoapClientPort))
+	javaCommandArgs := []string{}
+	if devMode {
+		javaCommandArgs = append(javaCommandArgs, "-DDEBUG=true")
+	}
+
+	javaCommandArgs = append(javaCommandArgs, classpathOption, clientJarFile, soapMainClass, soap.SoapClientHost, fmt.Sprintf("%d", soap.SoapClientPort), fmt.Sprintf("%d", soap.ThreadPoolSize))
+
+	cmd := exec.Command(fullJavaCommandPath, javaCommandArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
