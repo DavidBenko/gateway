@@ -43,8 +43,14 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 
 	base := BaseController{conf: conf, accountID: accountID}
 
-	RouteLogging("/apis/logs", authAdmin)
-	RouteLogSearch(&LogSearchController{configuration.Elastic, base}, "/apis/logs/search", authAdmin, db, conf)
+	RouteLogging("/logs/socket", authAdmin)
+	RouteLogging("/apis/{apiID}/logs/socket", authAdmin)
+	RouteLogging("/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
+
+	search := &LogSearchController{configuration.Elastic, base}
+	RouteLogSearch(search, "/logs", authAdmin, db, conf)
+	RouteLogSearch(search, "/apis/{apiID}/logs", authAdmin, db, conf)
+	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
 
 	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
 

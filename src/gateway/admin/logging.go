@@ -111,12 +111,15 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 	if act >= 0 {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[act %d\\].*", act)))
 	}
-	request.ParseForm()
-	if api, valid := request.Form["api_id"]; valid {
+	if api := apiIDFromPath(request); api != -1 {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[api %v\\].*", api)))
 	}
-	if end, valid := request.Form["proxy_endpoint_id"]; valid {
+	if end := endpointIDFromPath(request); end != -1 {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[end %v\\].*", end)))
+	}
+	request.ParseForm()
+	if query, valid := request.Form["query"]; valid {
+		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*%v.*", regexp.QuoteMeta(query[0]))))
 	}
 	buffer := &bytes.Buffer{}
 	return func(b byte) bool {
@@ -218,8 +221,7 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		},
 	}
 	queryMust = append(queryMust, queryAccount)
-	if len(r.Form["api_id"]) == 1 {
-		api, _ := strconv.Atoi(r.Form["api_id"][0])
+	if api := apiIDFromPath(r); api != -1 {
 		queryAPI := map[string]interface{}{
 			"term": map[string]interface{}{
 				"api": float64(api),
@@ -227,8 +229,7 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		}
 		queryMust = append(queryMust, queryAPI)
 	}
-	if len(r.Form["proxy_endpoint_id"]) == 1 {
-		endpoint, _ := strconv.Atoi(r.Form["proxy_endpoint_id"][0])
+	if endpoint := endpointIDFromPath(r); endpoint != -1 {
 		queryEndpoint := map[string]interface{}{
 			"term": map[string]interface{}{
 				"endpoint": float64(endpoint),
@@ -244,9 +245,15 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		}
 		queryMust = append(queryMust, queryQuery)
 	}
-
+	size := 100
+	if len(r.Form["limit"]) == 1 {
+		sz, err := strconv.Atoi(r.Form["limit"][0])
+		if err != nil {
+			size = sz
+		}
+	}
 	query := map[string]interface{}{
-		"size": float64(100),
+		"size": float64(size),
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": queryMust,
@@ -296,15 +303,13 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 	queryAccount := bleve.NewNumericRangeQuery(&minAccount, &maxAccount)
 	queryAccount.SetField("account")
 	query = append(query, queryAccount)
-	if len(r.Form["api_id"]) == 1 {
-		api, _ := strconv.Atoi(r.Form["api_id"][0])
+	if api := apiIDFromPath(r); api != -1 {
 		minAPI, maxAPI := float64(api), float64(api+1)
 		queryAPI := bleve.NewNumericRangeQuery(&minAPI, &maxAPI)
 		queryAPI.SetField("api")
 		query = append(query, queryAPI)
 	}
-	if len(r.Form["proxy_endpoint_id"]) == 1 {
-		endpoint, _ := strconv.Atoi(r.Form["proxy_endpoint_id"][0])
+	if endpoint := endpointIDFromPath(r); endpoint != -1 {
 		minEndpoint, maxEndpoint := float64(endpoint), float64(endpoint+1)
 		queryEndpoint := bleve.NewNumericRangeQuery(&minEndpoint, &maxEndpoint)
 		queryEndpoint.SetField("endpoint")
@@ -314,8 +319,16 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 		queryQuery := bleve.NewMatchQuery(r.Form["query"][0])
 		query = append(query, queryQuery)
 	}
+	size := 100
+	if len(r.Form["limit"]) == 1 {
+		sz, err := strconv.Atoi(r.Form["limit"][0])
+		if err != nil {
+			size = sz
+		}
+	}
+
 	search := bleve.NewSearchRequest(bleve.NewConjunctionQuery(query))
-	search.Size = 100
+	search.Size = size
 	search.Fields = []string{"text"}
 	searchResults, err := Bleve.Search(search)
 	if err != nil {
