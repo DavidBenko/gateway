@@ -38,6 +38,7 @@ type Soap struct {
 	SoapClientHost string `flag:"soap-client-host" default:"localhost"`
 	SoapClientPort int64  `flag:"soap-client-port" default:"19083"`
 	ThreadPoolSize int64  `flag:"soap-thread-pool-size" default:"0"`
+	JavaOpts       string `flag:"soap-java-opts" default:""`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

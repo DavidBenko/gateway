@@ -15,6 +15,7 @@ var usageStrings = map[string]string{
 	"soap-client-host":      "The hostname for the soap client.  Defaults to localhost.",
 	"soap-client-port":      "The port number to listen on for the soap client.  Defaults to 19083",
 	"soap-thread-pool-size": "The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request).  Defaults to 0.",
+	"soap-java-opts":        "The JVM options to pass to the JVM on startup that will be used to invoke SOAP services",
 
 	"proxy-host": "The hostname of the proxy server",
 	"proxy-port": "The port of the proxy server",

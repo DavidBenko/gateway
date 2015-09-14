@@ -20,6 +20,8 @@ const minSupportedJdkVersion = 8 // as in Java 1.8
 const classpathOption = "-cp"
 const soapMainClass = "com.anypresence.wsclient.Main"
 
+var splitter = regexp.MustCompile(`\s+`)
+
 var jdkHome string
 var fullJavaCommandPath = java
 var fullWsimportCommandPath = wsimport
@@ -167,6 +169,9 @@ func launchJvm(soap config.Soap, clientJarFile string, devMode bool) error {
 	}
 
 	javaCommandArgs := []string{}
+	if soap.JavaOpts != "" {
+		javaCommandArgs = append(javaCommandArgs, splitter.Split(soap.JavaOpts, -1)...)
+	}
 	if devMode {
 		javaCommandArgs = append(javaCommandArgs, "-DDEBUG=true")
 	}
