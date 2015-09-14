@@ -64,7 +64,7 @@ func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", apiID, apsql.Delete)
+	return tx.Notify("libraries", accountID, apiID, apsql.Delete)
 }
 
 // Insert inserts the library into the database as a new row.
@@ -78,7 +78,7 @@ func (l *Library) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.APIID, apsql.Insert)
+	return tx.Notify("libraries", l.AccountID, l.APIID, apsql.Insert)
 }
 
 // Update updates the library in the databasl.
@@ -92,5 +92,5 @@ func (l *Library) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.APIID, apsql.Update)
+	return tx.Notify("libraries", l.AccountID, l.APIID, apsql.Update)
 }
