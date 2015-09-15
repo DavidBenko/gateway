@@ -76,10 +76,10 @@ func Subscribe(path string, bindings ...SubBinding) (*SubChannel, error) {
 	closeChan := make(chan struct{})
 	sCloser := &subCloser{closeChan, s}
 	sChan := &SubChannel{sCloser, closeChan, s.Channel()}
-	go waitFunc(closeChan, closeCloser(s))
+	go waitFunc(closeChan, closeFunc(s))
 	go waitFunc(closeChan, teardownSubChan(sChan))
-	runtime.SetFinalizer(sCloser, sCloser.Close())
-	runtime.SetFinalizer(sChan, sChan.Close())
+	runtime.SetFinalizer(sCloser, closeCloser(sCloser))
+	runtime.SetFinalizer(sChan, closeCloser(sChan))
 
 	err = s.Connect(path)
 	if err != nil {

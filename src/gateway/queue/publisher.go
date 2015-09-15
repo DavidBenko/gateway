@@ -82,10 +82,10 @@ func Publish(path string, bindings ...PubBinding) (*PubChannel, error) {
 	closeChan := make(chan struct{})
 	pCloser := &pubCloser{closeChan, p}
 	pChan := &PubChannel{pCloser, closeChan, p.Channel()}
-	go waitFunc(closeChan, closeCloser(p))
+	go waitFunc(closeChan, closeFunc(p))
 	go waitFunc(closeChan, teardownPubChan(pChan))
-	runtime.SetFinalizer(pCloser, pCloser.Close())
-	runtime.SetFinalizer(pChan, pChan.Close())
+	runtime.SetFinalizer(pCloser, closeCloser(pCloser))
+	runtime.SetFinalizer(pChan, closeCloser(pChan))
 
 	err = pCloser.Bind(path)
 	if err != nil {
