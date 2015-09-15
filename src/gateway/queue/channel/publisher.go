@@ -58,9 +58,17 @@ func publisher(cmdChan chan command, comm chan []byte) {
 				}
 			}
 		case message := <-comm:
-			for _, subscriber := range subscribers {
+			for s, subscriber := range subscribers {
 				if subscriber != nil {
-					subscriber <- message
+					send := func() {
+						defer func() {
+							if r := recover(); r != nil {
+								subscribers[s] = nil
+							}
+						}()
+						subscriber <- message
+					}
+					send()
 				}
 			}
 		}
