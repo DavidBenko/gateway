@@ -105,7 +105,7 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 	if devMode {
 		buffer.WriteString(fmt.Sprintf("ServiceName: %s\nEndpointName: %s\nOperationName: %s\nActionName: %s\nURL: %s", soapRequest.ServiceName, soapRequest.EndpointName, soapRequest.OperationName, soapRequest.ActionName, soapRequest.URL))
 		if soapRequest.WssePasswordCredentials != nil {
-			passwordStr := strings.Replace(soapRequest.WssePasswordCredentials.Password, "", "*", len(soapRequest.WssePasswordCredentials.Password))
+			passwordStr := strings.Repeat("*", len(soapRequest.WssePasswordCredentials.Password))
 			buffer.WriteString(fmt.Sprintf("\nWssePasswordCredentials:\n  Username:  %s\n  Password:  %s", soapRequest.WssePasswordCredentials.Username, passwordStr))
 		}
 		buffer.WriteString(fmt.Sprintf("\nParams: %v\n", soapRequest.Params))
