@@ -18,12 +18,12 @@ func TestChannel(t *testing.T) {
 				}
 			}()
 
-			send, err := queue.PubChannel(path, Publish())
+			send, err := queue.Publish(path, Publish())
 			if err != nil {
 				t.Fatal(err)
 			}
 			for {
-				send <- []byte("hello world")
+				send.C <- []byte("hello world")
 			}
 		}()
 
@@ -31,12 +31,15 @@ func TestChannel(t *testing.T) {
 		for i := 0; i < 8; i++ {
 			done[i] = make(chan bool, 1)
 			go func(done chan bool) {
-				rec, err := queue.SubChannel(path, Subscribe())
+				rec, err := queue.Subscribe(path, Subscribe())
 				if err != nil {
 					t.Fatal(err)
 				}
-				for i := 0; i < 8; i++ {
-					<-rec
+				i := 0
+				for i < 8 {
+					if _, ok := <-rec.C; ok {
+						i++
+					}
 				}
 				done <- true
 			}(done[i])

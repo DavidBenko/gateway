@@ -17,7 +17,7 @@ func (c *Client) Connect(path string) error {
 	cmd := command{
 		cmd:  COMMAND_SUB,
 		path: path,
-		comm: make(chan []byte, 8),
+		comm: c.comm,
 		err:  make(chan error, 1),
 	}
 	cmdChan <- cmd
@@ -25,8 +25,22 @@ func (c *Client) Connect(path string) error {
 		return err
 	}
 	c.path = path
-	c.comm = cmd.comm
 	return nil
+}
+
+func (c *Client) Close() error {
+	if c.path == "" {
+		return fmt.Errorf("the subscriber isn't connected")
+	}
+
+	cmd := command{
+		cmd:  COMMAND_CLOSE_SUB,
+		path: c.path,
+		comm: c.comm,
+		err:  make(chan error, 1),
+	}
+	cmdChan <- cmd
+	return <-cmd.err
 }
 
 type Subscriber struct {
@@ -37,23 +51,10 @@ func (s *Subscriber) Channel() chan []byte {
 	return s.comm
 }
 
-func (s *Subscriber) Close() error {
-	if s.path == "" {
-		return fmt.Errorf("the subscriber isn't connected")
-	}
-
-	cmd := command{
-		cmd:  COMMAND_CLOSE_SUB,
-		path: s.path,
-		comm: s.comm,
-		err:  make(chan error, 1),
-	}
-	cmdChan <- cmd
-	return <-cmd.err
-}
-
 func Subscribe() queue.SubBinding {
 	return func(s queue.Subscriber) (queue.Subscriber, error) {
-		return &Subscriber{}, nil
+		subscriber := &Subscriber{}
+		subscriber.comm = make(chan []byte, 8)
+		return subscriber, nil
 	}
 }

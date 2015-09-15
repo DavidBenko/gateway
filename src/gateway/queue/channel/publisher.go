@@ -121,17 +121,29 @@ func (s *Server) Bind(path string) error {
 	cmd := command{
 		cmd:  COMMAND_PUB,
 		path: path,
-		comm: make(chan []byte, 8),
+		comm: s.comm,
 		err:  make(chan error, 1),
 	}
 	cmdChan <- cmd
 	if err := <-cmd.err; err != nil {
 		return err
 	}
-
 	s.path = path
-	s.comm = cmd.comm
 	return nil
+}
+
+func (s *Server) Close() error {
+	if s.path == "" {
+		return fmt.Errorf("the publisher isn't bound")
+	}
+
+	cmd := command{
+		cmd:  COMMAND_CLOSE_PUB,
+		path: s.path,
+		err:  make(chan error, 1),
+	}
+	cmdChan <- cmd
+	return <-cmd.err
 }
 
 type Publisher struct {
@@ -142,22 +154,10 @@ func (p *Publisher) Channel() chan []byte {
 	return p.comm
 }
 
-func (p *Publisher) Close() error {
-	if p.path == "" {
-		return fmt.Errorf("the publisher isn't bound")
-	}
-
-	cmd := command{
-		cmd:  COMMAND_CLOSE_PUB,
-		path: p.path,
-		err:  make(chan error, 1),
-	}
-	cmdChan <- cmd
-	return <-cmd.err
-}
-
 func Publish() queue.PubBinding {
 	return func(p queue.Publisher) (queue.Publisher, error) {
-		return &Publisher{}, nil
+		publisher := &Publisher{}
+		publisher.comm = make(chan []byte, 8)
+		return publisher, nil
 	}
 }
