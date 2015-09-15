@@ -162,10 +162,12 @@ func (p *Publisher) Channel() chan []byte {
 	return p.comm
 }
 
+func publish(p queue.Publisher) (queue.Publisher, error) {
+	publisher := &Publisher{}
+	publisher.comm = make(chan []byte, 8)
+	return publisher, nil
+}
+
 func Publish() queue.PubBinding {
-	return func(p queue.Publisher) (queue.Publisher, error) {
-		publisher := &Publisher{}
-		publisher.comm = make(chan []byte, 8)
-		return publisher, nil
-	}
+	return publish
 }
