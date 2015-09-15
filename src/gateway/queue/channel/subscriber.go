@@ -51,12 +51,8 @@ func (s *Subscriber) Channel() chan []byte {
 	return s.comm
 }
 
-func subscribe(s queue.Subscriber) (queue.Subscriber, error) {
+func Subscribe(s queue.Subscriber) (queue.Subscriber, error) {
 	subscriber := &Subscriber{}
 	subscriber.comm = make(chan []byte, 8)
 	return subscriber, nil
-}
-
-func Subscribe() queue.SubBinding {
-	return subscribe
 }

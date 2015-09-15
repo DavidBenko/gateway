@@ -18,7 +18,7 @@ func TestChannel(t *testing.T) {
 				}
 			}()
 
-			send, err := queue.Publish(path, Publish())
+			send, err := queue.Publish(path, Publish)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -31,7 +31,7 @@ func TestChannel(t *testing.T) {
 		for i := 0; i < 8; i++ {
 			done[i] = make(chan bool, 1)
 			go func(done chan bool) {
-				rec, err := queue.Subscribe(path, Subscribe())
+				rec, err := queue.Subscribe(path, Subscribe)
 				if err != nil {
 					t.Fatal(err)
 				}
