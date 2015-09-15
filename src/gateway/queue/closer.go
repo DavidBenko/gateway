@@ -20,8 +20,14 @@ func (p *pubCloser) Close() error {
 	return safeClose(p.c)
 }
 
-func closeCloser(c io.Closer) func() error {
+func closeFunc(c io.Closer) func() error {
 	return func() error {
+		return c.Close()
+	}
+}
+
+func closeCloser(c io.Closer) func(c io.Closer) error {
+	return func(c io.Closer) error {
 		return c.Close()
 	}
 }
