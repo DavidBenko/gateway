@@ -21,7 +21,7 @@ const wsimport = "wsimport"
 const java = "java"
 const minSupportedJdkVersion = 8 // as in Java 1.8
 const classpathOption = "-cp"
-const soapMainClass = "com.anypresence.wsclient.Main"
+const soapMainClass = "com.anypresence.wsclient.Wsclient"
 
 var splitter = regexp.MustCompile(`\s+`)
 
