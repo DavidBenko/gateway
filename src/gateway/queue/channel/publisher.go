@@ -81,7 +81,7 @@ var (
 
 func init() {
 	go func() {
-		publishers := make(map[string]chan command)
+		publishers, waiting := make(map[string]chan command), make(map[string][]command)
 		for cmd := range cmdChan {
 			switch cmd.cmd {
 			case COMMAND_PUB:
@@ -92,14 +92,18 @@ func init() {
 				cmdChan := make(chan command, 8)
 				publishers[cmd.path] = cmdChan
 				go publisher(cmdChan, cmd.comm)
+				for _, cmd := range waiting[cmd.path] {
+					cmdChan <- cmd
+				}
+				delete(waiting, cmd.path)
 				cmd.err <- nil
 			case COMMAND_SUB:
 				if publisher, ok := publishers[cmd.path]; ok {
 					publisher <- cmd
-					cmd.err <- nil
 				} else {
-					cmd.err <- fmt.Errorf("publisher for path '%v' doesn't exist", cmd.path)
+					waiting[cmd.path] = append(waiting[cmd.path], cmd)
 				}
+				cmd.err <- nil
 			case COMMAND_CLOSE_PUB:
 				if publisher, ok := publishers[cmd.path]; ok {
 					publisher <- cmd

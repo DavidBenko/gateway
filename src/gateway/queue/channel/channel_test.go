@@ -35,11 +35,23 @@ func TestChannel(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				defer func() {
+					go func(c <-chan []byte) {
+						for _ = range c {
+							//noop
+						}
+					}(rec.C)
+				}()
+
 				i := 0
-				for i < 8 {
-					if _, ok := <-rec.C; ok {
-						i++
+				for _ = range rec.C {
+					i++
+					if i == 8 {
+						break
 					}
+				}
+				if i != 8 {
+					t.Fatalf("%v didn't get 8 messages", path)
 				}
 				done <- true
 			}(done[i])
@@ -53,7 +65,6 @@ func TestChannel(t *testing.T) {
 		path := fmt.Sprintf("test %v", i)
 		done = append(done, test(path)...)
 	}
-
 	for i, d := range done {
 		t.Logf("done %v\n", i)
 		<-d
