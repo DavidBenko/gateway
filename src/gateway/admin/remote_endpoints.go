@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gateway/config"
+	aperrors "gateway/errors"
 	"gateway/model"
 	apsql "gateway/sql"
 	"log"
@@ -53,9 +54,17 @@ func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText,
 
 // BeforeUpdate does some work before updataing a RemoteEndpoint
 func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
-	if remoteEndpoint.Status.String == model.RemoteEndpointStatusPending {
-		return fmt.Errorf("Unable to update remote endpoint -- status is currently %s", model.RemoteEndpointStatusPending)
+	existingRemoteEndpoint, err := model.FindRemoteEndpointForAPIIDAndAccountID(tx.DB, remoteEndpoint.ID, remoteEndpoint.APIID, remoteEndpoint.AccountID)
+	if err != nil {
+		return aperrors.NewWrapped("[remote_endpoints.go BeforeUpdate] Unable to fetch existing remote endpoint with id %d, api ID %d, account ID %d", err)
 	}
+
+	if existingRemoteEndpoint.Status.String == model.RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to update remote endpoint %d -- status is currently %s", remoteEndpoint.ID, model.RemoteEndpointStatusPending)
+	}
+
+	remoteEndpoint.Status = existingRemoteEndpoint.Status
+	remoteEndpoint.StatusMessage = existingRemoteEndpoint.StatusMessage
 
 	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
 		return nil
@@ -64,10 +73,6 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 	soap, err := model.NewSoapRemoteEndpoint(remoteEndpoint)
 	if err != nil {
 		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object for update: %v", err)
-	}
-
-	if soap.Wsdl == "" {
-		return nil
 	}
 
 	soapRemoteEndpoint, err := model.FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, remoteEndpoint.ID)
@@ -81,6 +86,10 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 		return err
 	}
 	remoteEndpoint.Data = newVal
+
+	if soap.Wsdl == "" {
+		return nil
+	}
 
 	soapRemoteEndpoint.Wsdl = soap.Wsdl
 	soapRemoteEndpoint.GeneratedJarThumbprint = ""
@@ -113,9 +122,11 @@ func (c *RemoteEndpointsController) AfterUpdate(remoteEndpoint *model.RemoteEndp
 		return nil
 	}
 
-	err := remoteEndpoint.Soap.Update(tx)
-	if err != nil {
-		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+	if remoteEndpoint.Soap.Wsdl != "" {
+		err := remoteEndpoint.Soap.Update(tx)
+		if err != nil {
+			return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+		}
 	}
 
 	return nil
