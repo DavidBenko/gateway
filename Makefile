@@ -28,7 +28,7 @@ endif
 default: run
 
 soapclient:
-	cd soapclient && gradlew shadowJar && rm -f build/libs/gateway-soap-client*.jar
+	cd soapclient && ./gradlew shadowJar && rm -f build/libs/gateway-soap-client*.jar
 
 admin:
 	cd admin; bundle install; npm install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
