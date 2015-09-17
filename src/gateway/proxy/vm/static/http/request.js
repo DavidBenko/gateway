@@ -356,7 +356,7 @@ AP.Mongo.Request.prototype.query = function() {
  * Performs a query operation on a collection.
  *
  * @param {string} collection The collection to perform the query on.
- * @param {Object} query See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
  */
 AP.Mongo.Request.prototype.find = function(collection, query) {
   this.query(collection, "find", query);
@@ -401,7 +401,7 @@ AP.Mongo.Request.prototype.save = function(collection, document) {
  * Removes the document(s) selected by query from the collection.
  *
  * @param {string} collection The collection to remove the document(s) from.
- * @param {Object} query See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
  * @param {Boolean} [justOne] Remove just one document from the collection.
  */
 AP.Mongo.Request.prototype.remove = function(collection, query, justOne) {
@@ -439,7 +439,7 @@ AP.Mongo.Request.prototype.aggregate = function(collection, stages) {
  * Count the documents matched by query in collection.
  *
  * @param {string} collection The collection to perform the count on.
- * @param {Object} query See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
  */
 AP.Mongo.Request.prototype.count = function(collection, query) {
   this.query(collection, "count", query);
