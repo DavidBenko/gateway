@@ -3,6 +3,7 @@ package sql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // NullString represents a string that is nullable.  Custom serialization methods have been added
@@ -27,4 +28,21 @@ func (nullString *NullString) MarshalJSON() ([]byte, error) {
 	}
 
 	return []byte(fmt.Sprintf(`"%s"`, nullString.NullString.String)), nil
+}
+
+func (nullString *NullString) UnmarshalJSON(data []byte) error {
+	str := string(data)
+
+	if str == "null" {
+		nullString.NullString.Valid = false
+		return nil
+	}
+
+	if strings.HasPrefix(str, `"`) && strings.HasSuffix(str, `"`) {
+		nullString.NullString.String = str[1 : len(str)-1]
+		nullString.NullString.Valid = true
+		return nil
+	}
+
+	return fmt.Errorf("String was not in expected format: %v", string(data))
 }
