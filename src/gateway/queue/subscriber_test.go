@@ -9,14 +9,11 @@ import (
 )
 
 func (s *QueueSuite) TestSubscribe(c *gc.C) {
-	reply := make(chan struct{})
-
 	for i, t := range []struct {
-		should      string
-		path        string
-		bindings    []queue.SubBinding
-		expectErr   string
-		expectClose bool
+		should    string
+		path      string
+		bindings  []queue.SubBinding
+		expectErr string
 	}{{
 		should:    "error with no path",
 		expectErr: "no path provided",
@@ -38,39 +35,24 @@ func (s *QueueSuite) TestSubscribe(c *gc.C) {
 		bindings: []queue.SubBinding{
 			qt.SubBindingOk,
 			qt.SubBindingConnectErr("connect error"),
-			qt.SubBindingCloseChan(reply),
 		},
-		expectErr:   "subscriber failed to connect: connect error",
-		expectClose: true,
+		expectErr: "subscriber failed to connect: connect error",
 	}, {
 		should: "work if there are no errors",
 		path:   "foo",
 		bindings: []queue.SubBinding{
 			qt.SubBindingOk,
-			qt.SubBindingCloseChan(reply),
 		},
-		expectClose: true,
 	}} {
-		msg := t.should
-		if t.expectClose {
-			msg += ", expect Close()"
+		c.Logf("test %d: should %s", i, t.should)
+
+		s, err := queue.Subscribe(t.path, t.bindings...)
+		if t.expectErr != "" {
+			c.Check(err, gc.ErrorMatches, t.expectErr)
+			continue
 		}
 
-		c.Logf("test %d: should %s", i, msg)
-
-		ch := testSubscribe(c, t.path, t.expectErr, t.bindings)
-		_ = ch
+		c.Check(err, jc.ErrorIsNil)
+		c.Check(s, gc.NotNil)
 	}
-}
-
-func testSubscribe(c *gc.C, path, errText string, bindings []queue.SubBinding) *queue.SubChannel {
-	p, err := queue.Subscribe(path, bindings...)
-	if errText != "" {
-		c.Assert(err, gc.ErrorMatches, errText)
-		return nil
-	}
-	c.Check(err, jc.ErrorIsNil)
-	c.Check(p, gc.NotNil)
-
-	return p
 }
