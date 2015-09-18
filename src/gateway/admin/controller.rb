@@ -202,13 +202,6 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     err = model.Delete<%= singular %>(tx, id)
   <% end %>
 
-  <% if after_delete %>
-    if err := c.AfterDelete(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after delete: %v", config.System, err)
-      return aphttp.DefaultServerError()
-    }
-  <% end %>
-
   if err != nil {
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
@@ -216,6 +209,13 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
+
+  <% if after_delete %>
+    if err := c.AfterDelete(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after delete: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  <% end %>
 
   w.WriteHeader(http.StatusOK)
   return nil
