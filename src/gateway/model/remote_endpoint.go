@@ -262,12 +262,20 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 	return nil
 }
 
+func beforeDelete(remoteEndpoint *RemoteEndpoint) error {
+	if remoteEndpoint.Status.String == RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to delete remote endpoint -- status is currently %s", RemoteEndpointStatusPending)
+	}
+	return nil
+}
+
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
 		`SELECT remote_endpoints.type as type,
-			remote_endpoints.data as data
+			remote_endpoints.data as data,
+			remote_endpoints.status as status
 		FROM remote_endpoints
 		WHERE remote_endpoints.id = ?
 		AND remote_endpoints.api_id IN
@@ -290,6 +298,10 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		default:
 			msg = err
 		}
+	}
+
+	if err = beforeDelete(endpoint); err != nil {
+		return err
 	}
 
 	err = tx.DeleteOne(

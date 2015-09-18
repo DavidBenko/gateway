@@ -132,14 +132,6 @@ func (c *RemoteEndpointsController) AfterUpdate(remoteEndpoint *model.RemoteEndp
 	return nil
 }
 
-// BeforeDelete does some work before delete
-func (c *RemoteEndpointsController) BeforeDelete(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
-	if remoteEndpoint.Status.String == model.RemoteEndpointStatusPending {
-		return fmt.Errorf("Unable to delete remote endpoint -- status is currently %s", model.RemoteEndpointStatusPending)
-	}
-	return nil
-}
-
 // AfterDelete does some work after delete
 func (c *RemoteEndpointsController) AfterDelete(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
 	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
