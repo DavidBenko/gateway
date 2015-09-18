@@ -44,7 +44,14 @@ func (listener *notificationListener) Notify(n *apsql.Notification) {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Delete:
-		err := DeleteJarFile(n.APIID)
+		remoteEndpointID, ok := n.Messages[0].(int64)
+		if !ok {
+			log.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, "deletion message did not come in expected format")
+			return
+		}
+
+		err := DeleteJarFile(remoteEndpointID)
+
 		if err != nil {
 			log.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, err)
 		}

@@ -3,9 +3,12 @@ package model
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"gateway/code"
+	"gateway/config"
 	"gateway/db"
+	aperrors "gateway/errors"
 	re "gateway/model/remote_endpoint"
 	apsql "gateway/sql"
 
@@ -262,10 +265,22 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 	return nil
 }
 
-func beforeDelete(remoteEndpoint *RemoteEndpoint) error {
+func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {
 	if remoteEndpoint.Status.String == RemoteEndpointStatusPending {
 		return fmt.Errorf("Unable to delete remote endpoint -- status is currently %s", RemoteEndpointStatusPending)
 	}
+
+	if remoteEndpoint.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	soapRemoteEndpoint, err := FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, remoteEndpoint.ID)
+	if err != nil {
+		return aperrors.NewWrapped("[model/remote_endpoint.go] Unable to find soap remote endpoint by remote endpoint ID", err)
+	}
+
+	remoteEndpoint.Soap = soapRemoteEndpoint
+
 	return nil
 }
 
@@ -273,7 +288,8 @@ func beforeDelete(remoteEndpoint *RemoteEndpoint) error {
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
-		`SELECT remote_endpoints.type as type,
+		`SELECT remote_endpoints.id as id,
+		  remote_endpoints.type as type,
 			remote_endpoints.data as data,
 			remote_endpoints.status as status
 		FROM remote_endpoints
@@ -300,7 +316,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		}
 	}
 
-	if err = beforeDelete(endpoint); err != nil {
+	if err := beforeDelete(endpoint, tx); err != nil {
 		return err
 	}
 
@@ -314,7 +330,31 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
+	if err = afterDelete(endpoint, apiID, tx); err != nil {
+		return err
+	}
+
 	return tx.Notify("remote_endpoints", apiID, apsql.Delete, msg)
+}
+
+func afterDelete(remoteEndpoint *RemoteEndpoint, apiID int64, tx *apsql.Tx) error {
+
+	if remoteEndpoint.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	err := DeleteJarFile(remoteEndpoint.ID)
+	if err != nil {
+		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+	}
+
+	// trigger a notification for
+	err = tx.Notify("soap_remote_endpoints", apiID, apsql.Delete, remoteEndpoint.ID)
+	if err != nil {
+		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
+	}
+
+	return nil
 }
 
 // DBConfig gets a DB Specifier for database endpoints, or nil for non database
