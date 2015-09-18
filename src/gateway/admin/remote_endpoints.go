@@ -76,21 +76,6 @@ func (c *RemoteEndpointsController) BeforeUpdate(remoteEndpoint *model.RemoteEnd
 	return nil
 }
 
-// AfterInsert does some work after inserting a RemoteEndpoint
-func (c *RemoteEndpointsController) AfterInsert(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
-	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
-		return nil
-	}
-
-	remoteEndpoint.Soap.RemoteEndpointID = remoteEndpoint.ID
-	err := remoteEndpoint.Soap.Insert(tx)
-	if err != nil {
-		return fmt.Errorf("Unable to insert SoapRemoteEndpoint: %v", err)
-	}
-
-	return nil
-}
-
 // AfterUpdate does some work after updating a RemoteEndpoint
 func (c *RemoteEndpointsController) AfterUpdate(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
 	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {

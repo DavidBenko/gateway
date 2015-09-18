@@ -432,6 +432,11 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
+
+	if err := e.afterInsert(tx); err != nil {
+		return err
+	}
+
 	for _, envData := range e.EnvironmentData {
 		encodedData, err := marshaledForStorage(envData.Data)
 		if err != nil {
@@ -443,6 +448,20 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	e.Soap.RemoteEndpointID = e.ID
+	err := e.Soap.Insert(tx)
+	if err != nil {
+		return fmt.Errorf("Unable to insert SoapRemoteEndpoint: %v", err)
+	}
+
 	return nil
 }
 
