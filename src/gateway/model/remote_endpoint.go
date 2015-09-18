@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -374,12 +375,56 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 	}
 }
 
+func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText, error) {
+	dataAsByteArray := []byte(json.RawMessage(jsonText))
+	targetMap := make(map[string]interface{})
+	err := json.Unmarshal(dataAsByteArray, &targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to decode data: %v", err)
+	}
+
+	delete(targetMap, fieldName)
+	result, err := json.Marshal(targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to encode data: %v", err)
+	}
+
+	return types.JsonText(json.RawMessage(result)), nil
+}
+
+func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+	soap, err := NewSoapRemoteEndpoint(e)
+	if err != nil {
+		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object: %v", err)
+	}
+
+	e.Soap = &soap
+
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
+		return err
+	}
+	e.Data = newVal
+
+	return nil
+}
+
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
+
+	if err := e.beforeInsert(tx); err != nil {
+		return err
+	}
+
 	e.ID, err = tx.InsertOne(
 		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, status, status_message, data)
 		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?,?,?)`,

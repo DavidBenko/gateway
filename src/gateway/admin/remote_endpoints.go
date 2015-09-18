@@ -10,29 +10,6 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
-// BeforeInsert does some work before inserting a RemoteEndpoint
-func (c *RemoteEndpointsController) BeforeInsert(remoteEndpoint *model.RemoteEndpoint, tx *apsql.Tx) error {
-	if remoteEndpoint.Type != model.RemoteEndpointTypeSoap {
-		return nil
-	}
-
-	remoteEndpoint.Status = apsql.MakeNullString(model.RemoteEndpointStatusPending)
-	soap, err := model.NewSoapRemoteEndpoint(remoteEndpoint)
-	if err != nil {
-		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object: %v", err)
-	}
-
-	remoteEndpoint.Soap = &soap
-
-	var newVal types.JsonText
-	if newVal, err = removeJSONField(remoteEndpoint.Data, "wsdl"); err != nil {
-		return err
-	}
-	remoteEndpoint.Data = newVal
-
-	return nil
-}
-
 func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText, error) {
 	dataAsByteArray := []byte(json.RawMessage(jsonText))
 	targetMap := make(map[string]interface{})
