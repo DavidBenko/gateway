@@ -24,6 +24,26 @@ const (
 	RemoteEndpointTypeSoap = "soap"
 )
 
+const (
+	// RemoteEndpointStatusPending is one of the possible statuses for the Status field on
+	// the RemoteEndpoint struct.  Pending indicates that no processing has yet been attempted
+	// on a RemoteEndpoint
+	RemoteEndpointStatusPending = "Pending"
+	// RemoteEndpointStatusProcessing is one of the possible statuses for the Status field on
+	// the RemoteEndpoint struct.  Processing indicates that the WSDL file is actively being processed,
+	// and is pending final outcome. (originally for use in soap remote endpoints)
+	RemoteEndpointStatusProcessing = "Processing"
+	// RemoteEndpointStatusFailed is one of the possible statuses for the Status field on the
+	// RemoteEndpoint struct.  Failed indicates that there was a failure encountered processing the
+	// WSDL.  The user ought to correct the problem with their WSDL and attempt to process it again.
+	// (originally for use in soap remote endpoints)
+	RemoteEndpointStatusFailed = "Failed"
+	// RemoteEndpointStatusSuccess is one of the possible statuses for the Status field on the
+	// RemoteEndpoint struct.  Success indicates taht processing on the WSDL file has been completed
+	// successfully, and the SOAP service is ready to be invoked. (originally for use in soap remote endpoints)
+	RemoteEndpointStatusSuccess = "Success"
+)
+
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`

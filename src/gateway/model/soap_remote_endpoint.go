@@ -19,25 +19,6 @@ import (
 	"github.com/vincent-petithory/dataurl"
 )
 
-const (
-	// RemoteEndpointStatusPending is one of the possible statuses for the Status field on
-	// the SoapRemoteEndpoint struct.  Pending indicates that no processing has yet been attempted
-	// on the SoapRemoteEndpoint
-	RemoteEndpointStatusPending = "Pending"
-	// RemoteEndpointStatusProcessing is one of the possible statuses for the Status field on
-	// the SoapRemoteEndpoint struct.  Processing indicates that the WSDL file is actively being processed,
-	// and is pending final outcome.
-	RemoteEndpointStatusProcessing = "Processing"
-	// RemoteEndpointStatusFailed is one of the possible statuses for the Status field on the
-	// SoapRemoteEndpoint struct.  Failed indicates that there was a failure encountered processing the
-	// WSDL.  The user ought to correct the problem with their WSDL and attempt to process it again.
-	RemoteEndpointStatusFailed = "Failed"
-	// RemoteEndpointStatusSuccess is one of the possible statuses for the Status field on the
-	// SoapRemoteEndpoint struct.  Success indicates taht processing on the WSDL file has been completed
-	// successfully, and the SOAP service is ready to be invoked.
-	RemoteEndpointStatusSuccess = "Success"
-)
-
 // SoapRemoteEndpoint contains attributes for a remote endpoint of type Soap
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"-" db:"remote_endpoint_id"`
