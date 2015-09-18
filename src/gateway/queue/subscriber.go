@@ -4,21 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
-
-	"gateway/queue/util"
 )
 
 // Client must be implemented by a queue client which can connect to an
-// address.  When it goes out of scope, it will be cleaned up using its Close
-// method.  Close can also be called at any time to immediately clean up.  If
-// the Server it is connected to is Closed, the Client will also be Closed.
+// address.
 type Client interface {
 	io.Closer
 
-	// Connect attaches the Client to a Server on the given URI.  It should
-	// save a reference to the Client interface in the implementation, so
-	// Close can be called if the Server is Closed.
+	// Connect attaches the Client to a Server on the given URI.
 	Connect(string) error
 }
 
@@ -31,35 +24,9 @@ type Subscriber interface {
 	Channel() chan []byte
 }
 
-// SubChannel wraps a channel with its Subscriber.  Close will be called when
-// it is garbage collected, if it has not already been called.
-type SubChannel struct {
-	s Subscriber
-
-	closer chan struct{}
-
-	// C is the channel which subscribed messages will arrive on.
-	C <-chan []byte
-}
-
-// Close closes and drains the channel, and calls Close on its Subscriber.
-func (s *SubChannel) Close() error {
-	return safeClose(s.closer)
-}
-
-func teardownSubChan(sc *SubChannel) func() error {
-	return func() error {
-		close(sc.s.Channel())
-		util.Drain(sc.s.Channel())
-		return sc.s.Close()
-	}
-}
-
-// Subscribe sets up a Subscriber and returns a channel yielded by its
-// Subscribe() method.  SubBindings are methods which take a Subscriber and
-// return a Subscriber.  SubBindings should be implemented by sub-packages.
-// Configuration options should include filters.
-func Subscribe(path string, bindings ...SubBinding) (*SubChannel, error) {
+// Subscribe sets up a Subscriber with the given SubBindings, Connects it with
+// the given path, and returns it.
+func Subscribe(path string, bindings ...SubBinding) (Subscriber, error) {
 	if path == "" {
 		return nil, errors.New("no path provided")
 	}
@@ -73,19 +40,12 @@ func Subscribe(path string, bindings ...SubBinding) (*SubChannel, error) {
 		return nil, fmt.Errorf("bad subscriber binding: %s", err.Error())
 	}
 
-	closeChan := make(chan struct{})
-	sCloser := &subCloser{closeChan, s}
-	sChan := &SubChannel{sCloser, closeChan, s.Channel()}
-	go waitFunc(closeChan, closeFunc(s))
-	go waitFunc(closeChan, teardownSubChan(sChan))
-	runtime.SetFinalizer(sCloser, closeCloser(sCloser))
-	runtime.SetFinalizer(sChan, closeCloser(sChan))
-
 	err = s.Connect(path)
 	if err != nil {
 		return nil, fmt.Errorf("subscriber failed to connect: %s", err.Error())
 	}
-	return sChan, nil
+
+	return s, nil
 }
 
 func newSubscriber(bindings ...SubBinding) (Subscriber, error) {
@@ -101,4 +61,7 @@ func newSubscriber(bindings ...SubBinding) (Subscriber, error) {
 	return s, nil
 }
 
+// SubBinding is a method which takes a Subscriber and returns a Subscriber and
+// any setup error.  SubBindings should be implemented by sub-packages. Options
+// should include filters if desired.
 type SubBinding func(Subscriber) (Subscriber, error)

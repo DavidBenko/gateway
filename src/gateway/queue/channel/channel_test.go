@@ -22,8 +22,9 @@ func TestChannel(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			C := send.Channel()
 			for {
-				send.C <- []byte("hello world")
+				C <- []byte("hello world")
 			}
 		}()
 
@@ -35,16 +36,17 @@ func TestChannel(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				C := rec.Channel()
 				defer func() {
 					go func(c <-chan []byte) {
 						for _ = range c {
 							//noop
 						}
-					}(rec.C)
+					}(C)
 				}()
 
 				i := 0
-				for _ = range rec.C {
+				for _ = range C {
 					i++
 					if i == 8 {
 						break
