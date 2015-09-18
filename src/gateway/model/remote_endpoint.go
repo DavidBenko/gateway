@@ -290,7 +290,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 	}
 	endpoint := endpoints[0]
 	var msg interface{}
-	if endpoint.Type != RemoteEndpointTypeHTTP {
+	if endpoint.Type != RemoteEndpointTypeHTTP && endpoint.Type != RemoteEndpointTypeSoap {
 		conf, err := endpoint.DBConfig()
 		switch err {
 		case nil:
