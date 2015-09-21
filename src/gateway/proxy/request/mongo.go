@@ -72,7 +72,26 @@ func operationFind(arguments map[string]interface{},
 	}
 	normalizeObjectId(query.(map[string]interface{}))
 	response.Data = []map[string]interface{}{}
-	err := collection.Find(query).All(&response.Data)
+	q := collection.Find(query)
+	if len(arguments) > 3 {
+		if limit, valid := arguments["3"].(float64); valid {
+			if limit != 0 {
+				q = q.Limit(int(limit))
+			}
+		} else {
+			response.Error = "limit parameter is not a number"
+			return
+		}
+	}
+	if len(arguments) > 4 {
+		if skip, valid := arguments["4"].(float64); valid {
+			q = q.Skip(int(skip))
+		} else {
+			response.Error = "skip parameter is not a number"
+			return
+		}
+	}
+	err := q.All(&response.Data)
 	if err != nil {
 		response.Error = err.Error()
 		return

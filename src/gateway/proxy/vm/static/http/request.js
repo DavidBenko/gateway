@@ -357,9 +357,11 @@ AP.Mongo.Request.prototype.query = function() {
  *
  * @param {string} collection The collection to perform the query on.
  * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Number} [limit] Limit the number of results. Set to 0 for no limit.
+ * @param {Number} [skip] Skips some number of results.
  */
-AP.Mongo.Request.prototype.find = function(collection, query) {
-  this.query(collection, "find", query);
+AP.Mongo.Request.prototype.find = function(collection, query, limit, skip) {
+  this.query(collection, "find", query, limit, skip);
 }
 
 /**
