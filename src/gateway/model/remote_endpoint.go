@@ -465,8 +465,60 @@ func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
 	return nil
 }
 
+func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
+	existingRemoteEndpoint, err := FindRemoteEndpointForAPIIDAndAccountID(tx.DB, e.ID, e.APIID, e.AccountID)
+	if err != nil {
+		return aperrors.NewWrapped("[remote_endpoints.go BeforeUpdate] Unable to fetch existing remote endpoint with id %d, api ID %d, account ID %d", err)
+	}
+
+	if existingRemoteEndpoint.Status.String == RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to update remote endpoint %d -- status is currently %s", e.ID, RemoteEndpointStatusPending)
+	}
+
+	e.Status = existingRemoteEndpoint.Status
+	e.StatusMessage = existingRemoteEndpoint.StatusMessage
+
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	soap, err := NewSoapRemoteEndpoint(e)
+	if err != nil {
+		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object for update: %v", err)
+	}
+
+	soapRemoteEndpoint, err := FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, e.ID)
+	if err != nil {
+		return fmt.Errorf("Unable to fetch SoapRemoteEndpoint with remote_endpoint_id of %d: %v", e.ID, err)
+	}
+
+	e.Soap = soapRemoteEndpoint
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
+		return err
+	}
+	e.Data = newVal
+
+	if soap.Wsdl == "" {
+		return nil
+	}
+
+	soapRemoteEndpoint.Wsdl = soap.Wsdl
+	soapRemoteEndpoint.GeneratedJarThumbprint = ""
+	soapRemoteEndpoint.RemoteEndpoint = e
+
+	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+	e.StatusMessage = apsql.MakeNullStringNull()
+
+	return nil
+}
+
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
+	return e.update(tx, true)
+}
+
+func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
 	if e.Type != RemoteEndpointTypeHTTP {
@@ -483,6 +535,13 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
+
+	if fireLifecycleHooks {
+		if err := e.beforeUpdate(tx); err != nil {
+			return err
+		}
+	}
+
 	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
 		SET name = ?, codename = ?, description = ?, status = ?, status_message = ?, data = ?

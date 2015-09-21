@@ -243,7 +243,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 
 		// In a new transaction, update the status to processing before we do anything
 		err := db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := endpoint.RemoteEndpoint.Update(tx)
+			err := endpoint.RemoteEndpoint.update(tx, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: updating remote endpoint", err)
 			}
@@ -272,7 +272,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 		}
 
 		err = db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := endpoint.RemoteEndpoint.Update(tx)
+			err := endpoint.RemoteEndpoint.update(tx, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on remote endpoint", err)
 			}
