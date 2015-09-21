@@ -344,13 +344,13 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, apiID int64, tx *apsql.Tx) erro
 		return nil
 	}
 
-	err := DeleteJarFile(remoteEndpoint.ID)
+	err := DeleteJarFile(remoteEndpoint.Soap.ID)
 	if err != nil {
 		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
 	// trigger a notification for
-	err = tx.Notify("soap_remote_endpoints", apiID, apsql.Delete, remoteEndpoint.ID)
+	err = tx.Notify("soap_remote_endpoints", apiID, apsql.Delete, remoteEndpoint.Soap.ID)
 	if err != nil {
 		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
 	}
