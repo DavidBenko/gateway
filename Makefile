@@ -147,7 +147,8 @@ vendor_get: vendor_clean
 	gopkg.in/mgo.v2 \
 	github.com/jackc/pgx \
 	github.com/derekparker/delve/cmd/dlv \
-	github.com/go-sql-driver/mysql
+	github.com/go-sql-driver/mysql \
+	github.com/gdamore/mangos
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
