@@ -521,3 +521,5 @@ AP.SOAP.Request = function() {
     this.url = _.clone(request.url);
     this.wssePasswordCredentials = _.clone(request.wssePasswordCredentials);
   }
+
+}
