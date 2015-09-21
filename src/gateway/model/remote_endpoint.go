@@ -553,6 +553,12 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		return err
 	}
 
+	if fireLifecycleHooks {
+		if err := e.afterUpdate(tx); err != nil {
+			return err
+		}
+	}
+
 	var existingEnvIDs []int64
 	err = tx.Select(&existingEnvIDs,
 		`SELECT environment_id
@@ -609,6 +615,21 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		return err
 	}
 	return tx.Notify("remote_endpoints", e.APIID, apsql.Update, msg)
+}
+
+func (e *RemoteEndpoint) afterUpdate(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	if e.Soap.Wsdl != "" {
+		err := e.Soap.Update(tx)
+		if err != nil {
+			return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
