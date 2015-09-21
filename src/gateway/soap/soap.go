@@ -132,9 +132,9 @@ func EnsureJarPath() (string, error) {
 	return dir, err
 }
 
-// JarURLForRemoteEndpointID takes a remote endpoint ID and returns the path where the
+// JarURLForSoapRemoteEndpointID takes a remote soap endpoint ID and returns the path where the
 // generated JAR will reside
-func JarURLForRemoteEndpointID(remoteEndpointID int64) (string, error) {
+func JarURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
 	jarPath, err := EnsureJarPath()
 	if err != nil {
 		return "", err

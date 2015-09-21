@@ -64,7 +64,7 @@ func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapC
 	}
 
 	var err error
-	request.JarURL, err = soap.JarURLForRemoteEndpointID(endpoint.ID)
+	request.JarURL, err = soap.JarURLForSoapRemoteEndpointID(endpoint.Soap.ID)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to determine jar URL: %v", err)
 	}
