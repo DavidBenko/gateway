@@ -154,18 +154,68 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.data as data,
 		remote_endpoint_environment_data.data as selected_env_data,
 		remote_endpoints.status as status,
-		remote_endpoints.status_message as status_message
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id
 	FROM remote_endpoints
 	LEFT JOIN remote_endpoint_environment_data
 		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
 	 AND remote_endpoint_environment_data.environment_id = ?
+	LEFT JOIN soap_remote_endpoints
+	  ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
 	WHERE remote_endpoints.id IN (` + idQuery + `);`
+
 	args := []interface{}{environmentID}
 	for _, id := range ids {
 		args = append(args, id)
 	}
 	remoteEndpoints := []*RemoteEndpoint{}
-	err := db.Select(&remoteEndpoints, query, args...)
+	rows, err := db.Queryx(query, args...)
+	if err != nil {
+		return nil, aperrors.NewWrapped("[model/remote_endpoint.go] Error fetching all remote endpoints for IDS in environment", err)
+	}
+	for rows.Next() {
+		rowResult := make(map[string]interface{})
+		remoteEndpoint := new(RemoteEndpoint)
+		err = rows.MapScan(rowResult)
+		if err != nil {
+			return nil, aperrors.NewWrapped("[model/remote_endpoint.go] Error scanning row while getting all remote endpoints", err)
+		}
+		if apiID, ok := rowResult["api_id"].(int64); ok {
+			remoteEndpoint.APIID = apiID
+		}
+		if id, ok := rowResult["id"].(int64); ok {
+			remoteEndpoint.ID = id
+		}
+		if name, ok := rowResult["name"].([]byte); ok {
+			remoteEndpoint.Name = string(name)
+		}
+		if codename, ok := rowResult["codename"].([]byte); ok {
+			remoteEndpoint.Codename = string(codename)
+		}
+		if _type, ok := rowResult["type"].([]byte); ok {
+			remoteEndpoint.Type = string(_type)
+		}
+		if status, ok := rowResult["status"].([]byte); ok {
+			remoteEndpoint.Status = apsql.MakeNullString(string(status))
+		}
+		if statusMessage, ok := rowResult["statusMessage"].([]byte); ok {
+			remoteEndpoint.StatusMessage = apsql.MakeNullString(string(statusMessage))
+		}
+		if data, ok := rowResult["data"].([]byte); ok {
+			remoteEndpoint.Data = types.JsonText(json.RawMessage(data))
+		}
+		if selectedEnvData, ok := rowResult["selected_env_data"].([]byte); ok {
+			envData := types.JsonText(json.RawMessage(selectedEnvData))
+			remoteEndpoint.SelectedEnvironmentData = &envData
+		}
+		if soapID, ok := rowResult["soap_id"].(int64); ok {
+			remoteEndpoint.Soap = new(SoapRemoteEndpoint)
+			remoteEndpoint.Soap.ID = soapID
+		}
+
+		remoteEndpoints = append(remoteEndpoints, remoteEndpoint)
+	}
+
 	return remoteEndpoints, err
 }
 
