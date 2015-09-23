@@ -35,6 +35,7 @@ const postgresNotifyChannel = "gateway"
 type Notification struct {
 	Table     string
 	AccountID int64
+	UserID    int64
 	APIID     int64
 	ID        int64
 	Event     NotificationEventType

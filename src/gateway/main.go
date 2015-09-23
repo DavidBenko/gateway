@@ -94,6 +94,9 @@ func main() {
 			if err := createDevAccount(db); err != nil {
 				log.Fatalf("Could not create account: %v", err)
 			}
+			if err := createDevUser(db); err != nil {
+				log.Fatalf("Could not create account: %v", err)
+			}
 		}
 	}
 	// Start the proxy
@@ -117,6 +120,30 @@ func createDevAccount(db *sql.DB) error {
 		return err
 	}
 	if err = devAccount.Insert(tx); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createDevUser(db *sql.DB) error {
+	account, err := model.FirstAccount(db)
+	if err != nil {
+		return err
+	}
+	user := &model.User{
+		AccountID:   account.ID,
+		Name:        "developer",
+		Email:       "developer@justapis.com",
+		NewPassword: "password",
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	if err = user.Insert(tx); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {

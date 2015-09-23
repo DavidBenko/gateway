@@ -9,6 +9,7 @@ import (
 // Library represents a library the API is available on.
 type Library struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
 	ID          int64          `json:"id,omitempty"`
@@ -59,12 +60,12 @@ func FindLibraryForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (
 }
 
 // DeleteLibraryForAPIIDAndAccountID deletes the library with the id, api_id and account_id specified.
-func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("libraries/delete"), id, apiID, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", accountID, apiID, id, apsql.Delete)
+	return tx.Notify("libraries", accountID, userID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the library into the database as a new row.
@@ -78,7 +79,7 @@ func (l *Library) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.AccountID, l.APIID, l.ID, apsql.Insert)
+	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, l.ID, apsql.Insert)
 }
 
 // Update updates the library in the databasl.
@@ -92,5 +93,5 @@ func (l *Library) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.AccountID, l.APIID, l.ID, apsql.Update)
+	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, l.ID, apsql.Update)
 }

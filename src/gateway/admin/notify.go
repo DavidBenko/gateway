@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	aphttp "gateway/http"
+	"gateway/model"
 	apsql "gateway/sql"
 
 	"golang.org/x/net/websocket"
@@ -19,6 +20,7 @@ type Notification struct {
 	Action   string `json:"action"`
 	ID       int64  `json:"id"`
 	APIID    int64  `json:"api_id"`
+	User     string `json:"user"`
 }
 
 var RESOURCE_MAP = map[string]string{
@@ -47,11 +49,13 @@ type NotifyController struct {
 	BaseController
 	notifications chan *apsql.Notification
 	command       chan *NotifyCommand
+	db            *apsql.DB
 }
 
 func RouteNotify(notify *NotifyController, path string, router aphttp.Router, db *apsql.DB) {
 	notify.notifications = make(chan *apsql.Notification, 8)
 	notify.command = make(chan *NotifyCommand, 8)
+	notify.db = db
 	router.Handle(path, websocket.Handler(notify.NotifyHandler))
 	db.RegisterListener(notify)
 	go notify.Queue()
@@ -130,11 +134,17 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		n.command <- unregister
 	}()
 	for notification := range register.Comm {
+		email := "unknown"
+		user, err := model.FindUserByID(n.db, notification.UserID)
+		if err == nil {
+			email = user.Email
+		}
 		n := &Notification{
 			Resource: RESOURCE_MAP[notification.Table],
 			Action:   ACTION_MAP[notification.Event],
 			ID:       int64(notification.ID),
 			APIID:    int64(notification.APIID),
+			User:     email,
 		}
 
 		json, err := json.Marshal(n)

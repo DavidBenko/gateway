@@ -34,13 +34,15 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin, psconf config
 
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession
+	userID := userIDFromSession
 	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"})
 	if conf.DevMode {
 		accountID = accountIDForDevMode(db)
+		userID = userIDForDevMode(db)
 		authAdmin = admin
 	}
 
-	base := BaseController{conf: conf, accountID: accountID}
+	base := BaseController{conf: conf, accountID: accountID, userID: userID}
 
 	RouteNotify(&NotifyController{BaseController: base}, "/notify", authAdmin, db)
 

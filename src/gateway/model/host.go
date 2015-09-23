@@ -8,6 +8,7 @@ import (
 // Host represents a host the API is available on.
 type Host struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id" db:"api_id"`
 
 	ID       int64  `json:"id"`
@@ -74,12 +75,12 @@ func FindHostForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*Ho
 }
 
 // DeleteHostForAPIIDAndAccountID deletes the host with the id, api_id and account_id specified.
-func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("hosts/delete"), id, apiID, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", accountID, apiID, id, apsql.Delete)
+	return tx.Notify("hosts", accountID, userID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the host into the database as a new row.
@@ -89,7 +90,7 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.APIID, h.ID, apsql.Insert)
+	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, h.ID, apsql.Insert)
 }
 
 // Update updates the host in the database.
@@ -99,5 +100,5 @@ func (h *Host) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.APIID, h.ID, apsql.Update)
+	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, h.ID, apsql.Update)
 }

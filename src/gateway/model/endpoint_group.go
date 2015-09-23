@@ -5,6 +5,7 @@ import apsql "gateway/sql"
 // EndpointGroup is an optional grouping of proxy endpoints.
 type EndpointGroup struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
 	ID          int64  `json:"id,omitempty"`
@@ -46,7 +47,7 @@ func FindEndpointGroupForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 }
 
 // DeleteEndpointGroupForAPIIDAndAccountID deletes the endpointGroup with the id, api_id and account_id specified.
-func DeleteEndpointGroupForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteEndpointGroupForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	return tx.DeleteOne(tx.SQL("endpoint_groups/delete"), id, apiID, accountID)
 }
 

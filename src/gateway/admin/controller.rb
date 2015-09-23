@@ -150,11 +150,11 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   <% if account && api %>
     err := model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
-      id, c.apiID(r), c.accountID(r))
+      id, c.apiID(r), c.accountID(r), c.userID(r))
   <% elsif account %>
-    err := model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r))
+    err := model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r), c.userID(r))
   <% else %>
-    err := model.Delete<%= singular %>(tx, id)
+    err := model.Delete<%= singular %>(tx, id, c.userID(r))
   <% end %>
 
   if err != nil {
@@ -181,6 +181,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% end %>
   <% if account %>
     <%= local %>.AccountID = c.accountID(r)
+    <%= local %>.UserID = c.userID(r)
   <% end %>
 
   var method func(*apsql.Tx) error
