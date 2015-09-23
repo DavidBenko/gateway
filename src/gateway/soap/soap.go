@@ -115,6 +115,7 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 	cmd := exec.Command(fullWsimportCommandPath, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Println(string(output))
 		return fmt.Errorf("Error invoking wsimport: %v", err)
 	}
 

@@ -168,6 +168,11 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 	for _, id := range ids {
 		args = append(args, id)
 	}
+
+	return mapRemoteEndpoints(db, query, args...)
+}
+
+func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*RemoteEndpoint, error) {
 	remoteEndpoints := []*RemoteEndpoint{}
 	rows, err := db.Queryx(query, args...)
 	if err != nil {
@@ -192,6 +197,9 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		if codename, ok := rowResult["codename"].([]byte); ok {
 			remoteEndpoint.Codename = string(codename)
 		}
+		if description, ok := rowResult["description"].([]byte); ok {
+			remoteEndpoint.Description = string(description)
+		}
 		if _type, ok := rowResult["type"].([]byte); ok {
 			remoteEndpoint.Type = string(_type)
 		}
@@ -212,10 +220,12 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 			remoteEndpoint.Soap = new(SoapRemoteEndpoint)
 			remoteEndpoint.Soap.ID = soapID
 		}
+		if wsdl, ok := rowResult["wsdl"].([]byte); ok {
+			remoteEndpoint.Soap.Wsdl = string(wsdl)
+		}
 
 		remoteEndpoints = append(remoteEndpoints, remoteEndpoint)
 	}
-
 	return remoteEndpoints, err
 }
 
@@ -241,8 +251,11 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	  remote_endpoints.type as type,
 		remote_endpoints.data as data,
 		remote_endpoints.status as status,
-		remote_endpoints.status_message as status_message
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id,
+		soap_remote_endpoints.wsdl as wsdl
 	FROM remote_endpoints, apis
+	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
 	WHERE `
 	args := []interface{}{}
 	if id != 0 {
@@ -257,8 +270,8 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	  remote_endpoints.name ASC,
 		remote_endpoints.id ASC;`
 	args = append(args, apiID, accountID)
-	remoteEndpoints := []*RemoteEndpoint{}
-	err := db.Select(&remoteEndpoints, query, args...)
+
+	remoteEndpoints, err := mapRemoteEndpoints(db, query, args...)
 	if err != nil {
 		return nil, err
 	}

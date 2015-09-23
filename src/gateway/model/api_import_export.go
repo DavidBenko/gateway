@@ -1,13 +1,19 @@
 package model
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+
+	"github.com/jmoiron/sqlx/types"
+	"github.com/vincent-petithory/dataurl"
 )
 
 const (
-	apiExportCurrentVersion int64 = 1
+	apiExportCurrentVersion int64  = 1
+	quote                   string = `"`
 )
 
 /***
@@ -72,6 +78,11 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 			envData.ExportEnvironmentIndex = environmentsIndexMap[envData.EnvironmentID]
 			envData.EnvironmentID = 0
 		}
+		if endpoint.Soap != nil && endpoint.Soap.Wsdl != "" {
+			if err := encodeWsdlForExport(endpoint); err != nil {
+				return nil, aperrors.NewWrapped("Encoding wsdl for export", err)
+			}
+		}
 	}
 
 	stripTransformationIDs := func(transformations []*ProxyEndpointTransformation) {
@@ -114,6 +125,33 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 	}
 
 	return api, nil
+}
+
+func encodeWsdlForExport(e *RemoteEndpoint) error {
+
+	encodedWsdlStr := dataurl.EncodeBytes([]byte(e.Soap.Wsdl))
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString(quote)
+	buf.WriteString(encodedWsdlStr)
+	buf.WriteString(quote)
+	encodedWsdl := json.RawMessage(buf.Bytes())
+
+	dataPayload := make(map[string]*json.RawMessage)
+	err := json.Unmarshal(e.Data, &dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Unmarshaling data for encoding", err)
+	}
+
+	dataPayload["wsdl"] = &encodedWsdl
+	bytes, err := json.Marshal(&dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Marshaling data for encoding", err)
+	}
+
+	newData := json.RawMessage(bytes)
+	e.Data = types.JsonText(newData)
+
+	return nil
 }
 
 // Import imports any supported version of an API definition
