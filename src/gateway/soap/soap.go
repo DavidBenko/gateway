@@ -112,14 +112,25 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 	hexsum := hex.EncodeToString(checksum[:])
 	packageName := fmt.Sprintf("v%s", hexsum)
 
-	cmd := exec.Command(fullWsimportCommandPath, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
-	output, err := cmd.CombinedOutput()
+	jarOutputFile, err = filepath.Abs(jarOutputFile)
 	if err != nil {
-		log.Println(string(output))
-		return fmt.Errorf("Error invoking wsimport: %v", err)
+		return aperrors.NewWrapped("[soap.go] Unable to get absolute path for jar file", err)
 	}
 
+	tmpdir, err := ioutil.TempDir("", "wsimport")
+	if err != nil {
+		return aperrors.NewWrapped("[soap.go] Unable to create tmp directory prior to invoking wsimport", err)
+	}
+
+	defer os.Remove(tmpdir)
+
+	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+	output, err := cmd.CombinedOutput()
 	log.Println(string(output))
+
+	if err != nil {
+		return fmt.Errorf("Error invoking wsimport: %v", err)
+	}
 
 	return nil
 }
