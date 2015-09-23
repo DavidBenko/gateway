@@ -14,6 +14,29 @@ const (
 	NOTIFY_COMMAND_UNREGISTER
 )
 
+type Notification struct {
+	Resource string `json:"resource"`
+	Action   string `json:"action"`
+	ID       int64  `json:"id"`
+	APIID    int64  `json:"api_id"`
+}
+
+var RESOURCE_MAP = map[string]string{
+	"accounts":         "account",
+	"apis":             "api",
+	"environments":     "environment",
+	"hosts":            "host",
+	"libraries":        "library",
+	"proxy_endpoints":  "proxy-endpoint",
+	"remote_endpoints": "remote-endpoint",
+}
+
+var ACTION_MAP = [...]string{
+	"create",
+	"update",
+	"delete",
+}
+
 type NotifyCommand struct {
 	Command   int
 	AccountID int
@@ -107,7 +130,14 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		n.command <- unregister
 	}()
 	for notification := range register.Comm {
-		json, err := json.Marshal(notification)
+		n := &Notification{
+			Resource: RESOURCE_MAP[notification.Table],
+			Action:   ACTION_MAP[notification.Event],
+			ID:       int64(notification.ID),
+			APIID:    int64(notification.APIID),
+		}
+
+		json, err := json.Marshal(n)
 		if err != nil {
 			return
 		}
