@@ -60,7 +60,7 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", id, 0, sql.Delete)
+	return tx.Notify("accounts", id, 0, id, sql.Delete)
 }
 
 // Insert inserts the account into the database as a new row.

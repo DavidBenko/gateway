@@ -2,7 +2,6 @@ package admin
 
 import (
 	"encoding/json"
-	"strconv"
 
 	aphttp "gateway/http"
 	apsql "gateway/sql"
@@ -21,30 +20,29 @@ type NotifyCommand struct {
 	Comm      chan *apsql.Notification
 }
 
-type Notify struct {
+type NotifyController struct {
+	BaseController
 	notifications chan *apsql.Notification
 	command       chan *NotifyCommand
 }
 
-func RouteNotify(path string, router aphttp.Router, db *apsql.DB) {
-	notify := &Notify{
-		notifications: make(chan *apsql.Notification, 8),
-		command:       make(chan *NotifyCommand, 8),
-	}
+func RouteNotify(notify *NotifyController, path string, router aphttp.Router, db *apsql.DB) {
+	notify.notifications = make(chan *apsql.Notification, 8)
+	notify.command = make(chan *NotifyCommand, 8)
 	router.Handle(path, websocket.Handler(notify.NotifyHandler))
 	db.RegisterListener(notify)
 	go notify.Queue()
 }
 
-func (n *Notify) Notify(notification *apsql.Notification) {
+func (n *NotifyController) Notify(notification *apsql.Notification) {
 	n.notifications <- notification
 }
 
-func (n *Notify) Reconnect() {
+func (n *NotifyController) Reconnect() {
 
 }
 
-func (n *Notify) Queue() {
+func (n *NotifyController) Queue() {
 	clients := make([]*NotifyCommand, 8)
 	for {
 		select {
@@ -72,6 +70,9 @@ func (n *Notify) Queue() {
 				}
 			case NOTIFY_COMMAND_UNREGISTER:
 				for k, v := range clients {
+					if v == nil {
+						continue
+					}
 					if v.Comm == command.Comm {
 						clients[k] = nil
 						close(command.Comm)
@@ -83,26 +84,19 @@ func (n *Notify) Queue() {
 	}
 }
 
-func (n *Notify) NotifyHandler(ws *websocket.Conn) {
+func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 	request := ws.Request()
-	request.ParseForm()
-	if len(request.Form["account_id"]) != 1 {
-		return
-	}
-	id, err := strconv.Atoi(request.Form["account_id"][0])
-	if err != nil {
-		return
-	}
+	account := int(n.accountID(request))
 	register := &NotifyCommand{
 		Command:   NOTIFY_COMMAND_REGISTER,
-		AccountID: id,
+		AccountID: account,
 		Comm:      make(chan *apsql.Notification, 8),
 	}
 	n.command <- register
 	defer func() {
 		unregister := &NotifyCommand{
 			Command:   NOTIFY_COMMAND_UNREGISTER,
-			AccountID: id,
+			AccountID: account,
 			Comm:      register.Comm,
 		}
 		go func() {

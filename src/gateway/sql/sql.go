@@ -36,6 +36,7 @@ type Notification struct {
 	Table     string
 	AccountID int64
 	APIID     int64
+	ID        int64
 	Event     NotificationEventType
 	Messages  []interface{}
 }

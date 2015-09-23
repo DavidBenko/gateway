@@ -181,7 +181,7 @@ func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID 
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoints", accountID, apiID, apsql.Delete)
+	return tx.Notify("proxy_endpoints", accountID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -220,7 +220,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.APIID, apsql.Insert)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the proxyEndpoint in the database.
@@ -297,5 +297,5 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.APIID, apsql.Update)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.APIID, e.ID, apsql.Update)
 }

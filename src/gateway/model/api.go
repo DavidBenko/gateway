@@ -84,7 +84,7 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("apis", accountID, id, apsql.Delete)
+	return tx.Notify("apis", accountID, id, id, apsql.Delete)
 }
 
 // Insert inserts the api into the database as a new row.

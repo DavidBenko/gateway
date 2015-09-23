@@ -79,11 +79,12 @@ func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 // (in memory on a single single box, to be used for development only), whereas
 //  Postgres uses its NOTIFY command and triggers on commit for database-based
 // listeners.
-func (tx *Tx) Notify(table string, accountID int64, apiID int64, event NotificationEventType, messages ...interface{}) error {
+func (tx *Tx) Notify(table string, accountID, apiID, id int64, event NotificationEventType, messages ...interface{}) error {
 	n := Notification{
 		Table:     table,
 		AccountID: accountID,
 		APIID:     apiID,
+		ID:        id,
 		Event:     event,
 		Messages:  messages,
 	}

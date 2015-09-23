@@ -42,7 +42,7 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin, psconf config
 
 	base := BaseController{conf: conf, accountID: accountID}
 
-	RouteNotify("/notify", authAdmin, db)
+	RouteNotify(&NotifyController{BaseController: base}, "/notify", authAdmin, db)
 
 	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
 

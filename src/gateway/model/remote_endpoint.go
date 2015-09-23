@@ -261,7 +261,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", accountID, apiID, apsql.Delete, msg)
+	return tx.Notify("remote_endpoints", accountID, apiID, id, apsql.Delete, msg)
 }
 
 // DBConfig gets a DB Specifier for database endpoints, or nil for non database
@@ -392,7 +392,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("remote_endpoints", e.AccountID, e.APIID, apsql.Update, msg)
+	return tx.Notify("remote_endpoints", e.AccountID, e.APIID, e.ID, apsql.Update, msg)
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
