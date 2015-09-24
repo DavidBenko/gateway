@@ -94,9 +94,16 @@ func main() {
 			if err := createDevAccount(db); err != nil {
 				log.Fatalf("Could not create account: %v", err)
 			}
-			if err := createDevUser(db); err != nil {
-				log.Fatalf("Could not create account: %v", err)
+		}
+		if account, err := model.FirstAccount(db); err == nil {
+			if users, _ := model.AllUsersForAccountID(db, account.ID); len(users) == 0 {
+				log.Printf("%s Creating development user", config.System)
+				if err := createDevUser(db); err != nil {
+					log.Fatalf("Could not create account: %v", err)
+				}
 			}
+		} else {
+			log.Fatal("Dev account doesn't exist")
 		}
 	}
 	// Start the proxy
