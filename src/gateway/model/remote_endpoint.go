@@ -306,7 +306,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 			return err
 		}
 	}
-	return nil
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the remoteEndpoint in the database.
@@ -377,7 +377,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 
 	if len(existingEnvIDs) == 0 {
-		return nil
+		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 	}
 
 	args := []interface{}{e.ID}

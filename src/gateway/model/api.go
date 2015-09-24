@@ -101,13 +101,23 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
+	if err != nil {
+		return
+	}
+
+	err = tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Insert)
 	return
 }
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(tx.SQL("apis/update"),
+	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
 		a.ID, a.AccountID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Update)
 }

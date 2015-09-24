@@ -101,7 +101,10 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the environment in the database.

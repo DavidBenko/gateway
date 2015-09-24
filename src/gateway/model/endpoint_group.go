@@ -48,18 +48,30 @@ func FindEndpointGroupForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 
 // DeleteEndpointGroupForAPIIDAndAccountID deletes the endpointGroup with the id, api_id and account_id specified.
 func DeleteEndpointGroupForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
-	return tx.DeleteOne(tx.SQL("endpoint_groups/delete"), id, apiID, accountID)
+	err := tx.DeleteOne(tx.SQL("endpoint_groups/delete"), id, apiID, accountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("endpoint_groups", accountID, userID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the endpointGroup into the database as a new row.
 func (e *EndpointGroup) Insert(tx *apsql.Tx) (err error) {
 	e.ID, err = tx.InsertOne(tx.SQL("endpoint_groups/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description)
+	if err != nil {
+		return
+	}
+	err = tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 	return
 }
 
 // Update updates the endpointGroup in the database.
 func (e *EndpointGroup) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(tx.SQL("endpoint/groups/update"),
+	err := tx.UpdateOne(tx.SQL("endpoint_groups/update"),
 		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
 }
