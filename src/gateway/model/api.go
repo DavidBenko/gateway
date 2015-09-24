@@ -19,7 +19,7 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
-	Export               string `json:"export" db:"-"`
+	Export               string `json:"export,omitempty" db:"-"`
 
 	Environments    []*Environment    `json:"environments,omitempty"`
 	EndpointGroups  []*EndpointGroup  `json:"endpoint_groups,omitempty"`
@@ -28,6 +28,25 @@ type API struct {
 	ProxyEndpoints  []*ProxyEndpoint  `json:"proxy_endpoints,omitempty"`
 
 	ExportVersion int64 `json:"export_version,omitempty"`
+}
+
+// CopyFrom copies all attributes except for AccountID, ID, and Name from other
+// into this API.  Also, Export is set to the empty string and ExportVersion is set
+// to 0
+func (a *API) CopyFrom(other *API) {
+	a.Description = other.Description
+	a.CORSAllowOrigin = other.CORSAllowOrigin
+	a.CORSAllowHeaders = other.CORSAllowHeaders
+	a.CORSAllowCredentials = other.CORSAllowCredentials
+	a.CORSRequestHeaders = other.CORSRequestHeaders
+	a.CORSMaxAge = other.CORSMaxAge
+	a.Export = ""
+	a.Environments = other.Environments
+	a.EndpointGroups = other.EndpointGroups
+	a.Libraries = other.Libraries
+	a.RemoteEndpoints = other.RemoteEndpoints
+	a.ProxyEndpoints = other.ProxyEndpoints
+	a.ExportVersion = 0
 }
 
 // Validate validates the model.
