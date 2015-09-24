@@ -6,14 +6,14 @@ import (
 	"fmt"
 
 	"gateway/db/pools"
-	pq "gateway/db/postgres"
+	sql "gateway/db/sql"
 	"gateway/model"
 )
 
 // PostgresRequest encapsulates a request made to a Postgres endpoint.
 type PostgresRequest struct {
 	sqlRequest
-	Config pq.Conn `json:"config"`
+	Config *sql.PostgresSpec `json:"config"`
 }
 
 func (r *PostgresRequest) Log(devMode bool) string {
@@ -47,15 +47,15 @@ func NewPostgresRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data
 		return nil, errors.New("database pools not set up")
 	}
 
-	conn, err := pools.Connect(pq.Config(
-		pq.Connection(request.Config),
-		pq.MaxOpenIdle(request.MaxOpenConn, request.MaxIdleConn),
+	conn, err := pools.Connect(sql.Config(
+		sql.Connection(request.Config),
+		sql.MaxOpenIdle(request.MaxOpenConn, request.MaxIdleConn),
 	))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	if pqConn, ok := conn.(*pq.DB); ok {
+	if pqConn, ok := conn.(*sql.DB); ok {
 		if pqConn.DB == nil {
 			return nil, fmt.Errorf("got nil database connection")
 		}
@@ -70,34 +70,9 @@ func NewPostgresRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data
 func (r *PostgresRequest) updateWith(endpointData *PostgresRequest) {
 	if endpointData.Config != nil {
 		if r.Config == nil {
-			r.Config = pq.Conn{}
+			r.Config = &sql.PostgresSpec{}
 		}
-		for key, value := range endpointData.Config {
-			r.Config[key] = value
-		}
+		r.Config.UpdateWith(endpointData.Config)
 	}
-
-	if endpointData.Execute != "" {
-		r.Execute = endpointData.Execute
-	}
-
-	if endpointData.Query != "" {
-		r.Query = endpointData.Query
-	}
-
-	if endpointData.Parameters != nil {
-		r.Parameters = endpointData.Parameters
-	}
-
-	if endpointData.Tx {
-		r.Tx = endpointData.Tx
-	}
-
-	if r.MaxOpenConn != endpointData.MaxOpenConn {
-		r.MaxOpenConn = endpointData.MaxOpenConn
-	}
-
-	if r.MaxIdleConn != endpointData.MaxIdleConn {
-		r.MaxIdleConn = endpointData.MaxIdleConn
-	}
+	r.sqlRequest.updateWith(endpointData.sqlRequest)
 }

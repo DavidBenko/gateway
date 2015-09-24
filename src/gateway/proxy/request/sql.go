@@ -31,20 +31,23 @@ type sqlResponse struct {
 
 // Perform executes the sqlRequest and returns its response
 func (r *sqlRequest) Perform() Response {
-	if r.Query != "" {
-		return r.performQuery()
-	} else if r.Execute != "" {
-		return r.performExecute()
-	}
+	isQuery, isExec := r.Query != "", r.Execute != ""
 
-	return NewErrorResponse(errors.New("no SQL query or execute specified"))
+	switch {
+	case isQuery && !r.Tx:
+		return r.performQuery()
+	case isQuery && r.Tx:
+		return r.transactQuery()
+	case isExec && !r.Tx:
+		return r.performExecute()
+	case isExec && r.Tx:
+		return r.transactExecute()
+	default:
+		return NewErrorResponse(errors.New("no SQL query or execute specified"))
+	}
 }
 
 func (r *sqlRequest) performQuery() Response {
-	if r.Tx {
-		return r.transactQuery()
-	}
-
 	log.Printf("Params are %v", r.Parameters)
 
 	if r.conn == nil {
@@ -65,10 +68,12 @@ func (r *sqlRequest) performQuery() Response {
 
 	for rowNum := 0; rows.Next(); rowNum++ {
 		newMap := make(map[string]interface{})
-		err := rows.MapScan(newMap)
+
+		err = rows.MapScan(newMap)
 		if err != nil {
 			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
 		}
+
 		dataRows = append(dataRows, newMap)
 	}
 
@@ -136,9 +141,6 @@ func (r *sqlRequest) transactQuery() Response {
 }
 
 func (r *sqlRequest) performExecute() Response {
-	if r.Tx {
-		return r.transactExecute()
-	}
 	result, err := r.conn.Exec(r.Execute, r.Parameters...)
 	if err != nil {
 		return NewSQLErrorResponse(err, "Failed to execute SQL update")
@@ -236,4 +238,30 @@ func (r *sqlResponse) Log() string {
 	}
 
 	return fmt.Sprintf("Records affected: %d", r.RowsAffected)
+}
+
+func (r *sqlRequest) updateWith(endpointData sqlRequest) {
+	if endpointData.Execute != "" {
+		r.Execute = endpointData.Execute
+	}
+
+	if endpointData.Query != "" {
+		r.Query = endpointData.Query
+	}
+
+	if endpointData.Parameters != nil {
+		r.Parameters = endpointData.Parameters
+	}
+
+	if endpointData.Tx {
+		r.Tx = endpointData.Tx
+	}
+
+	if r.MaxOpenConn != endpointData.MaxOpenConn {
+		r.MaxOpenConn = endpointData.MaxOpenConn
+	}
+
+	if r.MaxIdleConn != endpointData.MaxIdleConn {
+		r.MaxIdleConn = endpointData.MaxIdleConn
+	}
 }

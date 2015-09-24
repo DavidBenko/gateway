@@ -17,9 +17,6 @@ import (
 	"gateway/service"
 	"gateway/sql"
 	"gateway/version"
-
-	_ "github.com/denisenkom/go-mssqldb"
-	_ "github.com/jackc/pgx/stdlib"
 )
 
 func main() {

@@ -11,8 +11,7 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
-	pq "gateway/db/postgres"
-	sqls "gateway/db/sqlserver"
+	"gateway/db/sql"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
 )
@@ -68,6 +67,48 @@ func data() map[string]interface{} {
 			},
 			"maxOpenConn": "hello",
 		},
+		"mysql-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"server":   "some.url.net",
+				"port":     1234,
+				"username": "user",
+				"password": "pass",
+				"dbname":   "db",
+				"schema":   "dbschema",
+			},
+		},
+		"mysql-complicated": map[string]interface{}{
+			"config": map[string]interface{}{
+				"server":             "some.url.net",
+				"port":               1234,
+				"username":           "user",
+				"password":           "pass",
+				"dbname":             "db",
+				"schema":             "dbschema",
+				"connection timeout": 30,
+			},
+			"maxOpenConn": 80,
+			"maxIdleConn": 100,
+		},
+		"mysql-badConfig": map[string]interface{}{
+			"config": map[string]interface{}{
+				"server": "some.url.net",
+			},
+		},
+		"mysql-badConfigType": map[string]interface{}{
+			"config": 8,
+		},
+		"mysql-badMaxIdleType": map[string]interface{}{
+			"config": map[string]interface{}{
+				"server":   "some.url.net",
+				"port":     1234,
+				"username": "user",
+				"password": "pass",
+				"dbname":   "db",
+				"schema":   "dbschema",
+			},
+			"maxOpenConn": "hello",
+		},
 		"pq-simple": map[string]interface{}{
 			"config": map[string]interface{}{
 				"host":     "some.url.net",
@@ -75,24 +116,23 @@ func data() map[string]interface{} {
 				"user":     "user",
 				"password": "pass",
 				"dbname":   "db",
+				"sslmode":  "prefer",
 			},
 		},
 		"pq-complicated": map[string]interface{}{
 			"config": map[string]interface{}{
-				"host":            "some.url.net",
-				"port":            1234,
-				"user":            "user",
-				"password":        "pass",
-				"dbname":          "db",
-				"connect_timeout": 30,
+				"host":     "some.url.net",
+				"port":     1234,
+				"user":     "user",
+				"password": "pass",
+				"dbname":   "db",
+				"sslmode":  "prefer",
 			},
 			"maxOpenConn": 80,
 			"maxIdleConn": 100,
 		},
 		"pq-badConfig": map[string]interface{}{
-			"config": map[string]interface{}{
-				"host": "some.url.net",
-			},
+			"config": map[string]interface{}{},
 		},
 		"pq-badConfigType": map[string]interface{}{
 			"config": 8,
@@ -138,6 +178,10 @@ func specs() map[string]db.Specifier {
 	}, {
 		"pq-complicated", model.RemoteEndpointTypePostgres,
 	}, {
+		"mysql-simple", model.RemoteEndpointTypeMySQL,
+	}, {
+		"mysql-complicated", model.RemoteEndpointTypeMySQL,
+	}, {
 		"mongo-complicated", model.RemoteEndpointTypeMongo,
 	}} {
 		d := data()[which.name].(map[string]interface{})
@@ -153,9 +197,9 @@ func specs() map[string]db.Specifier {
 			if err != nil {
 				panic(err)
 			}
-			s, err = sqls.Config(
-				sqls.Connection(conf.Config),
-				sqls.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			s, err = sql.Config(
+				sql.Connection(conf.Config),
+				sql.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
 			)
 		case model.RemoteEndpointTypePostgres:
 			var conf re.Postgres
@@ -163,9 +207,19 @@ func specs() map[string]db.Specifier {
 			if err != nil {
 				panic(err)
 			}
-			s, err = pq.Config(
-				pq.Connection(conf.Config),
-				pq.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			s, err = sql.Config(
+				sql.Connection(conf.Config),
+				sql.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			)
+		case model.RemoteEndpointTypeMySQL:
+			var conf re.MySQL
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+			s, err = sql.Config(
+				sql.Connection(conf.Config),
+				sql.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
 			)
 		case model.RemoteEndpointTypeMongo:
 			var conf re.Mongo
@@ -196,30 +250,55 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		expectSpec  string
 		expectError string
 	}{{
-		should:      "(SQL) work with a simple config",
+		should:      "(SQLS) work with a simple config",
 		givenConfig: "sqls-simple",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectSpec:  "sqls-simple",
 	}, {
-		should:      "(SQL) work with a complex config",
+		should:      "(SQLS) work with a complex config",
 		givenConfig: "sqls-complicated",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectSpec:  "sqls-complicated",
 	}, {
-		should:      "(SQL) fail with a bad config",
+		should:      "(SQLS) fail with a bad config",
 		givenConfig: "sqls-badConfig",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectError: `SQL Config missing "port" key`,
+		expectError: `mssql config errors: bad value "" for "user id"; bad value "" for "password"; bad value "" for "database"`,
 	}, {
-		should:      "(SQL) fail with a bad config type",
+		should:      "(SQLS) fail with a bad config type",
 		givenConfig: "sqls-badConfigType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectError: `bad JSON for SQL Server config: json: cannot unmarshal number into Go value of type sqlserver.Conn`,
+		expectError: `bad JSON for SQL Server config: json: cannot unmarshal number into Go value of type sql.SQLServerSpec`,
 	}, {
-		should:      "(SQL) fail with a bad max idle type",
+		should:      "(SQLS) fail with a bad max idle type",
 		givenConfig: "sqls-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: json: cannot unmarshal string into Go value of type int`,
+	}, {
+		should:      "(MySQL) work with a simple config",
+		givenConfig: "mysql-simple",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectSpec:  "mysql-simple",
+	}, {
+		should:      "(MySQL) work with a complex config",
+		givenConfig: "mysql-complicated",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectSpec:  "mysql-complicated",
+	}, {
+		should:      "(MySQL) fail with a bad config",
+		givenConfig: "mysql-badConfig",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `mysql config errors: bad value "" for "username"; bad value "" for "password"; bad value "" for "dbname"`,
+	}, {
+		should:      "(MySQL) fail with a bad config type",
+		givenConfig: "mysql-badConfigType",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `bad JSON for MySQL config: json: cannot unmarshal number into Go value of type sql.MySQLSpec`,
+	}, {
+		should:      "(MySQL) fail with a bad max idle type",
+		givenConfig: "mysql-badMaxIdleType",
+		givenType:   model.RemoteEndpointTypeMySQL,
+		expectError: `bad JSON for MySQL config: json: cannot unmarshal string into Go value of type int`,
 	}, {
 		should:      "(PSQL) work with a simple config",
 		givenConfig: "pq-simple",
@@ -234,12 +313,12 @@ func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
 		should:      "(PSQL) fail with a bad config",
 		givenConfig: "pq-badConfig",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `Postgres Config missing "port" key`,
+		expectError: `pgx config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "dbname"; bad value "" for "host"`,
 	}, {
 		should:      "(PSQL) fail with a bad config type",
 		givenConfig: "pq-badConfigType",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `bad JSON for Postgres config: json: cannot unmarshal number into Go value of type postgres.Conn`,
+		expectError: `bad JSON for Postgres config: json: cannot unmarshal number into Go value of type sql.PostgresSpec`,
 	}, {
 		should:      "(PSQL) fail with a bad max idle type",
 		givenConfig: "pq-badMaxIdleType",

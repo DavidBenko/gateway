@@ -228,6 +228,69 @@ AP.Postgres.Request.prototype.query = function(stmt, params) {
 }
 
 /**
+ * MySQL holds helper classes for MySQL related tasks
+ *
+ * @namespace
+ */
+AP.MySQL = AP.MySQL || {};
+
+
+/**
+ * Creates a new MySQL request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.MySQL.Request = function() {
+
+  /**
+   * The request's SQL statement to be executed.  Must be a query that does
+   * not modify data
+   * @type {string}
+   */
+  this.queryStatement = null;
+
+  /**
+   * The request's SQL statement to be executed.  Must be an update that modifies
+   * data.
+   * @type {string}
+   */
+  this.executeStatement = null;
+
+  /**
+   * The request's parameters to the SQL statement.
+   * @type {Array.<object>}
+   */
+  this.parameters = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.query = _.clone(request.queryStatement);
+    this.execute = _.clone(request.executeStatement);
+    this.parameters = _.clone(request.parameters);
+  }
+}
+
+AP.MySQL.Request.prototype.execute = function(stmt, params) {
+  this.executeStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+AP.MySQL.Request.prototype.query = function(stmt, params) {
+  this.queryStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+}
+
+/**
  * Mongo holds helper classes for Mongo related tasks
  *
  * @namespace
@@ -274,7 +337,6 @@ AP.Mongo.unnormalizeObjectId = function(hash) {
  * @constructor
  * @param [request] - An incoming request to copy the parameters
  */
-
 AP.Mongo.Request = function() {
   this.arguments = [];
 
@@ -288,4 +350,115 @@ AP.Mongo.Request = function() {
 AP.Mongo.Request.prototype.query = function() {
   this.arguments = arguments;
   AP.Mongo.convertFunctions(this.arguments);
+}
+
+/**
+ * Performs a query operation on a collection.
+ *
+ * @param {string} collection The collection to perform the query on.
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Number} [limit] Limit the number of results. Set to 0 for no limit.
+ * @param {Number} [skip] Skips some number of results.
+ */
+AP.Mongo.Request.prototype.find = function(collection, query, limit, skip) {
+  this.query(collection, "find", query, limit, skip);
+}
+
+/**
+ * Inserts a document into a collection.
+ *
+ * @param {string} collection The collection to insert the document into.
+ * @param {Object} document A document or an array of documents to insert.
+ */
+AP.Mongo.Request.prototype.insert = function(collection, document) {
+  this.query(collection, "insert", document);
+}
+
+/**
+ * Updates the document(s) selected by query in collection.
+ *
+ * @param {string} collection The collection to perform the update on.
+ * @param {Object} query See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Object} update A document or an update operator. See: http://docs.mongodb.org/master/reference/operator/update/
+ * @param {Object} [options] Options for the update.
+ * @param {Boolean} [options.upsert] Insert a document if the query doesn't match any documents.
+ * @param {Boolean} [options.multi] Updates multiple documents matched by the query.
+ */
+AP.Mongo.Request.prototype.update = function(collection, query, update, options) {
+  this.query(collection, "update", query, update, options);
+}
+
+/**
+ * Performs an upsert if the document has an id, or performs an insert if the
+ * document doesn't have an id.
+ *
+ * @param {string} collection The collection to save the document in.
+ * @param {Object} document The document to upsert or insert.
+ */
+AP.Mongo.Request.prototype.save = function(collection, document) {
+  this.query(collection, "save", document);
+}
+
+/**
+ * Removes the document(s) selected by query from the collection.
+ *
+ * @param {string} collection The collection to remove the document(s) from.
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
+ * @param {Boolean} [justOne] Remove just one document from the collection.
+ */
+AP.Mongo.Request.prototype.remove = function(collection, query, justOne) {
+  this.query(collection, "remove", query, justOne);
+}
+
+/**
+ * Delete the entire collection.
+ *
+ * @param {string} collection The collection to drop.
+ */
+AP.Mongo.Request.prototype.drop = function(collection) {
+  this.query(collection, "drop");
+}
+
+/**
+ * Process documents with an aggregation pipeline.
+ *
+ * @param {string} collection The collection to perform the aggregation on.
+ * @param {Object} stages An array of aggregation pipeline stages. See: http://docs.mongodb.org/master/reference/operator/aggregation-pipeline/
+ */
+AP.Mongo.Request.prototype.aggregate = function(collection, stages) {
+  var _stages = [];
+  if (stages instanceof Array) {
+    _stages = stages
+  } else {
+    for (var i = 1; i < arguments.length; i++) {
+      _stages.push(arguments[i]);
+    }
+  }
+  this.query(collection, "aggregate", _stages);
+}
+
+/**
+ * Count the documents matched by query in collection.
+ *
+ * @param {string} collection The collection to perform the count on.
+ * @param {Object} [query] Defaults to {}. See: http://docs.mongodb.org/master/reference/operator/query/
+ */
+AP.Mongo.Request.prototype.count = function(collection, query) {
+  this.query(collection, "count", query);
+}
+
+/**
+ * Perform a map reduce operation on collection.
+ *
+ * @param {string} collection The collection to map reduce.
+ * @param {Object} query Selects documents from collection to map reduce.
+ * @param {Object} scope Parametrizes the map, reduce, and finalize stages.
+ * @param {Function} map The map stage.
+ * @param {Function} reduce The reduce stage.
+ * @param {Function} finalize The finalize stage.
+ * @param {Object} [out] See: http://docs.mongodb.org/master/reference/method/db.collection.mapReduce/#mapreduce-out-mtd
+ */
+AP.Mongo.Request.prototype.mapReduce = function(collection, query, scope, map,
+  reduce, finalize, out) {
+  this.query(collection, "mapReduce", query, scope, map, reduce, finalize, out);
 }
