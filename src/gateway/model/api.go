@@ -33,7 +33,7 @@ type API struct {
 // CopyFrom copies all attributes except for AccountID, ID, and Name from other
 // into this API.  Also, Export is set to the empty string and ExportVersion is set
 // to 0
-func (a *API) CopyFrom(other *API) {
+func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 	a.Description = other.Description
 	a.CORSAllowOrigin = other.CORSAllowOrigin
 	a.CORSAllowHeaders = other.CORSAllowHeaders
@@ -41,12 +41,14 @@ func (a *API) CopyFrom(other *API) {
 	a.CORSRequestHeaders = other.CORSRequestHeaders
 	a.CORSMaxAge = other.CORSMaxAge
 	a.Export = ""
-	a.Environments = other.Environments
-	a.EndpointGroups = other.EndpointGroups
-	a.Libraries = other.Libraries
-	a.RemoteEndpoints = other.RemoteEndpoints
-	a.ProxyEndpoints = other.ProxyEndpoints
 	a.ExportVersion = 0
+	if copyEmbeddedObjects {
+		a.Environments = other.Environments
+		a.EndpointGroups = other.EndpointGroups
+		a.Libraries = other.Libraries
+		a.RemoteEndpoints = other.RemoteEndpoints
+		a.ProxyEndpoints = other.ProxyEndpoints
+	}
 }
 
 // Validate validates the model.

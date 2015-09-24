@@ -92,7 +92,7 @@ func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error
 		return aphttp.NewServerError(err)
 	}
 
-	newAPI.CopyFrom(api)
+	newAPI.CopyFrom(api, false)
 
 	if err := c.addLocalhost(api, tx); err != nil {
 		return aphttp.DefaultServerError()
