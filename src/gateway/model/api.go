@@ -19,6 +19,7 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
+	Export               string `json:"export" db:"-"`
 
 	Environments    []*Environment    `json:"environments,omitempty"`
 	EndpointGroups  []*EndpointGroup  `json:"endpoint_groups,omitempty"`

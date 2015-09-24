@@ -170,11 +170,6 @@ func (a *API) Import(tx *apsql.Tx) (err error) {
 
 // ImportV1 imports the whole API definition in v1 format
 func (a *API) ImportV1(tx *apsql.Tx) (err error) {
-	err = a.Insert(tx)
-	if err != nil {
-		return aperrors.NewWrapped("Inserting API", err)
-	}
-
 	environmentsIDMap := make(map[int]int64)
 	for index, environment := range a.Environments {
 		environment.AccountID = a.AccountID

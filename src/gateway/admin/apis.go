@@ -9,8 +9,10 @@ import (
 	apsql "gateway/sql"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/handlers"
+	"github.com/vincent-petithory/dataurl"
 )
 
 // RouteAPIExport routes the endpoint for API export
@@ -22,20 +24,6 @@ func RouteAPIExport(controller *APIsController, path string,
 	}
 	if conf.CORSEnabled {
 		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
-	}
-
-	router.Handle(path, handlers.MethodHandler(routes))
-}
-
-// RouteAPIImport routes the endpoint for API import
-func RouteAPIImport(controller *APIsController, path string,
-	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
-
-	routes := map[string]http.Handler{
-		"POST": write(db, controller.Import),
-	}
-	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"POST", "OPTIONS"})
 	}
 
 	router.Handle(path, handlers.MethodHandler(routes))
@@ -59,24 +47,36 @@ func (c *APIsController) Export(w http.ResponseWriter, r *http.Request,
 	return c.serializeInstance(api, w)
 }
 
-// Import imports a full API
-func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
-	tx *apsql.Tx) aphttp.Error {
-
-	export, _, err := r.FormFile("export")
+func (c *APIsController) decodeExport(api *model.API, tx *apsql.Tx) (*model.API, aphttp.Error) {
+	decoded, err := dataurl.DecodeString(api.Export)
 	if err != nil {
-		return aphttp.NewError(errors.New("Could not get file from 'export' field."),
+		return nil, aphttp.NewError(fmt.Errorf("Encountered an error attempting to decode export: %v", err), http.StatusBadRequest)
+	}
+
+	api, httpErr := c.deserializeInstance(strings.NewReader(string(decoded.Data)))
+	if httpErr != nil {
+		newErr := aphttp.NewError(fmt.Errorf("API file is invalid: %s", httpErr), httpErr.Code())
+		return nil, newErr
+	}
+
+	return api, httpErr
+}
+
+// Import imports a full API
+func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error {
+	if newAPI.Export == "" {
+		return nil
+	}
+
+	api, err := c.decodeExport(newAPI, tx)
+	if err != nil {
+		return aphttp.NewError(errors.New("Unable to decode export."),
 			http.StatusBadRequest)
 	}
 
-	api, httpErr := c.deserializeInstance(export)
-	if httpErr != nil {
-		newErr := aphttp.NewError(fmt.Errorf("API file is invalid: %s", httpErr), httpErr.Code())
-		return newErr
-	}
-
-	api.Name = r.FormValue("name")
-	api.AccountID = c.accountID(r)
+	api.Name = newAPI.Name
+	api.ID = newAPI.ID
+	api.AccountID = newAPI.AccountID
 
 	validationErrors := api.Validate()
 	if !validationErrors.Empty() {
@@ -96,17 +96,24 @@ func (c *APIsController) Import(w http.ResponseWriter, r *http.Request,
 		return aphttp.DefaultServerError()
 	}
 
-	return c.serializeInstance(api, w)
+	return nil
 }
 
 // AfterInsert does some work after inserting an API
 func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
-	if err := c.addDefaultEnvironment(api, tx); err != nil {
-		return err
+	if api.Export == "" {
+		if err := c.addDefaultEnvironment(api, tx); err != nil {
+			return err
+		}
+		if err := c.addLocalhost(api, tx); err != nil {
+			return err
+		}
+	} else {
+		if err := c.importAPI(api, tx); err != nil {
+			return err.Error()
+		}
 	}
-	if err := c.addLocalhost(api, tx); err != nil {
-		return err
-	}
+
 	return nil
 }
 

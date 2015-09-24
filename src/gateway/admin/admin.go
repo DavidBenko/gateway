@@ -46,7 +46,6 @@ func Setup(router *mux.Router, db *sql.DB, conf config.ProxyAdmin, psconf config
 
 	apisController := &APIsController{base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
-	RouteAPIImport(apisController, "/apis/import", authAdmin, db, conf)
 	RouteResource(apisController, "/apis", authAdmin, db, conf)
 
 	testController := &TestController{base, psconf}
