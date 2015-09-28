@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"runtime"
 	"strings"
 	"time"
@@ -16,6 +17,10 @@ import (
 	"gateway/sql"
 	"gateway/version"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func main() {
 	if versionCheck() {
@@ -135,6 +140,16 @@ func createDevAccount(db *sql.DB) error {
 	return nil
 }
 
+var symbols = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randomPassword() string {
+	password := make([]rune, 16)
+	for i := range password {
+		password[i] = symbols[rand.Intn(len(symbols))]
+	}
+	return string(password)
+}
+
 func createDevUser(db *sql.DB) error {
 	account, err := model.FirstAccount(db)
 	if err != nil {
@@ -144,7 +159,7 @@ func createDevUser(db *sql.DB) error {
 		AccountID:   account.ID,
 		Name:        "developer",
 		Email:       "developer@justapis.com",
-		NewPassword: "password",
+		NewPassword: randomPassword(),
 	}
 	tx, err := db.Begin()
 	if err != nil {
