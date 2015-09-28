@@ -43,6 +43,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 
 	base := BaseController{conf: conf, accountID: accountID}
 
+	aggregator = newAggregator(conf)
 	RouteLogging("/logs/socket", authAdmin)
 	RouteLogging("/apis/{apiID}/logs/socket", authAdmin)
 	RouteLogging("/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)

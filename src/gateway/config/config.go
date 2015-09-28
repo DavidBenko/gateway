@@ -76,6 +76,9 @@ type ProxyAdmin struct {
 	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
+
+	LogServers string `flag:"log-servers" default:"tcp://localhost:5555"`
+	LogServer  string `flag:"log-server" default:"tcp://*:5555"`
 }
 
 type ElasticLogging struct {

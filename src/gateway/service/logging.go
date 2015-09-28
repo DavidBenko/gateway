@@ -12,6 +12,8 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/queue"
+	"gateway/queue/channel"
 
 	"github.com/blevesearch/bleve"
 	elasti "github.com/mattbaird/elastigo/lib"
@@ -240,5 +242,26 @@ func BleveLoggingService(conf config.BleveLogging) {
 				index.Batch(batch)
 			}
 		}
+	}()
+}
+
+func LoggingService(conf config.ProxyAdmin) {
+	go func() {
+		logs, unsubscribe := admin.Interceptor.Subscribe()
+		defer unsubscribe()
+
+		send, err := queue.Publish(conf.LogServer, channel.Publish)
+		if err != nil {
+			log.Fatal(err)
+		}
+		C := send.Channel()
+		defer func() {
+			send.Close()
+		}()
+
+		add := func(message string) {
+			C <- []byte(message)
+		}
+		processLogs(logs, add)
 	}()
 }

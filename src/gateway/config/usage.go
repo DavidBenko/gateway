@@ -53,4 +53,7 @@ var usageStrings = map[string]string{
 
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",
+
+	"log-servers": "The log servers to connect to",
+	"log-server":  "The address for this log server",
 }

@@ -5,14 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/queue"
+	"gateway/queue/channel"
 	apsql "gateway/sql"
 
 	"github.com/blevesearch/bleve"
@@ -22,23 +26,24 @@ import (
 )
 
 var Interceptor = newInterceptor()
+var aggregator *logPublisher
 
 func RouteLogging(path string, router aphttp.Router) {
 	router.Handle(path, websocket.Handler(logHandler))
 }
 
-type logInterceptor struct {
+type logPublisher struct {
 	subscribers            []chan []byte
 	subscribe, unsubscribe chan chan []byte
 	write                  chan []byte
 }
 
-func newInterceptor() *logInterceptor {
-	l := &logInterceptor{
+func newPublisher(in chan []byte) *logPublisher {
+	l := &logPublisher{
 		subscribers: make([]chan []byte, 8),
 		subscribe:   make(chan chan []byte, 8),
 		unsubscribe: make(chan chan []byte, 8),
-		write:       make(chan []byte, 8),
+		write:       in,
 	}
 	go func() {
 		for {
@@ -75,14 +80,14 @@ func newInterceptor() *logInterceptor {
 	return l
 }
 
-func (l *logInterceptor) Write(p []byte) (n int, err error) {
+func (l *logPublisher) Write(p []byte) (n int, err error) {
 	cp := make([]byte, len(p))
 	copy(cp, p)
 	l.write <- cp
 	return os.Stdout.Write(p)
 }
 
-func (l *logInterceptor) Subscribe() (logs <-chan []byte, unsubscribe func()) {
+func (l *logPublisher) Subscribe() (logs <-chan []byte, unsubscribe func()) {
 	_logs := make(chan []byte, 8)
 	l.subscribe <- _logs
 	logs = _logs
@@ -95,6 +100,37 @@ func (l *logInterceptor) Subscribe() (logs <-chan []byte, unsubscribe func()) {
 		l.unsubscribe <- _logs
 	}
 	return
+}
+
+func newInterceptor() *logPublisher {
+	return newPublisher(make(chan []byte, 8))
+}
+
+func newAggregator(conf config.ProxyAdmin) *logPublisher {
+	logs := make(chan []byte, 8)
+	for _, publisher := range strings.Split(conf.LogServers, ",") {
+		go func(path string) {
+			rec, err := queue.Subscribe(path, channel.Subscribe)
+			if err != nil {
+				log.Fatal(err)
+			}
+			C := rec.Channel()
+			defer func() {
+				rec.Close()
+				go func(c <-chan []byte) {
+					for _ = range c {
+						//noop
+					}
+				}(C)
+			}()
+
+			for log := range C {
+				logs <- log
+			}
+		}(publisher)
+	}
+
+	return newPublisher(logs)
 }
 
 func makeFilter(ws *websocket.Conn) func(b byte) bool {
@@ -143,7 +179,7 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 }
 
 func logHandler(ws *websocket.Conn) {
-	logs, unsubscribe := Interceptor.Subscribe()
+	logs, unsubscribe := aggregator.Subscribe()
 	defer unsubscribe()
 	filter, newline := makeFilter(ws), false
 	for _, b := range <-logs {

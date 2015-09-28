@@ -101,6 +101,7 @@ func main() {
 
 	service.ElasticLoggingService(conf.Elastic)
 	service.BleveLoggingService(conf.Bleve)
+	service.LoggingService(conf.Admin)
 
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
