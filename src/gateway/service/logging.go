@@ -210,10 +210,12 @@ func BleveLoggingService(conf config.BleveLogging) {
 			if bleveMessage == nil {
 				return
 			}
-			err := index.Index(bleveMessage.Id(), bleveMessage)
-			if err != nil {
-				log.Printf("[bleve] %v", err)
-			}
+			go func() {
+				err := index.Index(bleveMessage.Id(), bleveMessage)
+				if err != nil {
+					log.Printf("[bleve] %v", err)
+				}
+			}()
 		}
 		processLogs(logs, add)
 	}()
