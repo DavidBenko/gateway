@@ -100,6 +100,8 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 		qm.Pub,
 		qm.PubIPC,
 	)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(pIPC, gc.NotNil)
 
 	testPubSub(c, pIPC, sIPC, "hello", true)
 
