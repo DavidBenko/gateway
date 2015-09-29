@@ -162,7 +162,7 @@ type Publisher struct {
 	Server
 }
 
-func (p *Publisher) Channel() chan []byte {
+func (p *Publisher) Channel() chan<- []byte {
 	return p.comm
 }
 

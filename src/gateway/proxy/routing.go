@@ -22,6 +22,8 @@ type proxyRouter struct {
 
 	apiRouters      map[int64]*mux.Router
 	apiRoutersMutex sync.RWMutex
+	methods         map[int64]map[string]map[string]bool
+	merged          map[string]map[string]bool
 }
 
 func newProxyRouter(db *apsql.DB) *proxyRouter {
@@ -89,6 +91,21 @@ func (r *proxyRouter) rebuildHosts() error {
 	return nil
 }
 
+func merge(methods map[int64]map[string]map[string]bool) map[string]map[string]bool {
+	merged := make(map[string]map[string]bool)
+	for _, api := range methods {
+		for path, route := range api {
+			if _, ok := merged[path]; !ok {
+				merged[path] = make(map[string]bool)
+			}
+			for method := range route {
+				merged[path][method] = true
+			}
+		}
+	}
+	return merged
+}
+
 func (r *proxyRouter) rebuildAPIRouters() error {
 	log.Printf("%s Rebuilding all API routers", config.System)
 
@@ -100,19 +117,24 @@ func (r *proxyRouter) rebuildAPIRouters() error {
 	}
 
 	routers := make(map[int64]*mux.Router)
+	methods := make(map[int64]map[string]map[string]bool)
 	for _, endpoint := range proxyEndpoints {
 		router, ok := routers[endpoint.APIID]
 		if !ok {
 			router = mux.NewRouter()
 			routers[endpoint.APIID] = router
 		}
-
-		addProxyEndpointRoutes(endpoint, router)
+		if _, ok := methods[endpoint.APIID]; !ok {
+			methods[endpoint.APIID] = make(map[string]map[string]bool)
+		}
+		addProxyEndpointRoutes(endpoint, router, methods[endpoint.APIID])
 	}
 
 	defer r.apiRoutersMutex.Unlock()
 	r.apiRoutersMutex.Lock()
 	r.apiRouters = routers
+	r.methods = methods
+	r.merged = merge(methods)
 
 	return nil
 }
@@ -128,13 +150,16 @@ func (r *proxyRouter) rebuildAPIRouterForAPIID(apiID int64) error {
 	}
 
 	router := mux.NewRouter()
+	methods := make(map[string]map[string]bool)
 	for _, endpoint := range proxyEndpoints {
-		addProxyEndpointRoutes(endpoint, router)
+		addProxyEndpointRoutes(endpoint, router, methods)
 	}
 
 	defer r.apiRoutersMutex.Unlock()
 	r.apiRoutersMutex.Lock()
 	r.apiRouters[apiID] = router
+	r.methods[apiID] = methods
+	r.merged = merge(r.methods)
 
 	return nil
 }
@@ -145,6 +170,8 @@ func (r *proxyRouter) deleteAPIRouterForAPIID(apiID int64) error {
 	defer r.apiRoutersMutex.Unlock()
 	r.apiRoutersMutex.Lock()
 	delete(r.apiRouters, apiID)
+	delete(r.methods, apiID)
+	r.merged = merge(r.methods)
 
 	return nil
 }
@@ -154,7 +181,8 @@ func isTest(r *http.Request, rm *mux.RouteMatch) bool {
 	return true
 }
 
-func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) error {
+func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router,
+	apiMethods map[string]map[string]bool) error {
 	routes, err := endpoint.GetRoutes()
 	if err != nil {
 		log.Printf("%s Error getting proxy endpoint %d routes: %v",
@@ -168,8 +196,15 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router) e
 		route.Path(prefix + proxyRoute.Path)
 
 		methods := proxyRoute.Methods
+		if apiMethods[proxyRoute.Path] == nil {
+			apiMethods[proxyRoute.Path] = make(map[string]bool)
+		}
+		for _, method := range proxyRoute.Methods {
+			apiMethods[proxyRoute.Path][method] = true
+		}
 		if endpoint.CORSEnabled && !proxyRoute.HandlesOptions() {
 			methods = append(methods, "OPTIONS")
+			apiMethods[proxyRoute.Path]["OPTIONS"] = true
 		}
 		route.Methods(methods...)
 

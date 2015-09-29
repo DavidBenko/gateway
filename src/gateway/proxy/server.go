@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -266,8 +267,11 @@ func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 	requestID string) aphttp.Error {
 
 	s.addCORSCommonHeaders(w, endpoint)
-	methods := route.Methods
-	methods = append(methods, "OPTIONS")
+	methods := []string{}
+	for method, _ := range s.proxyRouter.merged[route.Path] {
+		methods = append(methods, method)
+	}
+	sort.Strings(methods)
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
 	return nil
 }
