@@ -64,6 +64,13 @@ func AllAPIsForAccountID(db *apsql.DB, accountID int64) ([]*API, error) {
 	return apis, err
 }
 
+// AllAPIs returns all apis.
+func AllAPIs(db *apsql.DB) ([]*API, error) {
+	apis := []*API{}
+	err := db.Select(&apis, db.SQL("apis/all_apis"))
+	return apis, err
+}
+
 // FindAPIForAccountID returns the api with the id and account_id specified.
 func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	api := API{}
