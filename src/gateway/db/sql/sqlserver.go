@@ -95,11 +95,15 @@ func (s *SQLServerSpec) NewDB() (db.DB, error) {
 }
 
 func (s *SQLServerSpec) NeedsUpdate(sp db.Specifier) bool {
+	if sp == nil {
+		log.Panicf("tried to compare to nil db.Specifier!")
+		return false
+	}
 	if spec, ok := sp.(*SQLServerSpec); ok {
-		return spec.Timeout != s.Timeout || s.NeedsUpdate(sp)
+		return spec.Timeout != s.Timeout || s.spec.NeedsUpdate(sp)
 	}
 
-	log.Panicf("tried to compare *SQLServerSpec to %T!", sp)
+	log.Panicf("tried to compare %T to %T!", s, sp)
 	return false
 }
 
