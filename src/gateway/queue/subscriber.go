@@ -21,7 +21,7 @@ type Subscriber interface {
 	Client
 
 	// Channel returns a channel which messages can be received on.
-	Channel() chan []byte
+	Channel() <-chan []byte
 }
 
 // Subscribe sets up a Subscriber with the given SubBindings, Connects it with

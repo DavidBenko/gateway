@@ -24,7 +24,7 @@ type Subscriber struct {
 	Client
 }
 
-func (s *Subscriber) Channel() chan []byte {
+func (s *Subscriber) Channel() <-chan []byte {
 	return nil
 }
 

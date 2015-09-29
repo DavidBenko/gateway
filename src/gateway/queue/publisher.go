@@ -22,7 +22,7 @@ type Publisher interface {
 	Server
 
 	// Channel returns a handle for the user to send messages on.
-	Channel() chan []byte
+	Channel() chan<- []byte
 }
 
 // Publish sets up a Publisher with the given PubBindings, Binds it with the
