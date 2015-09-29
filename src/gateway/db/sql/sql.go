@@ -126,7 +126,7 @@ func MaxOpenIdle(maxOpen, maxIdle int) db.Configurator {
 // cause a panic if we try to compare a SQL database to a non-SQL database.
 func (s *spec) NeedsUpdate(dbSpec db.Specifier) bool {
 	if dbSpec == nil {
-		log.Panicf("tried to compare to nil Specifier!")
+		log.Panicf("tried to compare to nil db.Specifier!")
 	}
 	if tSpec, ok := dbSpec.(sqlSpec); ok {
 		maxOpen, maxIdle := tSpec.getMaxOpenIdle()
