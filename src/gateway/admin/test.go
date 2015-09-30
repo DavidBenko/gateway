@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -46,15 +45,6 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 	endpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(db, endpointID, apiID, accountID)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
-	hosts, err := model.AllHostsForAPIIDAndAccountID(db, apiID, accountID)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
-	if len(hosts) == 0 {
-		return aphttp.NewError(errors.New("A host needs to be defined."), http.StatusBadRequest)
 	}
 
 	selectedHost := "127.0.0.1"
@@ -131,7 +121,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 					return aphttp.NewError(err, http.StatusBadRequest)
 				}
 
-				request.Host = hosts[0].Hostname
+				request.Host = fmt.Sprintf("%v.example.com", apiID)
 
 				content_type := ""
 				for _, pair := range test.Pairs {
