@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gateway/queue"
 	"runtime"
+	"time"
 
 	"github.com/gdamore/mangos"
 	"github.com/gdamore/mangos/protocol/sub"
@@ -21,9 +22,9 @@ type SubSocket struct {
 	c       chan []byte
 	e       chan error
 	control chan signal
+	done    chan signal
 }
 
-// Connect implements queue.Subscriber.Connect for *SubSocket.
 func (s *SubSocket) Connect(path string) error {
 	if s.s == nil {
 		return fmt.Errorf("mangos Subscriber couldn't Connect to %s: nil socket", path)
@@ -36,8 +37,9 @@ func (s *SubSocket) Connect(path string) error {
 	}
 
 	control := make(chan signal)
-	c := make(chan []byte, numChannels)
-	e := make(chan error, numChannels)
+	done := make(chan signal)
+	c := make(chan []byte, channelSize)
+	e := make(chan error, channelSize)
 
 	go func() {
 		var msg []byte
@@ -47,6 +49,7 @@ func (s *SubSocket) Connect(path string) error {
 			case <-control:
 				close(c)
 				close(e)
+				close(done)
 				return
 			default:
 				msg, err = sock.Recv()
@@ -63,29 +66,53 @@ func (s *SubSocket) Connect(path string) error {
 	s.c = c
 	s.e = e
 	s.control = control
+	s.done = done
 
 	return sock.Dial(path)
 }
 
-// Close implements io.Closer for *SubSocket.
-func (s *SubSocket) Close() error {
-	select {
-	case s.control <- struct{}{}:
-		// control was not yet closed, so we can safely close it.
+func (s *SubSocket) Close() (e error) {
+	if s.control != nil {
+		defer func() {
+			if r := recover(); r != nil {
+				if err, ok := r.(error); ok {
+					e = err
+				}
+				e = fmt.Errorf("unexpected panic: %v", e)
+			}
+		}()
 		close(s.control)
-	default:
 	}
 
 	if s.s != nil {
-		return s.s.Close()
+		err := s.s.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	// If nil, Connect was never called and we can cleanly close.
+	// Otherwise, wait for it to clean up.
+	if s.done != nil {
+		select {
+		case <-s.done:
+			// Everything is fine
+		case <-time.After(Timeout):
+			msg := "SubSocket failed to clean up"
+			if s.s != nil {
+				if err := s.s.Close(); err != nil {
+					msg += fmt.Sprintf(", Socket close error: %v", err)
+				}
+			}
+			return errors.New(msg)
+		}
 	}
 
 	return nil
 }
 
-// Channel returns a handle to the SubSocket's underlying channel.
-func (s *SubSocket) Channel() <-chan []byte {
-	return s.c
+func (s *SubSocket) Channels() (<-chan []byte, <-chan error) {
+	return s.c, s.e
 }
 
 // Sub is a queue.SubBinding which creates a new mangos SubSocket.
@@ -104,7 +131,7 @@ func Sub(s queue.Subscriber) (queue.Subscriber, error) {
 
 // SubTCP is a queue.SubBinding which adds a TCP binding to the SubSocket.
 func SubTCP(s queue.Subscriber) (queue.Subscriber, error) {
-	sock, err := GetSubSocket(s)
+	sock, err := getSubSocket(s)
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("SubTCP failed: %s", err)
@@ -127,7 +154,7 @@ func SubIPC(s queue.Subscriber) (queue.Subscriber, error) {
 		return nil, fmt.Errorf("SubIPC failed: mangos IPC transport not supported on OS %q", runtime.GOOS)
 	}
 
-	sock, err := GetSubSocket(s)
+	sock, err := getSubSocket(s)
 	switch {
 	case err != nil:
 		return nil, fmt.Errorf("SubIPC failed: %s", err)
@@ -142,21 +169,26 @@ func SubIPC(s queue.Subscriber) (queue.Subscriber, error) {
 
 func Filter(filter string) queue.SubBinding {
 	return func(s queue.Subscriber) (queue.Subscriber, error) {
-		switch tS := s.(type) {
-		case *SubSocket:
+		if s == nil {
+			return nil, errors.New("Filter got nil Subscriber, use Pub first")
+		}
+		if tS, ok := s.(*SubSocket); ok {
+			if tS == nil {
+				return nil, errors.New("Filter got nil Subscriber, use Pub first")
+			}
 			tS.filter = []byte(filter)
 			return tS, nil
-		default:
-			return nil, fmt.Errorf("Filter expected *mangos.SubSocket, got %T", s)
 		}
+
+		return nil, fmt.Errorf("Filter expected *mangos.SubSocket, got %T", s)
 	}
 }
 
 // Gets a Mangos sub.Socket from a queue.Subscriber containing a Mangos Socket.
-func GetSubSocket(s queue.Subscriber) (mangos.Socket, error) {
+func getSubSocket(s queue.Subscriber) (mangos.Socket, error) {
 	if tS, ok := s.(*SubSocket); ok {
 		return tS.s, nil
 	}
 
-	return nil, fmt.Errorf("GetSubSocket expected *mangos.SubSocket, got %T", s)
+	return nil, fmt.Errorf("getSubSocket expected *mangos.SubSocket, got %T", s)
 }

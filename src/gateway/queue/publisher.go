@@ -21,8 +21,19 @@ type Server interface {
 type Publisher interface {
 	Server
 
-	// Channel returns a handle for the user to send messages on.
-	Channel() chan<- []byte
+	// Channels returns a channel to send messages on, and a channel to receive
+	// any errors on.
+	//
+	// Usage:
+	// s, e := pub.Channels()
+	//
+	// select {
+	// case msg := <-s:
+	//     // ...
+	// case err := <-e:
+	//     // ...
+	// }
+	Channels() (chan<- []byte, <-chan error)
 }
 
 // Publish sets up a Publisher with the given PubBindings, Binds it with the

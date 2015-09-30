@@ -2,6 +2,7 @@ package mangos_test
 
 import (
 	"reflect"
+	"runtime"
 	"time"
 
 	"gateway/queue"
@@ -10,6 +11,11 @@ import (
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
+)
+
+const (
+	TotalAttempts = 1000
+	Delay         = 500 * time.Microsecond
 )
 
 func getBasicPub(c *gc.C, path string) queue.Publisher {
@@ -39,29 +45,82 @@ func getBasicSub(c *gc.C, path string) queue.Subscriber {
 }
 
 func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, shouldReceive bool) {
-	pCh := pub.Channel()
-	sCh := sub.Channel()
+	c.Logf("TestSubSocket: *** TEST FAILURES HERE MAY OCCUR ***")
+
+	pCh, pE := pub.Channels()
+	sCh, sE := sub.Channels()
 
 	c.Check(pCh, gc.NotNil)
 	c.Check(sCh, gc.NotNil)
 
-	go func() { pCh <- []byte(msg) }()
+	doneSend := make(chan struct{})
+	doneRecv := make(chan int)
 
-	select {
-	case received := <-sCh:
-		switch shouldReceive {
-		case true:
-			c.Check(string(received), gc.Equals, msg)
-		case false:
-			c.Logf("testPubSub: Received unintended message %q", received)
-			c.FailNow()
+	// Try some sends
+	go func() {
+		for i := 0; i < TotalAttempts; i++ {
+			select {
+			case e, ok := <-pE:
+				if !ok {
+					c.Logf("testPubSub: error channel was closed")
+					c.FailNow()
+				}
+				c.Assert(e, jc.ErrorIsNil)
+				i--
+			case pCh <- []byte(msg):
+			}
+			time.Sleep(Delay)
 		}
-	case <-time.After(testing.ShortWait):
-		switch shouldReceive {
-		case true:
-			c.Logf("testPubSub: Never received message")
+		close(doneSend)
+	}()
+
+	runtime.Gosched()
+
+	if !shouldReceive {
+	TryRecv:
+		select {
+		case e, ok := <-sE:
+			c.Assert(e, jc.ErrorIsNil)
+			if ok {
+				c.Logf("testPubSub: Received unexpected nil error %v", e)
+				goto TryRecv
+			}
+			c.Logf("testPubSub: Received unexpected nil error %q", msg)
 			c.FailNow()
-		case false:
+		case msg := <-sCh:
+			c.Logf("testPubSub: Received unintended message %q", msg)
+			c.FailNow()
+		case <-doneSend:
+			// Finished without receiving anything, which is the
+			// desired behavior.
 		}
+		return
 	}
+
+	go func() {
+		total := 0
+	Recv:
+		for {
+			select {
+			case e := <-sE:
+				c.Assert(e, jc.ErrorIsNil)
+			case m := <-sCh:
+				c.Check(string(m), gc.Equals, msg)
+				total++
+			case <-time.After(testing.LongWait): //10 * time.Second):
+				break Recv
+			}
+		}
+		doneRecv <- total
+	}()
+
+	<-doneSend
+	total := <-doneRecv
+
+	rate := float64(total) / float64(TotalAttempts)
+	c.Logf("testPubSub: Received %d messages out of %d", total, TotalAttempts)
+	c.Logf("testPubSub:   --- %f success rate ---", rate)
+	c.Check(rate, gc.Equals, 1.0)
+	runtime.Gosched()
+	time.Sleep(testing.LongWait)
 }
