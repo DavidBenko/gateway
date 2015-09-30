@@ -154,7 +154,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   <% elsif account %>
     err := model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r), c.userID(r))
   <% else %>
-    err := model.Delete<%= singular %>(tx, id, c.userID(r))
+    err := model.Delete<%= singular %>(tx, id)
   <% end %>
 
   if err != nil {

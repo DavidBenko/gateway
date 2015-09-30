@@ -39,6 +39,10 @@ func accountIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
 	}
 }
 
+func userIDDummy(r *http.Request) int64 {
+	return 0
+}
+
 func userIDFromSession(r *http.Request) int64 {
 	session := requestSession(r)
 	return session.Values[userIDKey].(int64)

@@ -55,12 +55,12 @@ func FindAccount(db *sql.DB, id int64) (*Account, error) {
 }
 
 // DeleteAccount deletes the account with the id specified.
-func DeleteAccount(tx *sql.Tx, id, userID int64) error {
+func DeleteAccount(tx *sql.Tx, id int64) error {
 	err := tx.DeleteOne(tx.SQL("accounts/delete"), id)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", id, userID, 0, id, sql.Delete)
+	return tx.Notify("accounts", id, 0, 0, id, sql.Delete)
 }
 
 // Insert inserts the account into the database as a new row.
