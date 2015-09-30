@@ -6,6 +6,7 @@ import (
 	"gateway/model"
 	apsql "gateway/sql"
 
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -82,6 +83,18 @@ func (r *proxyRouter) rebuildHosts() error {
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(host.APIID, 10))
 		route.Host(host.Hostname)
+	}
+
+	apis, err := model.AllAPIs(r.db)
+	if err != nil {
+		log.Printf("%s Error fetching apis: %v",
+			config.System, err)
+		return err
+	}
+	for _, api := range apis {
+		route := router.NewRoute()
+		route.Name(strconv.FormatInt(api.ID, 10))
+		route.Host(fmt.Sprintf("%v.example.com", api.ID))
 	}
 
 	defer r.hostsRouterMutex.Unlock()
