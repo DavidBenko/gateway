@@ -2,7 +2,6 @@ package mangos_test
 
 import (
 	"reflect"
-	"runtime"
 	"time"
 
 	"gateway/queue"
@@ -74,8 +73,6 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 		close(doneSend)
 	}()
 
-	runtime.Gosched()
-
 	if !shouldReceive {
 	TryRecv:
 		select {
@@ -107,7 +104,7 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 			case m := <-sCh:
 				c.Check(string(m), gc.Equals, msg)
 				total++
-			case <-time.After(testing.LongWait): //10 * time.Second):
+			case <-time.After(testing.LongWait):
 				break Recv
 			}
 		}
@@ -121,6 +118,4 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 	c.Logf("testPubSub: Received %d messages out of %d", total, TotalAttempts)
 	c.Logf("testPubSub:   --- %f success rate ---", rate)
 	c.Check(rate, gc.Equals, 1.0)
-	runtime.Gosched()
-	time.Sleep(testing.LongWait)
 }

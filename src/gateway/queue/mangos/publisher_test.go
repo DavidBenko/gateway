@@ -7,7 +7,6 @@ import (
 	"gateway/queue/testing"
 	"reflect"
 	"runtime"
-	"time"
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
@@ -22,7 +21,6 @@ func (s *MangosSuite) TestPubSocket(c *gc.C) {
 	err = m.Close() // Does nothing
 	c.Logf("PubSocket Close with nil socket does nothing")
 	c.Check(err, jc.ErrorIsNil)
-	time.Sleep(testing.ShortWait)
 
 	p := getBasicPub(c, "tcp://localhost:9001")
 
@@ -32,11 +30,9 @@ func (s *MangosSuite) TestPubSocket(c *gc.C) {
 
 	c.Logf("live PubSocket Close does not error")
 	c.Assert(p.Close(), jc.ErrorIsNil)
-	runtime.Gosched()
 	_, ok := <-e
 	c.Logf("error channel should now be closed")
 	c.Check(ok, gc.Equals, false)
-	time.Sleep(testing.ShortWait)
 }
 
 func (s *MangosSuite) TestGetPubSocket(c *gc.C) {
@@ -55,7 +51,6 @@ func (s *MangosSuite) TestGetPubSocket(c *gc.C) {
 	c.Assert(sc, gc.NotNil)
 
 	c.Assert(p.Close(), jc.ErrorIsNil)
-	time.Sleep(testing.ShortWait)
 }
 
 func (s *MangosSuite) TestPubTCP(c *gc.C) {
@@ -68,7 +63,6 @@ func (s *MangosSuite) TestPubTCP(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pIPC, gc.NotNil)
 	err = pIPC.Close()
-	time.Sleep(testing.ShortWait)
 
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -89,7 +83,6 @@ func (s *MangosSuite) TestPubIPC(c *gc.C) {
 		c.Assert(pIPC, gc.NotNil)
 		err = pIPC.Close()
 		c.Assert(err, jc.ErrorIsNil)
-		time.Sleep(testing.ShortWait)
 	default:
 		c.Check(err, gc.ErrorMatches, fmt.Sprintf("PubIPC failed: mangos IPC transport not supported on OS %q", runtime.GOOS))
 		return // Don't need to test other behaviors
@@ -109,5 +102,4 @@ func (s *MangosSuite) TestPub(c *gc.C) {
 	c.Assert(p, gc.NotNil)
 	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
 	c.Assert(p.Close(), jc.ErrorIsNil)
-	time.Sleep(testing.ShortWait)
 }
