@@ -10,6 +10,7 @@ import (
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
 	AccountID int64 `json:"-" db:"account_id"`
+	UserID    int64 `json:"-"`
 
 	ID                   int64  `json:"id,omitempty"`
 	Name                 string `json:"name"`
@@ -86,12 +87,12 @@ func FindAPIForProxy(db *apsql.DB, id int64) (*API, error) {
 }
 
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
-func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
+func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("apis/delete"), id, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("apis", id, apsql.Delete)
+	return tx.Notify("apis", accountID, userID, id, id, apsql.Delete)
 }
 
 // Insert inserts the api into the database as a new row.
@@ -107,13 +108,23 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
+	if err != nil {
+		return
+	}
+
+	err = tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Insert)
 	return
 }
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(tx.SQL("apis/update"),
+	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
 		a.ID, a.AccountID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Update)
 }

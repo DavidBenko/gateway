@@ -33,10 +33,13 @@ const postgresNotifyChannel = "gateway"
 
 // Notification is used to serialize information to pass with events
 type Notification struct {
-	Table    string
-	APIID    int64
-	Event    NotificationEventType
-	Messages []interface{}
+	Table     string
+	AccountID int64
+	UserID    int64
+	APIID     int64
+	ID        int64
+	Event     NotificationEventType
+	Messages  []interface{}
 }
 
 // A Listener gets notified of notifications

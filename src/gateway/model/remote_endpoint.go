@@ -25,6 +25,7 @@ const (
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
 	ID          int64  `json:"id,omitempty"`
@@ -222,7 +223,7 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 }
 
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
-func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
 		`SELECT remote_endpoints.type as type,
@@ -261,7 +262,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", apiID, apsql.Delete, msg)
+	return tx.Notify("remote_endpoints", accountID, userID, apiID, id, apsql.Delete, msg)
 }
 
 // DBConfig gets a DB Specifier for database endpoints, or nil for non database
@@ -305,7 +306,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 			return err
 		}
 	}
-	return nil
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the remoteEndpoint in the database.
@@ -376,7 +377,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	}
 
 	if len(existingEnvIDs) == 0 {
-		return nil
+		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 	}
 
 	args := []interface{}{e.ID}
@@ -392,7 +393,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("remote_endpoints", e.APIID, apsql.Update, msg)
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
