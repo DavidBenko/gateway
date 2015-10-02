@@ -16,12 +16,8 @@ import (
 
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
-	Method  string                 `json:"method"`
-	URL     string                 `json:"url"`
-	Body    string                 `json:"body"`
-	Headers map[string]interface{} `json:"headers"`
-	Query   map[string]string      `json:"query"`
-	client  *http.Client
+	model.HTTPRequest
+	client *http.Client
 }
 
 // HTTPResponse encapsulates a response from an HTTPRequest.

@@ -1,8 +1,10 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"gateway/code"
 	"gateway/db"
@@ -50,6 +52,15 @@ type RemoteEndpointEnvironmentData struct {
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
 
+// HTTPRequest encapsulates a request made over HTTP(s).
+type HTTPRequest struct {
+	Method  string                 `json:"method"`
+	URL     string                 `json:"url"`
+	Body    string                 `json:"body"`
+	Headers map[string]interface{} `json:"headers"`
+	Query   map[string]string      `json:"query"`
+}
+
 // Validate validates the model.
 func (e *RemoteEndpoint) Validate() Errors {
 	errors := make(Errors)
@@ -67,6 +78,16 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
+		request := &HTTPRequest{}
+		if err := json.Unmarshal(e.Data, request); err != nil {
+			errors.add("base", fmt.Sprintf("error in http config: %s", err))
+			break
+		}
+		if url, err := url.Parse(request.URL); err != nil {
+			errors.add("url", fmt.Sprintf("error parsing url: %s", err))
+		} else if url.Scheme != "" && url.Scheme != "http" && url.Scheme != "https" {
+			errors.add("url", "url scheme must be 'http' or 'https'")
+		}
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
