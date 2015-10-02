@@ -103,14 +103,32 @@ func (soapRequest *SoapRequest) updateWith(other *SoapRequest) {
 func (soapRequest *SoapRequest) Log(devMode bool) string {
 	var buffer bytes.Buffer
 	if devMode {
-		buffer.WriteString(fmt.Sprintf("ServiceName: %s\nEndpointName: %s\nOperationName: %s\nActionName: %s\nURL: %s", soapRequest.ServiceName, soapRequest.EndpointName, soapRequest.OperationName, soapRequest.ActionName, soapRequest.URL))
+		buffer.WriteString(
+			fmt.Sprintf("ServiceName: %s\nEndpointName: %s\nOperationName: %s\nActionName: %s\nURL: %s",
+				soapRequest.ServiceName,
+				soapRequest.EndpointName,
+				soapRequest.OperationName,
+				soapRequest.ActionName,
+				soapRequest.URL,
+			))
 		if soapRequest.WssePasswordCredentials != nil {
 			passwordStr := strings.Repeat("*", len(soapRequest.WssePasswordCredentials.Password))
-			buffer.WriteString(fmt.Sprintf("\nWssePasswordCredentials:\n  Username:  %s\n  Password:  %s", soapRequest.WssePasswordCredentials.Username, passwordStr))
+			buffer.WriteString(
+				fmt.Sprintf("\nWssePasswordCredentials:\n  Username:  %s\n  Password:  %s",
+					soapRequest.WssePasswordCredentials.Username,
+					passwordStr,
+				))
 		}
 		buffer.WriteString(fmt.Sprintf("\nParams: %v\n", soapRequest.Params))
 	} else {
-		buffer.WriteString(fmt.Sprintf("%s, %s, %s, %s, %s", soapRequest.ServiceName, soapRequest.EndpointName, soapRequest.OperationName, soapRequest.ActionName, soapRequest.URL))
+		buffer.WriteString(
+			fmt.Sprintf("%s, %s, %s, %s, %s",
+				soapRequest.ServiceName,
+				soapRequest.EndpointName,
+				soapRequest.OperationName,
+				soapRequest.ActionName,
+				soapRequest.URL,
+			))
 	}
 	return buffer.String()
 }
