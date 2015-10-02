@@ -19,6 +19,8 @@ import (
 	"github.com/vincent-petithory/dataurl"
 )
 
+const soapRemoteEndpoints = "soap_remote_endpoints"
+
 // SoapRemoteEndpoint contains attributes for a remote endpoint of type Soap
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"-" db:"remote_endpoint_id"`
@@ -36,14 +38,14 @@ type notificationListener struct {
 }
 
 // Notify tells the listener a particular notification was fired
-func (listener *notificationListener) Notify(n *apsql.Notification) {
+func (l *notificationListener) Notify(n *apsql.Notification) {
 	switch {
-	case n.Table == "soap_remote_endpoints" && (n.Event == apsql.Update || n.Event == apsql.Insert):
-		err := cacheJarFile(listener.DB, n.APIID)
+	case n.Table == soapRemoteEndpoints && (n.Event == apsql.Update || n.Event == apsql.Insert):
+		err := cacheJarFile(l.DB, n.APIID)
 		if err != nil {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
-	case n.Table == "soap_remote_endpoints" && n.Event == apsql.Delete:
+	case n.Table == soapRemoteEndpoints && n.Event == apsql.Delete:
 		remoteEndpointID, ok := n.Messages[0].(int64)
 		if !ok {
 			tmp, ok := n.Messages[0].(float64)
@@ -65,7 +67,7 @@ func (listener *notificationListener) Notify(n *apsql.Notification) {
 
 // Reconnect tells the listener that we may have been disconnected, but
 // have reconnected. They should update all state that could have changed.
-func (listener *notificationListener) Reconnect() {
+func (l *notificationListener) Reconnect() {
 	// TODO anything to do here?
 }
 
@@ -182,7 +184,7 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 	endpoint.afterSave(tx)
 
-	return tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Insert)
+	return tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Insert)
 }
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
@@ -232,7 +234,7 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGe
 		endpoint.afterSave(tx)
 	}
 
-	return tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
+	return tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
 }
 
 func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
@@ -329,7 +331,7 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 		return err
 	}
 
-	err = tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
+	err = tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
 	if err != nil {
 		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
 		return err
