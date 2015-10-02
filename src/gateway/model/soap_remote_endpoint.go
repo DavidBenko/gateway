@@ -182,7 +182,9 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record %v: %v", e.RemoteEndpointID, err)
 	}
 
-	e.afterSave(tx)
+	tx.PostCommit = func(tx *apsql.Tx) {
+		afterSave(tx, *e)
+	}
 
 	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Insert)
 }
@@ -229,68 +231,76 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
 	}
 
-	if fireAfterSave {
+	/*if fireAfterSave {
 		e.afterSave(tx)
+	}*/
+
+	if fireAfterSave {
+		tx.PostCommit = func(tx *apsql.Tx) {
+			afterSave(tx, *e)
+		}
 	}
 
 	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
 }
 
-func (e *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
+func afterSave(origTx *apsql.Tx, e SoapRemoteEndpoint) {
 	db := origTx.DB
-	go func() {
-		e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
-		e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
-
-		// In a new transaction, update the status to processing before we do anything
-		err := db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := e.RemoteEndpoint.update(tx, false)
-			if err != nil {
-				return aperrors.NewWrapped("soap_remote_endpoint.go: updating remote endpoint", err)
-			}
-			err = e.update(tx, false, false)
-			if err != nil {
-				return aperrors.NewWrapped("soap_remote_endpoint.go: updating soap remote endpoint", err)
-			}
-			return nil
-		})
-
-		if err != nil {
-			log.Printf("%s Unable to update status to %v.  Processing will continue anyway.", config.System, RemoteEndpointStatusProcessing)
-		}
-
-		err = db.DoInTransaction(func(tx *apsql.Tx) error {
-			return e.ingestWsdl(tx)
-		})
-
-		if err != nil {
-			log.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
-			e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusFailed)
-			e.RemoteEndpoint.StatusMessage = apsql.MakeNullString(err.Error())
-		} else {
-			e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusSuccess)
-			e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
-		}
-
-		err = db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := e.RemoteEndpoint.update(tx, false)
-			if err != nil {
-				return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on remote endpoint", err)
-			}
-			err = e.update(tx, false, false)
-			if err != nil {
-				return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on soap remote endpoint", err)
-			}
-			return nil
-		})
-
-		if err != nil {
-			log.Printf("%s Unable to update status of RemoteSoapEndpoint due to error: %v", config.System, err)
-		}
-	}()
+	go processWsdl(db, e)
 }
 
-func (e *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
+func processWsdl(db *apsql.DB, e SoapRemoteEndpoint) {
+	e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
+	e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
+
+	// In a new transaction, update the status to processing before we do anything
+	err := db.DoInTransaction(func(tx *apsql.Tx) error {
+		err := e.RemoteEndpoint.update(tx, false)
+		if err != nil {
+			return aperrors.NewWrapped("soap_remote_endpoint.go: updating remote endpoint", err)
+		}
+		err = e.update(tx, false, false)
+		if err != nil {
+			return aperrors.NewWrapped("soap_remote_endpoint.go: updating soap remote endpoint", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("%s Unable to update status to %v.  Processing will continue anyway.", config.System, RemoteEndpointStatusProcessing)
+	}
+
+	err = db.DoInTransaction(func(tx *apsql.Tx) error {
+		return ingestWsdl(tx, &e)
+	})
+
+	if err != nil {
+		log.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
+		e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusFailed)
+		e.RemoteEndpoint.StatusMessage = apsql.MakeNullString(err.Error())
+	} else {
+		e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusSuccess)
+		e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
+	}
+
+	err = db.DoInTransaction(func(tx *apsql.Tx) error {
+		err := e.RemoteEndpoint.update(tx, false)
+		if err != nil {
+			return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on remote endpoint", err)
+		}
+		err = e.update(tx, false, false)
+		if err != nil {
+			return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on soap remote endpoint", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Printf("%s Unable to update status of RemoteSoapEndpoint due to error: %v", config.System, err)
+	}
+}
+
+func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 	log.Printf("%s Starting wsdl ingestion", "[debug]")
 
 	dir, err := soap.EnsureJarPath()

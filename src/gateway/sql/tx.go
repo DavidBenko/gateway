@@ -10,11 +10,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// PostCommitHook represents a function that will be called after the tx is
+// committed successfully
+type PostCommitHook func(tx *Tx)
+
 // Tx wraps a *sql.Tx with the driver we're using
 type Tx struct {
 	*sqlx.Tx
 	DB            *DB
 	notifications []*Notification
+	PostCommit    PostCommitHook
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
@@ -112,6 +117,9 @@ func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event Not
 func (tx *Tx) Commit() error {
 	err := tx.Tx.Commit()
 	if err == nil {
+		if tx.PostCommit != nil {
+			tx.PostCommit(tx)
+		}
 		for _, n := range tx.notifications {
 			tx.DB.notifyListeners(n)
 		}

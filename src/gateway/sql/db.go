@@ -89,7 +89,7 @@ func (db *DB) Migrate() error {
 // Begin creates a new sqlx transaction wrapped in our own code
 func (db *DB) Begin() (*Tx, error) {
 	tx, err := db.DB.Beginx()
-	return &Tx{tx, db, []*Notification{}}, err
+	return &Tx{tx, db, []*Notification{}, nil}, err
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
