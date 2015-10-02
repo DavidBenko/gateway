@@ -97,12 +97,13 @@ func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 	fileBytes, err := ioutil.ReadFile(jarFileName)
 
 	var hexsum string
-	if err != nil && os.IsNotExist(err) {
+	switch {
+	case err != nil && os.IsNotExist(err):
 		// copy to file system
 		hexsum = ""
-	} else if err != nil {
+	case err != nil:
 		return fmt.Errorf("Unable to open jar file: %v", err)
-	} else {
+	default:
 		// jar exists! get its MD5 hash and compare against record from DB.
 		checksum := md5.Sum(fileBytes)
 		hexsum = hex.EncodeToString(checksum[:])
