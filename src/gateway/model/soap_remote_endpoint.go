@@ -172,19 +172,19 @@ func GetGeneratedJarBytes(db *apsql.DB, soapRemoteEndpointID int64, checksum str
 }
 
 // Insert inserts a new SoapRemoteEndpoint record into the database
-func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
+func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	query := `INSERT INTO soap_remote_endpoints(remote_endpoint_id, wsdl)
             VALUES (?, ?)`
 
 	var err error
-	endpoint.ID, err = tx.InsertOne(query, endpoint.RemoteEndpointID, endpoint.Wsdl)
+	e.ID, err = tx.InsertOne(query, e.RemoteEndpointID, e.Wsdl)
 	if err != nil {
-		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record %v: %v", endpoint.RemoteEndpointID, err)
+		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record %v: %v", e.RemoteEndpointID, err)
 	}
 
-	endpoint.afterSave(tx)
+	e.afterSave(tx)
 
-	return tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Insert)
+	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Insert)
 }
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
@@ -202,11 +202,11 @@ func FindSoapRemoteEndpointByRemoteEndpointID(db *apsql.DB, remoteEndpointID int
 }
 
 // Update updates an existing SoapRemoteEndpoint record in the database
-func (endpoint *SoapRemoteEndpoint) Update(tx *apsql.Tx) error {
-	return endpoint.update(tx, true, false)
+func (e *SoapRemoteEndpoint) Update(tx *apsql.Tx) error {
+	return e.update(tx, true, false)
 }
 
-func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGeneratedJar bool) error {
+func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGeneratedJar bool) error {
 	var query string
 	if updateGeneratedJar {
 		query = `UPDATE soap_remote_endpoints
@@ -220,9 +220,9 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGe
 
 	var err error
 	if updateGeneratedJar {
-		err = tx.UpdateOne(query, endpoint.Wsdl, endpoint.generatedJar, endpoint.GeneratedJarThumbprint, endpoint.ID)
+		err = tx.UpdateOne(query, e.Wsdl, e.generatedJar, e.GeneratedJarThumbprint, e.ID)
 	} else {
-		err = tx.UpdateOne(query, endpoint.Wsdl, endpoint.ID)
+		err = tx.UpdateOne(query, e.Wsdl, e.ID)
 	}
 
 	if err != nil {
@@ -230,25 +230,25 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGe
 	}
 
 	if fireAfterSave {
-		endpoint.afterSave(tx)
+		e.afterSave(tx)
 	}
 
-	return tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
+	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
 }
 
-func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
+func (e *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 	db := origTx.DB
 	go func() {
-		endpoint.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
-		endpoint.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
+		e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
+		e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
 
 		// In a new transaction, update the status to processing before we do anything
 		err := db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := endpoint.RemoteEndpoint.update(tx, false)
+			err := e.RemoteEndpoint.update(tx, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: updating remote endpoint", err)
 			}
-			err = endpoint.update(tx, false, false)
+			err = e.update(tx, false, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: updating soap remote endpoint", err)
 			}
@@ -260,24 +260,24 @@ func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 		}
 
 		err = db.DoInTransaction(func(tx *apsql.Tx) error {
-			return endpoint.ingestWsdl(tx)
+			return e.ingestWsdl(tx)
 		})
 
 		if err != nil {
 			log.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
-			endpoint.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusFailed)
-			endpoint.RemoteEndpoint.StatusMessage = apsql.MakeNullString(err.Error())
+			e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusFailed)
+			e.RemoteEndpoint.StatusMessage = apsql.MakeNullString(err.Error())
 		} else {
-			endpoint.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusSuccess)
-			endpoint.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
+			e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusSuccess)
+			e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
 		}
 
 		err = db.DoInTransaction(func(tx *apsql.Tx) error {
-			err := endpoint.RemoteEndpoint.update(tx, false)
+			err := e.RemoteEndpoint.update(tx, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on remote endpoint", err)
 			}
-			err = endpoint.update(tx, false, false)
+			err = e.update(tx, false, false)
 			if err != nil {
 				return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on soap remote endpoint", err)
 			}
@@ -290,7 +290,7 @@ func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
 	}()
 }
 
-func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
+func (e *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 	log.Printf("%s Starting wsdl ingestion", "[debug]")
 
 	dir, err := soap.EnsureJarPath()
@@ -300,15 +300,15 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 
 	// write wsdl file to directory
 	filePerm := os.FileMode(os.ModeDir | 0600)
-	filename := path.Join(dir, fmt.Sprintf("%d.wsdl", endpoint.ID))
+	filename := path.Join(dir, fmt.Sprintf("%d.wsdl", e.ID))
 
-	err = ioutil.WriteFile(filename, []byte(endpoint.Wsdl), filePerm)
+	err = ioutil.WriteFile(filename, []byte(e.Wsdl), filePerm)
 	if err != nil {
 		return err
 	}
 
 	// invoke wsimport
-	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", endpoint.ID))
+	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", e.ID))
 	err = soap.Wsimport(filename, outputfile)
 	if err != nil {
 		log.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
@@ -321,16 +321,16 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 		log.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		return err
 	}
-	endpoint.generatedJar = bytes
+	e.generatedJar = bytes
 	checksum := md5.Sum(bytes)
-	endpoint.GeneratedJarThumbprint = hex.EncodeToString(checksum[:])
+	e.GeneratedJarThumbprint = hex.EncodeToString(checksum[:])
 
-	err = endpoint.update(tx, false, true)
+	err = e.update(tx, false, true)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Notify(soapRemoteEndpoints, endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
+	err = tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
 	if err != nil {
 		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
 		return err
