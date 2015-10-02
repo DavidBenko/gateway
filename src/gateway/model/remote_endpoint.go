@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/vincent-petithory/dataurl"
 )
 
 const (
@@ -710,4 +712,31 @@ func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
 			VALUES (?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?);`,
 		rID, eID, apiID, data)
 	return err
+}
+
+func (e *RemoteEndpoint) encodeWsdlForExport() error {
+
+	encodedWsdlStr := dataurl.EncodeBytes([]byte(e.Soap.Wsdl))
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString(quote)
+	buf.WriteString(encodedWsdlStr)
+	buf.WriteString(quote)
+	encodedWsdl := json.RawMessage(buf.Bytes())
+
+	dataPayload := make(map[string]*json.RawMessage)
+	err := json.Unmarshal(e.Data, &dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Unmarshaling data for encoding", err)
+	}
+
+	dataPayload["wsdl"] = &encodedWsdl
+	bytes, err := json.Marshal(&dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Marshaling data for encoding", err)
+	}
+
+	newData := json.RawMessage(bytes)
+	e.Data = types.JsonText(newData)
+
+	return nil
 }
