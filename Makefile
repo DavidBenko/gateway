@@ -153,7 +153,6 @@ vendor_get: vendor_clean
 	github.com/derekparker/delve/cmd/dlv \
 	github.com/go-sql-driver/mysql \
 	golang.org/x/net/websocket \
-	github.com/gdamore/mangos \
 	github.com/vincent-petithory/dataurl
 
 vendor_update: vendor_get
