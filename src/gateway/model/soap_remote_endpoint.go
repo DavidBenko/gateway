@@ -68,7 +68,7 @@ func (l *notificationListener) Notify(n *apsql.Notification) {
 // Reconnect tells the listener that we may have been disconnected, but
 // have reconnected. They should update all state that could have changed.
 func (l *notificationListener) Reconnect() {
-	// TODO anything to do here?
+	// Nothing to do here
 }
 
 func writeToJarFile(bytes []byte, filename string) error {
