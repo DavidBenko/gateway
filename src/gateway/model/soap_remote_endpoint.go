@@ -182,7 +182,7 @@ func (endpoint *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 	endpoint.afterSave(tx)
 
-	return tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Insert)
+	return tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Insert)
 }
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
@@ -232,7 +232,7 @@ func (endpoint *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGe
 		endpoint.afterSave(tx)
 	}
 
-	return tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
+	return tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
 }
 
 func (endpoint *SoapRemoteEndpoint) afterSave(origTx *apsql.Tx) {
@@ -329,7 +329,7 @@ func (endpoint *SoapRemoteEndpoint) ingestWsdl(tx *apsql.Tx) error {
 		return err
 	}
 
-	err = tx.Notify("soap_remote_endpoints", endpoint.ID, apsql.Update)
+	err = tx.Notify("soap_remote_endpoints", endpoint.RemoteEndpoint.AccountID, endpoint.RemoteEndpoint.UserID, endpoint.RemoteEndpoint.APIID, endpoint.ID, apsql.Update)
 	if err != nil {
 		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
 		return err

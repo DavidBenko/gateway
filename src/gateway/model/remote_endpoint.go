@@ -51,6 +51,7 @@ const (
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
 type RemoteEndpoint struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
 	ID            int64            `json:"id,omitempty"`
@@ -349,7 +350,7 @@ func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {
 }
 
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
-func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
 		`SELECT remote_endpoints.id as id,
@@ -394,14 +395,14 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
-	if err = afterDelete(endpoint, apiID, tx); err != nil {
+	if err = afterDelete(endpoint, accountID, userID, apiID, tx); err != nil {
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", apiID, apsql.Delete, msg)
+	return tx.Notify("remote_endpoints", accountID, userID, apiID, id, apsql.Delete, msg)
 }
 
-func afterDelete(remoteEndpoint *RemoteEndpoint, apiID int64, tx *apsql.Tx) error {
+func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64, tx *apsql.Tx) error {
 
 	if remoteEndpoint.Type != RemoteEndpointTypeSoap {
 		return nil
@@ -412,8 +413,8 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, apiID int64, tx *apsql.Tx) erro
 		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
-	// trigger a notification for
-	err = tx.Notify("soap_remote_endpoints", apiID, apsql.Delete, remoteEndpoint.Soap.ID)
+	// trigger a notification for soap_remote_endpoints
+	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
 	if err != nil {
 		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
 	}
@@ -511,7 +512,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 			return err
 		}
 	}
-	return nil
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
@@ -661,7 +662,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	}
 
 	if len(existingEnvIDs) == 0 {
-		return nil
+		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 	}
 
 	args := []interface{}{e.ID}
@@ -677,7 +678,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("remote_endpoints", e.APIID, apsql.Update, msg)
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 }
 
 func (e *RemoteEndpoint) afterUpdate(tx *apsql.Tx) error {

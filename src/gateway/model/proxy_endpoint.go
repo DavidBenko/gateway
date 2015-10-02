@@ -13,6 +13,7 @@ import (
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
 type ProxyEndpoint struct {
 	AccountID       int64  `json:"-"`
+	UserID          int64  `json:"-"`
 	APIID           int64  `json:"api_id,omitempty" db:"api_id"`
 	EndpointGroupID *int64 `json:"endpoint_group_id,omitempty" db:"endpoint_group_id"`
 	EnvironmentID   int64  `json:"environment_id,omitempty" db:"environment_id"`
@@ -176,12 +177,12 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 }
 
 // DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
-func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("proxy_endpoints/delete"), id, apiID, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoints", apiID, apsql.Delete)
+	return tx.Notify("proxy_endpoints", accountID, userID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -220,7 +221,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
-	return tx.Notify("proxy_endpoints", e.APIID, apsql.Insert)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the proxyEndpoint in the database.
@@ -297,5 +298,5 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("proxy_endpoints", e.APIID, apsql.Update)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
 }

@@ -10,6 +10,7 @@ import (
 // Environment represents a environment the API is available on.
 type Environment struct {
 	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
 	ID          int64          `json:"id,omitempty"`
@@ -82,12 +83,12 @@ func CanDeleteEnvironment(tx *apsql.Tx, id int64) error {
 }
 
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
-func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID int64) error {
+func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("environments/delete"), id, apiID, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", apiID, apsql.Delete)
+	return tx.Notify("environments", accountID, userID, apiID, id, apsql.Delete)
 }
 
 // Insert inserts the environment into the database as a new row.
@@ -100,7 +101,10 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
 // Update updates the environment in the database.
@@ -117,5 +121,5 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", e.APIID, apsql.Update)
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
 }

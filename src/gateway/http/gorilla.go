@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bufio"
 	"net"
 	"net/http"
 	"net/url"
@@ -46,6 +47,10 @@ func (l *responseLogger) Status() int {
 
 func (l *responseLogger) Size() int {
 	return l.size
+}
+
+func (l *responseLogger) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return l.w.(http.Hijacker).Hijack()
 }
 
 func buildCommonLogLine(req *http.Request, url url.URL, ts time.Time, status int, size int) []byte {
