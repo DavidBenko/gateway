@@ -83,9 +83,7 @@ func DeleteJarFile(soapRemoteEndpointID int64) error {
 	}
 
 	jarFileName := path.Join(jarDir, fmt.Sprintf("%d.jar", soapRemoteEndpointID))
-	_ = os.Remove(jarFileName)
-
-	return nil
+	return os.Remove(jarFileName)
 }
 
 func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
