@@ -16,26 +16,30 @@ import (
 	"strconv"
 )
 
-const bin = "bin"
-const wsimport = "wsimport"
-const java = "java"
-const minSupportedJdkVersion = 8 // as in Java 1.8
-const classpathOption = "-cp"
-const soapMainClass = "com.anypresence.wsclient.Wsclient"
+const (
+	bin                    = "bin"
+	wsimport               = "wsimport"
+	java                   = "java"
+	minSupportedJdkVersion = 8 // as in Java 1.8
+	classpathOption        = "-cp"
+	soapMainClass          = "com.anypresence.wsclient.Wsclient"
+)
 
-var splitter = regexp.MustCompile(`\s+`)
+var (
+	splitter = regexp.MustCompile(`\s+`)
 
-var jdkHome string
-var fullJavaCommandPath = java
-var fullWsimportCommandPath = wsimport
+	jdkHome                 string
+	fullJavaCommandPath     = java
+	fullWsimportCommandPath = wsimport
 
-var javaAvailable = false
-var wsimportAvailable = false
-var soapAvailable = false
+	javaAvailable     = false
+	wsimportAvailable = false
+	soapAvailable     = false
 
-var javaVersionRegex = regexp.MustCompile("^java version \"1\\.(\\d+)\\..+\"")
+	javaVersionRegex = regexp.MustCompile("^java version \"1\\.(\\d+)\\..+\"")
 
-var jvmCmd *exec.Cmd
+	jvmCmd *exec.Cmd
+)
 
 // Available indicates whether or not the dependencies are met so that SOAP
 // remote endpoints may be available
