@@ -70,6 +70,7 @@ func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error
 
 	api, err := c.decodeExport(newAPI, tx)
 	if err != nil {
+		log.Printf("Unable to decode export due to error: %v", err)
 		return aphttp.NewError(errors.New("Unable to decode export."),
 			http.StatusBadRequest)
 	}
