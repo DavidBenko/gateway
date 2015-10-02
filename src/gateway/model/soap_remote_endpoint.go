@@ -194,8 +194,7 @@ func FindSoapRemoteEndpointByRemoteEndpointID(db *apsql.DB, remoteEndpointID int
             WHERE remote_endpoint_id = ?`
 
 	soapRemoteEndpoint := &SoapRemoteEndpoint{}
-	err := db.Get(soapRemoteEndpoint, query, remoteEndpointID)
-	if err != nil {
+	if err := db.Get(soapRemoteEndpoint, query, remoteEndpointID); err != nil {
 		return nil, fmt.Errorf("Unable to fetch SoapRemoteEndpoint from the database for remote_endpoint_id %d: %v", remoteEndpointID, err)
 	}
 
