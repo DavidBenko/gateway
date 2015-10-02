@@ -109,7 +109,7 @@ func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 		hexsum = hex.EncodeToString(checksum[:])
 	}
 
-	fileBytes, err = GetSoapRemoteEndpointGeneratedJarBytesIfStale(db, soapRemoteEndpointID, hexsum)
+	fileBytes, err = GetGeneratedJarBytes(db, soapRemoteEndpointID, hexsum)
 	if err != nil {
 		return fmt.Errorf("Unable to get bytes from database: %v", err)
 	}
@@ -153,9 +153,10 @@ func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, 
 	return soap, nil
 }
 
-// GetSoapRemoteEndpointGeneratedJarBytesIfStale returns the bytes of the generated_jar file for the soap_remote_endpoint with the specified ID,
-// if and only if the checksum does not matched the generated_jar_thumbprint stored in the DB
-func GetSoapRemoteEndpointGeneratedJarBytesIfStale(db *apsql.DB, soapRemoteEndpointID int64, checksum string) ([]byte, error) {
+// GetGeneratedJarBytes returns the bytes of the generated_jar file for the soap_remote_endpoint with the specified ID,
+// if and only if the checksum does not match the generated_jar_thumbprint stored in the DB.  If the thumbprints match,
+// then they are the same file, and so no bytes will be returned.
+func GetGeneratedJarBytes(db *apsql.DB, soapRemoteEndpointID int64, checksum string) ([]byte, error) {
 	query := `SELECT generated_jar FROM soap_remote_endpoints WHERE id = ? AND generated_jar_thumbprint != ?`
 
 	var dest []byte
