@@ -107,8 +107,8 @@ func (e *RemoteEndpoint) Validate() Errors {
 	default:
 		errors.add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
-	if e.Status.Valid {
-		val, _ := e.Status.Value()
+	if status := e.Status; status.Valid {
+		val, _ := status.Value() // error always nil
 		switch val {
 		case RemoteEndpointStatusFailed, RemoteEndpointStatusProcessing,
 			RemoteEndpointStatusSuccess, RemoteEndpointStatusPending:
