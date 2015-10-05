@@ -52,11 +52,9 @@ func (s *SubSocket) Connect(path string) error {
 				close(done)
 				return
 			default:
-				msg, err = sock.Recv()
-				switch {
-				case err != nil:
+				if msg, err = sock.Recv(); err != nil {
 					e <- err
-				default:
+				} else {
 					c <- msg
 				}
 			}

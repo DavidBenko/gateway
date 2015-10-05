@@ -13,6 +13,12 @@ import (
 	"github.com/gdamore/mangos/transport/tcp"
 )
 
+const (
+	// A delay is necessary to avoid message loss for the ACKless Pub/Sub
+	// protocol.
+	PubDelay = 500 * time.Microsecond
+)
+
 var _ = queue.Publisher(&PubSocket{})
 
 // PubSocket implements queue.Publisher.
@@ -46,6 +52,7 @@ func (p *PubSocket) Bind(path string) error {
 				close(done)
 				return
 			case msg = <-c:
+				time.Sleep(PubDelay)
 				if err = s.Send(msg); err != nil {
 					e <- err
 				}

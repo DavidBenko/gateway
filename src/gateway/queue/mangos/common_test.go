@@ -13,8 +13,8 @@ import (
 )
 
 const (
+	// TotalAttempts specifies how many messages to send on testPubSub.
 	TotalAttempts = 1000
-	Delay         = 500 * time.Microsecond
 )
 
 func getBasicPub(c *gc.C, path string) queue.Publisher {
@@ -68,7 +68,6 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 				i--
 			case pCh <- []byte(msg):
 			}
-			time.Sleep(Delay)
 		}
 		close(doneSend)
 	}()
@@ -100,7 +99,11 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 	Recv:
 		for {
 			select {
-			case e := <-sE:
+			case e, ok := <-sE:
+				if !ok {
+					c.Log("testPubSub: error channel was closed")
+					c.FailNow()
+				}
 				c.Assert(e, jc.ErrorIsNil)
 			case m := <-sCh:
 				c.Check(string(m), gc.Equals, msg)
