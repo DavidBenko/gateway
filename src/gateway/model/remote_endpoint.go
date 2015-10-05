@@ -78,16 +78,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
-		request := &HTTPRequest{}
-		if err := json.Unmarshal(e.Data, request); err != nil {
-			errors.add("base", fmt.Sprintf("error in http config: %s", err))
-			break
-		}
-		if url, err := url.Parse(request.URL); err != nil {
-			errors.add("url", fmt.Sprintf("error parsing url: %s", err))
-		} else if url.Scheme != "" && url.Scheme != "http" && url.Scheme != "https" {
-			errors.add("url", "url scheme must be 'http' or 'https'")
-		}
+		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
@@ -98,6 +89,24 @@ func (e *RemoteEndpoint) Validate() Errors {
 		errors.add("base", fmt.Sprintf("unkown endpoint type %q", e.Type))
 	}
 	return errors
+}
+
+func (e *RemoteEndpoint) ValidateHTTP(errors Errors) {
+	request := &HTTPRequest{}
+	if err := json.Unmarshal(e.Data, request); err != nil {
+		errors.add("base", fmt.Sprintf("error in http config: %s", err))
+		return
+	}
+	url, err := url.Parse(request.URL)
+	if err != nil {
+		errors.add("url", fmt.Sprintf("error parsing url: %s", err))
+		return
+	}
+	switch url.Scheme {
+	case "", "http", "https":
+	default:
+		errors.add("url", "url scheme must be 'http' or 'https'")
+	}
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
