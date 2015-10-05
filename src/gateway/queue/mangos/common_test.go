@@ -44,7 +44,7 @@ func getBasicSub(c *gc.C, path string) queue.Subscriber {
 }
 
 func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, shouldReceive bool) {
-	c.Logf("TestSubSocket: *** TEST FAILURES HERE MAY OCCUR ***")
+	c.Log("testPubSub: *** TEST FAILURES HERE MAY OCCUR UNDER RACE TESTING ***")
 
 	pCh, pE := pub.Channels()
 	sCh, sE := sub.Channels()
@@ -61,7 +61,7 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 			select {
 			case e, ok := <-pE:
 				if !ok {
-					c.Logf("testPubSub: error channel was closed")
+					c.Log("testPubSub: error channel was closed")
 					c.FailNow()
 				}
 				c.Assert(e, jc.ErrorIsNil)
@@ -88,6 +88,7 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 			c.Logf("testPubSub: Received unintended message %q", msg)
 			c.FailNow()
 		case <-doneSend:
+			c.Log("testPubSub: Received no messages, as intended")
 			// Finished without receiving anything, which is the
 			// desired behavior.
 		}

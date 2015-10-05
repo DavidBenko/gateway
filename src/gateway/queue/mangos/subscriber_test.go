@@ -15,22 +15,22 @@ import (
 func (s *MangosSuite) TestSubSocket(c *gc.C) {
 	m := &qm.SubSocket{}
 	err := m.Connect("foo")
-	c.Logf("TestSubSocket: SubSocket can't Bind on nil socket")
+	c.Log("TestSubSocket: SubSocket can't Bind on nil socket")
 	c.Check(err, gc.ErrorMatches, "mangos Subscriber couldn't Connect to foo: nil socket")
 
 	err = m.Close() // Does nothing
-	c.Logf("TestSubSocket: SubSocket Close with nil socket does nothing")
+	c.Log("TestSubSocket: SubSocket Close with nil socket does nothing")
 	c.Check(err, jc.ErrorIsNil)
 
-	c.Logf("TestSubSocket: pub-sub works correctly")
+	c.Log("TestSubSocket: pub-sub works correctly")
 	pub := getBasicPub(c, "tcp://localhost:9001")
 	sub := getBasicSub(c, "tcp://localhost:9001")
 
 	testPubSub(c, pub, sub, "hello", true)
 
-	c.Logf("TestSubSocket: live SubSocket Close does not error")
+	c.Log("TestSubSocket: live SubSocket Close does not error")
 	c.Assert(sub.Close(), jc.ErrorIsNil)
-	c.Logf("TestSubSocket: live PubSocket Close does not error")
+	c.Log("TestSubSocket: live PubSocket Close does not error")
 	c.Assert(pub.Close(), jc.ErrorIsNil)
 }
 
@@ -72,7 +72,7 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 	switch runtime.GOOS {
 	case "linux", "darwin":
 	default:
-		c.Logf(`TestSubIPC: supported only on runtime.GOOS == "linux" or "darwin"`)
+		c.Log(`TestSubIPC: supported only on runtime.GOOS == "linux" or "darwin"`)
 		_, err := queue.Subscribe(
 			"ipc:///tmp/test.ipc",
 			qm.Sub,
@@ -82,11 +82,11 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 		return // Don't need to test other behaviors
 	}
 
-	c.Logf("TestSubIPC: nil socket fails")
+	c.Log("TestSubIPC: nil socket fails")
 	_, err := qm.SubIPC(&qm.SubSocket{})
 	c.Check(err, gc.ErrorMatches, "SubIPC requires a non-nil Socket, use Sub first")
 
-	c.Logf("TestSubIPC: pub-sub works on IPC")
+	c.Log("TestSubIPC: pub-sub works on IPC")
 	pIPC, err := queue.Publish(
 		"ipc:///tmp/ipc.ipc",
 		qm.Pub,
@@ -95,7 +95,7 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pIPC, gc.NotNil)
 
-	c.Logf("TestSubIPC: correct usage works")
+	c.Log("TestSubIPC: correct usage works")
 	sIPC, err := queue.Subscribe(
 		"ipc:///tmp/ipc.ipc",
 		qm.Sub,
@@ -106,9 +106,9 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 
 	testPubSub(c, pIPC, sIPC, "hello", true)
 
-	c.Logf("TestSubIPC: live SubSocket Close does not error")
+	c.Log("TestSubIPC: live SubSocket Close does not error")
 	c.Assert(sIPC.Close(), jc.ErrorIsNil)
-	c.Logf("TestSubIPC: live PubSocket Close does not error")
+	c.Log("TestSubIPC: live PubSocket Close does not error")
 	c.Assert(pIPC.Close(), jc.ErrorIsNil)
 }
 
@@ -134,9 +134,9 @@ func (s *MangosSuite) TestFilter(c *gc.C) {
 
 	testPubSub(c, pub, sub, "foo|hello", true)
 	testPubSub(c, pub, sub, "hello", false)
-	c.Logf("TestFilter: live SubSocket Close does not error")
+	c.Log("TestFilter: live SubSocket Close does not error")
 	c.Assert(sub.Close(), jc.ErrorIsNil)
-	c.Logf("TestFilter: live PubSocket Close does not error")
+	c.Log("TestFilter: live PubSocket Close does not error")
 	c.Assert(pub.Close(), jc.ErrorIsNil)
 }
 

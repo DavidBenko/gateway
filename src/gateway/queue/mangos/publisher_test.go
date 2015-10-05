@@ -15,11 +15,11 @@ import (
 func (s *MangosSuite) TestPubSocket(c *gc.C) {
 	m := &qm.PubSocket{}
 	err := m.Bind("foo")
-	c.Logf("PubSocket can't Bind on nil socket")
+	c.Log("PubSocket can't Bind on nil socket")
 	c.Check(err, gc.ErrorMatches, "mangos Publisher couldn't Bind to foo: nil socket")
 
 	err = m.Close() // Does nothing
-	c.Logf("PubSocket Close with nil socket does nothing")
+	c.Log("PubSocket Close with nil socket does nothing")
 	c.Check(err, jc.ErrorIsNil)
 
 	p := getBasicPub(c, "tcp://localhost:9001")
@@ -28,10 +28,10 @@ func (s *MangosSuite) TestPubSocket(c *gc.C) {
 	c.Check(ch, gc.NotNil)
 	c.Check(e, gc.NotNil)
 
-	c.Logf("live PubSocket Close does not error")
+	c.Log("live PubSocket Close does not error")
 	c.Assert(p.Close(), jc.ErrorIsNil)
 	_, ok := <-e
-	c.Logf("error channel should now be closed")
+	c.Log("error channel should now be closed")
 	c.Check(ok, gc.Equals, false)
 }
 
