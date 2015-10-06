@@ -24,8 +24,8 @@ type Subscriber struct {
 	Client
 }
 
-func (s *Subscriber) Channel() <-chan []byte {
-	return nil
+func (s *Subscriber) Channels() (<-chan []byte, <-chan error) {
+	return nil, nil
 }
 
 func SubBindingOk(s queue.Subscriber) (queue.Subscriber, error) {
