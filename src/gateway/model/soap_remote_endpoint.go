@@ -181,10 +181,11 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
             VALUES (?, ?)`
 
 	var err error
-	e.ID, err = tx.InsertOne(query, e.RemoteEndpointID, e.Wsdl)
+	id, err := tx.InsertOne(query, e.RemoteEndpointID, e.Wsdl)
 	if err != nil {
 		return fmt.Errorf("Unable to insert SoapRemoteEndpoint record %v: %v", e.RemoteEndpointID, err)
 	}
+	e.ID = id
 
 	tx.PostCommit = func(tx *apsql.Tx) {
 		afterSave(tx, *e)
