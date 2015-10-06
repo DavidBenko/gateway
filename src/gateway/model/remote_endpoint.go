@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 
 	"gateway/code"
 	"gateway/config"
@@ -83,6 +84,15 @@ type RemoteEndpointEnvironmentData struct {
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
 
+// HTTPRequest encapsulates a request made over HTTP(s).
+type HTTPRequest struct {
+	Method  string                 `json:"method"`
+	URL     string                 `json:"url"`
+	Body    string                 `json:"body"`
+	Headers map[string]interface{} `json:"headers"`
+	Query   map[string]string      `json:"query"`
+}
+
 // Validate validates the model.
 func (e *RemoteEndpoint) Validate() Errors {
 	errors := make(Errors)
@@ -99,7 +109,9 @@ func (e *RemoteEndpoint) Validate() Errors {
 		errors.add("codename", "must start with A-Z a-z _ and may only contain A-Z a-z 0-9 _")
 	}
 	switch e.Type {
-	case RemoteEndpointTypeHTTP, RemoteEndpointTypeSoap:
+	case RemoteEndpointTypeHTTP:
+		e.ValidateHTTP(errors)
+	case RemoteEndpointTypeSoap:
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
@@ -120,6 +132,24 @@ func (e *RemoteEndpoint) Validate() Errors {
 	}
 
 	return errors
+}
+
+func (e *RemoteEndpoint) ValidateHTTP(errors Errors) {
+	request := &HTTPRequest{}
+	if err := json.Unmarshal(e.Data, request); err != nil {
+		errors.add("base", fmt.Sprintf("error in http config: %s", err))
+		return
+	}
+	url, err := url.Parse(request.URL)
+	if err != nil {
+		errors.add("url", fmt.Sprintf("error parsing url: %s", err))
+		return
+	}
+	switch url.Scheme {
+	case "", "http", "https":
+	default:
+		errors.add("url", "url scheme must be 'http' or 'https'")
+	}
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
