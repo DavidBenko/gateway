@@ -186,12 +186,11 @@ Try running `java -version`.  You should see something like the following.  Make
 first line matches the expected version number:  *java version "1.8.0_XX"*
 
 ```bash
-java -version
+$ java -version
+java version "1.8.0_45"
+Java(TM) SE Runtime Environment (build 1.8.0_45-b14)
+Java HotSpot(TM) 64-Bit Server VM (build 25.45-b02, mixed mode)
 ```
-
-> java version "1.8.0_45"
-> Java(TM) SE Runtime Environment (build 1.8.0_45-b14)
-> Java HotSpot(TM) 64-Bit Server VM (build 25.45-b02, mixed mode)
 
 If the above is successful, you should have the correct version installed.  All that is left
 is to make sure that wsimport can be found correctly on your path.  Try running `wsimport -version`.  
@@ -200,7 +199,6 @@ important -- just make sure that wsimport is available on the path, and that the
 installing Java with the correct version are completed successfully.
 
 ```bash
-wsimport -version
+$ wsimport -version
+wsimport version "2.2.9"
 ```
-
-> wsimport version "2.2.9"
