@@ -33,12 +33,12 @@ type SoapRemoteEndpoint struct {
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
 
-type notificationListener struct {
+type soapNotificationListener struct {
 	*apsql.DB
 }
 
 // Notify tells the listener a particular notification was fired
-func (l *notificationListener) Notify(n *apsql.Notification) {
+func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 	if n.Table != soapRemoteEndpoints {
 		return
 	}
@@ -71,7 +71,7 @@ func (l *notificationListener) Notify(n *apsql.Notification) {
 
 // Reconnect tells the listener that we may have been disconnected, but
 // have reconnected. They should update all state that could have changed.
-func (l *notificationListener) Reconnect() {
+func (l *soapNotificationListener) Reconnect() {
 	// Nothing to do here
 }
 
@@ -131,7 +131,7 @@ func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 
 // StartSoapRemoteEndpointUpdateListener registers a listener for updates from
 func StartSoapRemoteEndpointUpdateListener(db *apsql.DB) {
-	listener := &notificationListener{db}
+	listener := &soapNotificationListener{db}
 	db.RegisterListener(listener)
 }
 
