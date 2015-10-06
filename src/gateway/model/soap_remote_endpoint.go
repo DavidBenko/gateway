@@ -33,6 +33,18 @@ type SoapRemoteEndpoint struct {
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
 
+// Copy creates a shallow copy of a SoapRemoteEndpoint and returns a reference to the copy
+func (e *SoapRemoteEndpoint) Copy() *SoapRemoteEndpoint {
+	return &SoapRemoteEndpoint{
+		RemoteEndpointID:       e.RemoteEndpointID,
+		ID:                     e.ID,
+		Wsdl:                   e.Wsdl,
+		generatedJar:           e.generatedJar,
+		GeneratedJarThumbprint: e.GeneratedJarThumbprint,
+		RemoteEndpoint:         e.RemoteEndpoint,
+	}
+}
+
 type soapNotificationListener struct {
 	*apsql.DB
 }
@@ -50,8 +62,9 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	case apsql.Delete:
-		remoteEndpointID, ok := n.Messages[0].(int64)
-		if !ok {
+		var remoteEndpointID int64
+		var ok bool
+		if remoteEndpointID, ok = n.Messages[0].(int64); !ok {
 			tmp, ok := n.Messages[0].(float64)
 			remoteEndpointID = int64(tmp)
 
@@ -189,15 +202,7 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 
 	tx.PostCommit = func(tx *apsql.Tx) {
 		// copy to ensure there's no chance of concurrency issues
-		copy := &SoapRemoteEndpoint{
-			RemoteEndpointID:       e.RemoteEndpointID,
-			ID:                     e.ID,
-			Wsdl:                   e.Wsdl,
-			generatedJar:           e.generatedJar,
-			GeneratedJarThumbprint: e.GeneratedJarThumbprint,
-			RemoteEndpoint:         e.RemoteEndpoint,
-		}
-		go afterSave(tx, copy)
+		go afterSave(tx, e.Copy())
 	}
 
 	return tx.Notify(
@@ -255,15 +260,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 	if fireAfterSave {
 		tx.PostCommit = func(tx *apsql.Tx) {
 			// copy to ensure there's no chance of concurrency issues
-			copy := &SoapRemoteEndpoint{
-				RemoteEndpointID:       e.RemoteEndpointID,
-				ID:                     e.ID,
-				Wsdl:                   e.Wsdl,
-				generatedJar:           e.generatedJar,
-				GeneratedJarThumbprint: e.GeneratedJarThumbprint,
-				RemoteEndpoint:         e.RemoteEndpoint,
-			}
-			go afterSave(tx, copy)
+			go afterSave(tx, e.Copy())
 		}
 	}
 
