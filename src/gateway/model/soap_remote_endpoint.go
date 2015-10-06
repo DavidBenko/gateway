@@ -188,10 +188,26 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	e.ID = id
 
 	tx.PostCommit = func(tx *apsql.Tx) {
-		afterSave(tx, *e)
+		// copy to ensure there's no chance of concurrency issues
+		copy := &SoapRemoteEndpoint{
+			RemoteEndpointID:       e.RemoteEndpointID,
+			ID:                     e.ID,
+			Wsdl:                   e.Wsdl,
+			generatedJar:           e.generatedJar,
+			GeneratedJarThumbprint: e.GeneratedJarThumbprint,
+			RemoteEndpoint:         e.RemoteEndpoint,
+		}
+		go afterSave(tx, copy)
 	}
 
-	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Insert)
+	return tx.Notify(
+		soapRemoteEndpoints,
+		e.RemoteEndpoint.AccountID,
+		e.RemoteEndpoint.UserID,
+		e.RemoteEndpoint.APIID,
+		e.ID,
+		apsql.Insert,
+	)
 }
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
@@ -236,25 +252,30 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 		return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
 	}
 
-	/*if fireAfterSave {
-		e.afterSave(tx)
-	}*/
-
 	if fireAfterSave {
 		tx.PostCommit = func(tx *apsql.Tx) {
-			afterSave(tx, *e)
+			// copy to ensure there's no chance of concurrency issues
+			copy := &SoapRemoteEndpoint{
+				RemoteEndpointID:       e.RemoteEndpointID,
+				ID:                     e.ID,
+				Wsdl:                   e.Wsdl,
+				generatedJar:           e.generatedJar,
+				GeneratedJarThumbprint: e.GeneratedJarThumbprint,
+				RemoteEndpoint:         e.RemoteEndpoint,
+			}
+			go afterSave(tx, copy)
 		}
 	}
 
 	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
 }
 
-func afterSave(origTx *apsql.Tx, e SoapRemoteEndpoint) {
+func afterSave(origTx *apsql.Tx, e *SoapRemoteEndpoint) {
 	db := origTx.DB
-	go processWsdl(db, e)
+	processWsdl(db, e)
 }
 
-func processWsdl(db *apsql.DB, e SoapRemoteEndpoint) {
+func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint) {
 	e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
 	e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
 
@@ -276,7 +297,7 @@ func processWsdl(db *apsql.DB, e SoapRemoteEndpoint) {
 	}
 
 	err = db.DoInTransaction(func(tx *apsql.Tx) error {
-		return ingestWsdl(tx, &e)
+		return ingestWsdl(tx, e)
 	})
 
 	if err != nil {
