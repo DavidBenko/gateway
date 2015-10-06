@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet
+.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet soapclient
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -27,14 +27,18 @@ endif
 
 default: run
 
+soapclient:
+	cd soapclient && ./gradlew shadowJar && rm -f build/libs/gateway-soap-client*.jar
+
 admin:
 	cd admin; bundle install; npm install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
 	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
-assets: install_bindata
+assets: install_bindata soapclient
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
 	go-bindata -o src/gateway/proxy/vm/bindata.go -pkg vm $(BINDATA_DEBUG) -prefix "src/gateway/proxy/vm/static/" src/gateway/proxy/vm/static/...
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
+	go-bindata -o src/gateway/soap/bindata.go -pkg soap $(BINDATA_DEBUG) -prefix "soapclient/build/libs/" soapclient/build/libs/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
 
 generate: install_goimports
@@ -148,7 +152,8 @@ vendor_get: vendor_clean
 	github.com/jackc/pgx \
 	github.com/derekparker/delve/cmd/dlv \
 	github.com/go-sql-driver/mysql \
-	golang.org/x/net/websocket
+	golang.org/x/net/websocket \
+	github.com/vincent-petithory/dataurl
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

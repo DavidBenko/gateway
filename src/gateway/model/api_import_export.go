@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	apiExportCurrentVersion int64 = 1
+	apiExportCurrentVersion int64  = 1
+	quote                   string = `"`
 )
 
 /***
@@ -72,6 +73,11 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 			envData.ExportEnvironmentIndex = environmentsIndexMap[envData.EnvironmentID]
 			envData.EnvironmentID = 0
 		}
+		if endpoint.Soap != nil && endpoint.Soap.Wsdl != "" {
+			if err := endpoint.encodeWsdlForExport(); err != nil {
+				return nil, aperrors.NewWrapped("Encoding wsdl for export", err)
+			}
+		}
 	}
 
 	stripTransformationIDs := func(transformations []*ProxyEndpointTransformation) {
@@ -132,11 +138,6 @@ func (a *API) Import(tx *apsql.Tx) (err error) {
 
 // ImportV1 imports the whole API definition in v1 format
 func (a *API) ImportV1(tx *apsql.Tx) (err error) {
-	err = a.Insert(tx)
-	if err != nil {
-		return aperrors.NewWrapped("Inserting API", err)
-	}
-
 	environmentsIDMap := make(map[int]int64)
 	for index, environment := range a.Environments {
 		environment.AccountID = a.AccountID

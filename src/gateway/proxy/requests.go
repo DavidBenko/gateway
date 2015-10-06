@@ -54,6 +54,8 @@ func (s *Server) prepareRequest(
 		return request.NewMySQLRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeMongo:
 		return request.NewMongoRequest(s.dbPools, endpoint, data)
+	case model.RemoteEndpointTypeSoap:
+		return request.NewSoapRequest(endpoint, data, s.soapConf)
 	}
 	return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 }
