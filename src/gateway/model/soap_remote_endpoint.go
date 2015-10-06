@@ -39,13 +39,17 @@ type notificationListener struct {
 
 // Notify tells the listener a particular notification was fired
 func (l *notificationListener) Notify(n *apsql.Notification) {
-	switch {
-	case n.Table == soapRemoteEndpoints && (n.Event == apsql.Update || n.Event == apsql.Insert):
+	if n.Table != soapRemoteEndpoints {
+		return
+	}
+
+	switch n.Event {
+	case apsql.Update, apsql.Insert:
 		err := cacheJarFile(l.DB, n.APIID)
 		if err != nil {
 			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
-	case n.Table == soapRemoteEndpoints && n.Event == apsql.Delete:
+	case apsql.Delete:
 		remoteEndpointID, ok := n.Messages[0].(int64)
 		if !ok {
 			tmp, ok := n.Messages[0].(float64)
