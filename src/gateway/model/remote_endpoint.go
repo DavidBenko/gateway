@@ -623,7 +623,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
-	if e.Type != RemoteEndpointTypeHTTP {
+	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:
