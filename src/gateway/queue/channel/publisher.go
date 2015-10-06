@@ -162,8 +162,8 @@ type Publisher struct {
 	Server
 }
 
-func (p *Publisher) Channel() chan<- []byte {
-	return p.comm
+func (p *Publisher) Channels() (chan<- []byte, <-chan error) {
+	return p.comm, make(chan error)
 }
 
 func Publish(p queue.Publisher) (queue.Publisher, error) {

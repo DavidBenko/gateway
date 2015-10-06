@@ -1,17 +1,22 @@
 package model
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 
 	"gateway/code"
+	"gateway/config"
 	"gateway/db"
+	aperrors "gateway/errors"
 	re "gateway/model/remote_endpoint"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/vincent-petithory/dataurl"
 )
 
 const (
@@ -22,6 +27,28 @@ const (
 	RemoteEndpointTypeMySQL     = "mysql"
 	RemoteEndpointTypePostgres  = "postgres"
 	RemoteEndpointTypeMongo     = "mongodb"
+	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
+	RemoteEndpointTypeSoap = "soap"
+)
+
+const (
+	// RemoteEndpointStatusPending is one of the possible statuses for the Status field on
+	// the RemoteEndpoint struct.  Pending indicates that no processing has yet been attempted
+	// on a RemoteEndpoint
+	RemoteEndpointStatusPending = "Pending"
+	// RemoteEndpointStatusProcessing is one of the possible statuses for the Status field on
+	// the RemoteEndpoint struct.  Processing indicates that the WSDL file is actively being processed,
+	// and is pending final outcome. (originally for use in soap remote endpoints)
+	RemoteEndpointStatusProcessing = "Processing"
+	// RemoteEndpointStatusFailed is one of the possible statuses for the Status field on the
+	// RemoteEndpoint struct.  Failed indicates that there was a failure encountered processing the
+	// WSDL.  The user ought to correct the problem with their WSDL and attempt to process it again.
+	// (originally for use in soap remote endpoints)
+	RemoteEndpointStatusFailed = "Failed"
+	// RemoteEndpointStatusSuccess is one of the possible statuses for the Status field on the
+	// RemoteEndpoint struct.  Success indicates taht processing on the WSDL file has been completed
+	// successfully, and the SOAP service is ready to be invoked. (originally for use in soap remote endpoints)
+	RemoteEndpointStatusSuccess = "Success"
 )
 
 // RemoteEndpoint is an endpoint that a proxy endpoint delegates to.
@@ -30,17 +57,22 @@ type RemoteEndpoint struct {
 	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
 
-	ID          int64  `json:"id,omitempty"`
-	Name        string `json:"name"`
-	Codename    string `json:"codename"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
+	ID            int64            `json:"id,omitempty"`
+	Name          string           `json:"name"`
+	Codename      string           `json:"codename"`
+	Description   string           `json:"description"`
+	Type          string           `json:"type"`
+	Status        apsql.NullString `json:"status,omitempty"`
+	StatusMessage apsql.NullString `json:"status_message,omitempty" db:"status_message"`
 
 	Data            types.JsonText                   `json:"data" db:"data"`
 	EnvironmentData []*RemoteEndpointEnvironmentData `json:"environment_data"`
 
 	// Proxy Data Cache
 	SelectedEnvironmentData *types.JsonText `json:"-" db:"selected_env_data"`
+
+	// Soap specific attributes
+	Soap *SoapRemoteEndpoint `json:"-"`
 }
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
@@ -79,6 +111,7 @@ func (e *RemoteEndpoint) Validate() Errors {
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
 		e.ValidateHTTP(errors)
+	case RemoteEndpointTypeSoap:
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
@@ -86,8 +119,18 @@ func (e *RemoteEndpoint) Validate() Errors {
 			errors.add("base", fmt.Sprintf("error in database config: %s", err))
 		}
 	default:
-		errors.add("base", fmt.Sprintf("unkown endpoint type %q", e.Type))
+		errors.add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
+	if status := e.Status; status.Valid {
+		val, _ := status.Value() // error always nil
+		switch val {
+		case RemoteEndpointStatusFailed, RemoteEndpointStatusProcessing,
+			RemoteEndpointStatusSuccess, RemoteEndpointStatusPending:
+		default:
+			errors.add("status", fmt.Sprintf("Invalid value for status: %v", val))
+		}
+	}
+
 	return errors
 }
 
@@ -142,18 +185,86 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.codename as codename,
 		remote_endpoints.type as type,
 		remote_endpoints.data as data,
-		remote_endpoint_environment_data.data as selected_env_data
+		remote_endpoint_environment_data.data as selected_env_data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id
 	FROM remote_endpoints
 	LEFT JOIN remote_endpoint_environment_data
 		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
 	 AND remote_endpoint_environment_data.environment_id = ?
+	LEFT JOIN soap_remote_endpoints
+	  ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
 	WHERE remote_endpoints.id IN (` + idQuery + `);`
+
 	args := []interface{}{environmentID}
 	for _, id := range ids {
 		args = append(args, id)
 	}
+
+	return mapRemoteEndpoints(db, query, args...)
+}
+
+func newRemoteEndpoint(rowResult map[string]interface{}) *RemoteEndpoint {
+	remoteEndpoint := new(RemoteEndpoint)
+
+	if apiID, ok := rowResult["api_id"].(int64); ok {
+		remoteEndpoint.APIID = apiID
+	}
+	if id, ok := rowResult["id"].(int64); ok {
+		remoteEndpoint.ID = id
+	}
+	if name, ok := rowResult["name"].([]byte); ok {
+		remoteEndpoint.Name = string(name)
+	}
+	if codename, ok := rowResult["codename"].([]byte); ok {
+		remoteEndpoint.Codename = string(codename)
+	}
+	if description, ok := rowResult["description"].([]byte); ok {
+		remoteEndpoint.Description = string(description)
+	}
+	if _type, ok := rowResult["type"].([]byte); ok {
+		remoteEndpoint.Type = string(_type)
+	}
+	if status, ok := rowResult["status"].([]byte); ok {
+		remoteEndpoint.Status = apsql.MakeNullString(string(status))
+	}
+	if statusMessage, ok := rowResult["statusMessage"].([]byte); ok {
+		remoteEndpoint.StatusMessage = apsql.MakeNullString(string(statusMessage))
+	}
+	if data, ok := rowResult["data"].([]byte); ok {
+		remoteEndpoint.Data = types.JsonText(json.RawMessage(data))
+	}
+	if selectedEnvData, ok := rowResult["selected_env_data"].([]byte); ok {
+		envData := types.JsonText(json.RawMessage(selectedEnvData))
+		remoteEndpoint.SelectedEnvironmentData = &envData
+	}
+	if soapID, ok := rowResult["soap_id"].(int64); ok {
+		remoteEndpoint.Soap = new(SoapRemoteEndpoint)
+		remoteEndpoint.Soap.ID = soapID
+	}
+	if wsdl, ok := rowResult["wsdl"].([]byte); ok {
+		remoteEndpoint.Soap.Wsdl = string(wsdl)
+	}
+
+	return remoteEndpoint
+}
+
+func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*RemoteEndpoint, error) {
 	remoteEndpoints := []*RemoteEndpoint{}
-	err := db.Select(&remoteEndpoints, query, args...)
+	rows, err := db.Queryx(query, args...)
+	if err != nil {
+		return nil, aperrors.NewWrapped("[model/remote_endpoint.go] Error fetching all remote endpoints for IDS in environment", err)
+	}
+	for rows.Next() {
+		rowResult := make(map[string]interface{})
+		err := rows.MapScan(rowResult)
+		if err != nil {
+			return nil, aperrors.NewWrapped("[model/remote_endpoint.go] Error scanning row while getting all remote endpoints", err)
+		}
+
+		remoteEndpoints = append(remoteEndpoints, newRemoteEndpoint(rowResult))
+	}
 	return remoteEndpoints, err
 }
 
@@ -177,8 +288,13 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		remote_endpoints.codename as codename,
 	  remote_endpoints.description as description,
 	  remote_endpoints.type as type,
-		remote_endpoints.data as data
+		remote_endpoints.data as data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id,
+		soap_remote_endpoints.wsdl as wsdl
 	FROM remote_endpoints, apis
+	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
 	WHERE `
 	args := []interface{}{}
 	if id != 0 {
@@ -193,8 +309,8 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	  remote_endpoints.name ASC,
 		remote_endpoints.id ASC;`
 	args = append(args, apiID, accountID)
-	remoteEndpoints := []*RemoteEndpoint{}
-	err := db.Select(&remoteEndpoints, query, args...)
+
+	remoteEndpoints, err := mapRemoteEndpoints(db, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,12 +368,33 @@ func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
 	return nil
 }
 
+func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {
+	if remoteEndpoint.Status.String == RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to delete remote endpoint -- status is currently %s", RemoteEndpointStatusPending)
+	}
+
+	if remoteEndpoint.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	soapRemoteEndpoint, err := FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, remoteEndpoint.ID)
+	if err != nil {
+		return aperrors.NewWrapped("[model/remote_endpoint.go] Unable to find soap remote endpoint by remote endpoint ID", err)
+	}
+
+	remoteEndpoint.Soap = soapRemoteEndpoint
+
+	return nil
+}
+
 // DeleteRemoteEndpointForAPIIDAndAccountID deletes the remoteEndpoint with the id, api_id and account_id specified.
 func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
 	var endpoints []*RemoteEndpoint
 	err := tx.Select(&endpoints,
-		`SELECT remote_endpoints.type as type,
-			remote_endpoints.data as data
+		`SELECT remote_endpoints.id as id,
+		  remote_endpoints.type as type,
+			remote_endpoints.data as data,
+			remote_endpoints.status as status
 		FROM remote_endpoints
 		WHERE remote_endpoints.id = ?
 		AND remote_endpoints.api_id IN
@@ -272,7 +409,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 	}
 	endpoint := endpoints[0]
 	var msg interface{}
-	if endpoint.Type != RemoteEndpointTypeHTTP {
+	if endpoint.Type != RemoteEndpointTypeHTTP && endpoint.Type != RemoteEndpointTypeSoap {
 		conf, err := endpoint.DBConfig()
 		switch err {
 		case nil:
@@ -280,6 +417,10 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		default:
 			msg = err
 		}
+	}
+
+	if err := beforeDelete(endpoint, tx); err != nil {
+		return err
 	}
 
 	err = tx.DeleteOne(
@@ -292,7 +433,31 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
+	if err = afterDelete(endpoint, accountID, userID, apiID, tx); err != nil {
+		return err
+	}
+
 	return tx.Notify("remote_endpoints", accountID, userID, apiID, id, apsql.Delete, msg)
+}
+
+func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64, tx *apsql.Tx) error {
+
+	if remoteEndpoint.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	err := DeleteJarFile(remoteEndpoint.Soap.ID)
+	if err != nil {
+		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+	}
+
+	// trigger a notification for soap_remote_endpoints
+	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
+	if err != nil {
+		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
+	}
+
+	return nil
 }
 
 // DBConfig gets a DB Specifier for database endpoints, or nil for non database
@@ -312,19 +477,68 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 	}
 }
 
+func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText, error) {
+	dataAsByteArray := []byte(json.RawMessage(jsonText))
+	targetMap := make(map[string]interface{})
+	err := json.Unmarshal(dataAsByteArray, &targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to decode data: %v", err)
+	}
+
+	delete(targetMap, fieldName)
+	result, err := json.Marshal(targetMap)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to encode data: %v", err)
+	}
+
+	return types.JsonText(json.RawMessage(result)), nil
+}
+
+func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+	soap, err := NewSoapRemoteEndpoint(e)
+	if err != nil {
+		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object: %v", err)
+	}
+
+	e.Soap = &soap
+
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
+		return err
+	}
+	e.Data = newVal
+
+	return nil
+}
+
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	encodedData, err := marshaledForStorage(e.Data)
 	if err != nil {
 		return err
 	}
+
+	if err := e.beforeInsert(tx); err != nil {
+		return err
+	}
+
 	e.ID, err = tx.InsertOne(
-		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, data)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?)`,
-		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, encodedData)
+		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, status, status_message, data)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?,?,?)`,
+		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, e.Status, e.StatusMessage, encodedData)
 	if err != nil {
 		return err
 	}
+
+	if err := e.afterInsert(tx); err != nil {
+		return err
+	}
+
 	for _, envData := range e.EnvironmentData {
 		encodedData, err := marshaledForStorage(envData.Data)
 		if err != nil {
@@ -339,8 +553,74 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
+func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	e.Soap.RemoteEndpointID = e.ID
+	err := e.Soap.Insert(tx)
+	if err != nil {
+		return fmt.Errorf("Unable to insert SoapRemoteEndpoint: %v", err)
+	}
+
+	return nil
+}
+
+func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
+	existingRemoteEndpoint, err := FindRemoteEndpointForAPIIDAndAccountID(tx.DB, e.ID, e.APIID, e.AccountID)
+	if err != nil {
+		return aperrors.NewWrapped("[remote_endpoints.go BeforeUpdate] Unable to fetch existing remote endpoint with id %d, api ID %d, account ID %d", err)
+	}
+
+	if existingRemoteEndpoint.Status.String == RemoteEndpointStatusPending {
+		return fmt.Errorf("Unable to update remote endpoint %d -- status is currently %s", e.ID, RemoteEndpointStatusPending)
+	}
+
+	e.Status = existingRemoteEndpoint.Status
+	e.StatusMessage = existingRemoteEndpoint.StatusMessage
+
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	soap, err := NewSoapRemoteEndpoint(e)
+	if err != nil {
+		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object for update: %v", err)
+	}
+
+	soapRemoteEndpoint, err := FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, e.ID)
+	if err != nil {
+		return fmt.Errorf("Unable to fetch SoapRemoteEndpoint with remote_endpoint_id of %d: %v", e.ID, err)
+	}
+
+	e.Soap = soapRemoteEndpoint
+	var newVal types.JsonText
+	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
+		return err
+	}
+	e.Data = newVal
+
+	if soap.Wsdl == "" {
+		return nil
+	}
+
+	soapRemoteEndpoint.Wsdl = soap.Wsdl
+	soapRemoteEndpoint.GeneratedJarThumbprint = ""
+	soapRemoteEndpoint.RemoteEndpoint = e
+
+	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+	e.StatusMessage = apsql.MakeNullStringNull()
+
+	return nil
+}
+
 // Update updates the remoteEndpoint in the database.
 func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
+	return e.update(tx, true)
+}
+
+func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
 	if e.Type != RemoteEndpointTypeHTTP {
@@ -357,15 +637,28 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
+
+	if fireLifecycleHooks {
+		if err := e.beforeUpdate(tx); err != nil {
+			return err
+		}
+	}
+
 	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
-		SET name = ?, codename = ?, description = ?, data = ?
+		SET name = ?, codename = ?, description = ?, status = ?, status_message = ?, data = ?
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
-		e.Name, e.Codename, e.Description, encodedData, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Codename, e.Description, e.Status, e.StatusMessage, encodedData, e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
+	}
+
+	if fireLifecycleHooks {
+		if err := e.afterUpdate(tx); err != nil {
+			return err
+		}
 	}
 
 	var existingEnvIDs []int64
@@ -426,6 +719,21 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
 }
 
+func (e *RemoteEndpoint) afterUpdate(tx *apsql.Tx) error {
+	if e.Type != RemoteEndpointTypeSoap {
+		return nil
+	}
+
+	if e.Soap.Wsdl != "" {
+		err := e.Soap.Update(tx)
+		if err != nil {
+			return fmt.Errorf("Unable to update SoapRemoteEndpoint: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
 	data string) error {
 	_, err := tx.Exec(
@@ -434,4 +742,31 @@ func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
 			VALUES (?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?);`,
 		rID, eID, apiID, data)
 	return err
+}
+
+func (e *RemoteEndpoint) encodeWsdlForExport() error {
+
+	encodedWsdlStr := dataurl.EncodeBytes([]byte(e.Soap.Wsdl))
+	buf := bytes.NewBuffer([]byte{})
+	buf.WriteString(quote)
+	buf.WriteString(encodedWsdlStr)
+	buf.WriteString(quote)
+	encodedWsdl := json.RawMessage(buf.Bytes())
+
+	dataPayload := make(map[string]*json.RawMessage)
+	err := json.Unmarshal(e.Data, &dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Unmarshaling data for encoding", err)
+	}
+
+	dataPayload["wsdl"] = &encodedWsdl
+	bytes, err := json.Marshal(&dataPayload)
+	if err != nil {
+		return aperrors.NewWrapped("[model/api_import_export.go] Marshaling data for encoding", err)
+	}
+
+	newData := json.RawMessage(bytes)
+	e.Data = types.JsonText(newData)
+
+	return nil
 }

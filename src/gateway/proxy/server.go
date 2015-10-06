@@ -30,6 +30,7 @@ type Server struct {
 	devMode     bool
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
+	soapConf    config.Soap
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	proxyData   proxyDataSource
@@ -56,6 +57,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 		devMode:    conf.DevMode(),
 		proxyConf:  conf.Proxy,
 		adminConf:  conf.Admin,
+		soapConf:   conf.Soap,
 		router:     mux.NewRouter(),
 		proxyData:  source,
 		ownDb:      ownDb,
