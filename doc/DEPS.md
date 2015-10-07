@@ -36,10 +36,13 @@ Mac OS users will want to use [`homebrew`](http://brew.sh) to install packages.
 brew install go
 ```
 
- > Ubuntu Linux
+ > Linux
 
 ```bash
-apt-get install golang
+export GOVERSION="1.5.1.linux-amd64" # Or whatever platform and version
+wget "https://storage.googleapis.com/golang/go${GOVERSION}.tar.gz"
+tar -C /usr/local -xzf "go${GOVERSION}.tar.gz"
+echo 'PATH="${PATH}:/usr/local/go/bin"' >> ~/.bashrc
 ```
 
 ### Setup
@@ -177,8 +180,13 @@ brew install Caskroom/cask/java
 ```
 
  > Ubuntu Linux
+ > (You may need to log out and back in after installing.)
 
-TODO - Has anyone tried this on Linux yet?
+```bash
+add-apt-repository ppa:webupd8team/java
+apt-get update
+apt-get install -y oracle-java8-installer oracle-java8-set-default
+```
 
 ### Verifying
 
@@ -193,7 +201,7 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.45-b02, mixed mode)
 ```
 
 If the above is successful, you should have the correct version installed.  All that is left
-is to make sure that wsimport can be found correctly on your path.  Try running `wsimport -version`.  
+is to make sure that wsimport can be found correctly on your path.  Try running `wsimport -version`.
 You should see something similar to the following.  The exact version number for wsimport is not
 important -- just make sure that wsimport is available on the path, and that the instructions for
 installing Java with the correct version are completed successfully.
