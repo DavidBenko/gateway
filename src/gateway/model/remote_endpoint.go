@@ -43,8 +43,11 @@ type RemoteEndpoint struct {
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
+	// TODO: add id and type to remote_endpoint_environment_data table
+	ID               string         `json:"id,omitempty"`
 	RemoteEndpointID int64          `json:"-" db:"remote_endpoint_id"`
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
+	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
@@ -201,6 +204,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 			endpointIndex++
 		}
 		endpoint := remoteEndpoints[endpointIndex]
+		envData.Type = endpoint.Type
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
