@@ -10,6 +10,7 @@ import (
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
 	AccountID int64 `json:"-" db:"account_id"`
+	UserID    int64 `json:"-"`
 
 	ID                   int64  `json:"id,omitempty"`
 	Name                 string `json:"name"`
@@ -19,6 +20,7 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
+	Export               string `json:"export,omitempty" db:"-"`
 
 	Environments    []*Environment    `json:"environments,omitempty"`
 	EndpointGroups  []*EndpointGroup  `json:"endpoint_groups,omitempty"`
@@ -27,6 +29,27 @@ type API struct {
 	ProxyEndpoints  []*ProxyEndpoint  `json:"proxy_endpoints,omitempty"`
 
 	ExportVersion int64 `json:"export_version,omitempty"`
+}
+
+// CopyFrom copies all attributes except for AccountID, ID, and Name from other
+// into this API.  Also, Export is set to the empty string and ExportVersion is set
+// to 0
+func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
+	a.Description = other.Description
+	a.CORSAllowOrigin = other.CORSAllowOrigin
+	a.CORSAllowHeaders = other.CORSAllowHeaders
+	a.CORSAllowCredentials = other.CORSAllowCredentials
+	a.CORSRequestHeaders = other.CORSRequestHeaders
+	a.CORSMaxAge = other.CORSMaxAge
+	a.Export = ""
+	a.ExportVersion = 0
+	if copyEmbeddedObjects {
+		a.Environments = other.Environments
+		a.EndpointGroups = other.EndpointGroups
+		a.Libraries = other.Libraries
+		a.RemoteEndpoints = other.RemoteEndpoints
+		a.ProxyEndpoints = other.ProxyEndpoints
+	}
 }
 
 // Validate validates the model.
@@ -64,6 +87,13 @@ func AllAPIsForAccountID(db *apsql.DB, accountID int64) ([]*API, error) {
 	return apis, err
 }
 
+// AllAPIs returns all apis.
+func AllAPIs(db *apsql.DB) ([]*API, error) {
+	apis := []*API{}
+	err := db.Select(&apis, db.SQL("apis/all_apis"))
+	return apis, err
+}
+
 // FindAPIForAccountID returns the api with the id and account_id specified.
 func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	api := API{}
@@ -79,12 +109,12 @@ func FindAPIForProxy(db *apsql.DB, id int64) (*API, error) {
 }
 
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
-func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID int64) error {
+func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("apis/delete"), id, accountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("apis", id, apsql.Delete)
+	return tx.Notify("apis", accountID, userID, id, id, apsql.Delete)
 }
 
 // Insert inserts the api into the database as a new row.
@@ -100,13 +130,23 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
+	if err != nil {
+		return
+	}
+
+	err = tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Insert)
 	return
 }
 
 // Update updates the api in the database.
 func (a *API) Update(tx *apsql.Tx) error {
-	return tx.UpdateOne(tx.SQL("apis/update"),
+	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
 		a.ID, a.AccountID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Update)
 }

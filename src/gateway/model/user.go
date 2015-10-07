@@ -16,6 +16,7 @@ const bcryptPasswordCost = 10
 // User represents a user!
 type User struct {
 	AccountID               int64  `json:"-" db:"account_id"`
+	UserID                  int64  `json:"-"`
 	ID                      int64  `json:"id"`
 	Name                    string `json:"name"`
 	Email                   string `json:"email"`
@@ -73,8 +74,18 @@ func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 	return &user, err
 }
 
+// FindFirstUserForAccountID returns the first user with the account_id specified.
+func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
+	user := User{}
+	err := db.Get(&user,
+		`SELECT id, name, email FROM users
+		 WHERE account_id = ? ORDER BY id LIMIT 1;`,
+		accountID)
+	return &user, err
+}
+
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
-func DeleteUserForAccountID(tx *apsql.Tx, id, accountID int64) error {
+func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	return tx.DeleteOne(
 		`DELETE FROM users
 		 WHERE id = ? AND account_id = ?;`,
@@ -88,6 +99,16 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 		`SELECT id, account_id, hashed_password
 		 FROM users WHERE email = ?;`,
 		strings.ToLower(email))
+	return &user, err
+}
+
+// FindUserByID returns the user with the id specified.
+func FindUserByID(db *apsql.DB, id int64) (*User, error) {
+	user := User{}
+	err := db.Get(&user,
+		`SELECT id, account_id, name, email
+		 FROM users WHERE id = ?;`,
+		id)
 	return &user, err
 }
 

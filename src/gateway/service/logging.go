@@ -256,7 +256,7 @@ func LoggingService(conf config.ProxyAdmin) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		C := send.Channel()
+		C, _ := send.Channels()
 		defer func() {
 			send.Close()
 		}()

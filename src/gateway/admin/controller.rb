@@ -13,6 +13,11 @@ api = false
 custom_struct = false
 check_delete = false
 after_insert = false
+after_update = false
+after_delete = false
+before_insert = false
+before_update = false
+before_delete = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -37,6 +42,22 @@ OptionParser.new do |opts|
   opts.on("--after-insert-hook", "Does controller have an after insert hook?") do |value|
     after_insert = value
   end
+  opts.on("--after-update-hook", "Does controller have an after update hook?") do |value|
+    after_update = value
+  end
+  opts.on("--after-delete-hook", "Does controller have an after delete hook?") do |value|
+    after_delete = value
+  end
+  opts.on("--before-insert-hook", "Does controller have a before insert hook?") do |value|
+    before_insert = value
+  end
+  opts.on("--before-update-hook", "Does controller have a before update hook?") do |value|
+    before_update = value
+  end
+  opts.on("--before-delete-hook", "Does controller have a before delete hook?") do |value|
+    before_delete = value
+  end
+
 end.parse!
 
 plural = singular.pluralize
@@ -142,19 +163,43 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   id := instanceID(r)
 
+  var err error
+  <% if after_delete || before_delete %>
+    db := tx.DB
+
+    <% if account && api %>
+      <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
+        id, c.apiID(r), c.accountID(r))
+    <% elsif account %>
+      <%= local %>, err := model.Find<%= singular %>ForAccountID(db, id, c.accountID(r))
+    <% else %>
+      <%= local %>, err := model.Find<%= singular %>(db, id)
+    <% end %>
+    if err != nil {
+      return c.notFound()
+    }
+  <% end %>
+
   <% if check_delete %>
-    if err := model.CanDelete<%= singular %>(tx, id); err != nil {
+    if err = model.CanDelete<%= singular %>(tx, id); err != nil {
       return aphttp.NewServerError(err)
     }
   <% end %>
 
+  <% if before_delete %>
+    if err = c.BeforeDelete(<%= local %>, tx); err != nil {
+      log.Printf("%s Error before delete: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  <% end %>
+
   <% if account && api %>
-    err := model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
-      id, c.apiID(r), c.accountID(r))
+    err = model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
+      id, c.apiID(r), c.accountID(r), c.userID(r))
   <% elsif account %>
-    err := model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r))
+    err = model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r), c.userID(r))
   <% else %>
-    err := model.Delete<%= singular %>(tx, id)
+    err = model.Delete<%= singular %>(tx, id)
   <% end %>
 
   if err != nil {
@@ -164,6 +209,13 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
+
+  <% if after_delete %>
+    if err := c.AfterDelete(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after delete: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  <% end %>
 
   w.WriteHeader(http.StatusOK)
   return nil
@@ -181,6 +233,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% end %>
   <% if account %>
     <%= local %>.AccountID = c.accountID(r)
+    <%= local %>.UserID = c.userID(r)
   <% end %>
 
   var method func(*apsql.Tx) error
@@ -199,6 +252,23 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     return SerializableValidationErrors{validationErrors}
   }
 
+  <% if before_insert %>
+  if isInsert {
+    if err := c.BeforeInsert( <%= local %>, tx); err != nil {
+      log.Printf("%s Error before insert: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+  <% if before_update %>
+  if !isInsert {
+    if err := c.BeforeUpdate( <%= local %>, tx); err != nil {
+      log.Printf("%s Error before update: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+
   if err := method(tx); err != nil {
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
@@ -215,6 +285,14 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   if isInsert {
     if err := c.AfterInsert(<%= local %>, tx); err != nil {
       log.Printf("%s Error after insert: %v", config.System, err)
+      return aphttp.DefaultServerError()
+    }
+  }
+  <% end %>
+  <% if after_update %>
+  if !isInsert {
+    if err := c.AfterUpdate(<%= local %>, tx); err != nil {
+      log.Printf("%s Error after update: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }

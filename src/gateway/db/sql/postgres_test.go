@@ -2,20 +2,12 @@ package sql_test
 
 import (
 	"encoding/json"
-	"testing"
 
 	sql "gateway/db/sql"
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )
-
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { gc.TestingT(t) }
-
-type PostgresSuite struct{}
-
-var _ = gc.Suite(&PostgresSuite{})
 
 func pqConfigs() map[string]map[string]interface{} {
 	return map[string]map[string]interface{}{
@@ -49,41 +41,50 @@ func pqConfigs() map[string]map[string]interface{} {
 	}
 }
 
-func (s *PostgresSuite) TestPostgresConfig(c *gc.C) {
+func pqSpecs() map[string]*sql.PostgresSpec {
+	specs := make(map[string]*sql.PostgresSpec)
+	for name, spc := range pqConfigs() {
+		pqSpec := &sql.PostgresSpec{}
+		vals, err := json.Marshal(spc)
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(vals, pqSpec)
+
+		specs[name] = pqSpec
+	}
+	return specs
+}
+
+func (s *SQLSuite) TestPostgresConfig(c *gc.C) {
 	for i, t := range []struct {
 		should       string
-		given        map[string]interface{}
+		given        *sql.PostgresSpec
 		expectString string
 		expectUnique string
 		expectError  string
 	}{{
 		should:       "work with a simple config",
-		given:        pqConfigs()["simple"],
+		given:        pqSpecs()["simple"],
 		expectString: "postgres://user:pass@some.url.net:1234/db?sslmode=prefer",
 		expectUnique: "postgres://user:pass@some.url.net:1234/db?sslmode=prefer",
 	}, {
 		should:       "work with a complicated config",
-		given:        pqConfigs()["complicated"],
+		given:        pqSpecs()["complicated"],
 		expectString: `postgres://user name:pass's@some.url.net:1234/db?sslmode=verify-ca`,
 		expectUnique: `postgres://user name:pass's@some.url.net:1234/db?sslmode=verify-ca`,
 	}, {
 		should:      "not work with a bad config",
-		given:       pqConfigs()["bad"],
+		given:       pqSpecs()["bad"],
 		expectError: `pgx config errors: bad value "" for "password"; bad value "" for "host"`,
 	}, {
 		should:      "not work with a bad config",
-		given:       pqConfigs()["badport"],
+		given:       pqSpecs()["badport"],
 		expectError: `pgx config errors: bad value -1234 for "port"; bad value "" for "host"`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
-		pqConn := &sql.PostgresSpec{}
-		vals, err := json.Marshal(t.given)
-		c.Assert(err, jc.ErrorIsNil)
-		c.Logf("Test %d:\n  given: %s", i, vals)
-		err = json.Unmarshal(vals, pqConn)
-		c.Assert(err, jc.ErrorIsNil)
 
-		obtained, err := sql.Config(sql.Connection(pqConn))
+		obtained, err := sql.Config(sql.Connection(t.given))
 		if t.expectError != "" {
 			c.Check(err, gc.ErrorMatches, t.expectError)
 			continue

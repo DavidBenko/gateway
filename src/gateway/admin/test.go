@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -46,15 +45,6 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 	endpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(db, endpointID, apiID, accountID)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
-	hosts, err := model.AllHostsForAPIIDAndAccountID(db, apiID, accountID)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
-	if len(hosts) == 0 {
-		return aphttp.NewError(errors.New("A host needs to be defined."), http.StatusBadRequest)
 	}
 
 	selectedHost := "127.0.0.1"
@@ -101,8 +91,29 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 				return aphttp.NewError(err, http.StatusBadRequest)
 			}
 
+			paths := make(map[string]string)
+			for _, pair := range test.Pairs {
+				if pair.Type == model.PairTypePath {
+					paths[pair.Key] = pair.Value
+				}
+			}
+			route, path := bytes.Buffer{}, []rune(test.Route)
+			for i := 0; i < len(path); i++ {
+				if path[i] != '{' {
+					route.WriteRune(path[i])
+				} else {
+					key := bytes.Buffer{}
+					for i++; path[i] != '}'; i++ {
+						if path[i] != ' ' && path[i] != '\t' {
+							key.WriteRune(path[i])
+						}
+					}
+					route.WriteString(paths[key.String()])
+				}
+			}
+
 			testUrl := fmt.Sprintf("http://%v:%v/justapis/test%v",
-				selectedHost, c.ProxyServer.Port, test.Route)
+				selectedHost, c.ProxyServer.Port, route.String())
 			for _, method := range methods {
 				client, values := &http.Client{}, url.Values{}
 				request, err := http.NewRequest(method, testUrl, nil)
@@ -110,7 +121,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 					return aphttp.NewError(err, http.StatusBadRequest)
 				}
 
-				request.Host = hosts[0].Hostname
+				request.Host = fmt.Sprintf("%v.example.com", apiID)
 
 				content_type := ""
 				for _, pair := range test.Pairs {

@@ -39,6 +39,29 @@ func accountIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
 	}
 }
 
+func userIDDummy(r *http.Request) int64 {
+	return 0
+}
+
+func userIDFromSession(r *http.Request) int64 {
+	session := requestSession(r)
+	return session.Values[userIDKey].(int64)
+}
+
+func userIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
+	return func(r *http.Request) int64 {
+		account, err := model.FirstAccount(db)
+		if err != nil {
+			log.Fatal("Could not get dev mode account")
+		}
+		user, err := model.FindFirstUserForAccountID(db, account.ID)
+		if err != nil {
+			log.Fatal("Could not get dev mode user")
+		}
+		return user.ID
+	}
+}
+
 func apiIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["apiID"])
 }

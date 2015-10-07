@@ -462,3 +462,64 @@ AP.Mongo.Request.prototype.mapReduce = function(collection, query, scope, map,
   reduce, finalize, out) {
   this.query(collection, "mapReduce", query, scope, map, reduce, finalize, out);
 }
+
+AP.SOAP = AP.SOAP || {};
+
+/**
+ * Creates a new SOAP request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.SOAP.Request = function() {
+  /**
+   * The parameters to pass into the SOAP operation.
+   * @type {object}
+   */
+  this.params = {};
+  /**
+   * The SOAP service's name, as specified in the WSDL.
+   * @type {string}
+   */
+  this.serviceName = null;
+  /**
+   * The endpoint name, as specified in the WSDL.
+   * @type {string}
+   */
+  this.endpointName = null;
+  /**
+   * The operation name to invoke, as specified in the WSDL.
+   * @type {string}
+   */
+  this.operationName = null;
+  /**
+   * The action name to invoke, as specified in the WSDL.  Will be ignored if
+   * operationName is present.
+   * @type {string}
+   */
+  this.actionName = null;
+  /**
+   * The URL at which to invoke the service
+   * @type {string}
+   */
+  this.url = null;
+  /**
+   * The WSSE credentials to use.  Valid value is a hash including a 'username'
+   * and 'password' field.
+   * @type {object}
+   */
+  this.wssePasswordCredentials = null;
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.params = _.clone(request.params);
+    this.serviceName = _.clone(request.serviceName);
+    this.endpointName = _.clone(request.endpointName);
+    this.operationName = _.clone(request.operationName);
+    this.actionName = _.clone(request.actionName);
+    this.url = _.clone(request.url);
+    this.wssePasswordCredentials = _.clone(request.wssePasswordCredentials);
+  }
+
+}

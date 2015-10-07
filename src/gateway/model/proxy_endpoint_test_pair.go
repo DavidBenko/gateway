@@ -9,6 +9,7 @@ const (
 	PairTypeGet    = "get"
 	PairTypePost   = "post"
 	PairTypeHeader = "header"
+	PairTypePath   = "path"
 )
 
 type ProxyEndpointTestPair struct {

@@ -30,6 +30,7 @@ type ResourceController interface {
 type BaseController struct {
 	conf      config.ProxyAdmin
 	accountID func(r *http.Request) int64
+	userID    func(r *http.Request) int64
 }
 
 func (c *BaseController) apiID(r *http.Request) int64 {

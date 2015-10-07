@@ -23,6 +23,7 @@ type Configuration struct {
 	Admin    ProxyAdmin
 	Elastic  ElasticLogging
 	Bleve    BleveLogging
+	Soap     Soap
 }
 
 // Database specifies configuration options for your database
@@ -31,6 +32,15 @@ type Database struct {
 	Driver           string `flag:"db-driver"      default:"sqlite3"`
 	ConnectionString string `flag:"db-conn-string" default:"gateway.db"`
 	MaxConnections   int64  `flag:"db-max-connections" default:"50"`
+}
+
+// Soap specifies configuration options pertaining to remote SOAP endpoints
+type Soap struct {
+	JdkPath        string `flag:"soap-jdk-path"    default:""`
+	SoapClientHost string `flag:"soap-client-host" default:"localhost"`
+	SoapClientPort int64  `flag:"soap-client-port" default:"19083"`
+	ThreadPoolSize int64  `flag:"soap-thread-pool-size" default:"0"`
+	JavaOpts       string `flag:"soap-java-opts" default:""`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

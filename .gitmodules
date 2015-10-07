@@ -1,3 +1,6 @@
 [submodule "admin"]
 	path = admin
 	url = git@github.com:AnyPresence/gateway-ui.git
+[submodule "soapclient"]
+	path = soapclient
+	url = git@github.com:AnyPresence/gateway-soap-client

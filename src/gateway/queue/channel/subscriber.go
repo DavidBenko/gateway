@@ -47,8 +47,8 @@ type Subscriber struct {
 	Client
 }
 
-func (s *Subscriber) Channel() chan []byte {
-	return s.comm
+func (s *Subscriber) Channels() (<-chan []byte, <-chan error) {
+	return s.comm, make(chan error)
 }
 
 func Subscribe(s queue.Subscriber) (queue.Subscriber, error) {

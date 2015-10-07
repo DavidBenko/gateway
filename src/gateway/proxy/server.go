@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ type Server struct {
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	conf        config.Configuration
+	soapConf    config.Soap
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	proxyData   proxyDataSource
@@ -58,6 +60,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 		proxyConf:  conf.Proxy,
 		adminConf:  conf.Admin,
 		conf:       conf,
+		soapConf:   conf.Soap,
 		router:     mux.NewRouter(),
 		proxyData:  source,
 		ownDb:      ownDb,
@@ -279,8 +282,11 @@ func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 	requestID string) aphttp.Error {
 
 	s.addCORSCommonHeaders(w, endpoint)
-	methods := route.Methods
-	methods = append(methods, "OPTIONS")
+	methods := []string{}
+	for method, _ := range s.proxyRouter.merged[route.Path] {
+		methods = append(methods, method)
+	}
+	sort.Strings(methods)
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ", "))
 	return nil
 }

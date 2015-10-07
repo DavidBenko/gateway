@@ -10,11 +10,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// PostCommitHook represents a function that will be called after the tx is
+// committed successfully
+type PostCommitHook func(tx *Tx)
+
 // Tx wraps a *sql.Tx with the driver we're using
 type Tx struct {
 	*sqlx.Tx
-	db            *DB
+	DB            *DB
 	notifications []*Notification
+	PostCommit    PostCommitHook
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
@@ -37,7 +42,7 @@ func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err er
 	if strings.HasSuffix(baseQuery, ";") {
 		log.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
 	}
-	if tx.db.Driver == Postgres {
+	if tx.DB.Driver == Postgres {
 		query := tx.q(baseQuery + ` RETURNING "id";`)
 		err = tx.Get(&id, query, args...)
 		return
@@ -79,20 +84,23 @@ func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 // (in memory on a single single box, to be used for development only), whereas
 //  Postgres uses its NOTIFY command and triggers on commit for database-based
 // listeners.
-func (tx *Tx) Notify(table string, apiID int64, event NotificationEventType, messages ...interface{}) error {
+func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event NotificationEventType, messages ...interface{}) error {
 	n := Notification{
-		Table:    table,
-		APIID:    apiID,
-		Event:    event,
-		Messages: messages,
+		Table:     table,
+		AccountID: accountID,
+		UserID:    userID,
+		APIID:     apiID,
+		ID:        id,
+		Event:     event,
+		Messages:  messages,
 	}
 
-	if tx.db.Driver == Sqlite3 {
+	if tx.DB.Driver == Sqlite3 {
 		tx.notifications = append(tx.notifications, &n)
 		return nil
 	}
 
-	if tx.db.Driver == Postgres {
+	if tx.DB.Driver == Postgres {
 		json, err := json.Marshal(&n)
 		if err != nil {
 			return err
@@ -109,8 +117,11 @@ func (tx *Tx) Notify(table string, apiID int64, event NotificationEventType, mes
 func (tx *Tx) Commit() error {
 	err := tx.Tx.Commit()
 	if err == nil {
+		if tx.PostCommit != nil {
+			tx.PostCommit(tx)
+		}
 		for _, n := range tx.notifications {
-			tx.db.notifyListeners(n)
+			tx.DB.notifyListeners(n)
 		}
 	}
 	return err
@@ -118,10 +129,10 @@ func (tx *Tx) Commit() error {
 
 // SQL returns a sql query from a static file, scoped to driver
 func (tx *Tx) SQL(name string) string {
-	return tx.db.SQL(name)
+	return tx.DB.SQL(name)
 }
 
 // does driver modifications to query
 func (tx *Tx) q(sql string) string {
-	return tx.db.q(sql)
+	return tx.DB.q(sql)
 }

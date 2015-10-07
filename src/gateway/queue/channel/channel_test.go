@@ -22,7 +22,10 @@ func TestChannel(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			C := send.Channel()
+			C, e := send.Channels()
+			if e == nil {
+				t.Fatalf("error channel was nil")
+			}
 			for {
 				C <- []byte("hello world")
 			}
@@ -36,7 +39,10 @@ func TestChannel(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				C := rec.Channel()
+				C, e := rec.Channels()
+				if e == nil {
+					t.Fatalf("error channel was nil")
+				}
 				defer func() {
 					go func(c <-chan []byte) {
 						for _ = range c {
