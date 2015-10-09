@@ -24,8 +24,8 @@ type Publisher struct {
 	Server
 }
 
-func (p *Publisher) Channel() chan<- []byte {
-	return nil
+func (p *Publisher) Channels() (chan<- []byte, <-chan error) {
+	return nil, nil
 }
 
 func PubBindingOk(p queue.Publisher) (queue.Publisher, error) {

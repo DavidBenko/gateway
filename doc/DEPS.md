@@ -9,6 +9,7 @@ Building and testing Gateway requires:
  - [rubygems](#rubygems) and bundler
  - [sqlite](#sqlite)
  - [postgresql](#postgresql)
+ - [java](#java)
 
 Note that gateway uses git submodules.
 
@@ -35,10 +36,13 @@ Mac OS users will want to use [`homebrew`](http://brew.sh) to install packages.
 brew install go
 ```
 
- > Ubuntu Linux
+ > Linux
 
 ```bash
-apt-get install golang
+export GOVERSION="1.5.1.linux-amd64" # Or whatever platform and version
+wget "https://storage.googleapis.com/golang/go${GOVERSION}.tar.gz"
+tar -C /usr/local -xzf "go${GOVERSION}.tar.gz"
+echo 'PATH="${PATH}:/usr/local/go/bin"' >> ~/.bashrc
 ```
 
 ### Setup
@@ -159,3 +163,50 @@ exit
 ```
 
 FIXME: This is suboptimal.  It would be better to create a userlevel service instead of a global user with superuser and no password.
+
+
+## Java
+
+You will need JDK 1.8 or greater in order to be able to connect to SOAP remote endpoints.
+
+### Installing
+
+ > Mac OS
+
+```bash
+brew update
+brew tap caskroom/cask
+brew install Caskroom/cask/java
+```
+
+ > Ubuntu Linux
+ > (You may need to log out and back in after installing.)
+
+```bash
+add-apt-repository ppa:webupd8team/java
+apt-get update
+apt-get install -y oracle-java8-installer oracle-java8-set-default
+```
+
+### Verifying
+
+Try running `java -version`.  You should see something like the following.  Make sure the
+first line matches the expected version number:  *java version "1.8.0_XX"*
+
+```bash
+$ java -version
+java version "1.8.0_45"
+Java(TM) SE Runtime Environment (build 1.8.0_45-b14)
+Java HotSpot(TM) 64-Bit Server VM (build 25.45-b02, mixed mode)
+```
+
+If the above is successful, you should have the correct version installed.  All that is left
+is to make sure that wsimport can be found correctly on your path.  Try running `wsimport -version`.
+You should see something similar to the following.  The exact version number for wsimport is not
+important -- just make sure that wsimport is available on the path, and that the instructions for
+installing Java with the correct version are completed successfully.
+
+```bash
+$ wsimport -version
+wsimport version "2.2.9"
+```

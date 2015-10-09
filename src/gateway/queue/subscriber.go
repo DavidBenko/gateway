@@ -21,7 +21,19 @@ type Subscriber interface {
 	Client
 
 	// Channel returns a channel which messages can be received on.
-	Channel() <-chan []byte
+	// Channels returns a channel to receive messages on, and a channel to receive
+	// any errors on.
+	//
+	// Usage:
+	// s, e := sub.Channels()
+	//
+	// select {
+	// case msg := <-s:
+	//     // ...
+	// case err := <-e:
+	//     // ...
+	// }
+	Channels() (<-chan []byte, <-chan error)
 }
 
 // Subscribe sets up a Subscriber with the given SubBindings, Connects it with
