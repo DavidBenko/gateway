@@ -1,11 +1,13 @@
 package admin
 
 import (
+	"net/http"
+
 	"gateway/config"
 	aphttp "gateway/http"
 	apsql "gateway/sql"
+
 	"github.com/gorilla/handlers"
-	"net/http"
 )
 
 func RouteResource(controller ResourceController, path string,
