@@ -110,17 +110,21 @@ will need to:
 
 ### Building for Linux and Windows with Docker
 
-If you have Docker installed locally, you can build the LinuxAmd64 Dockerfile and then compile in there. You can build the Docker image with:
+If you have Docker installed locally, you can build the CrossCompilation Dockerfile and then compile in there. You can build the Docker image with:
 
-    docker build --no-cache -t anypresence/gateway:cross-compilation -f dockerfiles/CrossCompilation .
+    docker build --no-cache -t anypresence/gateway:cross-compilation-0.0.1 -f dockerfiles/CrossCompilation .
+
+If you are a collaborator on the Docker Hub repository for anypresence/gateway, you can alternatively just pull the image from there:
+
+    docker pull anypresence/gateway:cross-compilation-0.0.1
 
 Then, run the following to compile the binary with the dev public key:
 
     make vet admin assets generate
-    docker run --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation
+    docker run --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-0.0.1
 
 Use the following for the production public:
 
-    docker run -e "LICENSE_PUBLIC_KEY=/usr/src/justapis/public_keys/production" --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation
+    docker run -e "LICENSE_PUBLIC_KEY=/usr/src/justapis/public_keys/production" --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-0.0.1
 
 Your new binary will be at ./build/gateway-{GOOS}-{GOARCH}
