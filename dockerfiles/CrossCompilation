@@ -1,13 +1,13 @@
 # anypresence/gateway:cross-compilation
 # version 0.0.1
-FROM golang:1.4.2-cross
+FROM golang:1.5.1
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
 # Install dependencies
 RUN echo "deb http://http.debian.net/debian unstable main" >> /etc/apt/sources.list && \
     dpkg --add-architecture armhf && \
     apt-get -y update && apt-get -y upgrade && \
-    apt-get -y install gcc-mingw-w64 libc6-dev-i386 gcc-arm-linux-gnueabihf && \
+    apt-get -y install g++-5-multilib gcc-mingw-w64 libc6-dev-i386 gcc-arm-linux-gnueabihf gcc-5-aarch64-linux-gnu && \
     ln -s /usr/include/asm-generic /usr/include/asm && \
     go get golang.org/x/tools/cmd/vet
 
@@ -17,5 +17,7 @@ ENTRYPOINT export GOPATH=${PWD}/_vendor:${PWD}:${GOPATH} && \
   GOOS=linux GOARCH=386 CGO_ENABLED=1 CC="gcc" go build -v -o ./build/gateway-linux-386 ./src/gateway/main.go && \
   GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-amd64.exe ./src/gateway/main.go && \
   GOOS=windows GOARCH=386 CGO_ENABLED=1 CC="i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp" go build -v -o ./build/gateway-windows-386.exe ./src/gateway/main.go && \
+  GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv5 ./src/gateway/main.go && \
   GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv6 ./src/gateway/main.go && \
-  GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv7 ./src/gateway/main.go
+  GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc go build -v -o ./build/gateway-linux-armv7 ./src/gateway/main.go && \
+  GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc-5 go build -v -o ./build/gateway-linux-arm64 ./src/gateway/main.go
