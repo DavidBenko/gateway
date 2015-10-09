@@ -43,14 +43,18 @@ type RemoteEndpoint struct {
 
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
-	// TODO: add id and type to remote_endpoint_environment_data table
+	// TODO: add type to remote_endpoint_environment_data table
 	ID               string         `json:"id,omitempty"`
-	RemoteEndpointID int64          `json:"-" db:"remote_endpoint_id"`
+	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
+}
+
+func (e *RemoteEndpointEnvironmentData) UpdateID() {
+	e.ID = fmt.Sprintf("%v_%v", e.RemoteEndpointID, e.EnvironmentID)
 }
 
 // Validate validates the model.
@@ -205,6 +209,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
+		envData.UpdateID()
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
@@ -309,6 +314,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
+		envData.UpdateID()
 	}
 	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
@@ -378,6 +384,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 				return err
 			}
 		}
+		envData.UpdateID()
 	}
 
 	if len(existingEnvIDs) == 0 {

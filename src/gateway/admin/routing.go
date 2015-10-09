@@ -4,9 +4,8 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	apsql "gateway/sql"
-	"net/http"
-
 	"github.com/gorilla/handlers"
+	"net/http"
 )
 
 func RouteResource(controller ResourceController, path string,
