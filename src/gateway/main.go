@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"runtime"
 	"strings"
 	"time"
-
-	"os"
 
 	"gateway/config"
 	"gateway/license"
@@ -53,15 +52,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
-
-	// Configure SOAP
-	err = soap.Configure(conf.Soap, conf.DevMode())
-	if err != nil {
-		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
-	}
-
-	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
-	model.StartSoapRemoteEndpointUpdateListener(db)
 
 	//check for sneaky people
 	if conf.License == "" {
@@ -121,6 +111,16 @@ func main() {
 			log.Fatal("Dev account doesn't exist")
 		}
 	}
+
+	// Configure SOAP
+	err = soap.Configure(conf.Soap, conf.DevMode())
+	if err != nil {
+		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+	}
+
+	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
+	model.StartSoapRemoteEndpointUpdateListener(db)
+
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
