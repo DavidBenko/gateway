@@ -17,22 +17,33 @@ var _ = queue.Subscriber(&SubSocket{})
 
 // SubSocket implements queue.Subscriber.
 type SubSocket struct {
-	s       mangos.Socket
-	filter  []byte
-	c       chan []byte
-	e       chan error
-	control chan signal
-	done    chan signal
+	s        mangos.Socket
+	filter   []byte
+	c        chan []byte
+	e        chan error
+	control  chan signal
+	done     chan signal
+	buffSize int
 }
 
 func (s *SubSocket) Connect(path string) error {
-	if s.s == nil {
+	sock := s.s
+
+	if sock == nil {
 		return fmt.Errorf("mangos Subscriber couldn't Connect to %s: nil socket", path)
 	}
 
-	sock := s.s
+	if s.buffSize != 0 {
+		if err := sock.SetOption(mangos.OptionReadQLen, s.buffSize); err != nil {
+			return err
+		}
+	}
 
 	if err := sock.SetOption(mangos.OptionSubscribe, s.filter); err != nil {
+		return err
+	}
+
+	if err := sock.Dial(path); err != nil {
 		return err
 	}
 
@@ -40,6 +51,11 @@ func (s *SubSocket) Connect(path string) error {
 	done := make(chan signal)
 	c := make(chan []byte, channelSize)
 	e := make(chan error, channelSize)
+
+	s.c = c
+	s.e = e
+	s.control = control
+	s.done = done
 
 	go func() {
 		var msg []byte
@@ -61,12 +77,7 @@ func (s *SubSocket) Connect(path string) error {
 		}
 	}()
 
-	s.c = c
-	s.e = e
-	s.control = control
-	s.done = done
-
-	return sock.Dial(path)
+	return nil
 }
 
 func (s *SubSocket) Close() (e error) {
@@ -163,6 +174,23 @@ func SubIPC(s queue.Subscriber) (queue.Subscriber, error) {
 	sock.AddTransport(ipc.NewTransport())
 
 	return s, nil
+}
+
+// SubBuffer sets the size of the socket buffer for a mangos Subscriber.  This
+// should almost never be necessary.
+func SubBuffer(size int) queue.SubBinding {
+	return func(s queue.Subscriber) (queue.Subscriber, error) {
+		if size <= 0 {
+			return nil, fmt.Errorf("SubBuffer expects positive size, got %d", size)
+		}
+
+		if tS, ok := s.(*SubSocket); ok {
+			tS.buffSize = size
+			return tS, nil
+		}
+
+		return nil, fmt.Errorf("SubBuffer expected *mangos.SubSocket, got %T", s)
+	}
 }
 
 func Filter(filter string) queue.SubBinding {

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/gdamore/mangos"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )
@@ -54,20 +55,20 @@ func (s *MangosSuite) TestGetPubSocket(c *gc.C) {
 }
 
 func (s *MangosSuite) TestPubTCP(c *gc.C) {
-	pIPC, err := queue.Publish(
+	pTCP, err := queue.Publish(
 		"tcp://localhost:9001",
 		qm.Pub,
 		qm.PubTCP,
 	)
 
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(pIPC, gc.NotNil)
-	err = pIPC.Close()
+	c.Assert(pTCP, gc.NotNil)
+	err = pTCP.Close()
 
 	c.Assert(err, jc.ErrorIsNil)
 
-	_, err = qm.PubIPC(&qm.PubSocket{})
-	c.Check(err, gc.ErrorMatches, "PubIPC requires a non-nil Socket, use Pub first")
+	_, err = qm.PubTCP(&qm.PubSocket{})
+	c.Check(err, gc.ErrorMatches, "PubTCP requires a non-nil Socket, use Pub first")
 }
 
 func (s *MangosSuite) TestPubIPC(c *gc.C) {
@@ -101,5 +102,34 @@ func (s *MangosSuite) TestPub(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(p, gc.NotNil)
 	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
+	c.Assert(p.Close(), jc.ErrorIsNil)
+}
+
+func (s *MangosSuite) TestPubBufferSize(c *gc.C) {
+	_, err := qm.PubBuffer(-10)(&qm.PubSocket{})
+	c.Assert(err, gc.ErrorMatches, "PubBuffer expects positive size, got -10")
+	_, err = qm.PubBuffer(10)(&testing.Publisher{})
+	c.Assert(err, gc.ErrorMatches, `PubBuffer expected \*mangos.PubSocket, got \*testing.Publisher`)
+	p, err := qm.PubBuffer(10)(&qm.PubSocket{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(qm.GetPubBufferSize(p), gc.Equals, 10)
+
+	p, err = queue.Publish(
+		"tcp://localhost:9001",
+		qm.Pub,
+		qm.PubTCP,
+		qm.PubBuffer(2048),
+	)
+	c.Assert(err, jc.ErrorIsNil)
+
+	// Make sure it was set correctly on the socket itself
+	sock, err := qm.GetPubSocket(p)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(s, gc.NotNil)
+
+	buffSize, err := sock.GetOption(mangos.OptionWriteQLen)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(buffSize, gc.Equals, 2048)
+
 	c.Assert(p.Close(), jc.ErrorIsNil)
 }

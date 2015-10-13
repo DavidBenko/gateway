@@ -13,26 +13,33 @@ import (
 	"github.com/gdamore/mangos/transport/tcp"
 )
 
-const (
-	// A delay is necessary to avoid message loss for the ACKless Pub/Sub
-	// protocol.
-	PubDelay = 500 * time.Microsecond
-)
-
 var _ = queue.Publisher(&PubSocket{})
 
 // PubSocket implements queue.Publisher.
 type PubSocket struct {
-	s       mangos.Socket
-	control chan signal
-	done    chan signal
-	c       chan []byte
-	e       chan error
+	s        mangos.Socket
+	control  chan signal
+	done     chan signal
+	c        chan []byte
+	e        chan error
+	buffSize int
 }
 
 func (p *PubSocket) Bind(path string) error {
-	if p.s == nil {
+	s := p.s
+
+	if s == nil {
 		return fmt.Errorf("mangos Publisher couldn't Bind to %s: nil socket", path)
+	}
+
+	if p.buffSize != 0 {
+		if err := s.SetOption(mangos.OptionWriteQLen, p.buffSize); err != nil {
+			return err
+		}
+	}
+
+	if err := s.Listen(path); err != nil {
+		return err
 	}
 
 	control := make(chan signal)
@@ -40,7 +47,10 @@ func (p *PubSocket) Bind(path string) error {
 	c := make(chan []byte, channelSize)
 	e := make(chan error, channelSize)
 
-	s := p.s
+	p.c = c
+	p.e = e
+	p.control = control
+	p.done = done
 
 	go func() {
 		var msg []byte
@@ -52,7 +62,6 @@ func (p *PubSocket) Bind(path string) error {
 				close(done)
 				return
 			case msg = <-c:
-				time.Sleep(PubDelay)
 				if err = s.Send(msg); err != nil {
 					e <- err
 				}
@@ -60,12 +69,7 @@ func (p *PubSocket) Bind(path string) error {
 		}
 	}()
 
-	p.c = c
-	p.e = e
-	p.control = control
-	p.done = done
-
-	return s.Listen(path)
+	return nil
 }
 
 func (p *PubSocket) Close() (e error) {
@@ -163,10 +167,28 @@ func PubIPC(p queue.Publisher) (queue.Publisher, error) {
 	return p, nil
 }
 
-// Gets a Mangos pub.Socket from a queue.Publisher containing a Mangos Socket.
+// PubBuffer sets the size of the socket buffer for a mangos Publisher.  This
+// should almost never be necessary.
+func PubBuffer(size int) queue.PubBinding {
+	return func(p queue.Publisher) (queue.Publisher, error) {
+		if size <= 0 {
+			return nil, fmt.Errorf("PubBuffer expects positive size, got %d", size)
+		}
+
+		if tP, ok := p.(*PubSocket); ok {
+			tP.buffSize = size
+			return tP, nil
+		}
+
+		return nil, fmt.Errorf("PubBuffer expected *mangos.PubSocket, got %T", p)
+	}
+}
+
+// getPubSocket gets a Mangos pub.Socket from a queue.Publisher containing a
+// Mangos Socket.
 func getPubSocket(p queue.Publisher) (mangos.Socket, error) {
-	if pP, ok := p.(*PubSocket); ok {
-		return pP.s, nil
+	if tP, ok := p.(*PubSocket); ok {
+		return tP.s, nil
 	}
 
 	return nil, fmt.Errorf("getPubSocket expected *mangos.PubSocket, got %T", p)
