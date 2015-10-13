@@ -193,6 +193,8 @@ func SubBuffer(size int) queue.SubBinding {
 	}
 }
 
+// Filter sets a string for the SubSocket to subscribe to, i.e. it will ignore
+// messages except ones that begin with the string.
 func Filter(filter string) queue.SubBinding {
 	return func(s queue.Subscriber) (queue.Subscriber, error) {
 		if s == nil {
