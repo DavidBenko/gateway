@@ -87,10 +87,6 @@ type RemoteEndpointEnvironmentData struct {
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
 
-func (e *RemoteEndpointEnvironmentData) UpdateID() {
-	e.ID = fmt.Sprintf("%v_%v", e.RemoteEndpointID, e.EnvironmentID)
-}
-
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
 	Method  string                 `json:"method"`
@@ -355,7 +351,6 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.UpdateID()
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
@@ -558,7 +553,6 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		envData.UpdateID()
 	}
 	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
@@ -707,7 +701,6 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 				return err
 			}
 		}
-		envData.UpdateID()
 	}
 
 	if len(existingEnvIDs) == 0 {
