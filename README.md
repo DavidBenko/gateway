@@ -120,7 +120,7 @@ If you are a collaborator on the Docker Hub repository for anypresence/gateway, 
 
 Then, run the following to compile the binary with the dev public key:
 
-    make vet admin assets generate
+    make package
     docker run --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-0.0.1
 
 Use the following for the production public:
