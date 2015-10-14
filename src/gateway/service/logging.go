@@ -201,6 +201,16 @@ func BleveLoggingService(conf config.BleveLogging) {
 	}
 	admin.Bleve = index
 
+	indexer := make(chan *BleveMessage, 8192)
+	go func() {
+		for bleveMessage := range indexer {
+			err := index.Index(bleveMessage.Id(), bleveMessage)
+			if err != nil {
+				log.Printf("[bleve] %v", err)
+			}
+		}
+	}()
+
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
@@ -210,12 +220,7 @@ func BleveLoggingService(conf config.BleveLogging) {
 			if bleveMessage == nil {
 				return
 			}
-			go func() {
-				err := index.Index(bleveMessage.Id(), bleveMessage)
-				if err != nil {
-					log.Printf("[bleve] %v", err)
-				}
-			}()
+			indexer <- bleveMessage
 		}
 		processLogs(logs, add)
 	}()
