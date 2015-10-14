@@ -114,7 +114,7 @@ func newAggregator(conf config.ProxyAdmin) *logPublisher {
 			if err != nil {
 				log.Fatal(err)
 			}
-			C, _ := rec.Channels()
+			C, E := rec.Channels()
 			defer func() {
 				rec.Close()
 				go func(c <-chan []byte) {
@@ -124,8 +124,12 @@ func newAggregator(conf config.ProxyAdmin) *logPublisher {
 				}(C)
 			}()
 
-			for log := range C {
-				logs <- log
+			for {
+				select {
+				case log := <-C:
+					logs <- log
+				case <-E:
+				}
 			}
 		}(publisher)
 	}
