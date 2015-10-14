@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os/signal"
-	"syscall"
-
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"gateway/config"

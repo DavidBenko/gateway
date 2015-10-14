@@ -4,8 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"gateway/config"
-	aperrors "gateway/errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+
+	"gateway/config"
+	aperrors "gateway/errors"
 )
 
 const (
