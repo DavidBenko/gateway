@@ -221,3 +221,16 @@ func launchJvm(soap config.Soap, clientJarFile string, devMode bool) error {
 
 	return nil
 }
+
+// Shutdown gracefully shuts down the soap client
+func Shutdown(sig os.Signal) error {
+	if jvmCmd == nil {
+		return nil
+	}
+
+	if err := jvmCmd.Process.Signal(sig); err != nil {
+		return err
+	}
+
+	return jvmCmd.Wait()
+}

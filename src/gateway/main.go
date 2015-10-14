@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os/signal"
+	"syscall"
+
 	"os"
 	"runtime"
 	"strings"
@@ -126,8 +129,22 @@ func main() {
 	proxy := proxy.NewServer(conf, db)
 	go proxy.Run()
 
+	sigs := make(chan os.Signal, 1)
 	done := make(chan bool)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		err := soap.Shutdown(sig)
+		if err != nil {
+			log.Printf("Error shutting down SOAP service: %v", err)
+		}
+		done <- true
+	}()
+
 	<-done
+
+	log.Println("Shutdown complete")
 }
 
 func versionCheck() bool {
