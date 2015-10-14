@@ -22,7 +22,9 @@ func getBasicPub(c *gc.C, path string) queue.Publisher {
 		path,
 		qm.Pub,
 		qm.PubTCP,
+		qm.PubBuffer(2048),
 	)
+
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(p, gc.NotNil)
 	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
@@ -35,6 +37,7 @@ func getBasicSub(c *gc.C, path string) queue.Subscriber {
 		path,
 		qm.Sub,
 		qm.SubTCP,
+		qm.SubBuffer(2048),
 	)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(s, gc.NotNil)

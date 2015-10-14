@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/gdamore/mangos"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )
@@ -91,6 +92,7 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 		"ipc:///tmp/ipc.ipc",
 		qm.Pub,
 		qm.PubIPC,
+		qm.PubBuffer(2048),
 	)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pIPC, gc.NotNil)
@@ -100,6 +102,7 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 		"ipc:///tmp/ipc.ipc",
 		qm.Sub,
 		qm.SubIPC,
+		qm.SubBuffer(2048),
 	)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sIPC, gc.NotNil)
@@ -129,6 +132,7 @@ func (s *MangosSuite) TestFilter(c *gc.C) {
 		"tcp://localhost:9001",
 		qm.Sub,
 		qm.SubTCP,
+		qm.SubBuffer(2048),
 		qm.Filter("foo"),
 	)
 
@@ -150,4 +154,35 @@ func (s *MangosSuite) TestSub(c *gc.C) {
 	c.Assert(sub, gc.NotNil)
 	c.Assert(reflect.TypeOf(sub), gc.Equals, reflect.TypeOf(&qm.SubSocket{}))
 	c.Assert(sub.Close(), jc.ErrorIsNil)
+}
+
+func (s *MangosSuite) TestSubBufferSize(c *gc.C) {
+	_, err := qm.SubBuffer(-10)(&qm.SubSocket{})
+	c.Assert(err, gc.ErrorMatches, "SubBuffer expects positive size, got -10")
+
+	_, err = qm.SubBuffer(10)(&testing.Subscriber{})
+	c.Assert(err, gc.ErrorMatches, `SubBuffer expected \*mangos.SubSocket, got \*testing.Subscriber`)
+
+	subs, err := qm.SubBuffer(10)(&qm.SubSocket{})
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(qm.GetSubBufferSize(subs), gc.Equals, 10)
+
+	subs, err = queue.Subscribe(
+		"tcp://localhost:9001",
+		qm.Sub,
+		qm.SubTCP,
+		qm.SubBuffer(2048),
+	)
+	c.Assert(err, jc.ErrorIsNil)
+
+	// Make sure it was set correctly on the socket itself
+	sock, err := qm.GetSubSocket(subs)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(subs, gc.NotNil)
+
+	buffSize, err := sock.GetOption(mangos.OptionReadQLen)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(buffSize, gc.Equals, 2048)
+
+	c.Assert(subs.Close(), jc.ErrorIsNil)
 }

@@ -446,6 +446,7 @@ func NewMongoRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *j
 	request.updateWith(endpointData)
 
 	if endpoint.SelectedEnvironmentData != nil {
+		endpointData := &MongoRequest{}
 		if err := json.Unmarshal(*endpoint.SelectedEnvironmentData, endpointData); err != nil {
 			return nil, err
 		}
@@ -482,7 +483,13 @@ func (r *MongoRequest) updateWith(endpointData *MongoRequest) {
 			r.Config = mongo.Conn{}
 		}
 		for key, value := range endpointData.Config {
-			r.Config[key] = value
+			if slice, ok := value.([]interface{}); ok {
+				if len(slice) > 0 {
+					r.Config[key] = value
+				}
+			} else {
+				r.Config[key] = value
+			}
 		}
 	}
 
