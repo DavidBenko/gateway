@@ -88,7 +88,7 @@ type ProxyAdmin struct {
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
 
 	LogServers string `flag:"log-servers" default:"tcp://localhost:5555"`
-	LogServer  string `flag:"log-server" default:"tcp://*:5555"`
+	LogServer  string `flag:"log-server" default:"tcp://localhost:5555"`
 }
 
 type ElasticLogging struct {

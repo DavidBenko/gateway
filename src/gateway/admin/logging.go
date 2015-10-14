@@ -16,7 +16,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/queue"
-	"gateway/queue/channel"
+	"gateway/queue/mangos"
 	apsql "gateway/sql"
 
 	"github.com/blevesearch/bleve"
@@ -110,7 +110,7 @@ func newAggregator(conf config.ProxyAdmin) *logPublisher {
 	logs := make(chan []byte, 8)
 	for _, publisher := range strings.Split(conf.LogServers, ",") {
 		go func(path string) {
-			rec, err := queue.Subscribe(path, channel.Subscribe)
+			rec, err := queue.Subscribe(path, mangos.Sub, mangos.SubTCP)
 			if err != nil {
 				log.Fatal(err)
 			}

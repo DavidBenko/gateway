@@ -13,7 +13,7 @@ import (
 	"gateway/admin"
 	"gateway/config"
 	"gateway/queue"
-	"gateway/queue/channel"
+	"gateway/queue/mangos"
 
 	"github.com/blevesearch/bleve"
 	elasti "github.com/mattbaird/elastigo/lib"
@@ -252,7 +252,7 @@ func LoggingService(conf config.ProxyAdmin) {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
 
-		send, err := queue.Publish(conf.LogServer, channel.Publish)
+		send, err := queue.Publish(conf.LogServer, mangos.Pub, mangos.PubTCP)
 		if err != nil {
 			log.Fatal(err)
 		}
