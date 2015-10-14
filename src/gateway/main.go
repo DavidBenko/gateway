@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
-
-	"os"
 
 	"gateway/config"
 	"gateway/license"
@@ -53,15 +54,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
-
-	// Configure SOAP
-	err = soap.Configure(conf.Soap, conf.DevMode())
-	if err != nil {
-		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
-	}
-
-	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
-	model.StartSoapRemoteEndpointUpdateListener(db)
 
 	//check for sneaky people
 	if conf.License == "" {
@@ -121,13 +113,37 @@ func main() {
 			log.Fatal("Dev account doesn't exist")
 		}
 	}
+
+	// Configure SOAP
+	err = soap.Configure(conf.Soap, conf.DevMode())
+	if err != nil {
+		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+	}
+
+	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
+	model.StartSoapRemoteEndpointUpdateListener(db)
+
 	// Start the proxy
 	log.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
 	go proxy.Run()
 
+	sigs := make(chan os.Signal, 1)
 	done := make(chan bool)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		err := soap.Shutdown(sig)
+		if err != nil {
+			log.Printf("Error shutting down SOAP service: %v", err)
+		}
+		done <- true
+	}()
+
 	<-done
+
+	log.Println("Shutdown complete")
 }
 
 func versionCheck() bool {

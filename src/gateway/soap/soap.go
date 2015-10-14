@@ -4,8 +4,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"gateway/config"
-	aperrors "gateway/errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+
+	"gateway/config"
+	aperrors "gateway/errors"
 )
 
 const (
@@ -220,4 +221,17 @@ func launchJvm(soap config.Soap, clientJarFile string, devMode bool) error {
 	jvmCmd = cmd
 
 	return nil
+}
+
+// Shutdown gracefully shuts down the soap client
+func Shutdown(sig os.Signal) error {
+	if jvmCmd == nil {
+		return nil
+	}
+
+	if err := jvmCmd.Process.Signal(sig); err != nil {
+		return err
+	}
+
+	return jvmCmd.Wait()
 }
