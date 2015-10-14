@@ -64,7 +64,7 @@ func main() {
 		for _, account := range accounts {
 			var count int
 			db.Get(&count, db.SQL("users/count"), account.ID)
-			if count >= license.DeveloperVersionUsers {
+			if count > license.DeveloperVersionUsers {
 				log.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
 			}
 
