@@ -108,7 +108,7 @@ func newInterceptor() *logPublisher {
 
 func newAggregator(conf config.ProxyAdmin) *logPublisher {
 	logs := make(chan []byte, 8)
-	for _, publisher := range strings.Split(conf.LogServers, ",") {
+	for _, publisher := range strings.Split(conf.LogSubs, ",") {
 		go func(path string) {
 			rec, err := queue.Subscribe(path, mangos.Sub, mangos.SubTCP)
 			if err != nil {

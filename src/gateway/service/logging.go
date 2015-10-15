@@ -99,6 +99,8 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 		return
 	}
 
+	log.Printf("%s Starting Elastic logging service", config.System)
+
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
@@ -191,6 +193,8 @@ func BleveLoggingService(conf config.BleveLogging) {
 		return
 	}
 
+	log.Printf("%s Starting Bleve logging service", config.System)
+
 	mapping := bleve.NewIndexMapping()
 	index, err := bleve.New(conf.File, mapping)
 	if err != nil {
@@ -252,12 +256,15 @@ func BleveLoggingService(conf config.BleveLogging) {
 	}()
 }
 
-func LoggingService(conf config.ProxyAdmin) {
+func LogPublishingService(conf config.ProxyAdmin) {
+
+	log.Printf("%s Starting log publisher", config.System)
+
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
 
-		send, err := queue.Publish(conf.LogServer, mangos.Pub, mangos.PubTCP)
+		send, err := queue.Publish(conf.LogPub, mangos.Pub, mangos.PubTCP)
 		if err != nil {
 			log.Fatal(err)
 		}

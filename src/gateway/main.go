@@ -118,7 +118,7 @@ func main() {
 
 	service.ElasticLoggingService(conf.Elastic)
 	service.BleveLoggingService(conf.Bleve)
-	service.LoggingService(conf.Admin)
+	service.LogPublishingService(conf.Admin)
 
 	// Configure SOAP
 	err = soap.Configure(conf.Soap, conf.DevMode())
