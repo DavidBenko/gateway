@@ -266,8 +266,8 @@ func LoggingService(conf config.ProxyAdmin) {
 			send.Close()
 		}()
 		go func() {
-			for _ = range E {
-				//noop
+			for err := range E {
+				log.Printf("[logging] %v", err)
 			}
 		}()
 

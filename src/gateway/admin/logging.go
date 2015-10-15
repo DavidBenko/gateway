@@ -128,7 +128,8 @@ func newAggregator(conf config.ProxyAdmin) *logPublisher {
 				select {
 				case log := <-C:
 					logs <- log
-				case <-E:
+				case err := <-E:
+					log.Printf("[logging] %v", err)
 				}
 			}
 		}(publisher)
