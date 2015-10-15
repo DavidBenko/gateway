@@ -24,11 +24,26 @@ type ProxyEndpointComponent struct {
 	Call                  *ProxyEndpointCall             `json:"call,omitempty"`
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
 	Data                  types.JsonText                 `json:"data,omitempty"`
+	SharedComponentID     int64                          `json:"shared_component_id,omitempty"`
 }
 
 // Validate validates the model.
 func (c *ProxyEndpointComponent) Validate() aperrors.Errors {
-	errors := make(aperrors.Errors)
+	if c.SharedComponentID != 0 {
+		return c.validateShared()
+	}
+
+	return c.validateNonShared()
+}
+
+func (c *ProxyEndpointComponent) validateShared() Errors {
+	// This is totally redundant for now.
+	return c.validateNonShared()
+}
+
+func (c *ProxyEndpointComponent) validateNonShared() Errors {
+	errors := make(Errors)
+
 	switch c.Type {
 	case ProxyEndpointComponentTypeSingle:
 	case ProxyEndpointComponentTypeMulti:
@@ -36,18 +51,29 @@ func (c *ProxyEndpointComponent) Validate() aperrors.Errors {
 	default:
 		errors.Add("type", "must be one of 'single', or 'multi', or 'js'")
 	}
+
+	errors.addErrors(c.validateTransformations())
+
+	return errors
+}
+
+func (c *ProxyEndpointComponent) validateTransformations() Errors {
+	errors := make(Errors)
+
 	for i, t := range c.BeforeTransformations {
 		tErrors := t.Validate()
 		if !tErrors.Empty() {
 			errors.Add("before", fmt.Sprintf("%d is invalid: %v", i, tErrors))
 		}
 	}
+
 	for i, t := range c.AfterTransformations {
 		tErrors := t.Validate()
 		if !tErrors.Empty() {
 			errors.Add("after", fmt.Sprintf("%d is invalid: %v", i, tErrors))
 		}
 	}
+
 	return errors
 }
 
@@ -66,7 +92,7 @@ func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(&components,
 		`SELECT
-			id, conditional, conditional_positive, type, data
+			id, conditional, conditional_positive, type, data, shared_component_id
 		FROM proxy_endpoint_components
 		WHERE endpoint_id = ?
 		ORDER BY position ASC;`,
@@ -148,20 +174,23 @@ func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
 }
 
 // Insert inserts the component into the database as a new row.
-func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
-	position int) error {
-
+func (c *ProxyEndpointComponent) Insert(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
 	data, err := marshaledForStorage(c.Data)
 	if err != nil {
 		return aperrors.NewWrapped("Marshaling component JSON", err)
 	}
+
 	c.ID, err = tx.InsertOne(
 		`INSERT INTO proxy_endpoint_components
 			(endpoint_id, conditional, conditional_positive,
-			 position, type, data)
-		VALUES (?, ?, ?, ?, ?, ?)`,
+			 position, type, data, shared_component_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		endpointID, c.Conditional, c.ConditionalPositive,
-		position, c.Type, data)
+		position, c.Type, data, c.SharedComponentID)
 	if err != nil {
 		return aperrors.NewWrapped("Inserting component", err)
 	}
@@ -181,14 +210,12 @@ func (c *ProxyEndpointComponent) Insert(tx *apsql.Tx, endpointID, apiID int64,
 
 	switch c.Type {
 	case ProxyEndpointComponentTypeSingle:
-		err = c.Call.Insert(tx, c.ID, apiID, 0)
-		if err != nil {
+		if err = c.Call.Insert(tx, c.ID, apiID, 0); err != nil {
 			return aperrors.NewWrapped("Inserting single call", err)
 		}
 	case ProxyEndpointComponentTypeMulti:
 		for position, call := range c.Calls {
-			err = call.Insert(tx, c.ID, apiID, position)
-			if err != nil {
+			if err = call.Insert(tx, c.ID, apiID, position); err != nil {
 				return aperrors.NewWrapped("Inserting multi call", err)
 			}
 		}
@@ -206,6 +233,7 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 	if err != nil {
 		return err
 	}
+
 	err = tx.UpdateOne(
 		`UPDATE proxy_endpoint_components
 		SET
@@ -213,11 +241,18 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 			conditional_positive = ?,
 			position = ?,
 			type = ?,
-			data = ?
+			data = ?,
+			shared_component_id = ?
 		WHERE id = ? AND endpoint_id = ?;`,
-		c.Conditional, c.ConditionalPositive,
-		position, c.Type, data,
-		c.ID, endpointID)
+		c.Conditional,
+		c.ConditionalPositive,
+		position,
+		c.Type,
+		data,
+		c.ID,
+		endpointID,
+		c.SharedComponentID,
+	)
 	if err != nil {
 		return err
 	}
