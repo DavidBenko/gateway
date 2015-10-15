@@ -3,7 +3,6 @@ package model_test
 import (
 	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/jmoiron/sqlx/types"
 	jc "github.com/juju/testing/checkers"
@@ -15,13 +14,6 @@ import (
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
 )
-
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { gc.TestingT(t) }
-
-type RemoteEndpointSuite struct{}
-
-var _ = gc.Suite(&RemoteEndpointSuite{})
 
 func data() map[string]interface{} {
 	return map[string]interface{}{
@@ -242,7 +234,7 @@ func specs() map[string]db.Specifier {
 	return specs
 }
 
-func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
+func (s *ModelSuite) TestDBConfig(c *gc.C) {
 	for i, t := range []struct {
 		should      string
 		givenConfig string
