@@ -13,6 +13,7 @@ import (
 //go:generate ./controller.rb --model Environment --account --api --check-delete
 //go:generate ./controller.rb --model Host --account --api
 //go:generate ./controller.rb --model Library --account --api
+//go:generate ./controller.rb --model SharedComponent --account --api
 //go:generate ./controller.rb --model ProxyEndpoint --account --api
 //go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
 //go:generate ./controller.rb --model User --account --after-insert-hook --check-delete --transform-method c.sanitize --transform-type sanitizedUser
