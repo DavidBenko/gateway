@@ -16,8 +16,7 @@ type Server interface {
 }
 
 // Publisher must be implemented by a queue server which can bind to an
-// address, accept clients, and send messages.  When it is garbage collected,
-// it will be cleaned up using its Close method.
+// address, accept clients, and send messages.
 type Publisher interface {
 	Server
 
