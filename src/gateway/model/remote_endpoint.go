@@ -296,22 +296,22 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		remote_endpoints.status_message as status_message,
 		soap_remote_endpoints.id as soap_id,
 		soap_remote_endpoints.wsdl as wsdl
-	FROM remote_endpoints, apis
+	FROM remote_endpoints
+	JOIN apis ON remote_endpoints.api_id = apis.id AND apis.account_id = ?
 	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
 	WHERE `
 	args := []interface{}{}
+	args = append(args, accountID)
 	if id != 0 {
 		query = query + "remote_endpoints.id = ? AND "
 		args = append(args, id)
 	}
 	query = query +
 		`   remote_endpoints.api_id = ?
-	  AND remote_endpoints.api_id = apis.id
-	  AND apis.account_id = ?
   ORDER BY
 	  remote_endpoints.name ASC,
 		remote_endpoints.id ASC;`
-	args = append(args, apiID, accountID)
+	args = append(args, apiID)
 
 	remoteEndpoints, err := mapRemoteEndpoints(db, query, args...)
 	if err != nil {

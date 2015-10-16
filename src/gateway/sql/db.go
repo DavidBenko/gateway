@@ -102,6 +102,11 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 	return db.DB.Select(dest, db.q(query), args...)
 }
 
+// Select wraps sqlx's Queryx with driver-specific query modifications.
+func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
+	return db.DB.Queryx(db.q(query), args...)
+}
+
 // RegisterListener registers a listener with the database
 func (db *DB) RegisterListener(l Listener) {
 	defer db.listenersMutex.Unlock()
