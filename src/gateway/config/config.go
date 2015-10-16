@@ -21,6 +21,8 @@ type Configuration struct {
 	Database Database
 	Proxy    ProxyServer
 	Admin    ProxyAdmin
+	Elastic  ElasticLogging
+	Bleve    BleveLogging
 	Soap     Soap
 }
 
@@ -84,6 +86,20 @@ type ProxyAdmin struct {
 	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
+
+	LogSubs string `flag:"log-subs" default:"tcp://localhost:5555"`
+	LogPub  string `flag:"log-pub" default:"tcp://localhost:5555"`
+}
+
+type ElasticLogging struct {
+	Domain   string `flag:"elastic-logging-domain" default:""`
+	Username string `flag:"elastic-logging-username" default:""`
+	Password string `flag:"elastic-logging-password" default:""`
+}
+
+type BleveLogging struct {
+	File        string `flag:"bleve-logging-file" default:""`
+	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
 }
 
 const envPrefix = "APGATEWAY_"

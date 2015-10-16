@@ -37,7 +37,7 @@ test/raft.tddium*
 # Some test data
 test/node
 test/gateway.db
-
+test/logs.bleve
 
 **.DS_Store
 

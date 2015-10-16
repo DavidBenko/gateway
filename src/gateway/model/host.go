@@ -7,7 +7,7 @@ import (
 
 // Host represents a host the API is available on.
 type Host struct {
-	AccountID int64 `json:"-"`
+	AccountID int64 `json:"-" db:"account_id"`
 	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id" db:"api_id"`
 

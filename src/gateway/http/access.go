@@ -29,12 +29,17 @@ func AccessLoggingHandler(prefix string, uuidHeader string, handler http.Handler
 			w.Header().Set(uuidHeader, uuid)
 		}
 
-		var logPrefix string
-		if apiID, ok := context.GetOk(r, ContextAPIIDKey); ok {
-			logPrefix = fmt.Sprintf("%s [api %d] [req %s]", prefix, apiID.(int64), uuid)
-		} else {
-			logPrefix = fmt.Sprintf("%s [req %s]", prefix, uuid)
+		logPrefix := prefix
+		if accountID, ok := context.GetOk(r, ContextAccountIDKey); ok {
+			logPrefix += fmt.Sprintf(" [act %d]", accountID.(int64))
 		}
+		if apiID, ok := context.GetOk(r, ContextAPIIDKey); ok {
+			logPrefix += fmt.Sprintf(" [api %d]", apiID.(int64))
+		}
+		if endpointID, ok := context.GetOk(r, ContextEndpointIDKey); ok {
+			logPrefix += fmt.Sprintf(" [end %d]", endpointID.(int64))
+		}
+		logPrefix += fmt.Sprintf(" [req %s]", uuid)
 		context.Set(r, ContextLogPrefixKey, logPrefix)
 
 		l := &responseLogger{w: w}

@@ -11,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"gateway/admin"
 	"gateway/config"
 	"gateway/license"
 	"gateway/model"
 	"gateway/proxy"
+	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
 	"gateway/version"
@@ -35,7 +37,7 @@ func main() {
 
 	// Setup logging
 	log.SetFlags(log.Ldate | log.Lmicroseconds)
-	log.SetOutput(os.Stdout)
+	log.SetOutput(admin.Interceptor)
 
 	// Parse configuration
 	conf, err := config.Parse(os.Args[1:])
@@ -113,6 +115,10 @@ func main() {
 			log.Fatal("Dev account doesn't exist")
 		}
 	}
+
+	service.ElasticLoggingService(conf.Elastic)
+	service.BleveLoggingService(conf.Bleve)
+	service.LogPublishingService(conf.Admin)
 
 	// Configure SOAP
 	err = soap.Configure(conf.Soap, conf.DevMode())

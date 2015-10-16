@@ -100,7 +100,7 @@ test_api_sqlite_fast:
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 1
+	sleep 30
 	rspec test/admin-api; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
 
 test_api_sqlite: build test_api_sqlite_fast
@@ -109,7 +109,7 @@ test_api_postgres_fast:
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
 	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 1
+	sleep 30
 	rspec test/admin-api; status=$$?; kill -9 `cat ./tmp/server.pid`; exit $$status
 
 test_api_postgres: build test_api_postgres_fast
@@ -149,6 +149,8 @@ vendor_get: vendor_clean
 	gopkg.in/check.v1 \
 	github.com/juju/testing/checkers \
 	gopkg.in/mgo.v2 \
+	github.com/blevesearch/bleve \
+	github.com/mattbaird/elastigo \
 	github.com/jackc/pgx \
 	github.com/derekparker/delve/cmd/dlv \
 	github.com/go-sql-driver/mysql \
