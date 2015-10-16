@@ -98,7 +98,7 @@ type ElasticLogging struct {
 }
 
 type BleveLogging struct {
-	File        string `flag:"bleve-logging-file" default:""`
+	File        string `flag:"bleve-logging-file" default:"logs.bleve"`
 	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
 }
 
