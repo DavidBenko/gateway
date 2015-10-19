@@ -82,6 +82,7 @@ func trySend(
 	pE <-chan error,
 	doneSend chan struct{},
 ) {
+	to := time.After(5 * time.Second)
 	for i := 0; i < TotalAttempts; i++ {
 		select {
 		case e, ok := <-pE:
@@ -92,6 +93,9 @@ func trySend(
 			c.Assert(e, jc.ErrorIsNil)
 			i--
 		case pCh <- []byte(msg):
+		case <-to:
+			c.Log("testPubSub: failed to send after 5 seconds")
+			c.FailNow()
 		}
 	}
 	close(doneSend)
@@ -121,6 +125,9 @@ Recv:
 		c.Log("testPubSub: Received no messages, as intended")
 		// Finished without receiving anything, which is the
 		// desired behavior.
+	case <-time.After(5 * time.Second):
+		c.Log("testPubSub: tryShouldNotReceive timed out after 5 seconds")
+		c.FailNow()
 	}
 	return
 }
