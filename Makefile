@@ -31,7 +31,7 @@ soapclient:
 	cd soapclient && ./gradlew shadowJar && rm -f build/libs/gateway-soap-client*.jar
 
 admin:
-	cd admin; bundle install; npm install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
+	cd admin; bundle install; npm install; bower install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
 	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
 assets: install_bindata soapclient
