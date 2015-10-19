@@ -47,8 +47,6 @@ func getBasicSub(c *gc.C, path string) queue.Subscriber {
 }
 
 func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, shouldReceive bool) {
-	c.Log("testPubSub: *** TEST FAILURES HERE MAY OCCUR UNDER RACE TESTING ***")
-
 	pCh, pE := pub.Channels()
 	sCh, sE := sub.Channels()
 
@@ -59,64 +57,14 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 	doneRecv := make(chan int)
 
 	// Try some sends
-	go func() {
-		for i := 0; i < TotalAttempts; i++ {
-			select {
-			case e, ok := <-pE:
-				if !ok {
-					c.Log("testPubSub: error channel was closed")
-					c.FailNow()
-				}
-				c.Assert(e, jc.ErrorIsNil)
-				i--
-			case pCh <- []byte(msg):
-			}
-		}
-		close(doneSend)
-	}()
-
+	go trySend(c, msg, pCh, pE, doneSend)
 	if !shouldReceive {
-	TryRecv:
-		select {
-		case e, ok := <-sE:
-			c.Assert(e, jc.ErrorIsNil)
-			if ok {
-				c.Logf("testPubSub: Received unexpected nil error %v", e)
-				goto TryRecv
-			}
-			c.Logf("testPubSub: Received unexpected nil error %q", msg)
-			c.FailNow()
-		case msg := <-sCh:
-			c.Logf("testPubSub: Received unintended message %q", msg)
-			c.FailNow()
-		case <-doneSend:
-			c.Log("testPubSub: Received no messages, as intended")
-			// Finished without receiving anything, which is the
-			// desired behavior.
-		}
+		tryShouldNotReceive(c, msg, sCh, sE, doneSend)
 		return
 	}
 
-	go func() {
-		total := 0
-	Recv:
-		for {
-			select {
-			case e, ok := <-sE:
-				if !ok {
-					c.Log("testPubSub: error channel was closed")
-					c.FailNow()
-				}
-				c.Assert(e, jc.ErrorIsNil)
-			case m := <-sCh:
-				c.Check(string(m), gc.Equals, msg)
-				total++
-			case <-time.After(testing.LongWait):
-				break Recv
-			}
-		}
-		doneRecv <- total
-	}()
+	// Otherwise, make sure the received count adds up.
+	go tryShouldReceive(c, msg, sCh, sE, doneRecv)
 
 	<-doneSend
 	total := <-doneRecv
@@ -125,4 +73,81 @@ func testPubSub(c *gc.C, pub queue.Publisher, sub queue.Subscriber, msg string, 
 	c.Logf("testPubSub: Received %d messages out of %d", total, TotalAttempts)
 	c.Logf("testPubSub:   --- %f success rate ---", rate)
 	c.Check(rate, gc.Equals, 1.0)
+}
+
+func trySend(
+	c *gc.C,
+	msg string,
+	pCh chan<- []byte,
+	pE <-chan error,
+	doneSend chan struct{},
+) {
+	for i := 0; i < TotalAttempts; i++ {
+		select {
+		case e, ok := <-pE:
+			if !ok {
+				c.Log("testPubSub: error channel was closed")
+				c.FailNow()
+			}
+			c.Assert(e, jc.ErrorIsNil)
+			i--
+		case pCh <- []byte(msg):
+		}
+	}
+	close(doneSend)
+}
+
+func tryShouldNotReceive(
+	c *gc.C,
+	msg string,
+	sCh <-chan []byte,
+	sE <-chan error,
+	doneSend chan struct{},
+) {
+Recv:
+	select {
+	case e, ok := <-sE:
+		c.Assert(e, jc.ErrorIsNil)
+		if ok {
+			c.Logf("testPubSub: Received unexpected nil error %v", e)
+			goto Recv
+		}
+		c.Logf("testPubSub: Received unexpected nil error %q", msg)
+		c.FailNow()
+	case msg := <-sCh:
+		c.Logf("testPubSub: Received unintended message %q", msg)
+		c.FailNow()
+	case <-doneSend:
+		c.Log("testPubSub: Received no messages, as intended")
+		// Finished without receiving anything, which is the
+		// desired behavior.
+	}
+	return
+}
+
+func tryShouldReceive(
+	c *gc.C,
+	msg string,
+	sCh <-chan []byte,
+	sE <-chan error,
+	doneRecv chan int,
+) {
+	total := 0
+Recv:
+	for {
+		select {
+		case e, ok := <-sE:
+			if !ok {
+				c.Log("testPubSub: error channel was closed")
+				c.FailNow()
+			}
+			c.Assert(e, jc.ErrorIsNil)
+		case m := <-sCh:
+			c.Check(string(m), gc.Equals, msg)
+			total++
+		case <-time.After(testing.LongWait):
+			break Recv
+		}
+	}
+	doneRecv <- total
 }
