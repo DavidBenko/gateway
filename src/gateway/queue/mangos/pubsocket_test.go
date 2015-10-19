@@ -17,10 +17,10 @@ func (s *MangosSuite) TestPubSocket(c *gc.C) {
 	m := &qm.PubSocket{}
 	err := m.Bind("foo")
 	c.Log("PubSocket can't Bind on nil socket")
-	c.Check(err, gc.ErrorMatches, "mangos Publisher couldn't Bind to foo: nil socket")
+	c.Check(err, gc.ErrorMatches, "mangos PubSocket couldn't Bind to foo: nil socket")
 
-	err = m.Close() // Does nothing
 	c.Log("PubSocket Close with nil socket does nothing")
+	err = m.Close() // Does nothing
 	c.Check(err, jc.ErrorIsNil)
 
 	p := getBasicPub(c, "tcp://localhost:9001")
@@ -42,7 +42,7 @@ func (s *MangosSuite) TestGetPubSocket(c *gc.C) {
 	c.Check(sc, gc.IsNil)
 
 	sc, err = qm.GetPubSocket(&testing.Publisher{})
-	c.Check(err, gc.ErrorMatches, `getPubSocket expected \*mangos.PubSocket, got \*testing.Publisher`)
+	c.Check(err, gc.ErrorMatches, `getPubSocket expects \*mangos.PubSocket, got \*testing.Publisher`)
 
 	p := getBasicPub(c, "tcp://localhost:9001")
 
@@ -57,24 +57,22 @@ func (s *MangosSuite) TestGetPubSocket(c *gc.C) {
 func (s *MangosSuite) TestPubTCP(c *gc.C) {
 	pTCP, err := queue.Publish(
 		"tcp://localhost:9001",
-		qm.Pub,
+		qm.Pub(false),
 		qm.PubTCP,
 	)
 
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pTCP, gc.NotNil)
-	err = pTCP.Close()
-
-	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(pTCP.Close(), jc.ErrorIsNil)
 
 	_, err = qm.PubTCP(&qm.PubSocket{})
-	c.Check(err, gc.ErrorMatches, "PubTCP requires a non-nil Socket, use Pub first")
+	c.Check(err, gc.ErrorMatches, "PubTCP requires a non-nil Socket, use Pub or XPub first")
 }
 
 func (s *MangosSuite) TestPubIPC(c *gc.C) {
 	pIPC, err := queue.Publish(
-		"ipc:///tmp/test.ipc",
-		qm.Pub,
+		ipcTest,
+		qm.Pub(false),
 		qm.PubIPC,
 	)
 
@@ -90,15 +88,15 @@ func (s *MangosSuite) TestPubIPC(c *gc.C) {
 	}
 
 	_, err = qm.PubIPC(&qm.PubSocket{})
-	c.Check(err, gc.ErrorMatches, "PubIPC requires a non-nil Socket, use Pub first")
+	c.Check(err, gc.ErrorMatches, "PubIPC requires a non-nil Socket, use Pub or XPub first")
 }
 
 func (s *MangosSuite) TestPub(c *gc.C) {
-	p, err := qm.Pub(&testing.Publisher{})
-	c.Assert(err, gc.ErrorMatches, `mangos.Pub expects nil Publisher, got \*testing.Publisher`)
+	p, err := qm.Pub(false)(&testing.Publisher{})
+	c.Assert(err, gc.ErrorMatches, `Pub expects nil Publisher, got \*testing.Publisher`)
 
 	var qp queue.Publisher
-	p, err = qm.Pub(queue.Publisher(qp))
+	p, err = qm.Pub(false)(qp)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(p, gc.NotNil)
 	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
@@ -109,14 +107,16 @@ func (s *MangosSuite) TestPubBufferSize(c *gc.C) {
 	_, err := qm.PubBuffer(-10)(&qm.PubSocket{})
 	c.Assert(err, gc.ErrorMatches, "PubBuffer expects positive size, got -10")
 	_, err = qm.PubBuffer(10)(&testing.Publisher{})
-	c.Assert(err, gc.ErrorMatches, `PubBuffer expected \*mangos.PubSocket, got \*testing.Publisher`)
-	p, err := qm.PubBuffer(10)(&qm.PubSocket{})
+	c.Assert(err, gc.ErrorMatches, `getPubSocket expects \*mangos.PubSocket, got \*testing.Publisher`)
+	ps, err := qm.Pub(false)(queue.Publisher(nil))
+	c.Assert(err, jc.ErrorIsNil)
+	p, err := qm.PubBuffer(10)(ps)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(qm.GetPubBufferSize(p), gc.Equals, 10)
 
 	p, err = queue.Publish(
 		"tcp://localhost:9001",
-		qm.Pub,
+		qm.Pub(false),
 		qm.PubTCP,
 		qm.PubBuffer(2048),
 	)
@@ -132,4 +132,50 @@ func (s *MangosSuite) TestPubBufferSize(c *gc.C) {
 	c.Assert(buffSize, gc.Equals, 2048)
 
 	c.Assert(p.Close(), jc.ErrorIsNil)
+}
+
+func (s *MangosSuite) TestXPub(c *gc.C) {
+	p, err := qm.XPub(&testing.Publisher{})
+	c.Assert(err, gc.ErrorMatches, `XPub expects nil Publisher, got \*testing.Publisher`)
+
+	c.Log("XPub makes a new socket")
+
+	p, err = qm.XPub(queue.Publisher(nil))
+	c.Assert(err, jc.ErrorIsNil)
+	verifyXPub(c, p)
+
+	c.Assert(p.Close(), jc.ErrorIsNil)
+
+	c.Log("XPub works in Publish")
+	p, err = queue.Publish(
+		"tcp://localhost:9000",
+		qm.XPub,
+		qm.PubTCP,
+	)
+	c.Assert(err, jc.ErrorIsNil)
+	verifyXPub(c, p)
+
+	c.Assert(p.Close(), jc.ErrorIsNil)
+}
+
+func verifyXPub(c *gc.C, p queue.Publisher) {
+	// Make sure it's non-nil
+	c.Assert(p, gc.NotNil)
+	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
+
+	// Make sure the underlying socket was made
+	xpSock, err := qm.GetPubSocket(p)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(xpSock, gc.NotNil)
+
+	// Make sure the underlying socket was set to Raw mode
+	isRawIf, err := xpSock.GetOption(mangos.OptionRaw)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(
+		reflect.TypeOf(isRawIf),
+		gc.Equals,
+		reflect.TypeOf(interface{}(true)),
+	)
+	isRaw := isRawIf.(bool)
+	c.Check(isRaw, gc.Equals, true)
 }

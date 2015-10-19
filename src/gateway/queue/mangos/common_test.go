@@ -1,7 +1,9 @@
 package mangos_test
 
 import (
+	"os"
 	"reflect"
+	"runtime"
 	"time"
 
 	"gateway/queue"
@@ -17,12 +19,31 @@ const (
 	TotalAttempts = 1000
 )
 
-func getBasicPub(c *gc.C, path string) queue.Publisher {
+func getBasicPub(c *gc.C, path string, trans ...qm.Transport) queue.Publisher {
+	options := []queue.PubBinding{
+		qm.Pub(false),
+		qm.PubBuffer(2048),
+	}
+
+	if len(trans) == 0 {
+		options = append(options, qm.PubTCP)
+	}
+
+	for _, tran := range trans {
+		switch tran {
+		case qm.TCP:
+			options = append(options, qm.PubTCP)
+		case qm.IPC:
+			options = append(options, qm.PubIPC)
+		default:
+			c.Logf("getBasicPub does not support transport %d", tran)
+			c.FailNow()
+		}
+	}
+
 	p, err := queue.Publish(
 		path,
-		qm.Pub,
-		qm.PubTCP,
-		qm.PubBuffer(2048),
+		options...,
 	)
 
 	c.Assert(err, jc.ErrorIsNil)
@@ -32,12 +53,67 @@ func getBasicPub(c *gc.C, path string) queue.Publisher {
 	return p
 }
 
-func getBasicSub(c *gc.C, path string) queue.Subscriber {
+func getBrokeredPub(c *gc.C, path string, trans ...qm.Transport) queue.Publisher {
+	options := []queue.PubBinding{
+		qm.Pub(true),
+		qm.PubBuffer(2048),
+	}
+
+	if len(trans) == 0 {
+		options = append(options, qm.PubTCP)
+	}
+
+	for _, tran := range trans {
+		switch tran {
+		case qm.TCP:
+			options = append(options, qm.PubTCP)
+		case qm.IPC:
+			options = append(options, qm.PubIPC)
+		default:
+			c.Logf("getBrokeredPub does not support transport %d", tran)
+			c.FailNow()
+		}
+	}
+
+	p, err := queue.Publish(
+		path,
+		options...,
+	)
+
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(p, gc.NotNil)
+	c.Assert(reflect.TypeOf(p), gc.Equals, reflect.TypeOf(&qm.PubSocket{}))
+
+	c.Assert(qm.IsBrokered(c, p), gc.Equals, true)
+
+	return p
+}
+
+func getBasicSub(c *gc.C, path string, trans ...qm.Transport) queue.Subscriber {
+	options := []queue.SubBinding{
+		qm.Sub,
+		qm.SubBuffer(2048),
+	}
+
+	if len(trans) == 0 {
+		options = append(options, qm.SubTCP)
+	}
+
+	for _, tran := range trans {
+		switch tran {
+		case qm.TCP:
+			options = append(options, qm.SubTCP)
+		case qm.IPC:
+			options = append(options, qm.SubIPC)
+		default:
+			c.Logf("getBasicSub does not support transport %d", tran)
+			c.FailNow()
+		}
+	}
+
 	s, err := queue.Subscribe(
 		path,
-		qm.Sub,
-		qm.SubTCP,
-		qm.SubBuffer(2048),
+		options...,
 	)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(s, gc.NotNil)
@@ -123,8 +199,8 @@ Recv:
 		c.FailNow()
 	case <-doneSend:
 		c.Log("testPubSub: Received no messages, as intended")
-		// Finished without receiving anything, which is the
-		// desired behavior.
+		// Finished without receiving anything, which is the desired
+		// behavior.
 	case <-time.After(5 * time.Second):
 		c.Log("testPubSub: tryShouldNotReceive timed out after 5 seconds")
 		c.FailNow()
@@ -157,4 +233,31 @@ Recv:
 		}
 	}
 	doneRecv <- total
+}
+
+func ipcSupported() bool {
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		return true
+	default:
+		return false
+	}
+}
+
+func clearIPCFiles() error {
+	for _, ipc := range ipcFiles() {
+		_, err := os.Stat(ipc)
+		switch {
+		case err != nil && os.IsNotExist(err):
+			return nil
+		case err != nil:
+			return err
+		default:
+			if err = os.Remove(ipc); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
