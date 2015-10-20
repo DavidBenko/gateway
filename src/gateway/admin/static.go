@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/proxy/vm"
 	"gateway/version"
 
 	"github.com/gorilla/mux"
@@ -24,6 +25,8 @@ var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
 var additionalMimeTypes = map[string]string{
 	".svg": "image/svg+xml",
 }
+
+type assetResolver func(path string) ([]byte, error)
 
 func init() {
 	for k, v := range additionalMimeTypes {
@@ -42,17 +45,27 @@ func adminStaticFileHandler(conf config.ProxyAdmin) func(http.ResponseWriter, *h
 			return
 		}
 
+		// Make JS request objects & functions available to the front-end so that
+		// the front-end can introspect on those functions for autocomplete purposes
+		if path == "ap-request.js" {
+			serveAsset(w, r, "http/request.js", vm.Asset)
+			return
+		}
+
 		serveFile(w, r, path)
 	}
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request, path string) {
-	data, err := Asset(path)
+	serveAsset(w, r, path, Asset)
+}
+
+func serveAsset(w http.ResponseWriter, r *http.Request, path string, assetResolverFunc assetResolver) {
+	data, err := assetResolverFunc(path)
 	if err != nil || len(data) == 0 {
 		http.NotFound(w, r)
 		return
 	}
-
 	content := bytes.NewReader(data)
 	http.ServeContent(w, r, path, time.Time{}, content)
 }
