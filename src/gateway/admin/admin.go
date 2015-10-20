@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strings"
 
 	"gateway/config"
 	aphttp "gateway/http"
@@ -75,7 +76,13 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 
 	// static assets for self-hosted systems
-	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler(conf)))
+	adminStaticFileHandler := http.HandlerFunc(adminStaticFileHandler(conf))
+	admin.Handle("/{path:.*}", adminStaticFileHandler)
+
+	// also add a route to the base router so that if the user leaves off the trailing slash on the admin
+	// path, the adminStaticFileHandler still serves the request.
+	adminPath := strings.TrimRight(conf.PathPrefix, "/")
+	router.Handle(adminPath, adminStaticFileHandler)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
