@@ -8,9 +8,12 @@ import (
 const (
 	// How big to make the gateway/queue/mangos buffers
 	channelSize = 64
-	Timeout     = time.Duration(1 * time.Second)
+	// Timeout is how long to wait to clean up PubSockets and SubSockets.
+	Timeout = time.Duration(1 * time.Second)
 
+	// TCP is a transport over IP.
 	TCP Transport = iota
+	// IPC is a machine-local transport not supported on Windows.
 	IPC
 )
 
