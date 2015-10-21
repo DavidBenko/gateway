@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	aperrors "gateway/errors"
 	"gateway/license"
 	apsql "gateway/sql"
 )
@@ -53,29 +54,29 @@ func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 }
 
 // Validate validates the model.
-func (a *API) Validate() Errors {
-	errors := make(Errors)
+func (a *API) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if a.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	if a.CORSAllowOrigin == "" {
-		errors.add("cors_allow_origin", "must not be blank (use '*' for everything)")
+		errors.Add("cors_allow_origin", "must not be blank (use '*' for everything)")
 	}
 	if a.CORSAllowHeaders == "" {
-		errors.add("cors_allow_headers", "must not be blank (use '*' for everything)")
+		errors.Add("cors_allow_headers", "must not be blank (use '*' for everything)")
 	}
 	if a.CORSRequestHeaders == "" {
-		errors.add("cors_request_headers", "must not be blank (use '*' for everything)")
+		errors.Add("cors_request_headers", "must not be blank (use '*' for everything)")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (a *API) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (a *API) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "apis", "account_id", "name") {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }

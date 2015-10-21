@@ -38,32 +38,32 @@ type ProxyEndpoint struct {
 }
 
 // Validate validates the model.
-func (e *ProxyEndpoint) Validate() Errors {
-	errors := make(Errors)
+func (e *ProxyEndpoint) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if e.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	routes, err := e.GetRoutes()
 	if err != nil {
-		errors.add("routes", "are invalid")
+		errors.Add("routes", "are invalid")
 	} else {
 		for i, r := range routes {
 			rErrors := r.Validate()
 			if !rErrors.Empty() {
-				errors.add("routes", fmt.Sprintf("%d is invalid: %v", i, rErrors))
+				errors.Add("routes", fmt.Sprintf("%d is invalid: %v", i, rErrors))
 			}
 		}
 	}
 	for i, c := range e.Components {
 		cErrors := c.Validate()
 		if !cErrors.Empty() {
-			errors.add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
+			errors.Add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
 		}
 	}
 	for i, t := range e.Tests {
 		tErrors := t.Validate()
 		if !tErrors.Empty() {
-			errors.add("tests", fmt.Sprintf("%d is invalid: %v", i, tErrors))
+			errors.Add("tests", fmt.Sprintf("%d is invalid: %v", i, tErrors))
 		}
 	}
 	return errors
@@ -71,16 +71,16 @@ func (e *ProxyEndpoint) Validate() Errors {
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "proxy_endpoints", "api_id", "name") {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	if apsql.IsNotNullConstraint(err, "proxy_endpoints", "environment_id") {
-		errors.add("environment_id", "must be a valid environment in this API")
+		errors.Add("environment_id", "must be a valid environment in this API")
 	}
 	if apsql.IsNotNullConstraint(err, "proxy_endpoint_calls", "remote_endpoint_id") {
-		errors.add("components", "all calls must reference a valid remote endpoint in this API")
+		errors.Add("components", "all calls must reference a valid remote endpoint in this API")
 	}
 	return errors
 }

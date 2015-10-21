@@ -1,6 +1,7 @@
 package model
 
 import (
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"strings"
 
@@ -25,12 +26,12 @@ type ProxyEndpointTransformation struct {
 }
 
 // Validate validates the model.
-func (t *ProxyEndpointTransformation) Validate() Errors {
-	errors := make(Errors)
+func (t *ProxyEndpointTransformation) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	switch t.Type {
 	case ProxyEndpointTransformationTypeJS:
 	default:
-		errors.add("type", "must be 'js'")
+		errors.Add("type", "must be 'js'")
 	}
 	return errors
 }

@@ -1,6 +1,9 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	aperrors "gateway/errors"
+)
 
 // GetRoutes parses and returns the endpoint routes
 func (e *ProxyEndpoint) GetRoutes() ([]*ProxyEndpointRoute, error) {
@@ -16,13 +19,13 @@ type ProxyEndpointRoute struct {
 }
 
 // Validate validates the model.
-func (r *ProxyEndpointRoute) Validate() Errors {
-	errors := make(Errors)
+func (r *ProxyEndpointRoute) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if r.Path == "" {
-		errors.add("path", "must not be blank")
+		errors.Add("path", "must not be blank")
 	}
 	if len(r.Methods) == 0 {
-		errors.add("methods", "must not be empty")
+		errors.Add("methods", "must not be empty")
 	}
 	return errors
 }

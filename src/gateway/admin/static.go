@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net/http"
 	"regexp"
+	"runtime"
 	"strings"
 	"text/template"
 	"time"
@@ -93,6 +94,9 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			}
 
 			return "<meta name=\"dev-mode\" content=\"true\">"
+		},
+		"goos": func() string {
+			return fmt.Sprintf("<meta name=\"goos\" content=\"%s\">", runtime.GOOS)
 		},
 	}
 

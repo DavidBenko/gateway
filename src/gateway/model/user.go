@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	aperrors "gateway/errors"
 	"gateway/license"
 	apsql "gateway/sql"
 
@@ -26,30 +27,30 @@ type User struct {
 }
 
 // Validate validates the model.
-func (u *User) Validate() Errors {
-	errors := make(Errors)
+func (u *User) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if u.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	if u.Email == "" {
-		errors.add("email", "must not be blank")
+		errors.Add("email", "must not be blank")
 	}
 	if u.ID == 0 && u.NewPassword == "" {
-		errors.add("password", "must not be blank")
+		errors.Add("password", "must not be blank")
 	}
 	if u.NewPassword != "" && (u.NewPassword != u.NewPasswordConfirmation) {
-		errors.add("password_confirmation", "must match password")
+		errors.Add("password_confirmation", "must match password")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (u *User) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (u *User) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if err.Error() == "UNIQUE constraint failed: users.email" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
-		errors.add("email", "is already taken")
+		errors.Add("email", "is already taken")
 	}
 	return errors
 }

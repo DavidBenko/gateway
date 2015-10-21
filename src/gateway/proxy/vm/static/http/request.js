@@ -523,3 +523,30 @@ AP.SOAP.Request = function() {
   }
 
 }
+
+/**
+ * Script holds helper classes for Script related tasks.
+ *
+ * @namespace
+ */
+AP.Script = AP.Script || {};
+
+/**
+ * Creates a new Script request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the environment variables.
+ */
+AP.Script.Request = function() {
+  /**
+   * The request's environment variables.
+   * @type {Object.<string,string>}
+   */
+  this.env = {};
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.env = _.clone(request.env);
+  }
+}

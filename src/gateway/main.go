@@ -120,6 +120,12 @@ func main() {
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 
+	// Write script remote endpoints to tmp fireLifecycleHooks
+	err = model.WriteAllScriptFiles(db)
+	if err != nil {
+		log.Printf("%s Unable to write script files due to error: %v", config.System, err)
+	}
+
 	// Configure SOAP
 	err = soap.Configure(conf.Soap, conf.DevMode())
 	if err != nil {

@@ -3,15 +3,17 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/config"
-	aphttp "gateway/http"
-	"gateway/model"
-	apsql "gateway/sql"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
+
+	"gateway/config"
+	aperrors "gateway/errors"
+	aphttp "gateway/http"
+	"gateway/model"
+	apsql "gateway/sql"
 
 	"github.com/gorilla/mux"
 )
@@ -109,5 +111,5 @@ func serialize(data interface{}, w http.ResponseWriter) aphttp.Error {
 
 // To be removed when SerializedValidationErrors are adopted everywhere
 type wrappedErrors struct {
-	Errors model.Errors `json:"errors"`
+	Errors aperrors.Errors `json:"errors"`
 }

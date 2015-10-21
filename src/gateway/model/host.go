@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
 
@@ -17,28 +18,28 @@ type Host struct {
 }
 
 // Validate validates the model.
-func (h *Host) Validate() Errors {
-	errors := make(Errors)
+func (h *Host) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if h.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	if h.Hostname == "" {
-		errors.add("hostname", "must not be blank")
+		errors.Add("hostname", "must not be blank")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (h *Host) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (h *Host) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if err.Error() == "UNIQUE constraint failed: hosts.api_id, hosts.name" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "hosts_api_id_name_key"` {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	if err.Error() == "UNIQUE constraint failed: hosts.hostname" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "hosts_hostname_key"` {
-		errors.add("hostname", "is already taken")
+		errors.Add("hostname", "is already taken")
 	}
 	return errors
 }
