@@ -111,17 +111,6 @@ func NewScriptRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Re
 	return request, nil
 }
 
-func (s *ScriptRequest) updateWith(endpointData *ScriptRequest) {
-	if endpointData.Config.Interpreter != "" {
-		s.Config.Interpreter = endpointData.Config.Interpreter
-	}
-	if endpointData.Config.Timeout != 0 {
-		s.Config.Timeout = endpointData.Config.Timeout
-	}
-	if endpointData.Config.FilePath != "" {
-		s.Config.FilePath = endpointData.Config.FilePath
-	}
-	if endpointData.Config.Script != "" {
-		s.Config.Script = endpointData.Config.Script
-	}
+func (s *ScriptRequest) updateWith(child *ScriptRequest) {
+	s.Script.UpdateWith(&child.Script)
 }

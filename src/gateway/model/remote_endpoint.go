@@ -172,8 +172,10 @@ func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
 			errors.Add("base", fmt.Sprintf("error in script config: %s", err))
 			return
 		}
-		escript.Inherit(script)
-		escript.Validate(errors)
+		script_copy := &re.Script{}
+		*script_copy = *script
+		script_copy.UpdateWith(escript)
+		script_copy.Validate(errors)
 	}
 }
 
@@ -583,9 +585,11 @@ func (e *RemoteEndpoint) WriteScript() error {
 			return err
 		}
 
-		escript.Inherit(script)
+		script_copy := &re.Script{}
+		*script_copy = *script
+		script_copy.UpdateWith(escript)
 
-		if err := escript.WriteFile(); err != nil {
+		if err := script_copy.WriteFile(); err != nil {
 			return err
 		}
 	}

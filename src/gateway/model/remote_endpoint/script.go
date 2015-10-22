@@ -44,18 +44,18 @@ func (s *Script) WriteFile() error {
 	return nil
 }
 
-func (s *Script) Inherit(parent *Script) {
-	if s.Config.Interpreter == "" {
-		s.Config.Interpreter = parent.Config.Interpreter
+func (s *Script) UpdateWith(child *Script) {
+	if child.Config.Interpreter != "" {
+		s.Config.Interpreter = child.Config.Interpreter
 	}
-	if s.Config.Timeout == 0 {
-		s.Config.Timeout = parent.Config.Timeout
+	if child.Config.Timeout != 0 {
+		s.Config.Timeout = child.Config.Timeout
 	}
-	if s.Config.FilePath == "" {
-		s.Config.FilePath = parent.Config.FilePath
+	if child.Config.FilePath != "" {
+		s.Config.FilePath = child.Config.FilePath
 	}
-	if s.Config.Script == "" {
-		s.Config.Script = parent.Config.Script
+	if child.Config.Script != "" {
+		s.Config.Script = child.Config.Script
 	}
 }
 
