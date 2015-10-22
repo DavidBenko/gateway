@@ -200,10 +200,10 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	}
 	e.ID = id
 
-	tx.PostCommit = func(tx *apsql.Tx) {
+	tx.AddPostCommitHook(func(t *apsql.Tx) {
 		// copy to ensure there's no chance of concurrency issues
-		go afterSave(tx, e.Copy())
-	}
+		go afterSave(t, e.Copy())
+	})
 
 	return tx.Notify(
 		soapRemoteEndpoints,
@@ -258,10 +258,10 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 	}
 
 	if fireAfterSave {
-		tx.PostCommit = func(tx *apsql.Tx) {
+		tx.AddPostCommitHook(func(t *apsql.Tx) {
 			// copy to ensure there's no chance of concurrency issues
-			go afterSave(tx, e.Copy())
-		}
+			go afterSave(t, e.Copy())
+		})
 	}
 
 	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)

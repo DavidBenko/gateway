@@ -17,9 +17,15 @@ type PostCommitHook func(tx *Tx)
 // Tx wraps a *sql.Tx with the driver we're using
 type Tx struct {
 	*sqlx.Tx
-	DB            *DB
-	notifications []*Notification
-	PostCommit    PostCommitHook
+	DB              *DB
+	notifications   []*Notification
+	postCommitHooks []PostCommitHook
+}
+
+// AddPostCommitHook adds a PostCommitHook to be invoked following the successfully
+// commit of the given transaction
+func (tx *Tx) AddPostCommitHook(hook PostCommitHook) {
+	tx.postCommitHooks = append(tx.postCommitHooks, hook)
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
@@ -117,9 +123,10 @@ func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event Not
 func (tx *Tx) Commit() error {
 	err := tx.Tx.Commit()
 	if err == nil {
-		if tx.PostCommit != nil {
-			tx.PostCommit(tx)
+		for _, hook := range tx.postCommitHooks {
+			hook(tx)
 		}
+
 		for _, n := range tx.notifications {
 			tx.DB.notifyListeners(n)
 		}
