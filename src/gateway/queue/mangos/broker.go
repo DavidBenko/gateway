@@ -2,6 +2,9 @@ package mangos
 
 import (
 	"fmt"
+	"io"
+
+	"gateway/errors"
 	"gateway/queue"
 
 	mg "github.com/gdamore/mangos"
@@ -53,7 +56,7 @@ func NewBroker(
 func newXPubXSubBroker(
 	trans Transport,
 	pubPath, subPath string,
-) (bro *Broker, e error) {
+) (*Broker, error) {
 	var (
 		b        = new(Broker)
 		pubSetup = []queue.PubBinding{XPub}
@@ -85,32 +88,25 @@ func newXPubXSubBroker(
 		subSetup...,
 	)
 	if err != nil {
-		if closeErr := ps.Close(); closeErr != nil {
-			err = wrapError("failed to close PubSocket after setup error", err, closeErr)
-		}
-		return nil, err
+		return nil, tryClose(
+			"failed to clean up after broker setup error", ps, err,
+		)
 	}
 
 	b.Client, b.Server = ss, ps
 
-	// Now that the Broker is set up, it must be cleaned up if an error
-	// occurs.  Defer the cleanup to keep it DRY.
-	defer func() {
-		if e != nil {
-			if closeErr := bro.Close(); closeErr != nil {
-				e = wrapError("failed to clean up after broker setup error", e, closeErr)
-			}
-		}
-	}()
-
 	sSock, err := getSubSocket(ss)
 	if err != nil {
-		return nil, err
+		return nil, tryClose(
+			"failed to clean up after broker setup error", b, err,
+		)
 	}
 
 	pSock, err := getPubSocket(ps)
 	if err != nil {
-		return nil, err
+		return nil, tryClose(
+			"failed to clean up after broker setup error", b, err,
+		)
 	}
 
 	// gdamore/mangos.Device implements a naive forwarder.  TODO: expand on
@@ -137,10 +133,9 @@ func (b *Broker) Close() error {
 
 	switch {
 	case clientErr != nil && serverErr != nil:
-		return wrapError(
-			"failed to close Broker Server after client close error: %s: %s",
-			serverErr,
-			clientErr,
+		return errors.WrapErrors(
+			"failed to close Server after Client Close error",
+			serverErr, clientErr,
 		)
 	case clientErr != nil:
 		return clientErr
@@ -149,4 +144,14 @@ func (b *Broker) Close() error {
 	default:
 		return nil
 	}
+}
+
+// tryClose tries to Close the Closer and wraps the given error with any Close
+// error.
+func tryClose(reason string, c io.Closer, err error) error {
+	if closeErr := c.Close(); closeErr != nil {
+		err = errors.WrapErrors(reason, err, closeErr)
+	}
+
+	return err
 }
