@@ -52,8 +52,7 @@ func Subscribe(path string, bindings ...SubBinding) (Subscriber, error) {
 		return nil, fmt.Errorf("bad subscriber binding: %s", err.Error())
 	}
 
-	err = s.Connect(path)
-	if err != nil {
+	if err = s.Connect(path); err != nil {
 		return nil, fmt.Errorf("subscriber failed to connect: %s", err.Error())
 	}
 

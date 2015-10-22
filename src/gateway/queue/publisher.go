@@ -51,8 +51,7 @@ func Publish(path string, bindings ...PubBinding) (Publisher, error) {
 		return nil, fmt.Errorf("bad publisher binding: %s", err.Error())
 	}
 
-	err = p.Bind(path)
-	if err != nil {
+	if err = p.Bind(path); err != nil {
 		return nil, fmt.Errorf("publisher failed to bind: %s", err.Error())
 	}
 

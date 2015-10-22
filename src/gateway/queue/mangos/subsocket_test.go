@@ -17,7 +17,7 @@ func (s *MangosSuite) TestSubSocket(c *gc.C) {
 	m := &qm.SubSocket{}
 	err := m.Connect("foo")
 	c.Log("TestSubSocket: SubSocket can't Bind on nil socket")
-	c.Check(err, gc.ErrorMatches, "mangos Subscriber couldn't Connect to foo: nil socket")
+	c.Check(err, gc.ErrorMatches, "SubSocket couldn't Connect to foo: nil socket")
 
 	err = m.Close() // Does nothing
 	c.Log("TestSubSocket: SubSocket Close with nil socket does nothing")
@@ -41,7 +41,7 @@ func (s *MangosSuite) TestGetSubSocket(c *gc.C) {
 	c.Check(sc, gc.IsNil)
 
 	sc, err = qm.GetSubSocket(&testing.Subscriber{})
-	c.Check(err, gc.ErrorMatches, `getSubSocket expected \*mangos.SubSocket, got \*testing.Subscriber`)
+	c.Check(err, gc.ErrorMatches, `getSubSocket expected \*SubSocket, got \*testing.Subscriber`)
 
 	p := getBasicSub(c, "tcp://localhost:9001")
 
@@ -66,7 +66,7 @@ func (s *MangosSuite) TestSubTCP(c *gc.C) {
 	c.Assert(err, jc.ErrorIsNil)
 
 	_, err = qm.SubTCP(&qm.SubSocket{})
-	c.Check(err, gc.ErrorMatches, "SubTCP requires a non-nil Socket, use Sub first")
+	c.Check(err, gc.ErrorMatches, "SubTCP requires a non-nil Socket, use Sub or XSub first")
 }
 
 func (s *MangosSuite) TestSubIPC(c *gc.C) {
@@ -75,22 +75,22 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 	default:
 		c.Log(`TestSubIPC: supported only on runtime.GOOS == "linux" or "darwin"`)
 		_, err := queue.Subscribe(
-			"ipc:///tmp/test.ipc",
+			ipcTest,
 			qm.Sub,
 			qm.SubIPC,
 		)
-		c.Check(err, gc.ErrorMatches, fmt.Sprintf("SubIPC failed: mangos IPC transport not supported on OS %q", runtime.GOOS))
+		c.Check(err, gc.ErrorMatches, fmt.Sprintf("SubIPC failed: IPC transport not supported on OS %q", runtime.GOOS))
 		return // Don't need to test other behaviors
 	}
 
 	c.Log("TestSubIPC: nil socket fails")
 	_, err := qm.SubIPC(&qm.SubSocket{})
-	c.Check(err, gc.ErrorMatches, "SubIPC requires a non-nil Socket, use Sub first")
+	c.Check(err, gc.ErrorMatches, "SubIPC requires a non-nil Socket, use Sub or XSub first")
 
 	c.Log("TestSubIPC: pub-sub works on IPC")
 	pIPC, err := queue.Publish(
-		"ipc:///tmp/ipc.ipc",
-		qm.Pub,
+		ipcTest,
+		qm.Pub(false),
 		qm.PubIPC,
 		qm.PubBuffer(2048),
 	)
@@ -99,7 +99,7 @@ func (s *MangosSuite) TestSubIPC(c *gc.C) {
 
 	c.Log("TestSubIPC: correct usage works")
 	sIPC, err := queue.Subscribe(
-		"ipc:///tmp/ipc.ipc",
+		ipcTest,
 		qm.Sub,
 		qm.SubIPC,
 		qm.SubBuffer(2048),
@@ -124,7 +124,7 @@ func (s *MangosSuite) TestFilter(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, `Filter got nil Subscriber, use Pub first`)
 
 	sub, err = qm.Filter("")(&testing.Subscriber{})
-	c.Assert(err, gc.ErrorMatches, `Filter expected \*mangos.SubSocket, got \*testing.Subscriber`)
+	c.Assert(err, gc.ErrorMatches, `Filter expected \*SubSocket, got \*testing.Subscriber`)
 
 	pub := getBasicPub(c, "tcp://localhost:9001")
 
@@ -146,13 +146,37 @@ func (s *MangosSuite) TestFilter(c *gc.C) {
 
 func (s *MangosSuite) TestSub(c *gc.C) {
 	sub, err := qm.Sub(&testing.Subscriber{})
-	c.Assert(err, gc.ErrorMatches, `mangos.Sub expects nil Subscriber, got \*testing.Subscriber`)
+	c.Assert(err, gc.ErrorMatches, `Sub expects nil Subscriber, got \*testing.Subscriber`)
 
-	var qs queue.Subscriber
-	sub, err = qm.Sub(queue.Subscriber(qs))
+	sub, err = qm.Sub(queue.Subscriber(nil))
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sub, gc.NotNil)
 	c.Assert(reflect.TypeOf(sub), gc.Equals, reflect.TypeOf(&qm.SubSocket{}))
+	c.Assert(sub.Close(), jc.ErrorIsNil)
+}
+
+func (s *MangosSuite) TestXSub(c *gc.C) {
+	sub, err := qm.XSub(&testing.Subscriber{})
+	c.Assert(err, gc.ErrorMatches, `XSub expects nil Subscriber, got \*testing.Subscriber`)
+
+	sub, err = qm.XSub(queue.Subscriber(nil))
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(sub, gc.NotNil)
+	c.Assert(reflect.TypeOf(sub), gc.Equals, reflect.TypeOf(&qm.SubSocket{}))
+
+	xsSock, err := qm.GetSubSocket(sub)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(xsSock, gc.NotNil)
+	isRawIf, err := xsSock.GetOption(mangos.OptionRaw)
+	c.Assert(err, jc.ErrorIsNil)
+	c.Assert(
+		reflect.TypeOf(isRawIf),
+		gc.Equals,
+		reflect.TypeOf(interface{}(true)),
+	)
+	isRaw := isRawIf.(bool)
+	c.Check(isRaw, gc.Equals, true)
+
 	c.Assert(sub.Close(), jc.ErrorIsNil)
 }
 
@@ -161,9 +185,11 @@ func (s *MangosSuite) TestSubBufferSize(c *gc.C) {
 	c.Assert(err, gc.ErrorMatches, "SubBuffer expects positive size, got -10")
 
 	_, err = qm.SubBuffer(10)(&testing.Subscriber{})
-	c.Assert(err, gc.ErrorMatches, `SubBuffer expected \*mangos.SubSocket, got \*testing.Subscriber`)
+	c.Assert(err, gc.ErrorMatches, `getSubSocket expected \*SubSocket, got \*testing.Subscriber`)
 
-	subs, err := qm.SubBuffer(10)(&qm.SubSocket{})
+	ss, err := qm.Sub(queue.Subscriber(nil))
+	c.Assert(err, jc.ErrorIsNil)
+	subs, err := qm.SubBuffer(10)(ss)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(qm.GetSubBufferSize(subs), gc.Equals, 10)
 
