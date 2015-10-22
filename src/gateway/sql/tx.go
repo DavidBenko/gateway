@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -17,9 +18,18 @@ type PostCommitHook func(tx *Tx)
 // Tx wraps a *sql.Tx with the driver we're using
 type Tx struct {
 	*sqlx.Tx
-	DB            *DB
-	notifications []*Notification
-	PostCommit    PostCommitHook
+	DB                   *DB
+	notifications        []*Notification
+	postCommitHooks      []PostCommitHook
+	postCommitHooksMutex sync.RWMutex
+}
+
+// AddPostCommitHook adds a PostCommitHook to be invoked following the successfully
+// commit of the given transaction
+func (tx *Tx) AddPostCommitHook(hook PostCommitHook) {
+	defer tx.postCommitHooksMutex.Unlock()
+	tx.postCommitHooksMutex.Lock()
+	tx.postCommitHooks = append(tx.postCommitHooks, hook)
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
@@ -113,13 +123,19 @@ func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event Not
 	return nil
 }
 
+func (tx *Tx) firePostCommitHooks() {
+	defer tx.postCommitHooksMutex.RUnlock()
+	tx.postCommitHooksMutex.RLock()
+	for _, hook := range tx.postCommitHooks {
+		hook(tx)
+	}
+}
+
 // Commit commits the transaction and sends out pending notifications
 func (tx *Tx) Commit() error {
 	err := tx.Tx.Commit()
 	if err == nil {
-		if tx.PostCommit != nil {
-			tx.PostCommit(tx)
-		}
+		tx.firePostCommitHooks()
 		for _, n := range tx.notifications {
 			tx.DB.notifyListeners(n)
 		}
