@@ -1,6 +1,9 @@
 package model
 
-import apsql "gateway/sql"
+import (
+	aperrors "gateway/errors"
+	apsql "gateway/sql"
+)
 
 // EndpointGroup is an optional grouping of proxy endpoints.
 type EndpointGroup struct {
@@ -14,20 +17,20 @@ type EndpointGroup struct {
 }
 
 // Validate validates the model.
-func (e *EndpointGroup) Validate() Errors {
-	errors := make(Errors)
+func (e *EndpointGroup) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if e.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (e *EndpointGroup) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (e *EndpointGroup) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "endpoint_groups", "api_id", "name") {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }

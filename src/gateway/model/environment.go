@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -26,21 +27,21 @@ type Environment struct {
 }
 
 // Validate validates the model.
-func (e *Environment) Validate() Errors {
-	errors := make(Errors)
+func (e *Environment) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if e.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (e *Environment) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (e *Environment) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if err.Error() == "UNIQUE constraint failed: environments.api_id, environments.name" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "environments_api_id_name_key"` {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }

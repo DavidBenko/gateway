@@ -3,11 +3,11 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
-	"gateway/model"
+	aperrors "gateway/errors"
 )
 
 type SerializableValidationErrors struct {
-	Errors model.Errors `json:"errors"`
+	Errors aperrors.Errors `json:"errors"`
 }
 
 func (e SerializableValidationErrors) Error() error {

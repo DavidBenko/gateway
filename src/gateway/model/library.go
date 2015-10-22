@@ -1,6 +1,7 @@
 package model
 
 import (
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -19,21 +20,21 @@ type Library struct {
 }
 
 // Validate validates the model.
-func (l *Library) Validate() Errors {
-	errors := make(Errors)
+func (l *Library) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if l.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (l *Library) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (l *Library) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if err.Error() == "UNIQUE constraint failed: libraries.api_id, libraries.name" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "libraries_api_id_name_key"` {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }

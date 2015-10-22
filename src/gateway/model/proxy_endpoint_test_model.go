@@ -22,21 +22,21 @@ func (t *ProxyEndpointTest) GetMethods() (methods []string, err error) {
 	return
 }
 
-func (t *ProxyEndpointTest) Validate() Errors {
-	errors := make(Errors)
+func (t *ProxyEndpointTest) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if t.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 
 	methods, err := t.GetMethods()
 	if err != nil {
-		errors.add("methods", "must be valid json")
+		errors.Add("methods", "must be valid json")
 	} else if len(methods) == 0 {
-		errors.add("methods", "must be selected")
+		errors.Add("methods", "must be selected")
 	}
 
 	if t.Route == "" {
-		errors.add("route", "must not be empty")
+		errors.Add("route", "must not be empty")
 	}
 	return errors
 }

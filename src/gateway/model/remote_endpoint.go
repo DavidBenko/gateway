@@ -27,6 +27,7 @@ const (
 	RemoteEndpointTypeMySQL     = "mysql"
 	RemoteEndpointTypePostgres  = "postgres"
 	RemoteEndpointTypeMongo     = "mongodb"
+	RemoteEndpointTypeScript    = "script"
 	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
 	RemoteEndpointTypeSoap = "soap"
 )
@@ -97,32 +98,34 @@ type HTTPRequest struct {
 }
 
 // Validate validates the model.
-func (e *RemoteEndpoint) Validate() Errors {
-	errors := make(Errors)
+func (e *RemoteEndpoint) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if e.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	if e.Codename == "" {
-		errors.add("codename", "must not be blank")
+		errors.Add("codename", "must not be blank")
 	}
 	if code.IsReserved(e.Codename) {
-		errors.add("codename", "is a reserved word and may not be used")
+		errors.Add("codename", "is a reserved word and may not be used")
 	}
 	if !code.IsValidVariableIdentifier(e.Codename) {
-		errors.add("codename", "must start with A-Z a-z _ and may only contain A-Z a-z 0-9 _")
+		errors.Add("codename", "must start with A-Z a-z _ and may only contain A-Z a-z 0-9 _")
 	}
 	switch e.Type {
 	case RemoteEndpointTypeHTTP:
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
+	case RemoteEndpointTypeScript:
+		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
 		_, err := e.DBConfig()
 		if err != nil {
-			errors.add("base", fmt.Sprintf("error in database config: %s", err))
+			errors.Add("base", fmt.Sprintf("error in database config: %s", err))
 		}
 	default:
-		errors.add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
+		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
 	if status := e.Status; status.Valid {
 		val, _ := status.Value() // error always nil
@@ -130,40 +133,61 @@ func (e *RemoteEndpoint) Validate() Errors {
 		case RemoteEndpointStatusFailed, RemoteEndpointStatusProcessing,
 			RemoteEndpointStatusSuccess, RemoteEndpointStatusPending:
 		default:
-			errors.add("status", fmt.Sprintf("Invalid value for status: %v", val))
+			errors.Add("status", fmt.Sprintf("Invalid value for status: %v", val))
 		}
 	}
 
 	return errors
 }
 
-func (e *RemoteEndpoint) ValidateHTTP(errors Errors) {
+func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
 	request := &HTTPRequest{}
 	if err := json.Unmarshal(e.Data, request); err != nil {
-		errors.add("base", fmt.Sprintf("error in http config: %s", err))
+		errors.Add("base", fmt.Sprintf("error in http config: %s", err))
 		return
 	}
 	url, err := url.Parse(request.URL)
 	if err != nil {
-		errors.add("url", fmt.Sprintf("error parsing url: %s", err))
+		errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
 		return
 	}
 	switch url.Scheme {
 	case "", "http", "https":
 	default:
-		errors.add("url", "url scheme must be 'http' or 'https'")
+		errors.Add("url", "url scheme must be 'http' or 'https'")
+	}
+}
+
+func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
+	script := &re.Script{}
+	if err := json.Unmarshal(e.Data, script); err != nil {
+		errors.Add("base", fmt.Sprintf("error in script config: %s", err))
+		return
+	}
+	script.Validate(errors)
+
+	for _, environment := range e.EnvironmentData {
+		escript := &re.Script{}
+		if err := json.Unmarshal(environment.Data, escript); err != nil {
+			errors.Add("base", fmt.Sprintf("error in script config: %s", err))
+			return
+		}
+		script_copy := &re.Script{}
+		*script_copy = *script
+		script_copy.UpdateWith(escript)
+		script_copy.Validate(errors)
 	}
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "remote_endpoints", "api_id", "name") {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	if apsql.IsNotNullConstraint(err, "remote_endpoint_environment_data", "environment_id") {
-		errors.add("environment_data", "must include a valid environment in this API")
+		errors.Add("environment_data", "must include a valid environment in this API")
 	}
 	return errors
 }
@@ -171,6 +195,19 @@ func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) Errors {
 // AllRemoteEndpointsForAPIIDAndAccountID returns all remoteEndpoints on the Account's API in default order.
 func AllRemoteEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	return _remoteEndpoints(db, 0, apiID, accountID)
+}
+
+func WriteAllScriptFiles(db *apsql.DB) error {
+	endpoints, err := _remoteEndpoints(db, 0, 0, 0)
+	if err != nil {
+		return err
+	}
+	for _, endpoint := range endpoints {
+		if err := endpoint.WriteScript(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AllRemoteEndpointsForIDsInEnvironment returns all remoteEndpoints with id specified,
@@ -284,6 +321,7 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 }
 
 func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
+	args := []interface{}{}
 	query := `SELECT
 		remote_endpoints.api_id as api_id,
 	  remote_endpoints.id as id,
@@ -296,22 +334,29 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		remote_endpoints.status_message as status_message,
 		soap_remote_endpoints.id as soap_id,
 		soap_remote_endpoints.wsdl as wsdl
-	FROM remote_endpoints
-	JOIN apis ON remote_endpoints.api_id = apis.id AND apis.account_id = ?
-	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
-	WHERE `
-	args := []interface{}{}
-	args = append(args, accountID)
-	if id != 0 {
-		query = query + "remote_endpoints.id = ? AND "
-		args = append(args, id)
+	FROM remote_endpoints`
+	if accountID != 0 {
+		query += " JOIN apis ON remote_endpoints.api_id = apis.id AND apis.account_id = ?"
+		args = append(args, accountID)
 	}
-	query = query +
-		`   remote_endpoints.api_id = ?
-  ORDER BY
-	  remote_endpoints.name ASC,
-		remote_endpoints.id ASC;`
-	args = append(args, apiID)
+	query += " LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id"
+	if id != 0 || apiID != 0 {
+		query += " WHERE"
+
+		if id != 0 {
+			query += " remote_endpoints.id = ?"
+			args = append(args, id)
+			if apiID != 0 {
+				query += " AND"
+			}
+		}
+
+		if apiID != 0 {
+			query += " remote_endpoints.api_id = ?"
+			args = append(args, apiID)
+		}
+	}
+	query += " ORDER BY remote_endpoints.name ASC, remote_endpoints.id ASC;"
 
 	remoteEndpoints, err := mapRemoteEndpoints(db, query, args...)
 	if err != nil {
@@ -520,6 +565,38 @@ func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
 	return nil
 }
 
+func (e *RemoteEndpoint) WriteScript() error {
+	if e.Type != RemoteEndpointTypeScript {
+		return nil
+	}
+
+	script := &re.Script{}
+	if err := json.Unmarshal(e.Data, script); err != nil {
+		return err
+	}
+
+	if err := script.WriteFile(); err != nil {
+		return err
+	}
+
+	for _, environment := range e.EnvironmentData {
+		escript := &re.Script{}
+		if err := json.Unmarshal(environment.Data, escript); err != nil {
+			return err
+		}
+
+		script_copy := &re.Script{}
+		*script_copy = *script
+		script_copy.UpdateWith(escript)
+
+		if err := script_copy.WriteFile(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Insert inserts the remoteEndpoint into the database as a new row.
 func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	encodedData, err := marshaledForStorage(e.Data)
@@ -554,6 +631,11 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 			return err
 		}
 	}
+
+	if err := e.WriteScript(); err != nil {
+		return err
+	}
+
 	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
 }
 
@@ -703,8 +785,15 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		}
 	}
 
-	if len(existingEnvIDs) == 0 {
+	done := func() error {
+		if err := e.WriteScript(); err != nil {
+			return err
+		}
 		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
+	}
+
+	if len(existingEnvIDs) == 0 {
+		return done()
 	}
 
 	args := []interface{}{e.ID}
@@ -720,7 +809,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
+	return done()
 }
 
 func (e *RemoteEndpoint) afterUpdate(tx *apsql.Tx) error {

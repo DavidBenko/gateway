@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	aperrors "gateway/errors"
 	"gateway/license"
 	"gateway/sql"
 )
@@ -15,20 +16,20 @@ type Account struct {
 }
 
 // Validate validates the model.
-func (a *Account) Validate() Errors {
-	errors := make(Errors)
+func (a *Account) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if a.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (a *Account) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (a *Account) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if sql.IsUniqueConstraint(err, "accounts", "name") {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }
