@@ -95,7 +95,7 @@ func (p *PubSocket) Close() (e error) {
 				if err, ok := r.(error); ok {
 					e = err
 				}
-				e = fmt.Errorf("unexpects panic: %v", e)
+				e = fmt.Errorf("unexpected panic: %v", e)
 			}
 		}()
 
