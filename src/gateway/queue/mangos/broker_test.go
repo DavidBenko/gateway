@@ -48,7 +48,7 @@ func (s *MangosSuite) TestNewBroker(c *gc.C) {
 			t.xPubPath, t.xSubPath,
 		)
 
-		if !ipcSupported() {
+		if t.transport == mangos.IPC && !ipcSupported() {
 			c.Assert(err, gc.ErrorMatches, fmt.Sprintf(
 				".* failed: mangos IPC transport not supported on OS %q", runtime.GOOS))
 			continue
