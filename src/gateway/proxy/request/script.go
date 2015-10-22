@@ -18,6 +18,7 @@ type ScriptRequest struct {
 
 type ScriptResponse struct {
 	Stdout string `json:"stdout"`
+	Pid    int64  `json:"pid"`
 }
 
 func (s *ScriptRequest) Perform() Response {
@@ -65,19 +66,27 @@ func (s *ScriptRequest) Perform() Response {
 	}
 
 	response.Stdout = stdout.String()
+	response.Pid = int64(cmd.ProcessState.Pid())
 	return response
 }
 
-func (h *ScriptRequest) Log(devMode bool) string {
-	return ""
+func (s *ScriptRequest) Log(devMode bool) string {
+	var buffer bytes.Buffer
+	if devMode {
+		for key, value := range s.Env {
+			buffer.WriteString(fmt.Sprintf("%v=%v ", key, value))
+		}
+	}
+	buffer.WriteString(fmt.Sprintf("%v %v", s.Config.Interpreter, s.Name()))
+	return buffer.String()
 }
 
 func (s *ScriptResponse) JSON() ([]byte, error) {
 	return json.Marshal(&s)
 }
 
-func (r *ScriptResponse) Log() string {
-	return ""
+func (s *ScriptResponse) Log() string {
+	return fmt.Sprintf("pid=%v", s.Pid)
 }
 
 func NewScriptRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
