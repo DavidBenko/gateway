@@ -31,6 +31,12 @@ const (
 
 const postgresNotifyChannel = "gateway"
 
+const (
+	NOTIFICATION_TAG_DEFAULT = "default"
+	NOTIFICATION_TAG_AUTO    = "auto"
+	NOTIFICATION_TAG_IMPORT  = "import"
+)
+
 // Notification is used to serialize information to pass with events
 type Notification struct {
 	Table     string
@@ -39,6 +45,7 @@ type Notification struct {
 	APIID     int64
 	ID        int64
 	Event     NotificationEventType
+	Tag       string
 	Messages  []interface{}
 }
 

@@ -140,9 +140,13 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		if err == nil {
 			email = user.Email
 		}
+		action := ACTION_MAP[notification.Event]
+		if notification.Tag == apsql.NOTIFICATION_TAG_IMPORT {
+			action = "import"
+		}
 		n := &Notification{
 			Resource:   RESOURCE_MAP[notification.Table],
-			Action:     ACTION_MAP[notification.Event],
+			Action:     action,
 			ResourceID: int64(notification.ID),
 			APIID:      int64(notification.APIID),
 			User:       email,

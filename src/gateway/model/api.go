@@ -128,6 +128,10 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 		}
 	}
 
+	if a.Export != "" {
+		tx.PushTag(apsql.NOTIFICATION_TAG_IMPORT)
+		defer tx.PopTag()
+	}
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
 		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
