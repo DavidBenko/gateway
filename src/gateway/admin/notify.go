@@ -21,6 +21,7 @@ type Notification struct {
 	ResourceID int64  `json:"resource_id"`
 	APIID      int64  `json:"api_id"`
 	User       string `json:"user"`
+	Tag        string `json:"tag"`
 }
 
 var RESOURCE_MAP = map[string]string{
@@ -140,16 +141,13 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		if err == nil {
 			email = user.Email
 		}
-		action := ACTION_MAP[notification.Event]
-		if notification.Tag == apsql.NOTIFICATION_TAG_IMPORT {
-			action = "import"
-		}
 		n := &Notification{
 			Resource:   RESOURCE_MAP[notification.Table],
-			Action:     action,
+			Action:     ACTION_MAP[notification.Event],
 			ResourceID: int64(notification.ID),
 			APIID:      int64(notification.APIID),
 			User:       email,
+			Tag:        notification.Tag,
 		}
 
 		json, err := json.Marshal(n)
