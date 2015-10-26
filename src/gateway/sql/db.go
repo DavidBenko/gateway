@@ -89,8 +89,14 @@ func (db *DB) Migrate() error {
 // Begin creates a new sqlx transaction wrapped in our own code
 func (db *DB) Begin() (*Tx, error) {
 	tx, err := db.DB.Beginx()
-	return &Tx{tx, db, []string{NOTIFICATION_TAG_DEFAULT},
-		[]*Notification{}, nil, sync.RWMutex{}}, err
+	return &Tx{
+		Tx:                   tx,
+		DB:                   db,
+		tags:                 []string{NOTIFICATION_TAG_DEFAULT},
+		notifications:        []*Notification{},
+		postCommitHooks:      nil,
+		postCommitHooksMutex: sync.RWMutex{},
+	}, err
 }
 
 // Get wraps sqlx's Get with driver-specific query modifications.
