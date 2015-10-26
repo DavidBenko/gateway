@@ -106,19 +106,19 @@ func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error
 func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 	if api.Export == "" {
 		tx.PushTag(apsql.NOTIFICATION_TAG_AUTO)
+		defer tx.PopTag()
 		if err := c.addDefaultEnvironment(api, tx); err != nil {
 			return err
 		}
 		if err := c.addLocalhost(api, tx); err != nil {
 			return err
 		}
-		tx.PopTag()
 	} else {
 		tx.PushTag(apsql.NOTIFICATION_TAG_IMPORT)
+		defer tx.PopTag()
 		if err := c.importAPI(api, tx); err != nil {
 			return err.Error()
 		}
-		tx.PopTag()
 	}
 
 	return nil
