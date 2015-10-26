@@ -92,7 +92,7 @@ func (db *DB) Begin() (*Tx, error) {
 	return &Tx{
 		Tx:                   tx,
 		DB:                   db,
-		tags:                 []string{NOTIFICATION_TAG_DEFAULT},
+		tags:                 []string{NotificationTagDefault},
 		notifications:        []*Notification{},
 		postCommitHooks:      nil,
 		postCommitHooksMutex: sync.RWMutex{},

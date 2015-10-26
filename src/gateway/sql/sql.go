@@ -32,9 +32,9 @@ const (
 const postgresNotifyChannel = "gateway"
 
 const (
-	NOTIFICATION_TAG_DEFAULT = "default"
-	NOTIFICATION_TAG_AUTO    = "auto"
-	NOTIFICATION_TAG_IMPORT  = "import"
+	NotificationTagDefault = "default"
+	NotificationTagAuto    = "auto"
+	NotificationTagImport  = "import"
 )
 
 // Notification is used to serialize information to pass with events
