@@ -88,12 +88,12 @@ func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 	return tx.UpdateOne(query, args...)
 }
 
-// Push a tag for notifications
+// PushTag pushes a tag for notifications
 func (tx *Tx) PushTag(tag string) {
 	tx.tags = append(tx.tags, tag)
 }
 
-// Pop a notifications tag
+// PopTag pops a notifications tag
 func (tx *Tx) PopTag() {
 	tx.tags = tx.tags[:len(tx.tags)-1]
 }
