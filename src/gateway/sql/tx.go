@@ -19,6 +19,7 @@ type PostCommitHook func(tx *Tx)
 type Tx struct {
 	*sqlx.Tx
 	DB                   *DB
+	tags                 []string
 	notifications        []*Notification
 	postCommitHooks      []PostCommitHook
 	postCommitHooksMutex sync.RWMutex
@@ -87,6 +88,16 @@ func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 	return tx.UpdateOne(query, args...)
 }
 
+// PushTag pushes a tag for notifications
+func (tx *Tx) PushTag(tag string) {
+	tx.tags = append(tx.tags, tag)
+}
+
+// PopTag pops a notifications tag
+func (tx *Tx) PopTag() {
+	tx.tags = tx.tags[:len(tx.tags)-1]
+}
+
 // Notify creates a notification and posts it against this transaction.
 //
 // The implementation of posting a notification varies with database driver.
@@ -102,6 +113,7 @@ func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event Not
 		APIID:     apiID,
 		ID:        id,
 		Event:     event,
+		Tag:       tx.tags[len(tx.tags)-1],
 		Messages:  messages,
 	}
 

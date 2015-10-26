@@ -105,6 +105,8 @@ func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error
 // AfterInsert does some work after inserting an API
 func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 	if api.Export == "" {
+		tx.PushTag(apsql.NotificationTagAuto)
+		defer tx.PopTag()
 		if err := c.addDefaultEnvironment(api, tx); err != nil {
 			return err
 		}
@@ -112,6 +114,8 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 			return err
 		}
 	} else {
+		tx.PushTag(apsql.NotificationTagImport)
+		defer tx.PopTag()
 		if err := c.importAPI(api, tx); err != nil {
 			return err.Error()
 		}

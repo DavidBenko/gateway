@@ -21,6 +21,7 @@ type Notification struct {
 	ResourceID int64  `json:"resource_id"`
 	APIID      int64  `json:"api_id"`
 	User       string `json:"user"`
+	Tag        string `json:"tag"`
 }
 
 var RESOURCE_MAP = map[string]string{
@@ -146,6 +147,7 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 			ResourceID: int64(notification.ID),
 			APIID:      int64(notification.APIID),
 			User:       email,
+			Tag:        notification.Tag,
 		}
 
 		json, err := json.Marshal(n)
