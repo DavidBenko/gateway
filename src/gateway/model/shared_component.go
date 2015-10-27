@@ -52,13 +52,21 @@ func AllSharedComponentsForAPIIDAndAccountID(
 	apiID, accountID int64,
 ) ([]*SharedComponent, error) {
 	shared := []*SharedComponent{}
-	err := db.Select(&shared, db.SQL("shared_components/all"), apiID, accountID)
+
+	err := db.Select(
+		&shared,
+		db.SQL("shared_components/all"),
+		apiID, accountID,
+	)
+
 	return shared, err
 }
 
 // AllSharedComponentsForProxy returns all shared components on the API in
 // default order.
-func AllSharedComponentsForProxy(db *apsql.DB, apiID int64) ([]*SharedComponent, error) {
+func AllSharedComponentsForAPIID(
+	db *apsql.DB, apiID int64,
+) ([]*SharedComponent, error) {
 	shared := []*SharedComponent{}
 	err := db.Select(&shared, db.SQL("shared_components/all_proxy"), apiID)
 	return shared, err
@@ -70,9 +78,13 @@ func FindSharedComponentForAPIIDAndAccountID(
 	db *apsql.DB,
 	id, apiID, accountID int64,
 ) (*SharedComponent, error) {
-	shared := SharedComponent{}
-	err := db.Get(&shared, db.SQL("shared_components/find"), id, apiID, accountID)
-	return &shared, err
+	shared := &SharedComponent{}
+	err := db.Get(
+		shared,
+		db.SQL("shared_components/find"),
+		id, apiID, accountID,
+	)
+	return shared, err
 }
 
 // DeleteSharedComponentForAPIIDAndAccountID deletes the shared component with
@@ -81,36 +93,53 @@ func DeleteSharedComponentForAPIIDAndAccountID(
 	tx *apsql.Tx,
 	id, apiID, accountID, userID int64,
 ) error {
-	err := tx.DeleteOne(tx.SQL("shared_components/delete"), id, apiID, accountID)
+	err := tx.DeleteOne(
+		tx.SQL("shared_components/delete"),
+		id, apiID, accountID,
+	)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("shared_components", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify(
+		"shared_components",
+		accountID, userID, apiID, id,
+		apsql.Delete,
+	)
 }
 
 // Insert inserts the shared component into the database as a new row.
 func (s *SharedComponent) Insert(tx *apsql.Tx) error {
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
-		return aperrors.NewWrapped("Marshaling shared component JSON", err)
+		return aperrors.NewWrapped(
+			"Marshaling shared component JSON", err,
+		)
 	}
 
-	s.ID, err = tx.InsertOne(tx.SQL("shared_components/insert"),
+	s.ID, err = tx.InsertOne(
+		tx.SQL("shared_components/insert"),
 		s.Conditional, s.ConditionalPositive, s.Type, data,
-		s.APIID, s.AccountID, s.Name, s.Description)
+		s.APIID, s.AccountID, s.Name, s.Description,
+	)
 	if err != nil {
 		return aperrors.NewWrapped("Inserting shared component", err)
 	}
 
-	for position, transform := range s.BeforeTransformations {
-		if err = transform.InsertForComponent(tx, s.ID, true, position); err != nil {
-			return aperrors.NewWrapped("Inserting before transformation", err)
+	for tPosition, transform := range s.BeforeTransformations {
+		err = transform.InsertForComponent(tx, s.ID, true, tPosition)
+		if err != nil {
+			return aperrors.NewWrapped(
+				"Inserting before transformation", err,
+			)
 		}
 	}
 
-	for position, transform := range s.AfterTransformations {
-		if err = transform.InsertForComponent(tx, s.ID, false, position); err != nil {
-			return aperrors.NewWrapped("Inserting after transformation", err)
+	for tPosition, transform := range s.AfterTransformations {
+		err = transform.InsertForComponent(tx, s.ID, false, tPosition)
+		if err != nil {
+			return aperrors.NewWrapped(
+				"Inserting after transformation", err,
+			)
 		}
 	}
 
@@ -120,15 +149,22 @@ func (s *SharedComponent) Insert(tx *apsql.Tx) error {
 			return aperrors.NewWrapped("Inserting single call", err)
 		}
 	case ProxyEndpointComponentTypeMulti:
-		for position, call := range s.Calls {
-			if err = call.Insert(tx, s.ID, s.APIID, position); err != nil {
-				return aperrors.NewWrapped("Inserting multi call", err)
+		for callPosition, call := range s.Calls {
+			err = call.Insert(tx, s.ID, s.APIID, callPosition)
+			if err != nil {
+				return aperrors.NewWrapped(
+					"Inserting multi call", err,
+				)
 			}
 		}
 	default:
 	}
 
-	return tx.Notify("shared_components", s.AccountID, s.UserID, s.APIID, s.ID, apsql.Insert)
+	return tx.Notify(
+		"shared_components",
+		s.AccountID, s.UserID, s.APIID, s.ID,
+		apsql.Insert,
+	)
 }
 
 // Update updates the library in the databass.

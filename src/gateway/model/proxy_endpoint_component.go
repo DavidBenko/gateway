@@ -90,13 +90,16 @@ func (c *ProxyEndpointComponent) AllCalls() []*ProxyEndpointCall {
 // AllProxyEndpointsForAPIIDAndAccountID returns all components of an endpoint.
 func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
-	err := db.Select(&components,
+	err := db.Select(
+		&components,
 		`SELECT
-			id, conditional, conditional_positive, type, data, shared_component_id
+			id, conditional, conditional_positive, type, data,
+			shared_component_id
 		FROM proxy_endpoint_components
 		WHERE endpoint_id = ?
 		ORDER BY position ASC;`,
-		endpointID)
+		endpointID,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +198,14 @@ func (c *ProxyEndpointComponent) Insert(
 		return aperrors.NewWrapped("Inserting component", err)
 	}
 
-	for position, transform := range c.BeforeTransformations {
-		err = transform.InsertForComponent(tx, c.ID, true, position)
+	for tPosition, transform := range c.BeforeTransformations {
+		err = transform.InsertForComponent(tx, c.ID, true, tPosition)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting before transformation", err)
 		}
 	}
-	for position, transform := range c.AfterTransformations {
-		err = transform.InsertForComponent(tx, c.ID, false, position)
+	for tPosition, transform := range c.AfterTransformations {
+		err = transform.InsertForComponent(tx, c.ID, false, tPosition)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting after transformation", err)
 		}
@@ -228,7 +231,6 @@ func (c *ProxyEndpointComponent) Insert(
 // Update updates the component in place.
 func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 	position int) error {
-
 	data, err := marshaledForStorage(c.Data)
 	if err != nil {
 		return err
