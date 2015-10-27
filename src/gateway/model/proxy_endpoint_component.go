@@ -36,13 +36,13 @@ func (c *ProxyEndpointComponent) Validate() aperrors.Errors {
 	return c.validateNonShared()
 }
 
-func (c *ProxyEndpointComponent) validateShared() Errors {
+func (c *ProxyEndpointComponent) validateShared() aperrors.Errors {
 	// This is totally redundant for now.
 	return c.validateNonShared()
 }
 
-func (c *ProxyEndpointComponent) validateNonShared() Errors {
-	errors := make(Errors)
+func (c *ProxyEndpointComponent) validateNonShared() aperrors.Errors {
+	errors := make(aperrors.Errors)
 
 	switch c.Type {
 	case ProxyEndpointComponentTypeSingle:
@@ -52,13 +52,13 @@ func (c *ProxyEndpointComponent) validateNonShared() Errors {
 		errors.Add("type", "must be one of 'single', or 'multi', or 'js'")
 	}
 
-	errors.addErrors(c.validateTransformations())
+	errors.AddErrors(c.validateTransformations())
 
 	return errors
 }
 
-func (c *ProxyEndpointComponent) validateTransformations() Errors {
-	errors := make(Errors)
+func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {
+	errors := make(aperrors.Errors)
 
 	for i, t := range c.BeforeTransformations {
 		tErrors := t.Validate()
@@ -249,9 +249,9 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 		position,
 		c.Type,
 		data,
+		c.SharedComponentID,
 		c.ID,
 		endpointID,
-		c.SharedComponentID,
 	)
 	if err != nil {
 		return err

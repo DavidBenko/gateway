@@ -18,28 +18,29 @@ type SharedComponent struct {
 }
 
 // Validate validates the modes.
-func (s *SharedComponent) Validate() Errors {
-	errors := make(Errors)
+func (s *SharedComponent) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
+
 	if s.Name == "" {
-		errors.add("name", "must not be blank")
+		errors.Add("name", "must not be blank")
 	}
 
 	if s.SharedComponentID != 0 {
-		errors.add("shared_component_id", "must not be defined")
+		errors.Add("shared_component_id", "must not be defined")
 	}
 
-	errors.addErrors(s.ProxyEndpointComponent.Validate())
+	errors.AddErrors(s.ProxyEndpointComponent.Validate())
 
 	return errors
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
-func (s *SharedComponent) ValidateFromDatabaseError(err error) Errors {
-	errors := make(Errors)
+func (s *SharedComponent) ValidateFromDatabaseError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if err.Error() == "UNIQUE constraint failed: shared_components.api_id, shared_components.name" ||
 		err.Error() == `pq: duplicate key value violates unique constraint "shared_components_api_id_name_key"` {
-		errors.add("name", "is already taken")
+		errors.Add("name", "is already taken")
 	}
 	return errors
 }
