@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jmoiron/sqlx/types"
-	jc "github.com/juju/testing/checkers"
-	gc "gopkg.in/check.v1"
-
 	"gateway/db"
 	"gateway/db/mongo"
 	"gateway/db/sql"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
+
+	"github.com/jmoiron/sqlx/types"
+	jc "github.com/juju/testing/checkers"
+	gc "gopkg.in/check.v1"
 )
 
 func data() map[string]interface{} {
