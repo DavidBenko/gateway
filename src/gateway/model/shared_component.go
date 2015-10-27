@@ -173,8 +173,13 @@ func (s *SharedComponent) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	err = tx.UpdateOne(tx.SQL("libraries/update"),
-		s.Name, s.Description, data, s.ID, s.APIID, s.AccountID)
+	err = tx.UpdateOne(
+		tx.SQL("shared_components/update"),
+		s.Conditional, s.ConditionalPositive, s.Type, data,
+		s.APIID, s.Name, s.Description,
+		s.ID,
+		s.APIID, s.AccountID,
+	)
 	if err != nil {
 		return err
 	}
