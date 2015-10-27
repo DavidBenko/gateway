@@ -60,7 +60,9 @@ var usageStrings = map[string]string{
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",
 
-	"enable-broker": "Enable the logging broker",
-	"log-xsub":      "The log xsub to connect to",
-	"log-xpub":      "The log xpub to connect to",
+	"enable-broker":    "Enable the logging broker",
+	"broker":           "The address or name of the broker",
+	"broker-pub-port":  "The port of the broker pub",
+	"broker-sub-port":  "The port of the broker sub",
+	"broker-transport": "The broker transport",
 }

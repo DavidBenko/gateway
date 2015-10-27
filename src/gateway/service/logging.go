@@ -265,7 +265,7 @@ func LogPublishingService(conf config.ProxyAdmin) {
 		defer unsubscribe()
 
 		send, err := queue.Publish(
-			conf.LogXSub,
+			conf.XSub(),
 			mangos.Pub(true),
 			mangos.PubTCP,
 		)
