@@ -161,21 +161,15 @@ func specs() map[string]db.Specifier {
 	for _, which := range []struct {
 		name string
 		kind string
-	}{{
-		"sqls-simple", model.RemoteEndpointTypeSQLServer,
-	}, {
-		"sqls-complicated", model.RemoteEndpointTypeSQLServer,
-	}, {
-		"pq-simple", model.RemoteEndpointTypePostgres,
-	}, {
-		"pq-complicated", model.RemoteEndpointTypePostgres,
-	}, {
-		"mysql-simple", model.RemoteEndpointTypeMySQL,
-	}, {
-		"mysql-complicated", model.RemoteEndpointTypeMySQL,
-	}, {
-		"mongo-complicated", model.RemoteEndpointTypeMongo,
-	}} {
+	}{
+		{"sqls-simple", model.RemoteEndpointTypeSQLServer},
+		{"sqls-complicated", model.RemoteEndpointTypeSQLServer},
+		{"pq-simple", model.RemoteEndpointTypePostgres},
+		{"pq-complicated", model.RemoteEndpointTypePostgres},
+		{"mysql-simple", model.RemoteEndpointTypeMySQL},
+		{"mysql-complicated", model.RemoteEndpointTypeMySQL},
+		{"mongo-complicated", model.RemoteEndpointTypeMongo},
+	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
 		if err != nil {
