@@ -50,10 +50,12 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
 
-	aggregator = newAggregator(conf)
-	RouteLogging("/logs/socket", authAdmin)
-	RouteLogging("/apis/{apiID}/logs/socket", authAdmin)
-	RouteLogging("/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
+	if conf.EnableBroker {
+		stream := &LogStreamController{base, newAggregator(conf)}
+		RouteLogStream(stream, "/logs/socket", authAdmin)
+		RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
+		RouteLogStream(stream, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
+	}
 
 	search := &LogSearchController{configuration.Elastic, base}
 	RouteLogSearch(search, "/logs", authAdmin, db, conf)

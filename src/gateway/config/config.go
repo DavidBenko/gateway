@@ -87,8 +87,9 @@ type ProxyAdmin struct {
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
 
-	LogSubs string `flag:"log-subs" default:"tcp://localhost:5555"`
-	LogPub  string `flag:"log-pub" default:"tcp://localhost:5555"`
+	EnableBroker bool   `flag:"enable-broker" default:"true"`
+	LogXSub      string `flag:"log-xsub" default:"tcp://localhost:5556"`
+	LogXPub      string `flag:"log-xpub" default:"tcp://localhost:5555"`
 }
 
 type ElasticLogging struct {

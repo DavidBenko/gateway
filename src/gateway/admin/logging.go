@@ -10,7 +10,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"gateway/config"
@@ -26,10 +25,14 @@ import (
 )
 
 var Interceptor = newInterceptor()
-var aggregator *logPublisher
 
-func RouteLogging(path string, router aphttp.Router) {
-	router.Handle(path, websocket.Handler(logHandler))
+type LogStreamController struct {
+	BaseController
+	aggregator *mangos.Broker
+}
+
+func RouteLogStream(c *LogStreamController, path string, router aphttp.Router) {
+	router.Handle(path, websocket.Handler(c.logHandler))
 }
 
 type logPublisher struct {
@@ -106,36 +109,12 @@ func newInterceptor() *logPublisher {
 	return newPublisher(make(chan []byte, 8))
 }
 
-func newAggregator(conf config.ProxyAdmin) *logPublisher {
-	logs := make(chan []byte, 8)
-	for _, publisher := range strings.Split(conf.LogSubs, ",") {
-		go func(path string) {
-			rec, err := queue.Subscribe(path, mangos.Sub, mangos.SubTCP)
-			if err != nil {
-				log.Fatal(err)
-			}
-			C, E := rec.Channels()
-			defer func() {
-				rec.Close()
-				go func(c <-chan []byte) {
-					for _ = range c {
-						//noop
-					}
-				}(C)
-			}()
-
-			for {
-				select {
-				case log := <-C:
-					logs <- log
-				case err := <-E:
-					log.Printf("[logging] %v", err)
-				}
-			}
-		}(publisher)
+func newAggregator(conf config.ProxyAdmin) *mangos.Broker {
+	broker, err := mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.LogXPub, conf.LogXSub)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	return newPublisher(logs)
+	return broker
 }
 
 func makeFilter(ws *websocket.Conn) func(b byte) bool {
@@ -183,11 +162,27 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 	}
 }
 
-func logHandler(ws *websocket.Conn) {
-	logs, unsubscribe := aggregator.Subscribe()
-	defer unsubscribe()
+func (c *LogStreamController) logHandler(ws *websocket.Conn) {
+	receive, err := queue.Subscribe(
+		c.conf.LogXPub,
+		mangos.Sub,
+		mangos.SubTCP,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	C, E := receive.Channels()
+	defer func() {
+		receive.Close()
+	}()
+	go func() {
+		for err := range E {
+			log.Printf("[logging] %v", err)
+		}
+	}()
+
 	filter, newline := makeFilter(ws), false
-	for _, b := range <-logs {
+	for _, b := range <-C {
 		if newline {
 			if filter(b) {
 				return
@@ -196,7 +191,7 @@ func logHandler(ws *websocket.Conn) {
 			newline = true
 		}
 	}
-	for input := range logs {
+	for input := range C {
 		for _, b := range input {
 			if filter(b) {
 				return
