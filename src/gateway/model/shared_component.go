@@ -68,7 +68,7 @@ func AllSharedComponentsForAPIID(
 	db *apsql.DB, apiID int64,
 ) ([]*SharedComponent, error) {
 	shared := []*SharedComponent{}
-	err := db.Select(&shared, db.SQL("shared_components/all_proxy"), apiID)
+	err := db.Select(&shared, db.SQL("shared_components/all_api"), apiID)
 	return shared, err
 }
 
@@ -178,5 +178,9 @@ func (s *SharedComponent) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", s.AccountID, s.UserID, s.APIID, s.ID, apsql.Update)
+	return tx.Notify(
+		"shared_components",
+		s.AccountID, s.UserID, s.APIID, s.ID,
+		apsql.Update,
+	)
 }
