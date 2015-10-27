@@ -38,8 +38,7 @@ func (s *SharedComponent) Validate() aperrors.Errors {
 // into validation errors.
 func (s *SharedComponent) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if err.Error() == "UNIQUE constraint failed: shared_components.api_id, shared_components.name" ||
-		err.Error() == `pq: duplicate key value violates unique constraint "shared_components_api_id_name_key"` {
+	if apsql.IsUniqueConstraint(err, "shared_components", "api_id", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
