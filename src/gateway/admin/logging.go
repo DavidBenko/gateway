@@ -109,12 +109,12 @@ func newInterceptor() *logPublisher {
 	return newPublisher(make(chan []byte, 8))
 }
 
-func newAggregator(conf config.ProxyAdmin) *mangos.Broker {
+func newAggregator(conf config.ProxyAdmin) (*mangos.Broker, error) {
 	broker, err := mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.LogXPub, conf.LogXSub)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return broker
+	return broker, nil
 }
 
 func makeFilter(ws *websocket.Conn) func(b byte) bool {

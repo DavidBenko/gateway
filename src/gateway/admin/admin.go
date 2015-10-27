@@ -2,6 +2,7 @@ package admin
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -51,7 +52,11 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
 
 	if conf.EnableBroker {
-		stream := &LogStreamController{base, newAggregator(conf)}
+		broker, err := newAggregator(conf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		stream := &LogStreamController{base, broker}
 		RouteLogStream(stream, "/logs/socket", authAdmin)
 		RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
 		RouteLogStream(stream, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
