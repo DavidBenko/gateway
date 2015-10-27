@@ -171,18 +171,18 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	C, E := receive.Channels()
+	logs, e := receive.Channels()
 	defer func() {
 		receive.Close()
 	}()
 	go func() {
-		for err := range E {
+		for err := range e {
 			log.Printf("[logging] %v", err)
 		}
 	}()
 
 	filter, newline := makeFilter(ws), false
-	for _, b := range <-C {
+	for _, b := range <-logs {
 		if newline {
 			if filter(b) {
 				return
@@ -191,7 +191,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 			newline = true
 		}
 	}
-	for input := range C {
+	for input := range logs {
 		for _, b := range input {
 			if filter(b) {
 				return

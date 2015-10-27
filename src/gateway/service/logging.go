@@ -272,18 +272,18 @@ func LogPublishingService(conf config.ProxyAdmin) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		C, E := send.Channels()
+		c, e := send.Channels()
 		defer func() {
 			send.Close()
 		}()
 		go func() {
-			for err := range E {
+			for err := range e {
 				log.Printf("[logging] %v", err)
 			}
 		}()
 
 		add := func(message string) {
-			C <- []byte(message)
+			c <- []byte(message)
 		}
 		processLogs(logs, add)
 	}()
