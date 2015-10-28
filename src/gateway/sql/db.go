@@ -17,7 +17,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const currentVersion = 3
+const currentVersion = 4
 
 type driverType string
 
@@ -80,6 +80,12 @@ func (db *DB) Migrate() error {
 	if version < 3 {
 		if err = migrateToV3(db); err != nil {
 			return fmt.Errorf("Could not migrate to schema v3: %v", err)
+		}
+	}
+
+	if version < 4 {
+		if err = migrateToV4(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v4: %v", err)
 		}
 	}
 
