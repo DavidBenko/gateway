@@ -91,6 +91,56 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	return errors
 }
 
+// PopulateSharedComponents populates the SharedComponent handle of any
+// ProxyEndpointComponents on the ProxyEndpoint which have a non-nil
+// SharedComponentID.  This method is used by the pre-insert and pre-update
+// hooks for ProxyEndpoint to ensure it can be Validated.
+func (p *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
+	// map parent SharedComponent IDs to child components; we will assign
+	// handles later
+	inherited := make(map[int64][]*ProxyEndpointComponent)
+	for i, comp := range p.Components {
+		if shID := comp.SharedComponentID; shID != nil {
+			inherited[*shID] = append(inherited[*shID], comp)
+		}
+	}
+
+	parentIDs := make([]int64, len(inherited))
+	var i int
+	for id := range inherited {
+		// For each SharedComponent id, add it to the ids slice
+		parentIDs[i] = id
+		i++
+	}
+
+	// Get all SharedComponents for the slice of IDs
+	parentComponents, err := SharedComponentsByIDsTx(tx, parentIDs)
+	if err != nil {
+		return err
+	}
+
+	// Now assign each one to its owners
+	var child *ProxyEndpointComponent
+	for _, parent := range parentComponents {
+		// Each parent in parentComponents might belong to multiple
+		// children
+		id := parent.ID
+		if inheritedChildren, ok := inherited[id]; ok {
+			for i, child := range inheritedChildren {
+				// For each child, assign the parent to its
+				// handle.
+				child.SharedComponentHandle = parent
+			}
+		} else {
+			return fmt.Errorf("no component of this endpoint owned"+
+				" a SharedComponent with ID %d", id,
+			)
+		}
+	}
+
+	return nil
+}
+
 // AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
 func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
@@ -98,7 +148,7 @@ func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64)
 	return proxyEndpoints, err
 }
 
-// AllActiveProxyEndpointsForRouting returns all proxyEndpoints in an
+// AllProxyEndpointsForRouting returns all proxyEndpoints in an
 // unspecified order, with enough data for routing.
 func AllProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
@@ -106,7 +156,7 @@ func AllProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	return proxyEndpoints, err
 }
 
-// AllActiveProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
+// AllProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
 // api in an unspecified order, with enough data for routing.
 func AllProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}

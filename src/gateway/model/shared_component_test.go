@@ -8,66 +8,85 @@ import (
 	gc "gopkg.in/check.v1"
 )
 
-func testingComponents() map[string]*model.SharedComponent {
-	return map[string]*model.SharedComponent{
-		"bad-name": &model.SharedComponent{
-			ProxyEndpointComponent: model.ProxyEndpointComponent{
-				Type: model.ProxyEndpointComponentTypeJS,
-			},
-		},
-		"bad-id": &model.SharedComponent{
-			Name: "foo",
-			ProxyEndpointComponent: model.ProxyEndpointComponent{
-				Type:              model.ProxyEndpointComponentTypeJS,
-				SharedComponentID: 5,
-			},
-		},
-		"bad-name-and-id": &model.SharedComponent{
-			ProxyEndpointComponent: model.ProxyEndpointComponent{
-				Type:              model.ProxyEndpointComponentTypeJS,
-				SharedComponentID: 5,
-			},
-		},
-		"good-simple": &model.SharedComponent{
-			Name: "foo",
-			ProxyEndpointComponent: model.ProxyEndpointComponent{
-				Type: model.ProxyEndpointComponentTypeJS,
-			},
-		},
-	}
-}
-
 func (s *ModelSuite) TestSharedComponentValidate(c *gc.C) {
+	five := new(int64)
+	*five = 5
+
 	for i, t := range []struct {
-		should       string
-		given        *model.SharedComponent
-		expectErrors aperrors.Errors
+		should        string
+		givenName     string
+		givenType     string
+		givenSharedID *int64
+		expectErrors  aperrors.Errors
 	}{{
-		should: "validate on name",
-		given:  testingComponents()["bad-name"],
+		should:        "validate on name",
+		givenType:     model.ProxyEndpointComponentTypeJS,
+		givenSharedID: new(int64),
 		expectErrors: aperrors.Errors{
 			"name": []string{"must not be blank"},
 		},
 	}, {
-		should: "validate on shared id",
-		given:  testingComponents()["bad-id"],
+		should:        "validate on shared id",
+		givenName:     "foo",
+		givenType:     model.ProxyEndpointComponentTypeJS,
+		givenSharedID: five,
 		expectErrors: aperrors.Errors{
 			"shared_component_id": []string{"must not be defined"},
 		},
 	}, {
-		should: "validate on both",
-		given:  testingComponents()["bad-name-and-id"],
+		should:        "validate on name and shared id",
+		givenType:     model.ProxyEndpointComponentTypeJS,
+		givenSharedID: five,
 		expectErrors: aperrors.Errors{
 			"shared_component_id": []string{"must not be defined"},
 			"name":                []string{"must not be blank"},
 		},
 	}, {
-		should:       "validate an acceptable component",
-		given:        testingComponents()["good-simple"],
-		expectErrors: aperrors.Errors{},
+		should:        "validate on name, type, and shared id",
+		givenSharedID: five,
+		expectErrors: aperrors.Errors{
+			"type": []string{
+				"must be one of 'single', or 'multi', or 'js'",
+			},
+			"shared_component_id": []string{"must not be defined"},
+			"name":                []string{"must not be blank"},
+		},
+	}, {
+		should:        "validate an acceptable component",
+		givenName:     "foo",
+		givenType:     model.ProxyEndpointComponentTypeJS,
+		givenSharedID: new(int64),
+		expectErrors:  aperrors.Errors{},
 	}} {
-		c.Logf("test %d: should %s", i, t.should)
-		c.Assert(t.given, gc.NotNil)
-		c.Check(t.given.Validate(), jc.DeepEquals, t.expectErrors)
+		func() {
+			// We'll be catching a panic
+			c.Logf("test %d: should %s", i, t.should)
+			given := &model.SharedComponent{
+				Name: t.givenName,
+				ProxyEndpointComponent: model.ProxyEndpointComponent{
+					Type:              t.givenType,
+					SharedComponentID: t.givenSharedID,
+				},
+			}
+			if given.ProxyEndpointComponent.SharedComponentID != nil &&
+				given.ProxyEndpointComponent.SharedComponentHandle == nil {
+				// We expect Validate to panic if the Handle is
+				// nil; handle the panic.
+				defer handlePanic(c)
+			}
+			c.Check(given.Validate(), jc.DeepEquals, t.expectErrors)
+		}()
+	}
+}
+
+func handlePanic(c *gc.C) {
+	e := recover()
+	switch err := e.(type) {
+	case error:
+		c.Assert(err, gc.NotNil)
+		c.Check(err, gc.ErrorMatches, `.* nil pointer dereference`)
+	default:
+		c.Logf("unexpected panic: %#v", e)
+		c.FailNow()
 	}
 }

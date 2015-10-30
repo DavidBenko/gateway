@@ -15,34 +15,47 @@ const (
 	ProxyEndpointComponentTypeJS     = "js"
 )
 
+// ProxyEndpointComponent represents a step of a ProxyEndpoint's workflow.  It
+// may inherit and override a SharedComponent.
 type ProxyEndpointComponent struct {
 	ID                    int64                          `json:"id,omitempty"`
+	Type                  string                         `json:"type"`
 	Conditional           string                         `json:"conditional"`
 	ConditionalPositive   bool                           `json:"conditional_positive" db:"conditional_positive"`
-	Type                  string                         `json:"type"`
 	BeforeTransformations []*ProxyEndpointTransformation `json:"before,omitempty"`
 	AfterTransformations  []*ProxyEndpointTransformation `json:"after,omitempty"`
 	Call                  *ProxyEndpointCall             `json:"call,omitempty"`
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
 	Data                  types.JsonText                 `json:"data,omitempty"`
-	SharedComponentID     int64                          `json:"shared_component_id,omitempty"`
+
+	// SharedComponentID is the database ID of the SharedComponent.
+	SharedComponentID *int64 `json:"shared_component_id,omitempty" db:"shared_component_id"`
+
+	// SharedComponentHandle will be fetched before Update or Insert.
+	SharedComponentHandle *SharedComponent
 }
 
 // Validate validates the model.
+//
+// This method will panic if a SharedComponent was not prepopulated for a
+// component having a non-nil SharedComponentID.
 func (c *ProxyEndpointComponent) Validate() aperrors.Errors {
-	if c.SharedComponentID != 0 {
-		return c.validateShared()
+	errors := make(aperrors.Errors)
+
+	switch {
+	case c.SharedComponentID != nil:
+		errors.AddErrors(c.validateSharedBase())
+		errors.AddErrors(c.validateAgainstParent())
+	default:
+		errors.AddErrors(c.validateBase())
 	}
 
-	return c.validateNonShared()
+	return errors
 }
 
-func (c *ProxyEndpointComponent) validateShared() aperrors.Errors {
-	// This is totally redundant for now.
-	return c.validateNonShared()
-}
-
-func (c *ProxyEndpointComponent) validateNonShared() aperrors.Errors {
+// validateBase validates a ProxyEndpointComponent which is not inherited from a
+// SharedComponent.
+func (c *ProxyEndpointComponent) validateBase() aperrors.Errors {
 	errors := make(aperrors.Errors)
 
 	switch c.Type {
@@ -56,6 +69,59 @@ func (c *ProxyEndpointComponent) validateNonShared() aperrors.Errors {
 	errors.AddErrors(c.validateTransformations())
 
 	return errors
+}
+
+// validateSharedBase validates the ProxyEndpointComponent as a base for a
+// SharedComponent.
+func (c *ProxyEndpointComponent) validateSharedBase() aperrors.Errors {
+	errors := make(aperrors.Errors)
+	if c.Type != "" {
+		errors.Add("type", "must not override SharedComponent's type")
+	}
+
+	errors.AddErrors(c.validateTransformations())
+
+	return errors
+}
+
+// validateAgainstParent assumes the SharedComponentHandle is fully populated.
+func (c *ProxyEndpointComponent) validateAgainstParent() aperrors.Errors {
+	switch c.SharedComponentHandle.ProxyEndpointComponent.Type {
+	case ProxyEndpointComponentTypeSingle:
+		return c.validateSingle()
+	case ProxyEndpointComponentTypeMulti:
+		return c.validateMulti()
+	case ProxyEndpointComponentTypeJS:
+		return c.validateJS()
+	default:
+		return aperrors.Errors{
+			"type": []string{"must be one of 'single', or 'multi', or 'js'"},
+		}
+	}
+}
+
+func (c *ProxyEndpointComponent) validateSingle() aperrors.Errors {
+	s := ProxyEndpointComponentTypeSingle
+	return aperrors.ValidateCases([]aperrors.TestCase{
+		{c.Calls == nil, "calls", "type " + s + " must not have multi calls"},
+		{c.Data == nil, "data", "type " + s + " must not have js"},
+	}...)
+}
+
+func (c *ProxyEndpointComponent) validateMulti() aperrors.Errors {
+	m := ProxyEndpointComponentTypeMulti
+	return aperrors.ValidateCases([]aperrors.TestCase{
+		{c.Call == nil, "call", "type " + m + " must not have single call"},
+		{c.Data == nil, "data", "type " + m + " must not have js"},
+	}...)
+}
+
+func (c *ProxyEndpointComponent) validateJS() aperrors.Errors {
+	j := ProxyEndpointTransformationTypeJS
+	return aperrors.ValidateCases([]aperrors.TestCase{
+		{c.Call == nil, "call", "type " + j + " must not have single call"},
+		{c.Calls == nil, "calls", "type " + j + " must not have multi calls"},
+	}...)
 }
 
 func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {

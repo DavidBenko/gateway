@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
@@ -25,7 +26,7 @@ func (s *SharedComponent) Validate() aperrors.Errors {
 		errors.Add("name", "must not be blank")
 	}
 
-	if s.SharedComponentID != 0 {
+	if s.SharedComponentID != nil {
 		errors.Add("shared_component_id", "must not be defined")
 	}
 
@@ -59,6 +60,105 @@ func AllSharedComponentsForAPIIDAndAccountID(
 	)
 
 	return shared, err
+}
+
+// SharedComponentsByIDs takes a slice of IDs of SharedComponents and
+// returns a slice of the given SharedComponents with all relationships
+// populated.
+func SharedComponentsByIDs(
+	db *apsql.DB,
+	ids []int64,
+) ([]*SharedComponent, error) {
+	// Fetch the SharedComponents for this set of owner IDs.
+	var shared []*SharedComponent
+	err := db.Select(
+		&shared,
+		`
+SELECT
+  id
+  , conditional
+  , conditional_positive
+  , type
+  , data
+  , name
+  , description
+FROM shared_components
+WHERE id IN (`[1:]+apsql.NQs(len(ids))+")",
+		ids,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// We should find the same number of SharedComponents as we asked for.
+	if len(shared) != len(ids) {
+		return nil, fmt.Errorf(
+			"tried to find %d SharedComponents but only found %d",
+			len(ids), len(shared),
+		)
+	}
+
+	// Populate each ProxyEndpointComponent for the SharedComponents.
+	var componentIDs []int64
+	componentsByID := make(map[int64]*ProxyEndpointComponent)
+	for _, sharedComponent := range shared {
+		componentIDs = append(componentIDs, sharedComponent.ID)
+		componentsByID[sharedComponent.ID] = &sharedComponent.ProxyEndpointComponent
+	}
+
+	calls, err := AllProxyEndpointCallsForComponentIDs(db, componentIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	var callIDs []int64
+	callsByID := make(map[int64]*ProxyEndpointCall)
+	for _, call := range calls {
+		callIDs = append(callIDs, call.ID)
+		callsByID[call.ID] = call
+		component := componentsByID[call.ComponentID]
+		switch component.Type {
+		case ProxyEndpointComponentTypeSingle:
+			component.Call = call
+		case ProxyEndpointComponentTypeMulti:
+			component.Calls = append(component.Calls, call)
+		}
+	}
+
+	transforms, err := TransformationsForComponentIDsAndCallIDs(
+		db, componentIDs, callIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, transform := range transforms {
+		if transform.ComponentID != nil {
+			component := componentsByID[*transform.ComponentID]
+			if transform.Before {
+				component.BeforeTransformations = append(
+					component.BeforeTransformations, transform,
+				)
+			} else {
+				component.AfterTransformations = append(
+					component.AfterTransformations, transform,
+				)
+			}
+		} else if transform.CallID != nil {
+			call := callsByID[*transform.CallID]
+			if transform.Before {
+				call.BeforeTransformations = append(
+					call.BeforeTransformations, transform,
+				)
+			} else {
+				call.AfterTransformations = append(
+					call.AfterTransformations, transform,
+				)
+			}
+		}
+	}
+
+	return shared, nil
 }
 
 // AllSharedComponentsForProxy returns all shared components on the API in
@@ -168,6 +268,7 @@ func (s *SharedComponent) Insert(tx *apsql.Tx) error {
 
 // Update updates the library in the databass.
 func (s *SharedComponent) Update(tx *apsql.Tx) error {
+	// TODO(@binary132): add all the Update calls as in Insert
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
 		return err
