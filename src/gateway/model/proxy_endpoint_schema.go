@@ -55,6 +55,12 @@ func AllProxyEndpointSchemasForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
 	return schemas, err
 }
 
+func FindProxyEndpointSchemasForProxy(db *apsql.DB, proxyEndpointID, apiID int64) ([]*ProxyEndpointSchema, error) {
+	schemas := []*ProxyEndpointSchema{}
+	err := db.Select(&schemas, db.SQL("proxy_endpoint_schemas/find_proxy"), proxyEndpointID, apiID)
+	return schemas, err
+}
+
 func FindProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
 	id, proxyEndpointID, apiID, accountID int64) (*ProxyEndpointSchema, error) {
 	schema := ProxyEndpointSchema{}

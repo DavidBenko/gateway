@@ -33,8 +33,9 @@ type ProxyEndpoint struct {
 	ExportEnvironmentIndex   int `json:"environment_index,omitempty"`
 
 	// Proxy Data Cache
-	Environment *Environment `json:"-"`
-	API         *API         `json:"-"`
+	Environment *Environment         `json:"-"`
+	API         *API                 `json:"-"`
+	Schema      *ProxyEndpointSchema `json:"-"`
 }
 
 // Validate validates the model.
@@ -171,6 +172,14 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint.API, err = FindAPIForProxy(db, proxyEndpoint.APIID)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching API", err)
+	}
+
+	schemas, err := FindProxyEndpointSchemasForProxy(db, proxyEndpoint.ID, proxyEndpoint.APIID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching Schema", err)
+	}
+	if len(schemas) > 0 {
+		proxyEndpoint.Schema = schemas[0]
 	}
 
 	return &proxyEndpoint, nil

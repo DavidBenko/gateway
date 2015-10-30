@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // Server encapsulates the proxy server.
@@ -154,7 +155,20 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			return s.httpError(err)
 		}
 
-		incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
+		request, err := proxyRequestJSON(r, requestID, match.Vars)
+		if err != nil {
+			return s.httpError(err)
+		}
+
+		if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" &&
+			request.Body != "" {
+			err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
+			if err != nil {
+				return aphttp.NewError(err, 400)
+			}
+		}
+
+		incomingJSON, err := request.Marshal()
 		if err != nil {
 			return s.httpError(err)
 		}
@@ -188,6 +202,20 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			return s.httpError(err)
 		}
 
+		if schema := proxyEndpoint.Schema; schema != nil &&
+			(schema.ResponseSchema != "" ||
+				(schema.ResponseSameAsRequest && schema.RequestSchema != "")) &&
+			response.Body != "" {
+			responseSchema := schema.ResponseSchema
+			if schema.ResponseSameAsRequest {
+				responseSchema = schema.RequestSchema
+			}
+			err := s.processSchema(responseSchema, response.Body)
+			if err != nil {
+				return aphttp.NewError(err, 500)
+			}
+		}
+
 		if proxyEndpoint.CORSEnabled {
 			s.addCORSCommonHeaders(w, proxyEndpoint)
 		}
@@ -216,6 +244,25 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	} else {
 		w.Write([]byte(response.Body))
 	}
+	return nil
+}
+
+func (s *Server) processSchema(schema, body string) error {
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	bodyLoader := gojsonschema.NewStringLoader(body)
+	result, err := gojsonschema.Validate(schemaLoader, bodyLoader)
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid() {
+		err := ""
+		for _, description := range result.Errors() {
+			err += fmt.Sprintf(" - %v", description)
+		}
+		return errors.New(err)
+	}
+
 	return nil
 }
 
