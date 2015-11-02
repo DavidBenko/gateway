@@ -39,14 +39,15 @@ const (
 
 // Notification is used to serialize information to pass with events
 type Notification struct {
-	Table     string
-	AccountID int64
-	UserID    int64
-	APIID     int64
-	ID        int64
-	Event     NotificationEventType
-	Tag       string
-	Messages  []interface{}
+	Table           string
+	AccountID       int64
+	UserID          int64
+	APIID           int64
+	ProxyEndpointID int64
+	ID              int64
+	Event           NotificationEventType
+	Tag             string
+	Messages        []interface{}
 }
 
 // A Listener gets notified of notifications

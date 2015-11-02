@@ -87,7 +87,7 @@ func DeleteProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(tx *apsql.T
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoint_schemas", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("proxy_endpoint_schemas", accountID, userID, apiID, proxyEndpointID, id, apsql.Delete)
 }
 
 func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
@@ -103,7 +103,7 @@ func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoint_schemas", s.AccountID, s.UserID, s.APIID, s.ID, apsql.Insert)
+	return tx.Notify("proxy_endpoint_schemas", s.AccountID, s.UserID, s.APIID, s.ProxyEndpointID, s.ID, apsql.Insert)
 }
 
 func (s *ProxyEndpointSchema) Update(tx *apsql.Tx) error {
@@ -118,5 +118,5 @@ func (s *ProxyEndpointSchema) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoint_schemas", s.AccountID, s.UserID, s.APIID, s.ID, apsql.Update)
+	return tx.Notify("proxy_endpoint_schemas", s.AccountID, s.UserID, s.APIID, s.ProxyEndpointID, s.ID, apsql.Update)
 }

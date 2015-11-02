@@ -115,7 +115,7 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("apis", accountID, userID, id, id, apsql.Delete)
+	return tx.Notify("apis", accountID, userID, id, 0, id, apsql.Delete)
 }
 
 // Insert inserts the api into the database as a new row.
@@ -139,7 +139,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 		return
 	}
 
-	err = tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Insert)
+	err = tx.Notify("apis", a.AccountID, a.UserID, a.ID, 0, a.ID, apsql.Insert)
 	return
 }
 
@@ -153,5 +153,5 @@ func (a *API) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("apis", a.AccountID, a.UserID, a.ID, a.ID, apsql.Update)
+	return tx.Notify("apis", a.AccountID, a.UserID, a.ID, 0, a.ID, apsql.Update)
 }

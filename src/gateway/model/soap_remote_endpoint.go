@@ -210,6 +210,7 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		e.RemoteEndpoint.AccountID,
 		e.RemoteEndpoint.UserID,
 		e.RemoteEndpoint.APIID,
+		0,
 		e.ID,
 		apsql.Insert,
 	)
@@ -264,7 +265,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 		})
 	}
 
-	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
+	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, 0, e.ID, apsql.Update)
 }
 
 func afterSave(origTx *apsql.Tx, e *SoapRemoteEndpoint) {
@@ -363,7 +364,7 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		return err
 	}
 
-	err = tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
+	err = tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, 0, e.ID, apsql.Update)
 	if err != nil {
 		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
 		return err
