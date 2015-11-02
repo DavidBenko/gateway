@@ -1,10 +1,13 @@
 package model
 
 import (
+	"fmt"
+
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 type ProxyEndpointSchema struct {
@@ -31,11 +34,21 @@ func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
 	if s.Name == "" {
 		errors.Add("name", "must have a name")
 	}
-	if s.RequestSchemaID != nil && s.RequestType != "json" {
+	if s.RequestType != "json" {
 		errors.Add("request_type", "must be 'json'")
 	}
-	if s.ResponseSchemaID != nil && s.ResponseType != "json" {
+	if s.ResponseType != "json" {
 		errors.Add("response_type", "must be 'json'")
+	}
+	if s.RequestSchema != "" {
+		schema := gojsonschema.NewStringLoader(s.RequestSchema)
+		_, err := gojsonschema.NewSchema(schema)
+		errors.Add("request_schema", fmt.Sprintf("schema error: %v", err))
+	}
+	if s.ResponseSchema != "" {
+		schema := gojsonschema.NewStringLoader(s.ResponseSchema)
+		_, err := gojsonschema.NewSchema(schema)
+		errors.Add("response_schema", fmt.Sprintf("schema error: %v", err))
 	}
 	return errors
 }
