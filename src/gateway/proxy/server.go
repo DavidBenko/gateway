@@ -160,8 +160,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			return s.httpError(err)
 		}
 
-		if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" &&
-			request.Body != "" {
+		if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
 			err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
 			if err != nil {
 				return aphttp.NewError(err, 400)
@@ -204,8 +203,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 		if schema := proxyEndpoint.Schema; schema != nil &&
 			(schema.ResponseSchema != "" ||
-				(schema.ResponseSameAsRequest && schema.RequestSchema != "")) &&
-			response.Body != "" {
+				(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
 			responseSchema := schema.ResponseSchema
 			if schema.ResponseSameAsRequest {
 				responseSchema = schema.RequestSchema
