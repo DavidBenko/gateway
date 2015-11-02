@@ -156,7 +156,8 @@ vendor_get: vendor_clean
 	github.com/go-sql-driver/mysql \
 	golang.org/x/net/websocket \
 	github.com/vincent-petithory/dataurl \
-	github.com/gdamore/mangos
+	github.com/gdamore/mangos \
+	github.com/xeipuuv/gojsonschema
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
