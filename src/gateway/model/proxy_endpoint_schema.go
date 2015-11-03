@@ -14,16 +14,16 @@ type ProxyEndpointSchema struct {
 	AccountID       int64 `json:"-"`
 	UserID          int64 `json:"-"`
 	APIID           int64 `json:"-" db:"api_id"`
-	ProxyEndpointID int64 `json:"endpoint_id,omitempty" db:"endpoint_id"`
+	ProxyEndpointID int64 `json:"proxy_endpoint_id,omitempty" db:"endpoint_id"`
 
 	ID                    int64  `json:"id,omitempty"`
 	Name                  string `json:"name"`
 	RequestSchemaID       *int64 `json:"request_schema_id,omitempty" db:"request_schema_id"`
-	RequestType           string `json:"request_type" db:"request_type"`
+	RequestType           string `json:"request_schema_type" db:"request_type"`
 	RequestSchema         string `json:"request_schema" db:"request_schema"`
 	ResponseSameAsRequest bool   `json:"response_same_as_request" db:"response_same_as_request"`
 	ResponseSchemaID      *int64 `json:"response_schema_id,omitempty" db:"response_schema_id"`
-	ResponseType          string `json:"response_type" db:"response_type"`
+	ResponseType          string `json:"response_schema_type" db:"response_type"`
 	ResponseSchema        string `json:"response_schema" db:"response_schema"`
 
 	Data types.JsonText `json:"data" db:"data"`
@@ -34,11 +34,11 @@ func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
 	if s.Name == "" {
 		errors.Add("name", "must have a name")
 	}
-	if s.RequestType != "json" {
-		errors.Add("request_type", "must be 'json'")
+	if s.RequestType != "json_schema" {
+		errors.Add("request_schema_type", "must be 'json_schema'")
 	}
-	if s.ResponseType != "json" {
-		errors.Add("response_type", "must be 'json'")
+	if s.ResponseType != "json_schema" {
+		errors.Add("response_schema_type", "must be 'json_schema'")
 	}
 	if s.RequestSchema != "" {
 		schema := gojsonschema.NewStringLoader(s.RequestSchema)
