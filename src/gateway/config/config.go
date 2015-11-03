@@ -87,8 +87,11 @@ type ProxyAdmin struct {
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
 	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
 
-	LogSubs string `flag:"log-subs" default:"tcp://localhost:5555"`
-	LogPub  string `flag:"log-pub" default:"tcp://localhost:5555"`
+	EnableBroker    bool   `flag:"enable-broker" default:"true"`
+	Broker          string `flag:"broker" default:"localhost"`
+	BrokerPubPort   string `flag:"broker-pub-port" default:"5555"`
+	BrokerSubPort   string `flag:"broker-sub-port" default:"5556"`
+	BrokerTransport string `flag:"broker-transport" default:"tcp"`
 }
 
 type ElasticLogging struct {
@@ -167,4 +170,16 @@ func envValueForFlag(name string) string {
 
 func (c Configuration) DevMode() bool {
 	return !c.Server
+}
+
+func (config *ProxyAdmin) XPub() string {
+	return config.BrokerTransport + "://" +
+		config.Broker + ":" +
+		config.BrokerPubPort
+}
+
+func (config *ProxyAdmin) XSub() string {
+	return config.BrokerTransport + "://" +
+		config.Broker + ":" +
+		config.BrokerSubPort
 }
