@@ -48,17 +48,18 @@ func main() {
 	log.Printf("%s Running Gateway %s (%s)",
 		config.System, version.Name(), version.Commit())
 
-	// Require a valid license key
-	license.ValidateForever(conf.License, time.Hour)
-
 	// Setup the database
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 
+	// Require a valid license key
+	license.ValidateForever(conf.License, time.Hour)
+
 	//check for sneaky people
-	if conf.License == "" {
+	if license.DeveloperVersion {
+		log.Printf("%s Checking developer version license constraints", config.System)
 		accounts, _ := model.AllAccounts(db)
 		if len(accounts) > license.DeveloperVersionAccounts {
 			log.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
