@@ -49,10 +49,10 @@ DeveloperVersionUsers = 1
 DeveloperVersionAPIs = 1
 DeveloperVersionProxyEndpoints = 5
 
-LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts $(DeveloperVersionAccounts)\
- -X gateway/license.developerVersionUsers $(DeveloperVersionUsers)\
- -X gateway/license.developerVersionAPIs $(DeveloperVersionAPIs)\
- -X gateway/license.developerVersionProxyEndpoints $(DeveloperVersionProxyEndpoints)"
+LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersionAccounts)\
+ -X gateway/license.developerVersionUsers=$(DeveloperVersionUsers)\
+ -X gateway/license.developerVersionAPIs=$(DeveloperVersionAPIs)\
+ -X gateway/license.developerVersionProxyEndpoints=$(DeveloperVersionProxyEndpoints)"
 
 build: vet assets generate
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
