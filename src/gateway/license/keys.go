@@ -9,9 +9,12 @@ import (
 	apcrypto "gateway/crypto"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"time"
 )
+
+const defaultLicenseFileLocation = "license"
 
 var DeveloperVersion = false
 var developerVersionAccounts,
@@ -44,14 +47,26 @@ func init() {
 // immediately, and then again each interval in a separate goroutine.
 // Failure to validate is fatal.
 func ValidateForever(path string, interval time.Duration) {
+	// if no provided license file, then use license at default location of './license'
+	var data []byte
+	var err error
+	// No path specified for the license
 	if path == "" {
-		DeveloperVersion = true
-		return
-	}
-
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Fatalf("%s Could not read license at '%s'", config.System, path)
+		// Default to well-known location 'license' in the current working dir
+		if data, err = ioutil.ReadFile(defaultLicenseFileLocation); err != nil {
+			// No license file present?  No worries, let's default to the developer version
+			if os.IsNotExist(err) {
+				log.Printf("%s Starting gateway in developer mode", config.System)
+				DeveloperVersion = true
+				return
+			}
+			log.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
+		}
+	} else {
+		data, err = ioutil.ReadFile(path)
+		if err != nil {
+			log.Fatalf("%s Could not read license at '%s': %v", config.System, path, err)
+		}
 	}
 
 	signed, err := DeserializeSignedLicense(data)
