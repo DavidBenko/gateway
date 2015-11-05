@@ -154,7 +154,7 @@ func IsNotNullConstraint(err error, table, column string) bool {
 
 // NQs returns n comma separated '?'s
 func NQs(n int) string {
-	return strings.Join(strings.Split(strings.Repeat("?", n), ""), ",")
+	return strings.Repeat("?,", n-1) + "?"
 }
 
 // q converts "?" characters to $1, $2, $n on Postgres
