@@ -26,14 +26,15 @@ type Notification struct {
 }
 
 var RESOURCE_MAP = map[string]string{
-	"accounts":         "account",
-	"apis":             "api",
-	"endpoint_groups":  "endpoint-group",
-	"environments":     "environment",
-	"hosts":            "host",
-	"libraries":        "library",
-	"proxy_endpoints":  "proxy-endpoint",
-	"remote_endpoints": "remote-endpoint",
+	"accounts":               "account",
+	"apis":                   "api",
+	"endpoint_groups":        "endpoint-group",
+	"environments":           "environment",
+	"hosts":                  "host",
+	"libraries":              "library",
+	"proxy_endpoints":        "proxy-endpoint",
+	"proxy_endpoint_schemas": "proxy-endpoint-schema",
+	"remote_endpoints":       "remote-endpoint",
 }
 
 var ACTION_MAP = [...]string{

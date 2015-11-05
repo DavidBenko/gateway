@@ -26,7 +26,7 @@ type ProxyEndpointSchema struct {
 	ResponseType          string `json:"response_schema_type" db:"response_type"`
 	ResponseSchema        string `json:"response_schema" db:"response_schema"`
 
-	Data types.JsonText `json:"data" db:"data"`
+	Data types.JsonText `json:"-" db:"data"`
 }
 
 func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
@@ -43,12 +43,16 @@ func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
 	if s.RequestSchema != "" {
 		schema := gojsonschema.NewStringLoader(s.RequestSchema)
 		_, err := gojsonschema.NewSchema(schema)
-		errors.Add("request_schema", fmt.Sprintf("schema error: %v", err))
+		if err != nil {
+			errors.Add("request_schema", fmt.Sprintf("schema error: %v", err))
+		}
 	}
 	if s.ResponseSchema != "" {
 		schema := gojsonschema.NewStringLoader(s.ResponseSchema)
 		_, err := gojsonschema.NewSchema(schema)
-		errors.Add("response_schema", fmt.Sprintf("schema error: %v", err))
+		if err != nil {
+			errors.Add("response_schema", fmt.Sprintf("schema error: %v", err))
+		}
 	}
 	return errors
 }
