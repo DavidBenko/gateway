@@ -114,7 +114,7 @@ func (p *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
 	}
 
 	// Get all SharedComponents for the slice of IDs
-	parentComponents, err := SharedComponentsByIDsTx(tx, parentIDs)
+	parentComponents, err := SharedComponentsByIDs(db, parentIDs)
 	if err != nil {
 		return err
 	}

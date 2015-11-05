@@ -11,7 +11,7 @@ func (c *ProxyEndpointController) BeforeInsert(
 	p *model.ProxyEndpoint,
 	tx *apsql.Tx,
 ) error {
-	return p.PopulateSharedComponents(tx)
+	return p.PopulateSharedComponents(tx.DB)
 }
 
 // BeforeUpdate populates the SharedComponent handles of any of the
@@ -20,5 +20,5 @@ func (c *ProxyEndpointController) BeforeUpdate(
 	p *model.ProxyEndpoint,
 	tx *apsql.Tx,
 ) error {
-	return p.PopulateSharedComponents(tx)
+	return p.PopulateSharedComponents(tx.DB)
 }
