@@ -32,7 +32,7 @@ type ProxyEndpointComponent struct {
 	SharedComponentID *int64 `json:"shared_component_id,omitempty" db:"shared_component_id"`
 
 	// SharedComponentHandle will be fetched before Update or Insert.
-	SharedComponentHandle *SharedComponent
+	SharedComponentHandle *SharedComponent `json:"-"`
 }
 
 // Validate validates the model.
