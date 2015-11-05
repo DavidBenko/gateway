@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"os"
+	"runtime"
 
 	aperrors "gateway/errors"
 )
@@ -16,6 +17,12 @@ type Script struct {
 		FilePath    string `json:"filepath"`
 		Script      string `json:"script"`
 	} `json:"config"`
+}
+
+var interpreters map[string][]string = map[string][]string{
+	"linux":   []string{"sh", "bash"},
+	"windows": []string{"cmd.exe"},
+	"darwin":  []string{"sh"},
 }
 
 func (s *Script) Name() string {
@@ -63,6 +70,21 @@ func (s *Script) Validate(errors aperrors.Errors) {
 	if s.Config.Interpreter == "" {
 		errors.Add("interpreter", "must be set")
 	}
+
+	if interps, ok := interpreters[runtime.GOOS]; !ok {
+		errors.Add("interpreter", "unable to determine supported interpreters")
+	} else {
+		found := false
+		for _, interp := range interps {
+			if interp == s.Config.Interpreter {
+				found = true
+			}
+		}
+		if !found {
+			errors.Add("interpreter", "not supported on this platform")
+		}
+	}
+
 	if s.Config.FilePath == "" && s.Config.Script == "" {
 		errors.Add("filepath", "a File path or Script must be entered")
 		errors.Add("script", "a File path or Script must be entered")
