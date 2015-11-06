@@ -38,7 +38,7 @@ func (t *ProxyEndpointTransformation) Validate() aperrors.Errors {
 
 // AllProxyEndpointTransformationsForComponentIDsAndCallIDs returns all
 // transformations for a set of endpoint component.
-func AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db *apsql.DB,
+func TransformationsForComponentIDsAndCallIDs(db *apsql.DB,
 	componentIDs, callIDs []int64) ([]*ProxyEndpointTransformation, error) {
 
 	transformations := []*ProxyEndpointTransformation{}

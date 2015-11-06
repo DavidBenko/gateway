@@ -197,7 +197,7 @@ func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]
 		}
 	}
 
-	transforms, err := AllProxyEndpointTransformationsForComponentIDsAndCallIDs(db,
+	transforms, err := TransformationsForComponentIDsAndCallIDs(db,
 		componentIDs, callIDs)
 	if err != nil {
 		return nil, err
