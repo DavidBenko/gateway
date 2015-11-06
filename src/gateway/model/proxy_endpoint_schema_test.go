@@ -122,6 +122,24 @@ func TestProxyEndpointSchema(t *testing.T) {
 		t.Fatal("there should be one schema")
 	}
 
+	schemas, err = model.AllProxyEndpointSchemasForAPIIDAndAccountID(
+		db, schema.APIID, schema.AccountID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schemas) != 1 {
+		t.Fatal("there should be one schema")
+	}
+
+	schemas, err = model.FindProxyEndpointSchemasForProxy(
+		db, schema.ProxyEndpointID, schema.APIID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(schemas) != 1 {
+		t.Fatal("there should be one schema")
+	}
+
 	_, err = model.FindProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(
 		db, schema.ID, schema.ProxyEndpointID, schema.APIID, schema.AccountID)
 	if err != nil {

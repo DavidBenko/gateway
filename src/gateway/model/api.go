@@ -23,13 +23,13 @@ type API struct {
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
 	Export               string `json:"export,omitempty" db:"-"`
 
-	Environments    []*Environment    `json:"environments,omitempty"`
-	EndpointGroups  []*EndpointGroup  `json:"endpoint_groups,omitempty"`
-	Libraries       []*Library        `json:"libraries,omitempty"`
-	RemoteEndpoints []*RemoteEndpoint `json:"remote_endpoints,omitempty"`
-	ProxyEndpoints  []*ProxyEndpoint  `json:"proxy_endpoints,omitempty"`
-
-	ExportVersion int64 `json:"export_version,omitempty"`
+	Environments         []*Environment         `json:"environments,omitempty"`
+	EndpointGroups       []*EndpointGroup       `json:"endpoint_groups,omitempty"`
+	Libraries            []*Library             `json:"libraries,omitempty"`
+	RemoteEndpoints      []*RemoteEndpoint      `json:"remote_endpoints,omitempty"`
+	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
+	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
+	ExportVersion        int64                  `json:"export_version,omitempty"`
 }
 
 // CopyFrom copies all attributes except for AccountID, ID, and Name from other

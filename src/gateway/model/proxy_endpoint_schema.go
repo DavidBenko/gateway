@@ -27,6 +27,9 @@ type ProxyEndpointSchema struct {
 	ResponseSchema        string `json:"response_schema" db:"response_schema"`
 
 	Data types.JsonText `json:"-" db:"data"`
+
+	// Export Indices
+	ExportProxyEndpointIndex int `json:"proxy_endpoint_index,omitempty"`
 }
 
 func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
@@ -69,6 +72,13 @@ func AllProxyEndpointSchemasForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
 	proxyEndpointID, apiID, accountID int64) ([]*ProxyEndpointSchema, error) {
 	schemas := []*ProxyEndpointSchema{}
 	err := db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all"), proxyEndpointID, apiID, accountID)
+	return schemas, err
+}
+
+func AllProxyEndpointSchemasForAPIIDAndAccountID(db *apsql.DB,
+	apiID, accountID int64) ([]*ProxyEndpointSchema, error) {
+	schemas := []*ProxyEndpointSchema{}
+	err := db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all_api"), apiID, accountID)
 	return schemas, err
 }
 
