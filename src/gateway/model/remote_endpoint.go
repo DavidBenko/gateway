@@ -13,6 +13,7 @@ import (
 	"gateway/db"
 	aperrors "gateway/errors"
 	re "gateway/model/remote_endpoint"
+	"gateway/soap"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -116,6 +117,7 @@ func (e *RemoteEndpoint) Validate() aperrors.Errors {
 	case RemoteEndpointTypeHTTP:
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
+		e.ValidateSOAP(errors)
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
@@ -138,6 +140,12 @@ func (e *RemoteEndpoint) Validate() aperrors.Errors {
 	}
 
 	return errors
+}
+
+func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors) {
+	if !soap.Available() {
+		errors.Add("base", "SOAP is not currently available.  Requisite dependencies must be met")
+	}
 }
 
 func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {

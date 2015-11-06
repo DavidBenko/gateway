@@ -8,7 +8,7 @@ import (
 )
 
 //go:generate ./controller.rb --model Account
-//go:generate ./controller.rb --model API --account --after-insert-hook
+//go:generate ./controller.rb --model API --account --before-validate-hook --after-insert-hook
 //go:generate ./controller.rb --model EndpointGroup --account --api
 //go:generate ./controller.rb --model Environment --account --api --check-delete
 //go:generate ./controller.rb --model Host --account --api
