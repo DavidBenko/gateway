@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 
 	aperrors "gateway/errors"
@@ -108,6 +109,12 @@ func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
 		return err
+	}
+
+	var count int
+	tx.Get(&count, tx.SQL("proxy_endpoint_schemas/count"), s.ProxyEndpointID, s.APIID)
+	if count >= 1 {
+		return errors.New("Only 1 schema is allowed per proxy endpoint")
 	}
 
 	s.ID, err = tx.InsertOne(tx.SQL("proxy_endpoint_schemas/insert"), s.ProxyEndpointID,
