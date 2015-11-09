@@ -265,25 +265,25 @@ func LogPublishingService(conf config.ProxyAdmin) {
 		defer unsubscribe()
 
 		send, err := queue.Publish(
-			conf.LogPub,
-			mangos.Pub(false),
+			conf.XSub(),
+			mangos.Pub(true),
 			mangos.PubTCP,
 		)
 		if err != nil {
 			log.Fatal(err)
 		}
-		C, E := send.Channels()
+		c, e := send.Channels()
 		defer func() {
 			send.Close()
 		}()
 		go func() {
-			for err := range E {
+			for err := range e {
 				log.Printf("[logging] %v", err)
 			}
 		}()
 
 		add := func(message string) {
-			C <- []byte(message)
+			c <- []byte(message)
 		}
 		processLogs(logs, add)
 	}()

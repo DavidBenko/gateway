@@ -10,6 +10,7 @@ _obj
 _test
 tmp
 public_keys
+logs.bleve
 
 # Architecture specific extensions/prefixes
 *.[568vq]

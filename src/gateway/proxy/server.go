@@ -101,133 +101,162 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 	return ok
 }
 
-func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
+func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
+	response *proxyResponse, logs *bytes.Buffer, httpErr aphttp.Error) {
 	start := time.Now()
+
+	var vm *apvm.ProxyVM
 
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
-	test, _ := context.Get(r, aphttp.ContextTest).(bool)
 
-	var vm *apvm.ProxyVM
+	logs = &bytes.Buffer{}
+	logger := log.New(logs, "", log.Ldate|log.Lmicroseconds)
 
-	logBuffer := &bytes.Buffer{}
-	logger := log.New(logBuffer, "", log.Ldate|log.Lmicroseconds)
-	var response *proxyResponse
-	handler := func() (httpErr aphttp.Error) {
-		defer func() {
-			if httpErr != nil {
-				s.logError(logger, logPrefix, httpErr)
-			}
-			s.logDuration(vm, logger, logPrefix, start)
-			log.Print(logBuffer.String())
-		}()
-
-		proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
-		if err != nil {
-			return s.httpError(err)
+	defer func() {
+		if httpErr != nil {
+			s.logError(logger, logPrefix, httpErr)
 		}
+		s.logDuration(vm, logger, logPrefix, start)
+		log.Print(logs.String())
+	}()
 
-		proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
-		if err != nil {
-			return s.httpError(err)
-		}
-
-		libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
-		if err != nil {
-			return s.httpError(err)
-		}
-
-		logger.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
-
-		if r.Method == "OPTIONS" {
-			route, err := s.matchingRouteForOptions(proxyEndpoint, r)
-			if err != nil {
-				return s.httpError(err)
-			}
-			if !route.HandlesOptions() {
-				return s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
-			}
-		}
-
-		vm, err = apvm.NewVM(logger, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
-		if err != nil {
-			return s.httpError(err)
-		}
-
-		request, err := proxyRequestJSON(r, requestID, match.Vars)
-		if err != nil {
-			return s.httpError(err)
-		}
-
-		if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
-			err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
-			if err != nil {
-				return aphttp.NewError(err, 400)
-			}
-		}
-
-		incomingJSON, err := request.Marshal()
-		if err != nil {
-			return s.httpError(err)
-		}
-		vm.Set("__ap_proxyRequestJSON", incomingJSON)
-		scripts := []interface{}{
-			"var request = JSON.parse(__ap_proxyRequestJSON);",
-			"var response = new AP.HTTP.Response();",
-		}
-		scripts = append(scripts,
-			fmt.Sprintf("var session = new AP.Session(%s);",
-				strconv.Quote(proxyEndpoint.Environment.SessionName)))
-
-		if _, err := vm.RunAll(scripts); err != nil {
-			return s.httpError(err)
-		}
-
-		if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-			return s.httpError(err)
-		}
-
-		responseObject, err := vm.Run("response;")
-		if err != nil {
-			return s.httpError(err)
-		}
-		responseJSON, err := s.objectJSON(vm, responseObject)
-		if err != nil {
-			return s.httpError(err)
-		}
-		response, err = proxyResponseFromJSON(responseJSON)
-		if err != nil {
-			return s.httpError(err)
-		}
-
-		if schema := proxyEndpoint.Schema; schema != nil &&
-			(schema.ResponseSchema != "" ||
-				(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
-			responseSchema := schema.ResponseSchema
-			if schema.ResponseSameAsRequest {
-				responseSchema = schema.RequestSchema
-			}
-			err := s.processSchema(responseSchema, response.Body)
-			if err != nil {
-				return aphttp.NewError(err, 500)
-			}
-		}
-
-		if proxyEndpoint.CORSEnabled {
-			s.addCORSCommonHeaders(w, proxyEndpoint)
-		}
-		response.Headers["Content-Length"] = len(response.Body)
-		aphttp.AddHeaders(w.Header(), response.Headers)
-
-		w.WriteHeader(response.StatusCode)
-		return nil
+	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
 	}
 
-	if httpErr := handler(); test {
+	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	logger.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
+
+	if r.Method == "OPTIONS" {
+		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
+		if err != nil {
+			httpErr = s.httpError(err)
+			return
+		}
+		if !route.HandlesOptions() {
+			err := s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			if err != nil {
+				httpErr = s.httpError(err)
+			}
+			return
+		}
+	}
+
+	request, err := proxyRequestJSON(r, requestID, match.Vars)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
+		err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
+		if err != nil {
+			httpErr = aphttp.NewError(err, 400)
+			return
+		}
+	}
+
+	vm, err = apvm.NewVM(logger, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	incomingJSON, err := request.Marshal()
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+	vm.Set("__ap_proxyRequestJSON", incomingJSON)
+	scripts := []interface{}{
+		"var request = JSON.parse(__ap_proxyRequestJSON);",
+		"var response = new AP.HTTP.Response();",
+	}
+	scripts = append(scripts,
+		fmt.Sprintf("var session = new AP.Session(%s);",
+			strconv.Quote(proxyEndpoint.Environment.SessionName)))
+
+	if _, err := vm.RunAll(scripts); err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	responseObject, err := vm.Run("response;")
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+	responseJSON, err := s.objectJSON(vm, responseObject)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+	response, err = proxyResponseFromJSON(responseJSON)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil &&
+		(schema.ResponseSchema != "" ||
+			(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
+		responseSchema := schema.ResponseSchema
+		if schema.ResponseSameAsRequest {
+			responseSchema = schema.RequestSchema
+		}
+		err := s.processSchema(responseSchema, response.Body)
+		if err != nil {
+			httpErr = aphttp.NewError(err, 500)
+			return
+		}
+	}
+
+	if proxyEndpoint.CORSEnabled {
+		s.addCORSCommonHeaders(w, proxyEndpoint)
+	}
+	response.Headers["Content-Length"] = len(response.Body)
+	aphttp.AddHeaders(w.Header(), response.Headers)
+
+	w.WriteHeader(response.StatusCode)
+	return
+}
+
+func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp.Error {
+	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
+	test, _ := context.Get(r, aphttp.ContextTest).(bool)
+
+	response, logs, httpErr := s.proxyHandler(w, r)
+
+	if test {
+		responseBody := ""
+		if httpErr != nil {
+			responseBody = fmt.Sprintf("%s\n", httpErr.String())
+		} else if response != nil {
+			responseBody = response.Body
+		}
 		response := aphttp.TestResponse{
-			Body: response.Body,
-			Log:  logBuffer.String(),
+			Body: responseBody,
+			Log:  logs.String(),
 		}
 
 		body, err := json.Marshal(&response)
@@ -235,11 +264,14 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 			log.Printf("%s [error] %s", logPrefix, err)
 			return s.httpError(err)
 		}
+
+		if httpErr != nil {
+			return s.httpError(errors.New(string(body)))
+		}
 		w.Write(body)
-		return httpErr
 	} else if httpErr != nil {
 		return httpErr
-	} else {
+	} else if response != nil {
 		w.Write([]byte(response.Body))
 	}
 	return nil
@@ -324,7 +356,7 @@ func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
 
 func (s *Server) corsOptionsHandlerFunc(w http.ResponseWriter, r *http.Request,
 	endpoint *model.ProxyEndpoint, route *model.ProxyEndpointRoute,
-	requestID string) aphttp.Error {
+	requestID string) error {
 
 	s.addCORSCommonHeaders(w, endpoint)
 	methods := []string{}

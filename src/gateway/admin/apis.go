@@ -63,37 +63,15 @@ func (c *APIsController) decodeExport(api *model.API, tx *apsql.Tx) (*model.API,
 }
 
 // Import imports a full API
-func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error {
-	if newAPI.Export == "" {
-		return nil
-	}
-
-	api, err := c.decodeExport(newAPI, tx)
-	if err != nil {
-		log.Printf("Unable to decode export due to error: %v", err)
-		return aphttp.NewError(errors.New("Unable to decode export."),
-			http.StatusBadRequest)
-	}
-
-	api.Name = newAPI.Name
-	api.ID = newAPI.ID
-	api.AccountID = newAPI.AccountID
-
-	validationErrors := api.Validate()
-	if !validationErrors.Empty() {
-		return SerializableValidationErrors{validationErrors}
-	}
-
+func (c *APIsController) importAPI(api *model.API, tx *apsql.Tx) aphttp.Error {
 	if err := api.Import(tx); err != nil {
-		validationErrors = api.ValidateFromDatabaseError(err)
+		validationErrors := api.ValidateFromDatabaseError(err)
 		if !validationErrors.Empty() {
 			return SerializableValidationErrors{validationErrors}
 		}
 		log.Printf("%s Error importing api: %v", config.System, err)
 		return aphttp.NewServerError(err)
 	}
-
-	newAPI.CopyFrom(api, false)
 
 	if err := c.addLocalhost(api, tx); err != nil {
 		return aphttp.DefaultServerError()
@@ -102,9 +80,29 @@ func (c *APIsController) importAPI(newAPI *model.API, tx *apsql.Tx) aphttp.Error
 	return nil
 }
 
+func (c *APIsController) BeforeValidate(api *model.API, tx *apsql.Tx) error {
+	if api.Export == "" {
+		return nil
+	}
+
+	newAPI, err := c.decodeExport(api, tx)
+	if err != nil {
+		log.Printf("Unable to decode export due to error: %v", err)
+		return errors.New("Unable to decode export.")
+	}
+
+	newAPI.Name = api.Name
+	newAPI.ID = api.ID
+	newAPI.AccountID = api.AccountID
+
+	*api = *newAPI
+	return nil
+}
+
 // AfterInsert does some work after inserting an API
 func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
-	if api.Export == "" {
+	fromExport := api.ExportVersion > 0
+	if !fromExport {
 		tx.PushTag(apsql.NotificationTagAuto)
 		defer tx.PopTag()
 		if err := c.addDefaultEnvironment(api, tx); err != nil {

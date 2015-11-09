@@ -6,6 +6,7 @@ import (
 	aperrors "gateway/errors"
 	"gateway/license"
 	apsql "gateway/sql"
+	"log"
 )
 
 // API represents a top level grouping of endpoints accessible at a host.
@@ -67,6 +68,20 @@ func (a *API) Validate() aperrors.Errors {
 	}
 	if a.CORSRequestHeaders == "" {
 		errors.Add("cors_request_headers", "must not be blank (use '*' for everything)")
+	}
+
+	for _, re := range a.RemoteEndpoints {
+		log.Printf("Validating remote endpoints")
+		if err := re.Validate(); !err.Empty() {
+			log.Printf("Validation not ok!")
+			if base, ok := err["base"]; ok {
+				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", base))
+			} else {
+				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", err))
+			}
+		} else {
+			log.Printf("Validation ok!")
+		}
 	}
 	return errors
 }

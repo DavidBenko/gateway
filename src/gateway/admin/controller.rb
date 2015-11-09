@@ -16,9 +16,11 @@ check_delete = false
 after_insert = false
 after_update = false
 after_delete = false
+after_validate = false
 before_insert = false
 before_update = false
 before_delete = false
+before_validate = false
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -60,6 +62,12 @@ OptionParser.new do |opts|
   end
   opts.on("--before-delete-hook", "Does controller have a before delete hook?") do |value|
     before_delete = value
+  end
+  opts.on("--before-validate-hook", "Does controller have a before validate hook?") do |value|
+    before_validate = value
+  end
+  opts.on("--after-validate-hook", "Does controller have a after validate hook?") do |value|
+    after_validate = value
   end
 
 end.parse!
@@ -266,10 +274,24 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     desc = "updating"
   }
 
+  <% if before_validate %>
+  if err := c.BeforeValidate(<%= local %>, tx); err != nil {
+    log.Printf("%s Error before validate: %v", config.System, err)
+    return aphttp.DefaultServerError()
+  }
+  <% end %>
+
   validationErrors := <%= local %>.Validate()
   if !validationErrors.Empty() {
     return SerializableValidationErrors{validationErrors}
   }
+
+  <% if after_validate %>
+  if err := c.AfterValidate(<%= local %>, tx); err != nil {
+    log.Printf("%s Error after validate: %v", config.System, err)
+    return aphttp.DefaultServerError()
+  }
+  <% end %>
 
   <% if before_insert %>
   if isInsert {
