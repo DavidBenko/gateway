@@ -5,18 +5,9 @@ import (
 	apsql "gateway/sql"
 )
 
-// BeforeInsert populates the SharedComponent handles of any of the
+// BeforeValidate populates the SharedComponent handles of any of the
 // ProxyEndpoint's Components which were inherited from SharedComponents.
-func (c *ProxyEndpointController) BeforeInsert(
-	p *model.ProxyEndpoint,
-	tx *apsql.Tx,
-) error {
-	return p.PopulateSharedComponents(tx.DB)
-}
-
-// BeforeUpdate populates the SharedComponent handles of any of the
-// ProxyEndpoint's Components which were inherited from SharedComponents.
-func (c *ProxyEndpointController) BeforeUpdate(
+func (c *ProxyEndpointController) BeforeValidate(
 	p *model.ProxyEndpoint,
 	tx *apsql.Tx,
 ) error {

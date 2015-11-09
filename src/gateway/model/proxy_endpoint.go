@@ -93,13 +93,13 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 
 // PopulateSharedComponents populates the SharedComponent handle of any
 // ProxyEndpointComponents on the ProxyEndpoint which have a non-nil
-// SharedComponentID.  This method is used by the pre-insert and pre-update
-// hooks for ProxyEndpoint to ensure it can be Validated.
-func (p *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
+// SharedComponentID.  This method is used by the BeforeValidate hook on
+// ProxyEndpoint to ensure it can be Validated.
+func (e *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
 	// map parent SharedComponent IDs to child components; we will assign
 	// handles later
 	inherited := make(map[int64][]*ProxyEndpointComponent)
-	for i, comp := range p.Components {
+	for _, comp := range e.Components {
 		if shID := comp.SharedComponentID; shID != nil {
 			inherited[*shID] = append(inherited[*shID], comp)
 		}
@@ -120,13 +120,12 @@ func (p *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
 	}
 
 	// Now assign each one to its owners
-	var child *ProxyEndpointComponent
 	for _, parent := range parentComponents {
 		// Each parent in parentComponents might belong to multiple
 		// children
 		id := parent.ID
 		if inheritedChildren, ok := inherited[id]; ok {
-			for i, child := range inheritedChildren {
+			for _, child := range inheritedChildren {
 				// For each child, assign the parent to its
 				// handle.
 				child.SharedComponentHandle = parent
