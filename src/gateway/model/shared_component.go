@@ -98,6 +98,42 @@ WHERE id IN (`[1:]+apsql.NQs(len(ids))+")",
 		)
 	}
 
+	if err := PopulateSharedComponents(db, shared); err != nil {
+		return nil, err
+	}
+
+	return shared, nil
+}
+
+// PopulateSharedComponents takes a DB handle and a slice of SharedComponents
+// and populates all relationships in the given SharedComponents.  This function
+// mutates the members of the given slice.
+func PopulateSharedComponents(
+	db *apsql.DB, components []*SharedComponent,
+) error {
+	// Populate each ProxyEndpointComponent for the SharedComponents.
+	var componentIDs []int64
+	componentsByID := make(map[int64]*ProxyEndpointComponent)
+	for _, sharedComponent := range components {
+		componentIDs = append(componentIDs, sharedComponent.ID)
+		componentsByID[sharedComponent.ID] = &sharedComponent.ProxyEndpointComponent
+	}
+
+	return PopulateComponents(db, componentIDs, componentsByID)
+}
+
+// AllSharedComponentsForAPIID returns all shared components on the API in
+// default order.
+func AllSharedComponentsForAPIID(
+	db *apsql.DB, apiID int64,
+) ([]*SharedComponent, error) {
+	shared := []*SharedComponent{}
+	err := db.Select(&shared, db.SQL("shared_components/all_api"), apiID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	// Populate each ProxyEndpointComponent for the SharedComponents.
 	var componentIDs []int64
 	componentsByID := make(map[int64]*ProxyEndpointComponent)
@@ -106,68 +142,8 @@ WHERE id IN (`[1:]+apsql.NQs(len(ids))+")",
 		componentsByID[sharedComponent.ID] = &sharedComponent.ProxyEndpointComponent
 	}
 
-	calls, err := AllProxyEndpointCallsForComponentIDs(db, componentIDs)
-	if err != nil {
-		return nil, err
-	}
+	err = PopulateComponents(db, componentIDs, componentsByID)
 
-	var callIDs []int64
-	callsByID := make(map[int64]*ProxyEndpointCall)
-	for _, call := range calls {
-		callIDs = append(callIDs, call.ID)
-		callsByID[call.ID] = call
-		component := componentsByID[call.ComponentID]
-		switch component.Type {
-		case ProxyEndpointComponentTypeSingle:
-			component.Call = call
-		case ProxyEndpointComponentTypeMulti:
-			component.Calls = append(component.Calls, call)
-		}
-	}
-
-	transforms, err := TransformationsForComponentIDsAndCallIDs(
-		db, componentIDs, callIDs,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, transform := range transforms {
-		if transform.ComponentID != nil {
-			component := componentsByID[*transform.ComponentID]
-			if transform.Before {
-				component.BeforeTransformations = append(
-					component.BeforeTransformations, transform,
-				)
-			} else {
-				component.AfterTransformations = append(
-					component.AfterTransformations, transform,
-				)
-			}
-		} else if transform.CallID != nil {
-			call := callsByID[*transform.CallID]
-			if transform.Before {
-				call.BeforeTransformations = append(
-					call.BeforeTransformations, transform,
-				)
-			} else {
-				call.AfterTransformations = append(
-					call.AfterTransformations, transform,
-				)
-			}
-		}
-	}
-
-	return shared, nil
-}
-
-// AllSharedComponentsForProxy returns all shared components on the API in
-// default order.
-func AllSharedComponentsForAPIID(
-	db *apsql.DB, apiID int64,
-) ([]*SharedComponent, error) {
-	shared := []*SharedComponent{}
-	err := db.Select(&shared, db.SQL("shared_components/all_api"), apiID)
 	return shared, err
 }
 
@@ -183,6 +159,19 @@ func FindSharedComponentForAPIIDAndAccountID(
 		db.SQL("shared_components/find"),
 		id, apiID, accountID,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate each ProxyEndpointComponent for the SharedComponents.
+	componentIDs := []int64{shared.ID}
+	componentsByID := map[int64]*ProxyEndpointComponent{
+		shared.ID: &(shared.ProxyEndpointComponent),
+	}
+
+	err = PopulateComponents(db, componentIDs, componentsByID)
+
 	return shared, err
 }
 

@@ -154,8 +154,75 @@ func (c *ProxyEndpointComponent) AllCalls() []*ProxyEndpointCall {
 	return c.Calls
 }
 
-// AllProxyEndpointsForAPIIDAndAccountID returns all components of an endpoint.
-func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]*ProxyEndpointComponent, error) {
+// PopulateComponents populates all relationships for a map of IDs to
+// ProxyEndpointComponents.  This function mutates the values of the given map.
+func PopulateComponents(
+	db *apsql.DB,
+	componentIDs []int64,
+	componentsByID map[int64]*ProxyEndpointComponent,
+) error {
+	calls, err := AllProxyEndpointCallsForComponentIDs(db, componentIDs)
+	if err != nil {
+		return err
+	}
+
+	var callIDs []int64
+	callsByID := make(map[int64]*ProxyEndpointCall)
+	for _, call := range calls {
+		callIDs = append(callIDs, call.ID)
+		callsByID[call.ID] = call
+		component := componentsByID[call.ComponentID]
+		// Populate the Component's Call or Calls.
+		switch component.Type {
+		case ProxyEndpointComponentTypeSingle:
+			component.Call = call
+		case ProxyEndpointComponentTypeMulti:
+			component.Calls = append(component.Calls, call)
+		}
+	}
+
+	transforms, err := TransformationsForComponentIDsAndCallIDs(
+		db, componentIDs, callIDs,
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, transform := range transforms {
+		if transform.ComponentID != nil {
+			component := componentsByID[*transform.ComponentID]
+			// Populate the Component's Before and After transforms.
+			if transform.Before {
+				component.BeforeTransformations = append(
+					component.BeforeTransformations, transform,
+				)
+			} else {
+				component.AfterTransformations = append(
+					component.AfterTransformations, transform,
+				)
+			}
+		} else if transform.CallID != nil {
+			call := callsByID[*transform.CallID]
+			// Populate the Call's Before and After transforms.
+			if transform.Before {
+				call.BeforeTransformations = append(
+					call.BeforeTransformations, transform,
+				)
+			} else {
+				call.AfterTransformations = append(
+					call.AfterTransformations, transform,
+				)
+			}
+		}
+	}
+
+	return nil
+}
+
+// AllProxyEndpointComponentsForEndpointID returns all components of an endpoint.
+func AllProxyEndpointComponentsForEndpointID(
+	db *apsql.DB, endpointID int64,
+) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(
 		&components,
@@ -178,48 +245,7 @@ func AllProxyEndpointComponentsForEndpointID(db *apsql.DB, endpointID int64) ([]
 		componentsByID[component.ID] = component
 	}
 
-	calls, err := AllProxyEndpointCallsForComponentIDs(db, componentIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	var callIDs []int64
-	callsByID := make(map[int64]*ProxyEndpointCall)
-	for _, call := range calls {
-		callIDs = append(callIDs, call.ID)
-		callsByID[call.ID] = call
-		component := componentsByID[call.ComponentID]
-		switch component.Type {
-		case ProxyEndpointComponentTypeSingle:
-			component.Call = call
-		case ProxyEndpointComponentTypeMulti:
-			component.Calls = append(component.Calls, call)
-		}
-	}
-
-	transforms, err := TransformationsForComponentIDsAndCallIDs(db,
-		componentIDs, callIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, transform := range transforms {
-		if transform.ComponentID != nil {
-			component := componentsByID[*transform.ComponentID]
-			if transform.Before {
-				component.BeforeTransformations = append(component.BeforeTransformations, transform)
-			} else {
-				component.AfterTransformations = append(component.AfterTransformations, transform)
-			}
-		} else if transform.CallID != nil {
-			call := callsByID[*transform.CallID]
-			if transform.Before {
-				call.BeforeTransformations = append(call.BeforeTransformations, transform)
-			} else {
-				call.AfterTransformations = append(call.AfterTransformations, transform)
-			}
-		}
-	}
+	err = PopulateComponents(db, componentIDs, componentsByID)
 
 	return components, err
 }
