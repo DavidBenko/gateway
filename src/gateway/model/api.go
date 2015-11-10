@@ -54,6 +54,18 @@ func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 	}
 }
 
+// Normalize normalizes an API by zeroing out all references to related objects
+// and eliminates references to exports
+func (a *API) Normalize() {
+	a.Export = ""
+	a.Environments = []*Environment{}
+	a.EndpointGroups = []*EndpointGroup{}
+	a.Libraries = []*Library{}
+	a.RemoteEndpoints = []*RemoteEndpoint{}
+	a.ProxyEndpoints = []*ProxyEndpoint{}
+	a.ExportVersion = 0
+}
+
 // Validate validates the model.
 func (a *API) Validate() aperrors.Errors {
 	errors := make(aperrors.Errors)
