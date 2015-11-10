@@ -117,6 +117,7 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 		if err := c.importAPI(api, tx); err != nil {
 			return err.Error()
 		}
+		api.Normalize()
 	}
 
 	return nil
