@@ -7,7 +7,7 @@ import (
 
 // BeforeValidate populates the SharedComponent handles of any of the
 // ProxyEndpoint's Components which were inherited from SharedComponents.
-func (c *ProxyEndpointController) BeforeValidate(
+func (c *ProxyEndpointsController) BeforeValidate(
 	p *model.ProxyEndpoint,
 	tx *apsql.Tx,
 ) error {
