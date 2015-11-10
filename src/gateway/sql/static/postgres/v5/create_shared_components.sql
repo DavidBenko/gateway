@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "shared_components" (
   "description" TEXT,
   UNIQUE ("api_id", "name"),
   -- FK Constraint
-  FOREIGN KEY("api_id") 
-    REFERENCES "apis"("id") 
+  FOREIGN KEY("api_id")
+    REFERENCES "apis"("id")
     ON DELETE CASCADE
 );
