@@ -60,6 +60,11 @@ source ~/.bashrc
 
 ```bash
 brew install node # Should 'just work' without further finagling.
+brew install nvm
+mkdir ~/.nvm
+echo 'export NVM_DIR="${HOME}/.nvm"' >> "${HOME}/.bashrc" # or .zshrc
+echo 'source "$(brew --prefix nvm)/nvm.sh"' >> "${HOME}/.bashrc" # or .zshrc
+source ~/.bashrc # or .zshrc
 ```
 
  > Ubuntu Linux
