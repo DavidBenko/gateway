@@ -57,8 +57,10 @@ func (e *ProxyEndpoint) Validate(isInsert bool) aperrors.Errors {
 			}
 		}
 	}
+	var isComponentInsert bool
 	for i, c := range e.Components {
-		cErrors := c.Validate()
+		isComponentInsert = isInsert || c.ID == 0
+		cErrors := c.Validate(isComponentInsert)
 		if !cErrors.Empty() {
 			errors.Add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
 		}
@@ -89,55 +91,6 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 		errors.Add("tests", "name is already taken")
 	}
 	return errors
-}
-
-// PopulateSharedComponents populates the SharedComponent handle of any
-// ProxyEndpointComponents on the ProxyEndpoint which have a non-nil
-// SharedComponentID.  This method is used by the BeforeValidate hook on
-// ProxyEndpoint to ensure it can be Validated.
-func (e *ProxyEndpoint) PopulateSharedComponents(db *apsql.DB) error {
-	// map parent SharedComponent IDs to child components; we will assign
-	// handles later
-	inherited := make(map[int64][]*ProxyEndpointComponent)
-	for _, comp := range e.Components {
-		if shID := comp.SharedComponentID; shID != nil {
-			inherited[*shID] = append(inherited[*shID], comp)
-		}
-	}
-
-	parentIDs := make([]int64, len(inherited))
-	var i int
-	for id := range inherited {
-		// For each SharedComponent id, add it to the ids slice
-		parentIDs[i] = id
-		i++
-	}
-
-	// Get all SharedComponents for the slice of IDs
-	parentComponents, err := SharedComponentsByIDs(db, parentIDs)
-	if err != nil {
-		return err
-	}
-
-	// Now assign each one to its owners
-	for _, parent := range parentComponents {
-		// Each parent in parentComponents might belong to multiple
-		// children
-		id := parent.ID
-		if inheritedChildren, ok := inherited[id]; ok {
-			for _, child := range inheritedChildren {
-				// For each child, assign the parent to its
-				// handle.
-				child.SharedComponentHandle = parent
-			}
-		} else {
-			return fmt.Errorf("no component of this endpoint owned"+
-				" a SharedComponent with ID %d", id,
-			)
-		}
-	}
-
-	return nil
 }
 
 // AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
@@ -321,22 +274,24 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	var validComponentIDs []int64
+	var validReferenceIDs []int64
 	for position, component := range e.Components {
 		if component.ID == 0 {
 			err = component.Insert(tx, e.ID, e.APIID, position)
-			if err != nil {
-				return err
-			}
 		} else {
 			err = component.Update(tx, e.ID, e.APIID, position)
-			if err != nil {
-				return err
-			}
 		}
-		validComponentIDs = append(validComponentIDs, component.ID)
+		if err != nil {
+			return err
+		}
+		validReferenceIDs = append(
+			validReferenceIDs,
+			*component.ProxyEndpointComponentReferenceID,
+		)
 	}
-	err = DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx, e.ID, validComponentIDs)
+	err = DeleteProxyEndpointComponentsWithEndpointIDAndRefNotInSlice(
+		tx, e.ID, validReferenceIDs,
+	)
 	if err != nil {
 		return err
 	}

@@ -4,202 +4,105 @@ import (
 	aperrors "gateway/errors"
 	"gateway/model"
 
-	"github.com/jmoiron/sqlx/types"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )
 
-func (s *ModelSuite) TestValidateNonShared(c *gc.C) {
+func (s *ModelSuite) TestProxyEndpointComponentValidate(c *gc.C) {
 	for i, t := range []struct {
-		should       string
-		givenType    string
-		expectErrors aperrors.Errors
+		should        string
+		givenType     string
+		givenRefID    *int64
+		givenSharedID *int64
+		givenIsInsert bool
+		expectErrors  aperrors.Errors
 	}{{
-		should: "validate non-shared on type failure",
+		should:        "on insert, validate non-shared on type failure",
+		givenIsInsert: true,
 		expectErrors: aperrors.Errors{
 			"type": []string{
 				"must be one of 'single', or 'multi', or 'js'",
 			},
 		},
 	}, {
-		should:       "validate non-shared on type OK",
-		givenType:    model.ProxyEndpointComponentTypeJS,
-		expectErrors: aperrors.Errors{},
+		should:        "on insert, validate non-shared on type OK",
+		givenIsInsert: true,
+		givenType:     model.ProxyEndpointComponentTypeJS,
+		expectErrors:  aperrors.Errors{},
 	}, {
-		should:       "validate non-shared on type OK",
-		givenType:    model.ProxyEndpointComponentTypeSingle,
-		expectErrors: aperrors.Errors{},
+		should:        "on insert, validate non-shared on type OK",
+		givenIsInsert: true,
+		givenType:     model.ProxyEndpointComponentTypeSingle,
+		expectErrors:  aperrors.Errors{},
 	}, {
-		should:       "validate non-shared on type OK",
-		givenType:    model.ProxyEndpointComponentTypeMulti,
-		expectErrors: aperrors.Errors{},
-	}} {
-		c.Logf("test %d: should %s", i, t.should)
-		given := &model.ProxyEndpointComponent{
-			Type: t.givenType,
-		}
-		c.Check(given.Validate(), jc.DeepEquals, t.expectErrors)
-	}
-}
-
-func (s *ModelSuite) TestValidateShared(c *gc.C) {
-	sg, m, j := model.ProxyEndpointComponentTypeSingle,
-		model.ProxyEndpointComponentTypeMulti,
-		model.ProxyEndpointComponentTypeJS
-	empty, nonEmpty := types.JsonText(`""`), types.JsonText(`something`)
-
-	for i, t := range []struct {
-		should           string
-		givenType        string
-		givenCall        *model.ProxyEndpointCall
-		givenCalls       []*model.ProxyEndpointCall
-		givenData        types.JsonText
-		givenSharedType  string
-		givenSharedCall  *model.ProxyEndpointCall
-		givenSharedCalls []*model.ProxyEndpointCall
-		givenSharedData  types.JsonText
-		expectErrors     aperrors.Errors
-	}{{
-		should:          "validate on type failure",
-		givenType:       j,
-		givenSharedType: sg,
-		givenData:       empty,
+		should:        "on insert, validate non-shared on type OK",
+		givenIsInsert: true,
+		givenType:     model.ProxyEndpointComponentTypeMulti,
+		expectErrors:  aperrors.Errors{},
+	}, {
+		should:        "on insert, shortcut validation if has shared",
+		givenIsInsert: true,
+		givenType:     "something-wrong",
+		givenSharedID: new(int64),
+		expectErrors:  aperrors.Errors{},
+	}, {
+		should:    "on update, validate non-shared on missing refID",
+		givenType: model.ProxyEndpointComponentTypeJS,
+		expectErrors: aperrors.Errors{
+			"proxy_endpoint_component_reference_id": []string{
+				"must not be undefined",
+			},
+		},
+	}, {
+		should: "on update, validate non-shared on type and missing refID",
 		expectErrors: aperrors.Errors{
 			"type": []string{
-				"must equal shared component's type",
+				"must be one of 'single', or 'multi', or 'js'",
+			},
+			"proxy_endpoint_component_reference_id": []string{
+				"must not be undefined",
 			},
 		},
 	}, {
-		should:          "validate single on Calls failure",
-		givenType:       sg,
-		givenSharedType: sg,
-		givenData:       empty,
-		givenCalls:      make([]*model.ProxyEndpointCall, 1),
+		should:       "on update, validate non-shared on type OK",
+		givenType:    model.ProxyEndpointComponentTypeJS,
+		givenRefID:   new(int64),
+		expectErrors: aperrors.Errors{},
+	}, {
+		should:       "on update, validate non-shared on type OK",
+		givenType:    model.ProxyEndpointComponentTypeSingle,
+		givenRefID:   new(int64),
+		expectErrors: aperrors.Errors{},
+	}, {
+		should:       "on update, validate non-shared on type OK",
+		givenType:    model.ProxyEndpointComponentTypeMulti,
+		givenRefID:   new(int64),
+		expectErrors: aperrors.Errors{},
+	}, {
+		should:        "on update, shortcut other validation if SharedComponentID",
+		givenType:     "something-wrong",
+		givenSharedID: new(int64),
 		expectErrors: aperrors.Errors{
-			"calls": []string{
-				"type " + sg + " must not have multi calls",
+			"proxy_endpoint_component_reference_id": []string{
+				"must not be undefined",
 			},
 		},
 	}, {
-		should:          "validate single on Data failure",
-		givenType:       sg,
-		givenSharedType: sg,
-		givenData:       nonEmpty,
-		expectErrors: aperrors.Errors{
-			"data": []string{
-				"type " + sg + " must have empty js",
-			},
-		},
-	}, {
-		should:          "validate single on Data and Calls failures",
-		givenType:       sg,
-		givenSharedType: sg,
-		givenCalls:      make([]*model.ProxyEndpointCall, 1),
-		givenData:       nonEmpty,
-		expectErrors: aperrors.Errors{
-			"data": []string{
-				"type " + sg + " must have empty js",
-			},
-			"calls": []string{
-				"type " + sg + " must not have multi calls",
-			},
-		},
-	}, {
-		should:          "validate multi on Call failure",
-		givenType:       m,
-		givenSharedType: m,
-		givenData:       empty,
-		givenCall:       new(model.ProxyEndpointCall),
-		expectErrors: aperrors.Errors{
-			"call": []string{
-				"type " + m + " must not have single call",
-			},
-		},
-	}, {
-		should:          "validate multi on Data failure",
-		givenType:       m,
-		givenSharedType: m,
-		givenData:       nonEmpty,
-		expectErrors: aperrors.Errors{
-			"data": []string{
-				"type " + m + " must have empty js",
-			},
-		},
-	}, {
-		should:          "validate multi on Data and Call failures",
-		givenType:       m,
-		givenSharedType: m,
-		givenCall:       new(model.ProxyEndpointCall),
-		givenData:       nonEmpty,
-		expectErrors: aperrors.Errors{
-			"data": []string{
-				"type " + m + " must have empty js",
-			},
-			"call": []string{
-				"type " + m + " must not have single call",
-			},
-		},
-	}, {
-		should:          "validate js on Call failure",
-		givenType:       j,
-		givenSharedType: j,
-		givenData:       nonEmpty,
-		givenCall:       new(model.ProxyEndpointCall),
-		expectErrors: aperrors.Errors{
-			"call": []string{
-				"type " + j + " must not have single call",
-			},
-		},
-	}, {
-		should:          "validate js on Calls failure",
-		givenType:       j,
-		givenSharedType: j,
-		givenData:       nonEmpty,
-		givenCalls:      make([]*model.ProxyEndpointCall, 1),
-		expectErrors: aperrors.Errors{
-			"calls": []string{
-				"type " + j + " must not have multi calls",
-			},
-		},
-	}, {
-		should:          "validate js on Call and Calls failures",
-		givenType:       j,
-		givenSharedType: j,
-		givenData:       nonEmpty,
-		givenCalls:      make([]*model.ProxyEndpointCall, 1),
-		givenCall:       new(model.ProxyEndpointCall),
-		expectErrors: aperrors.Errors{
-			"call": []string{
-				"type " + j + " must not have single call",
-			},
-			"calls": []string{
-				"type " + j + " must not have multi calls",
-			},
-		},
-	}, {
-		should:          "validate shared on type OK",
-		givenType:       j,
-		givenSharedType: j,
-		givenData:       empty,
-		expectErrors:    aperrors.Errors{},
+		should:        "on update, shortcut other validation if SharedComponentID",
+		givenType:     "something-wrong",
+		givenSharedID: new(int64),
+		givenRefID:    new(int64),
+		expectErrors:  aperrors.Errors{},
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
-		shared := &model.SharedComponent{
-			ProxyEndpointComponent: model.ProxyEndpointComponent{
-				Type:  t.givenSharedType,
-				Call:  t.givenSharedCall,
-				Calls: t.givenSharedCalls,
-				Data:  t.givenSharedData,
-			},
-		}
+
 		given := &model.ProxyEndpointComponent{
-			Type:                  t.givenType,
-			Call:                  t.givenCall,
-			Calls:                 t.givenCalls,
-			Data:                  t.givenData,
-			SharedComponentID:     new(int64),
-			SharedComponentHandle: shared,
+			SharedComponentID:                 t.givenSharedID,
+			ProxyEndpointComponentReferenceID: t.givenRefID,
+			Type: t.givenType,
 		}
-		c.Check(given.Validate(), jc.DeepEquals, t.expectErrors)
+
+		errors := given.Validate(t.givenIsInsert)
+		c.Check(errors, jc.DeepEquals, t.expectErrors)
 	}
 }

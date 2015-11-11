@@ -1,7 +1,7 @@
 package model
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 
 	aperrors "gateway/errors"
@@ -14,12 +14,27 @@ const (
 	ProxyEndpointComponentTypeSingle = "single"
 	ProxyEndpointComponentTypeMulti  = "multi"
 	ProxyEndpointComponentTypeJS     = "js"
+
+	// TypeDiscStandard indicates an ordinary ProxyEndpointComponent.
+	TypeDiscStandard = "standard"
+
+	// TypeDiscShared indicates a ProxyEndpointComponent with a synthetic
+	// reference to a SharedComponent.
+	TypeDiscShared = "shared"
 )
 
 // ProxyEndpointComponent represents a step of a ProxyEndpoint's workflow.  It
 // may inherit and override a SharedComponent.
 type ProxyEndpointComponent struct {
-	ID                    int64                          `json:"id,omitempty"`
+	// ID is the ID of the entity in the proxy_endpoint_components table.
+	// It is represented in the API as proxy_endpoint_component_id.
+	ID int64 `json:"proxy_endpoint_component_id,omitempty" db:"id"`
+
+	// ProxyEndpointComponentReferenceID is the ID of the entity in the
+	// proxy_endpoint_component_references table.  SharedComponents do not
+	// populate this field in the SharedComponent API, so it is nullable.
+	ProxyEndpointComponentReferenceID *int64 `json:"proxy_endpoint_component_reference_id,omitempty" db:"proxy_endpoint_component_reference_id"`
+
 	Type                  string                         `json:"type"`
 	Conditional           string                         `json:"conditional"`
 	ConditionalPositive   bool                           `json:"conditional_positive" db:"conditional_positive"`
@@ -28,35 +43,36 @@ type ProxyEndpointComponent struct {
 	Call                  *ProxyEndpointCall             `json:"call,omitempty"`
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
 	Data                  types.JsonText                 `json:"data,omitempty"`
+	SharedComponentID     *int64                         `json:"shared_component_id,omitempty" db:"-"`
 
-	// SharedComponentID is the database ID of the SharedComponent.
-	SharedComponentID *int64 `json:"shared_component_id,omitempty" db:"shared_component_id"`
-
-	// SharedComponentHandle will be fetched before Update or Insert.
-	SharedComponentHandle *SharedComponent `json:"-"`
+	// TypeDiscriminator can be "standard" or "shared" to indicate whether
+	// the component has a synthetic reference to a shared component.
+	// Shared components live in the same table as ordinary components, but
+	// have different properties.  This value is not expressed in the API.
+	TypeDiscriminator string `json:"-" db:"type_discriminator"`
 }
 
 // Validate validates the model.
-//
-// This method will panic if a SharedComponent was not prepopulated for a
-// component having a non-nil SharedComponentID.
-func (c *ProxyEndpointComponent) Validate() aperrors.Errors {
+func (c *ProxyEndpointComponent) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 
-	switch {
-	case c.SharedComponentID != nil:
-		errors.AddErrors(c.validateSharedBase())
-		errors.AddErrors(c.validateAgainstParent())
-	default:
-		errors.AddErrors(c.validateBase())
+	if !isInsert && c.ProxyEndpointComponentReferenceID == nil {
+		errors.Add(
+			"proxy_endpoint_component_reference_id",
+			"must not be undefined",
+		)
 	}
+	if c.SharedComponentID != nil {
+		return errors
+	}
+
+	errors.AddErrors(c.validateType())
+	errors.AddErrors(c.validateTransformations())
 
 	return errors
 }
 
-// validateBase validates a ProxyEndpointComponent which is not inherited from a
-// SharedComponent.
-func (c *ProxyEndpointComponent) validateBase() aperrors.Errors {
+func (c *ProxyEndpointComponent) validateType() aperrors.Errors {
 	errors := make(aperrors.Errors)
 
 	switch c.Type {
@@ -67,78 +83,7 @@ func (c *ProxyEndpointComponent) validateBase() aperrors.Errors {
 		errors.Add("type", "must be one of 'single', or 'multi', or 'js'")
 	}
 
-	errors.AddErrors(c.validateTransformations())
-
 	return errors
-}
-
-// validateSharedBase validates the ProxyEndpointComponent as a base for a
-// SharedComponent.  It assumes the SharedComponentHandle is fully populated.
-func (c *ProxyEndpointComponent) validateSharedBase() aperrors.Errors {
-	errors := make(aperrors.Errors)
-	if c.Type != c.SharedComponentHandle.ProxyEndpointComponent.Type {
-		errors.Add("type", "must equal shared component's type")
-	}
-
-	errors.AddErrors(c.validateTransformations())
-
-	return errors
-}
-
-// validateAgainstParent assumes the SharedComponentHandle is fully populated.
-func (c *ProxyEndpointComponent) validateAgainstParent() aperrors.Errors {
-	switch c.SharedComponentHandle.ProxyEndpointComponent.Type {
-	case ProxyEndpointComponentTypeSingle:
-		return c.validateSingle()
-	case ProxyEndpointComponentTypeMulti:
-		return c.validateMulti()
-	case ProxyEndpointComponentTypeJS:
-		return c.validateJS()
-	default:
-		return aperrors.Errors{
-			"type": []string{"must be one of 'single', or 'multi', or 'js'"},
-		}
-	}
-}
-
-func (c *ProxyEndpointComponent) validateSingle() aperrors.Errors {
-	s := ProxyEndpointComponentTypeSingle
-	return aperrors.ValidateCases([]aperrors.TestCase{
-		{
-			len(c.Calls) == 0,
-			"calls",
-			"type " + s + " must not have multi calls",
-		},
-		{
-			bytes.Equal(c.Data, types.JsonText(`""`)),
-			"data",
-			"type " + s + " must have empty js",
-		},
-	}...)
-}
-
-func (c *ProxyEndpointComponent) validateMulti() aperrors.Errors {
-	m := ProxyEndpointComponentTypeMulti
-	return aperrors.ValidateCases([]aperrors.TestCase{
-		{
-			c.Call == nil,
-			"call",
-			"type " + m + " must not have single call",
-		},
-		{
-			bytes.Equal(c.Data, types.JsonText(`""`)),
-			"data",
-			"type " + m + " must have empty js",
-		},
-	}...)
-}
-
-func (c *ProxyEndpointComponent) validateJS() aperrors.Errors {
-	j := ProxyEndpointTransformationTypeJS
-	return aperrors.ValidateCases([]aperrors.TestCase{
-		{c.Call == nil, "call", "type " + j + " must not have single call"},
-		{len(c.Calls) == 0, "calls", "type " + j + " must not have multi calls"},
-	}...)
 }
 
 func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {
@@ -236,30 +181,34 @@ func PopulateComponents(
 	return nil
 }
 
-// AllProxyEndpointComponentsForEndpointID returns all components of an endpoint.
+// AllProxyEndpointComponentsForEndpointID returns all components of a
+// ProxyEndpoint given its ID.  Only standard (non-shared) Components will have
+// their relationships populated.
 func AllProxyEndpointComponentsForEndpointID(
 	db *apsql.DB, endpointID int64,
 ) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(
 		&components,
-		`SELECT
-			id, conditional, conditional_positive, type, data,
-			shared_component_id
-		FROM proxy_endpoint_components
-		WHERE endpoint_id = ?
-		ORDER BY position ASC;`,
+		db.SQL("proxy_endpoint_component_references/all_endpoint"),
 		endpointID,
 	)
-	if err != nil {
-		return nil, err
-	}
 
 	var componentIDs []int64
 	componentsByID := make(map[int64]*ProxyEndpointComponent)
 	for _, component := range components {
-		componentIDs = append(componentIDs, component.ID)
-		componentsByID[component.ID] = component
+		switch component.TypeDiscriminator {
+		case TypeDiscShared:
+			sharedID := new(int64)
+			*sharedID = component.ID
+			// ProxyEndpointComponent.ID is a reference into the
+			// proxy_endpoint_components table.
+			component.SharedComponentID = sharedID
+		case TypeDiscStandard:
+			// Populate only components without a Shared reference.
+			componentIDs = append(componentIDs, component.ID)
+			componentsByID[component.ID] = component
+		}
 	}
 
 	err = PopulateComponents(db, componentIDs, componentsByID)
@@ -267,22 +216,33 @@ func AllProxyEndpointComponentsForEndpointID(
 	return components, err
 }
 
-// DeleteProxyEndpointComponentsWithEndpointIDAndNotInList
-func DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx *apsql.Tx,
-	endpointID int64, validIDs []int64) error {
-
+// DeleteProxyEndpointComponentsWithEndpointIDAndRefNotInSlice deletes
+// from proxy_endpoint_component_references with the given endpointID, which do
+// not have a ProxyEndpointComponentReferenceID in validIDs.  This also deletes
+// the entry from proxy_endpoint_component, iff it is a non-shared component.
+func DeleteProxyEndpointComponentsWithEndpointIDAndRefNotInSlice(
+	tx *apsql.Tx,
+	endpointID int64,
+	validIDs []int64,
+) error {
 	args := []interface{}{endpointID}
-	var validIDQuery string
+	var validIDQuery = ""
 	if len(validIDs) > 0 {
-		validIDQuery = " AND id NOT IN (" + apsql.NQs(len(validIDs)) + ")"
+		validIDQuery = fmt.Sprintf(" AND id NOT IN (%s)",
+			apsql.NQs(len(validIDs)),
+		)
 		for _, id := range validIDs {
 			args = append(args, id)
 		}
 	}
-	_, err := tx.Exec(
-		`DELETE FROM proxy_endpoint_components
-		WHERE endpoint_id = ?`+validIDQuery+`;`,
-		args...)
+
+	_, err := tx.Exec(`
+DELETE FROM proxy_endpoint_component_references
+  WHERE proxy_endpoint_id = ?
+  `[1:]+validIDQuery+`;`,
+		args...,
+	)
+
 	return err
 }
 
@@ -292,114 +252,299 @@ func (c *ProxyEndpointComponent) Insert(
 	endpointID, apiID int64,
 	position int,
 ) error {
+	if c.SharedComponentID != nil {
+		return c.insertWithShared(tx, endpointID, apiID, position)
+	}
+
+	return c.insertWithoutShared(tx, endpointID, apiID, position)
+}
+
+func (c *ProxyEndpointComponent) insertWithShared(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
+	crID, err := tx.InsertOne(`
+INSERT INTO proxy_endpoint_component_references
+  (proxy_endpoint_id
+  , proxy_endpoint_component_id
+  , position)
+VALUES (
+  (SELECT id FROM proxy_endpoints WHERE id = ? AND api_id = ?)
+  , (SELECT id FROM proxy_endpoint_components WHERE id = ? AND api_id = ?)
+  , ?
+)`[1:],
+		endpointID, apiID,
+		c.SharedComponentID, apiID,
+		position,
+	)
+
+	if err != nil {
+		return aperrors.NewWrapped("Inserting component", err)
+	}
+
+	c.ProxyEndpointComponentReferenceID = new(int64)
+	*c.ProxyEndpointComponentReferenceID = crID
+	c.ID = *c.SharedComponentID
+
+	return nil
+}
+
+func (c *ProxyEndpointComponent) insertWithoutShared(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
 	data, err := marshaledForStorage(c.Data)
 	if err != nil {
 		return aperrors.NewWrapped("Marshaling component JSON", err)
 	}
 
-	c.ID, err = tx.InsertOne(
-		`INSERT INTO proxy_endpoint_components
-			(endpoint_id, conditional, conditional_positive,
-			 position, type, data, shared_component_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		endpointID, c.Conditional, c.ConditionalPositive,
-		position, c.Type, data, c.SharedComponentID)
+	c.ID, err = tx.InsertOne(`
+INSERT INTO proxy_endpoint_components
+  (conditional
+  , conditional_positive
+  , type
+  , data
+  , type_discriminator)
+  VALUES (?, ?, ?, ?, ?)`[1:],
+		c.Conditional,
+		c.ConditionalPositive,
+		c.Type,
+		data,
+		TypeDiscStandard,
+	)
+
 	if err != nil {
 		return aperrors.NewWrapped("Inserting component", err)
 	}
 
+	crID, err := tx.InsertOne(`
+INSERT INTO proxy_endpoint_component_references
+  (proxy_endpoint_id
+  , proxy_endpoint_component_id
+  , position)
+  VALUES (
+    (SELECT id FROM proxy_endpoints WHERE id = ? AND api_id = ?)
+    , ?, ?
+  )`[1:],
+		endpointID, apiID,
+		c.ID, position,
+	)
+
+	if err != nil {
+		return aperrors.NewWrapped("Inserting component reference", err)
+	}
+
+	c.ProxyEndpointComponentReferenceID = new(int64)
+	*c.ProxyEndpointComponentReferenceID = crID
+
+	if err = c.InsertRelationships(tx, apiID); err != nil {
+		return aperrors.NewWrapped(
+			"Inserting component relationships", err,
+		)
+	}
+
+	return nil
+}
+
+// InsertRelationships performs a database Insert on each relationship item in
+// the ProxyEndpointComponent, i.e. Transformations and Calls.
+func (c *ProxyEndpointComponent) InsertRelationships(
+	tx *apsql.Tx, apiID int64,
+) error {
+	var err error
 	for tPosition, transform := range c.BeforeTransformations {
 		err = transform.InsertForComponent(tx, c.ID, true, tPosition)
 		if err != nil {
-			return aperrors.NewWrapped("Inserting before transformation", err)
+			return aperrors.NewWrapped(
+				"Inserting before transformation", err,
+			)
 		}
 	}
 	for tPosition, transform := range c.AfterTransformations {
 		err = transform.InsertForComponent(tx, c.ID, false, tPosition)
 		if err != nil {
-			return aperrors.NewWrapped("Inserting after transformation", err)
+			return aperrors.NewWrapped(
+				"Inserting after transformation", err,
+			)
 		}
 	}
 
 	switch c.Type {
 	case ProxyEndpointComponentTypeSingle:
-		if err = c.Call.Insert(tx, c.ID, apiID, 0); err != nil {
-			return aperrors.NewWrapped("Inserting single call", err)
+		if call := c.Call; call != nil {
+			if err = call.Insert(tx, c.ID, apiID, 0); err != nil {
+				return aperrors.NewWrapped(
+					"Inserting single call", err,
+				)
+			}
 		}
 	case ProxyEndpointComponentTypeMulti:
 		for position, call := range c.Calls {
-			if err = call.Insert(tx, c.ID, apiID, position); err != nil {
-				return aperrors.NewWrapped("Inserting multi call", err)
+			err = call.Insert(tx, c.ID, apiID, position)
+			if err != nil {
+				return aperrors.NewWrapped(
+					"Inserting multi call", err,
+				)
 			}
 		}
-	default:
 	}
 
 	return nil
 }
 
 // Update updates the component in place.
-func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
-	position int) error {
+func (c *ProxyEndpointComponent) Update(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
+	if c.ProxyEndpointComponentReferenceID == nil {
+		return errors.New("cannot update ProxyEndpointComponent with nil reference ID")
+	}
+
+	if c.SharedComponentID != nil {
+		return c.updateWithShared(tx, endpointID, apiID, position)
+	}
+
+	return c.updateWithoutShared(tx, endpointID, apiID, position)
+}
+
+func (c *ProxyEndpointComponent) updateWithShared(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
+	return tx.UpdateOne(`
+UPDATE proxy_endpoint_component_references
+  SET position = ?
+  , proxy_endpoint_component_id = (
+    SELECT id FROM proxy_endpoint_components WHERE id = ? AND api_id = ?
+  )
+  WHERE proxy_endpoint_id = (
+    SELECT id FROM proxy_endpoints WHERE id = ? AND api_id = ?
+  ) AND id = ?;`[1:],
+		position,
+		c.SharedComponentID, apiID,
+		endpointID, apiID,
+		c.ProxyEndpointComponentReferenceID,
+	)
+}
+
+func (c *ProxyEndpointComponent) updateWithoutShared(
+	tx *apsql.Tx,
+	endpointID, apiID int64,
+	position int,
+) error {
 	data, err := marshaledForStorage(c.Data)
 	if err != nil {
 		return err
 	}
 
-	err = tx.UpdateOne(
-		`UPDATE proxy_endpoint_components
-		SET
-			conditional = ?,
-			conditional_positive = ?,
-			position = ?,
-			type = ?,
-			data = ?,
-			shared_component_id = ?
-		WHERE id = ? AND endpoint_id = ?;`,
+	err = tx.UpdateOne(`
+UPDATE proxy_endpoint_components
+  SET conditional = ?
+    , conditional_positive = ?
+    , type = ?
+    , data = ?
+  WHERE id = (
+    SELECT cr.proxy_endpoint_component_id
+    FROM proxy_endpoint_component_references AS cr,
+      proxy_endpoint_components AS pc
+    WHERE pc.id = cr.proxy_endpoint_component_id
+      AND cr.id = ?
+      AND pc.id = ?
+  );`[1:],
 		c.Conditional,
 		c.ConditionalPositive,
-		position,
 		c.Type,
 		data,
-		c.SharedComponentID,
+		c.ProxyEndpointComponentReferenceID,
 		c.ID,
-		endpointID,
 	)
+
 	if err != nil {
 		return err
 	}
 
+	err = tx.UpdateOne(`
+UPDATE proxy_endpoint_component_references
+  SET position = ?
+  WHERE proxy_endpoint_id = ?
+  AND id = (
+    SELECT cr.id
+    FROM proxy_endpoint_component_references AS cr,
+      proxy_endpoint_components AS pc
+    WHERE pc.id = cr.proxy_endpoint_component_id
+      AND cr.id = ?
+      AND pc.id = ?
+  );`[1:],
+		position,
+		endpointID,
+		c.ProxyEndpointComponentReferenceID,
+		c.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return c.UpdateRelationships(tx, apiID)
+}
+
+// UpdateRelationships performs a database Update on each relationship item in
+// the ProxyEndpointComponent, i.e. Transformations and Calls.
+func (c *ProxyEndpointComponent) UpdateRelationships(
+	tx *apsql.Tx, apiID int64,
+) error {
 	var validTransformationIDs []int64
+	var err error
+
 	for position, transformation := range c.BeforeTransformations {
 		if transformation.ID == 0 {
-			err = transformation.InsertForComponent(tx, c.ID, true, position)
-			if err != nil {
-				return err
-			}
+			err = transformation.InsertForComponent(
+				tx, c.ID, true, position,
+			)
 		} else {
-			err = transformation.UpdateForComponent(tx, c.ID, true, position)
-			if err != nil {
-				return err
-			}
+			err = transformation.UpdateForComponent(
+				tx, c.ID, true, position,
+			)
 		}
-		validTransformationIDs = append(validTransformationIDs, transformation.ID)
+
+		if err != nil {
+			return err
+		}
+
+		validTransformationIDs = append(
+			validTransformationIDs, transformation.ID,
+		)
 	}
+
 	for position, transformation := range c.AfterTransformations {
 		if transformation.ID == 0 {
-			err = transformation.InsertForComponent(tx, c.ID, false, position)
-			if err != nil {
-				return err
-			}
+			err = transformation.InsertForComponent(
+				tx, c.ID, true, position,
+			)
 		} else {
-			err = transformation.UpdateForComponent(tx, c.ID, false, position)
-			if err != nil {
-				return err
-			}
+			err = transformation.UpdateForComponent(
+				tx, c.ID, true, position,
+			)
 		}
-		validTransformationIDs = append(validTransformationIDs, transformation.ID)
+
+		if err != nil {
+			return err
+		}
+
+		validTransformationIDs = append(
+			validTransformationIDs, transformation.ID,
+		)
 	}
-	err = DeleteProxyEndpointTransformationsWithComponentIDAndNotInList(tx,
-		c.ID, validTransformationIDs)
+
+	err = DeleteProxyEndpointTransformationsWithComponentIDAndNotInList(
+		tx, c.ID, validTransformationIDs,
+	)
+
 	if err != nil {
 		return err
 	}
@@ -407,41 +552,37 @@ func (c *ProxyEndpointComponent) Update(tx *apsql.Tx, endpointID, apiID int64,
 	var validCallIDs []int64
 	switch c.Type {
 	case ProxyEndpointComponentTypeSingle:
-		if c.Call.ID == 0 {
-			err = c.Call.Insert(tx, c.ID, apiID, 0)
+		if call := c.Call; call != nil {
+			if call.ID == 0 {
+				err = call.Insert(tx, c.ID, apiID, 0)
+			} else {
+				err = call.Update(tx, c.ID, apiID, 0)
+			}
+
 			if err != nil {
 				return err
 			}
-		} else {
-			err = c.Call.Update(tx, c.ID, apiID, 0)
-			if err != nil {
-				return err
-			}
+
+			validCallIDs = append(validCallIDs, call.ID)
 		}
-		validCallIDs = append(validCallIDs, c.Call.ID)
 	case ProxyEndpointComponentTypeMulti:
 		for position, call := range c.Calls {
 			if call.ID == 0 {
 				err = call.Insert(tx, c.ID, apiID, position)
-				if err != nil {
-					return err
-				}
 			} else {
 				err = call.Update(tx, c.ID, apiID, position)
-				if err != nil {
-					return err
-				}
 			}
+
+			if err != nil {
+				return err
+			}
+
 			validCallIDs = append(validCallIDs, call.ID)
 		}
 	default:
 	}
 
-	err = DeleteProxyEndpointCallsWithComponentIDAndNotInList(tx,
-		c.ID, validCallIDs)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return DeleteProxyEndpointCallsWithComponentIDAndNotInList(
+		tx, c.ID, validCallIDs,
+	)
 }

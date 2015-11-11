@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
@@ -10,6 +9,10 @@ import (
 // globally for an API and selected for a Proxy Endpoint component.
 type SharedComponent struct {
 	ProxyEndpointComponent
+
+	// ID overrides ProxyEndpointComponent's ID field.
+	ID int64 `json:"id" db:"id"`
+
 	AccountID int64 `json:"-"`
 	UserID    int64 `json:"-"`
 	APIID     int64 `json:"api_id,omitempty" db:"api_id"`
@@ -18,19 +21,30 @@ type SharedComponent struct {
 	Description string `json:"description"`
 }
 
-// Validate validates the modes.
-func (s *SharedComponent) Validate() aperrors.Errors {
+// Validate validates the base ProxyEndpointComponent, name, and ID.  isInsert
+// has no effect here, but is required by the controller.
+func (s *SharedComponent) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 
 	if s.Name == "" {
 		errors.Add("name", "must not be blank")
 	}
 
-	if s.SharedComponentID != nil {
+	pec := s.ProxyEndpointComponent
+
+	if pec.SharedComponentID != nil {
 		errors.Add("shared_component_id", "must not be defined")
 	}
 
-	errors.AddErrors(s.ProxyEndpointComponent.Validate())
+	if pec.ProxyEndpointComponentReferenceID != nil {
+		errors.Add("proxy_endpoint_component_reference_id",
+			"must not be defined",
+		)
+	}
+
+	// Validate base Component.
+	errors.AddErrors(pec.validateType())
+	errors.AddErrors(pec.validateTransformations())
 
 	return errors
 }
@@ -39,119 +53,78 @@ func (s *SharedComponent) Validate() aperrors.Errors {
 // into validation errors.
 func (s *SharedComponent) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "shared_components", "api_id", "name") {
+	if apsql.IsUniqueConstraint(
+		err, "proxy_endpoint_components", "api_id", "name",
+	) {
 		errors.Add("name", "is already taken")
 	}
 	return errors
 }
 
-// AllSharedComponentsForAPIIDAndAccountID returns all shared components on the
-// Account's API in default order.
-func AllSharedComponentsForAPIIDAndAccountID(
-	db *apsql.DB,
-	apiID, accountID int64,
-) ([]*SharedComponent, error) {
-	shared := []*SharedComponent{}
-
-	err := db.Select(
-		&shared,
-		db.SQL("shared_components/all"),
-		apiID, accountID,
-	)
-
-	return shared, err
-}
-
-// SharedComponentsByIDs takes a slice of IDs of SharedComponents and
-// returns a slice of the given SharedComponents with all relationships
-// populated.
-func SharedComponentsByIDs(
-	db *apsql.DB,
-	ids []int64,
-) ([]*SharedComponent, error) {
-	// Fetch the SharedComponents for this set of owner IDs.
-	var shared []*SharedComponent
-
-	interfaceIDs := make([]interface{}, len(ids))
-	for i, id := range ids {
-		interfaceIDs[i] = id
-	}
-
-	err := db.Select(
-		&shared,
-		`
-SELECT
-  id
-  , conditional
-  , conditional_positive
-  , type
-  , data
-  , name
-  , description
-FROM shared_components
-WHERE id IN (`[1:]+apsql.NQs(len(ids))+")",
-		interfaceIDs...,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// We should find the same number of SharedComponents as we asked for.
-	if len(shared) != len(ids) {
-		return nil, fmt.Errorf(
-			"tried to find %d SharedComponents but only found %d",
-			len(ids), len(shared),
-		)
-	}
-
-	if err := PopulateSharedComponents(db, shared); err != nil {
-		return nil, err
-	}
-
-	return shared, nil
-}
-
-// PopulateSharedComponents takes a DB handle and a slice of SharedComponents
-// and populates all relationships in the given SharedComponents.  This function
-// mutates the members of the given slice.
-func PopulateSharedComponents(
-	db *apsql.DB, components []*SharedComponent,
-) error {
+func populateSharedComponents(db *apsql.DB, shared []*SharedComponent) error {
 	// Populate each ProxyEndpointComponent for the SharedComponents.
 	var componentIDs []int64
 	componentsByID := make(map[int64]*ProxyEndpointComponent)
-	for _, sharedComponent := range components {
-		componentIDs = append(componentIDs, sharedComponent.ID)
-		componentsByID[sharedComponent.ID] = &sharedComponent.ProxyEndpointComponent
+	for _, sh := range shared {
+		componentIDs = append(componentIDs, sh.ID)
+		pec := &(sh.ProxyEndpointComponent)
+		pec.ID = sh.ID
+		componentsByID[sh.ID] = pec
 	}
 
 	return PopulateComponents(db, componentIDs, componentsByID)
 }
 
-// AllSharedComponentsForAPIID returns all shared components on the API in
-// default order.
-func AllSharedComponentsForAPIID(
-	db *apsql.DB, apiID int64,
-) ([]*SharedComponent, error) {
-	shared := []*SharedComponent{}
-	err := db.Select(&shared, db.SQL("shared_components/all_api"), apiID)
+// AllSharedComponentsForAPI returns a map of all Shared Components for the
+// given API ID with all relationships populated, keyed by ID.
+func AllSharedComponentsForAPI(db *apsql.DB, apiID int64) (
+	map[int64]*SharedComponent, error,
+) {
+	sharedCs := []*SharedComponent{}
+
+	err := db.Select(
+		&sharedCs,
+		db.SQL("proxy_endpoint_components/all_shared_api"),
+		apiID,
+	)
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Populate each ProxyEndpointComponent for the SharedComponents.
-	var componentIDs []int64
-	componentsByID := make(map[int64]*ProxyEndpointComponent)
-	for _, sharedComponent := range shared {
-		componentIDs = append(componentIDs, sharedComponent.ID)
-		componentsByID[sharedComponent.ID] = &sharedComponent.ProxyEndpointComponent
+	if err = populateSharedComponents(db, sharedCs); err != nil {
+		return nil, err
 	}
 
-	err = PopulateComponents(db, componentIDs, componentsByID)
+	mapCs := make(map[int64]*SharedComponent)
+	for _, c := range sharedCs {
+		mapCs[c.ID] = c
+	}
 
-	return shared, err
+	return mapCs, err
+}
+
+// AllSharedComponentsForAPIIDAndAccountID returns all shared components on the
+// Account's API in default order, with all relationships populated.
+func AllSharedComponentsForAPIIDAndAccountID(
+	db *apsql.DB,
+	apiID, accountID int64,
+) ([]*SharedComponent, error) {
+	sharedCs := []*SharedComponent{}
+
+	err := db.Select(
+		&sharedCs,
+		db.SQL("proxy_endpoint_components/all_shared_api_acc"),
+		apiID, accountID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = populateSharedComponents(db, sharedCs)
+
+	return sharedCs, err
 }
 
 // FindSharedComponentForAPIIDAndAccountID returns the shared component with the
@@ -161,9 +134,10 @@ func FindSharedComponentForAPIIDAndAccountID(
 	id, apiID, accountID int64,
 ) (*SharedComponent, error) {
 	shared := &SharedComponent{}
+
 	err := db.Get(
 		shared,
-		db.SQL("shared_components/find"),
+		db.SQL("proxy_endpoint_components/find_shared"),
 		id, apiID, accountID,
 	)
 
@@ -171,33 +145,30 @@ func FindSharedComponentForAPIIDAndAccountID(
 		return nil, err
 	}
 
-	// Populate each ProxyEndpointComponent for the SharedComponents.
-	componentIDs := []int64{shared.ID}
-	componentsByID := map[int64]*ProxyEndpointComponent{
-		shared.ID: &(shared.ProxyEndpointComponent),
-	}
-
-	err = PopulateComponents(db, componentIDs, componentsByID)
+	err = populateSharedComponents(db, []*SharedComponent{shared})
 
 	return shared, err
 }
 
 // DeleteSharedComponentForAPIIDAndAccountID deletes the shared component with
-// the id, api_id and account_id specified.
+// the id, api_id, and account_id specified.
 func DeleteSharedComponentForAPIIDAndAccountID(
 	tx *apsql.Tx,
 	id, apiID, accountID, userID int64,
 ) error {
 	err := tx.DeleteOne(
-		tx.SQL("shared_components/delete"),
+		tx.SQL("proxy_endpoint_components/delete_shared"),
 		id, apiID, accountID,
 	)
+
 	if err != nil {
 		return err
 	}
+
 	return tx.Notify(
-		"shared_components",
+		"proxy_endpoint_components",
 		accountID, userID, apiID, id,
+		0, // ProxyEndpointID
 		apsql.Delete,
 	)
 }
@@ -212,76 +183,56 @@ func (s *SharedComponent) Insert(tx *apsql.Tx) error {
 	}
 
 	s.ID, err = tx.InsertOne(
-		tx.SQL("shared_components/insert"),
+		tx.SQL("proxy_endpoint_components/insert_shared"),
 		s.Conditional, s.ConditionalPositive, s.Type, data,
-		s.APIID, s.AccountID, s.Name, s.Description,
+		s.Name, s.Description,
+		s.APIID, s.AccountID,
 	)
 	if err != nil {
 		return aperrors.NewWrapped("Inserting shared component", err)
 	}
 
-	for tPosition, transform := range s.BeforeTransformations {
-		err = transform.InsertForComponent(tx, s.ID, true, tPosition)
-		if err != nil {
-			return aperrors.NewWrapped(
-				"Inserting before transformation", err,
-			)
-		}
-	}
-
-	for tPosition, transform := range s.AfterTransformations {
-		err = transform.InsertForComponent(tx, s.ID, false, tPosition)
-		if err != nil {
-			return aperrors.NewWrapped(
-				"Inserting after transformation", err,
-			)
-		}
-	}
-
-	switch s.Type {
-	case ProxyEndpointComponentTypeSingle:
-		if err = s.Call.Insert(tx, s.ID, s.APIID, 0); err != nil {
-			return aperrors.NewWrapped("Inserting single call", err)
-		}
-	case ProxyEndpointComponentTypeMulti:
-		for callPosition, call := range s.Calls {
-			err = call.Insert(tx, s.ID, s.APIID, callPosition)
-			if err != nil {
-				return aperrors.NewWrapped(
-					"Inserting multi call", err,
-				)
-			}
-		}
-	default:
+	pec := s.ProxyEndpointComponent
+	pec.ID = s.ID
+	if err = pec.InsertRelationships(tx, s.APIID); err != nil {
+		return aperrors.NewWrapped("Inserting shared component relationships", err)
 	}
 
 	return tx.Notify(
-		"shared_components",
+		"proxy_endpoint_components",
 		s.AccountID, s.UserID, s.APIID, s.ID,
+		0, // ProxyEndpointID
 		apsql.Insert,
 	)
 }
 
-// Update updates the library in the databass.
+// Update updates the SharedComponent in the database.
 func (s *SharedComponent) Update(tx *apsql.Tx) error {
-	// TODO(@binary132): add all the Update calls as in Insert
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
 		return err
 	}
 	err = tx.UpdateOne(
-		tx.SQL("shared_components/update"),
+		tx.SQL("proxy_endpoint_components/update_shared"),
 		s.Conditional, s.ConditionalPositive, s.Type, data,
-		s.APIID, s.Name, s.Description,
+		s.Name, s.Description,
 		s.ID,
 		s.APIID, s.AccountID,
 	)
 	if err != nil {
 		return err
 	}
+
+	pec := s.ProxyEndpointComponent
+	pec.ID = s.ID
+	if err = pec.UpdateRelationships(tx, s.APIID); err != nil {
+		return err
+	}
+
 	return tx.Notify(
-		"shared_components",
+		"proxy_endpoint_components",
 		s.AccountID, s.UserID, s.APIID, s.ID,
+		0, // ProxyEndpointID
 		apsql.Update,
 	)
 }
