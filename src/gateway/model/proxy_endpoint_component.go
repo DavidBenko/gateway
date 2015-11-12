@@ -1,6 +1,7 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 
 	aperrors "gateway/errors"
@@ -103,16 +104,32 @@ func (c *ProxyEndpointComponent) validateAgainstParent() aperrors.Errors {
 func (c *ProxyEndpointComponent) validateSingle() aperrors.Errors {
 	s := ProxyEndpointComponentTypeSingle
 	return aperrors.ValidateCases([]aperrors.TestCase{
-		{len(c.Calls) == 0, "calls", "type " + s + " must not have multi calls"},
-		{c.Data == nil, "data", "type " + s + " must not have js"},
+		{
+			len(c.Calls) == 0,
+			"calls",
+			"type " + s + " must not have multi calls",
+		},
+		{
+			bytes.Equal(c.Data, types.JsonText(`""`)),
+			"data",
+			"type " + s + " must have empty js",
+		},
 	}...)
 }
 
 func (c *ProxyEndpointComponent) validateMulti() aperrors.Errors {
 	m := ProxyEndpointComponentTypeMulti
 	return aperrors.ValidateCases([]aperrors.TestCase{
-		{c.Call == nil, "call", "type " + m + " must not have single call"},
-		{c.Data == nil, "data", "type " + m + " must not have js"},
+		{
+			c.Call == nil,
+			"call",
+			"type " + m + " must not have single call",
+		},
+		{
+			bytes.Equal(c.Data, types.JsonText(`""`)),
+			"data",
+			"type " + m + " must have empty js",
+		},
 	}...)
 }
 

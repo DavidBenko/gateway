@@ -46,6 +46,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 	sg, m, j := model.ProxyEndpointComponentTypeSingle,
 		model.ProxyEndpointComponentTypeMulti,
 		model.ProxyEndpointComponentTypeJS
+	empty, nonEmpty := types.JsonText(`""`), types.JsonText(`something`)
 
 	for i, t := range []struct {
 		should           string
@@ -62,6 +63,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate on type failure",
 		givenType:       j,
 		givenSharedType: sg,
+		givenData:       empty,
 		expectErrors: aperrors.Errors{
 			"type": []string{
 				"must equal shared component's type",
@@ -71,6 +73,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate single on Calls failure",
 		givenType:       sg,
 		givenSharedType: sg,
+		givenData:       empty,
 		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		expectErrors: aperrors.Errors{
 			"calls": []string{
@@ -81,10 +84,10 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate single on Data failure",
 		givenType:       sg,
 		givenSharedType: sg,
-		givenData:       make(types.JsonText, 0),
+		givenData:       nonEmpty,
 		expectErrors: aperrors.Errors{
 			"data": []string{
-				"type " + sg + " must not have js",
+				"type " + sg + " must have empty js",
 			},
 		},
 	}, {
@@ -92,10 +95,10 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		givenType:       sg,
 		givenSharedType: sg,
 		givenCalls:      make([]*model.ProxyEndpointCall, 1),
-		givenData:       make(types.JsonText, 0),
+		givenData:       nonEmpty,
 		expectErrors: aperrors.Errors{
 			"data": []string{
-				"type " + sg + " must not have js",
+				"type " + sg + " must have empty js",
 			},
 			"calls": []string{
 				"type " + sg + " must not have multi calls",
@@ -105,6 +108,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate multi on Call failure",
 		givenType:       m,
 		givenSharedType: m,
+		givenData:       empty,
 		givenCall:       new(model.ProxyEndpointCall),
 		expectErrors: aperrors.Errors{
 			"call": []string{
@@ -115,10 +119,10 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate multi on Data failure",
 		givenType:       m,
 		givenSharedType: m,
-		givenData:       make(types.JsonText, 0),
+		givenData:       nonEmpty,
 		expectErrors: aperrors.Errors{
 			"data": []string{
-				"type " + m + " must not have js",
+				"type " + m + " must have empty js",
 			},
 		},
 	}, {
@@ -126,10 +130,10 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		givenType:       m,
 		givenSharedType: m,
 		givenCall:       new(model.ProxyEndpointCall),
-		givenData:       make(types.JsonText, 0),
+		givenData:       nonEmpty,
 		expectErrors: aperrors.Errors{
 			"data": []string{
-				"type " + m + " must not have js",
+				"type " + m + " must have empty js",
 			},
 			"call": []string{
 				"type " + m + " must not have single call",
@@ -139,6 +143,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate js on Call failure",
 		givenType:       j,
 		givenSharedType: j,
+		givenData:       nonEmpty,
 		givenCall:       new(model.ProxyEndpointCall),
 		expectErrors: aperrors.Errors{
 			"call": []string{
@@ -149,6 +154,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate js on Calls failure",
 		givenType:       j,
 		givenSharedType: j,
+		givenData:       nonEmpty,
 		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		expectErrors: aperrors.Errors{
 			"calls": []string{
@@ -159,6 +165,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate js on Call and Calls failures",
 		givenType:       j,
 		givenSharedType: j,
+		givenData:       nonEmpty,
 		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		givenCall:       new(model.ProxyEndpointCall),
 		expectErrors: aperrors.Errors{
@@ -173,6 +180,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 		should:          "validate shared on type OK",
 		givenType:       j,
 		givenSharedType: j,
+		givenData:       empty,
 		expectErrors:    aperrors.Errors{},
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
