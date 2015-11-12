@@ -72,11 +72,11 @@ func (c *ProxyEndpointComponent) validateBase() aperrors.Errors {
 }
 
 // validateSharedBase validates the ProxyEndpointComponent as a base for a
-// SharedComponent.
+// SharedComponent.  It assumes the SharedComponentHandle is fully populated.
 func (c *ProxyEndpointComponent) validateSharedBase() aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if c.Type != "" {
-		errors.Add("type", "must not override SharedComponent's type")
+	if c.Type != c.SharedComponentHandle.ProxyEndpointComponent.Type {
+		errors.Add("type", "must equal shared component's type")
 	}
 
 	errors.AddErrors(c.validateTransformations())
