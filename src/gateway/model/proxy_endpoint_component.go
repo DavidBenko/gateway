@@ -103,7 +103,7 @@ func (c *ProxyEndpointComponent) validateAgainstParent() aperrors.Errors {
 func (c *ProxyEndpointComponent) validateSingle() aperrors.Errors {
 	s := ProxyEndpointComponentTypeSingle
 	return aperrors.ValidateCases([]aperrors.TestCase{
-		{c.Calls == nil, "calls", "type " + s + " must not have multi calls"},
+		{len(c.Calls) == 0, "calls", "type " + s + " must not have multi calls"},
 		{c.Data == nil, "data", "type " + s + " must not have js"},
 	}...)
 }
@@ -120,7 +120,7 @@ func (c *ProxyEndpointComponent) validateJS() aperrors.Errors {
 	j := ProxyEndpointTransformationTypeJS
 	return aperrors.ValidateCases([]aperrors.TestCase{
 		{c.Call == nil, "call", "type " + j + " must not have single call"},
-		{c.Calls == nil, "calls", "type " + j + " must not have multi calls"},
+		{len(c.Calls) == 0, "calls", "type " + j + " must not have multi calls"},
 	}...)
 }
 

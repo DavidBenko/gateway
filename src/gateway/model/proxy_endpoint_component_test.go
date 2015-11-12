@@ -70,7 +70,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 	}, {
 		should:          "validate single on Calls failure",
 		givenSharedType: model.ProxyEndpointComponentTypeSingle,
-		givenCalls:      make([]*model.ProxyEndpointCall, 0),
+		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		expectErrors: aperrors.Errors{
 			"calls": []string{
 				"type " + sg + " must not have multi calls",
@@ -88,7 +88,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 	}, {
 		should:          "validate single on Data and Calls failures",
 		givenSharedType: model.ProxyEndpointComponentTypeSingle,
-		givenCalls:      make([]*model.ProxyEndpointCall, 0),
+		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		givenData:       make(types.JsonText, 0),
 		expectErrors: aperrors.Errors{
 			"data": []string{
@@ -141,7 +141,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 	}, {
 		should:          "validate js on Calls failure",
 		givenSharedType: model.ProxyEndpointComponentTypeJS,
-		givenCalls:      make([]*model.ProxyEndpointCall, 0),
+		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		expectErrors: aperrors.Errors{
 			"calls": []string{
 				"type " + j + " must not have multi calls",
@@ -150,7 +150,7 @@ func (s *ModelSuite) TestValidateShared(c *gc.C) {
 	}, {
 		should:          "validate js on Call and Calls failures",
 		givenSharedType: model.ProxyEndpointComponentTypeJS,
-		givenCalls:      make([]*model.ProxyEndpointCall, 0),
+		givenCalls:      make([]*model.ProxyEndpointCall, 1),
 		givenCall:       new(model.ProxyEndpointCall),
 		expectErrors: aperrors.Errors{
 			"call": []string{
