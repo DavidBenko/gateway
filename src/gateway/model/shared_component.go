@@ -71,6 +71,12 @@ func SharedComponentsByIDs(
 ) ([]*SharedComponent, error) {
 	// Fetch the SharedComponents for this set of owner IDs.
 	var shared []*SharedComponent
+
+	interfaceIDs := make([]interface{}, len(ids))
+	for i, id := range ids {
+		interfaceIDs[i] = id
+	}
+
 	err := db.Select(
 		&shared,
 		`
@@ -84,8 +90,9 @@ SELECT
   , description
 FROM shared_components
 WHERE id IN (`[1:]+apsql.NQs(len(ids))+")",
-		ids,
+		interfaceIDs...,
 	)
+
 	if err != nil {
 		return nil, err
 	}
