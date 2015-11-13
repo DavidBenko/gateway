@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,6 +38,10 @@ func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *
 	api, err := model.FindAPIForAccountIDForSwagger(db, s.APIID, s.AccountID)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	if !api.EnableSwagger {
+		return aphttp.NewError(errors.New("Swagger is disabled"), http.StatusBadRequest)
 	}
 
 	endpoints := map[int64]*model.ProxyEndpoint{}

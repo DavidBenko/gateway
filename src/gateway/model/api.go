@@ -22,6 +22,7 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
+	EnableSwagger        bool   `json:"enable_swagger" db:"enable_swagger"`
 	Export               string `json:"export,omitempty" db:"-"`
 
 	Environments         []*Environment         `json:"environments,omitempty"`
@@ -174,7 +175,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	}
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger)
 	if err != nil {
 		return
 	}
@@ -187,7 +188,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 func (a *API) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger,
 		a.ID, a.AccountID)
 	if err != nil {
 		return err
