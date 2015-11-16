@@ -8,7 +8,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
-	"gateway/model"
+	//"gateway/model"
 	sql "gateway/sql"
 
 	"github.com/gorilla/mux"
@@ -96,23 +96,14 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
 
-	hosts, err := model.AllHosts(db)
-	if err != nil {
-		log.Printf("%s Error fetching hosts to route: %v", config.System, err)
-		return
+	var swagger aphttp.Router
+	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+		router)
+	if conf.CORSEnabled {
+		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
 	}
-
-	for _, host := range hosts {
-		route := router.NewRoute()
-		route.Host(host.Hostname)
-		var swagger aphttp.Router
-		swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
-			route.Subrouter())
-		if conf.CORSEnabled {
-			swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
-		}
-		RouteSwagger(&SwaggerController{host.AccountID, host.APIID}, "/swagger.json", swagger, db, conf)
-	}
+	sc := newSwaggerController(db)
+	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

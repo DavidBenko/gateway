@@ -5,20 +5,86 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
 	apsql "gateway/sql"
 
+	"github.com/gorilla/context"
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 type SwaggerController struct {
+	router *mux.Router
+	mutex  sync.RWMutex
+	db     *apsql.DB
+}
+
+type SwaggerMatch struct {
 	AccountID int64
 	APIID     int64
+}
+
+func newSwaggerController(db *apsql.DB) *SwaggerController {
+	s := &SwaggerController{db: db}
+	s.rebuild()
+	db.RegisterListener(s)
+	return s
+}
+
+func (s *SwaggerController) rebuild() {
+	hosts, err := model.AllHosts(s.db)
+	if err != nil {
+		log.Printf("%s Error fetching hosts to route: %v", config.System, err)
+		return
+	}
+
+	router := mux.NewRouter()
+	for _, host := range hosts {
+		route := router.NewRoute()
+		match := &SwaggerMatch{
+			AccountID: host.AccountID,
+			APIID:     host.APIID,
+		}
+		name, err := json.Marshal(match)
+		if err != nil {
+			log.Fatal(err)
+		}
+		route.Name(string(name))
+		route.Host(host.Hostname)
+	}
+
+	defer s.mutex.Unlock()
+	s.mutex.Lock()
+	s.router = router
+}
+
+func (s *SwaggerController) isRouted(r *http.Request, rm *mux.RouteMatch) bool {
+	var match mux.RouteMatch
+	defer s.mutex.RUnlock()
+	s.mutex.RLock()
+	ok := s.router.Match(r, &match)
+	if ok {
+		context.Set(r, aphttp.ContextMatchKey, &match)
+	}
+	return ok
+}
+
+func (s *SwaggerController) Notify(n *apsql.Notification) {
+	if n.Table == "hosts" {
+		go s.rebuild()
+	}
+}
+
+func (s *SwaggerController) Reconnect() {
+	log.Printf("%s Admin notified of database reconnection", config.System)
+	go s.rebuild()
 }
 
 func RouteSwagger(controller *SwaggerController, path string,
@@ -31,11 +97,18 @@ func RouteSwagger(controller *SwaggerController, path string,
 		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
 	}
 
-	router.Handle(path, handlers.MethodHandler(routes))
+	router.Handle(path, handlers.MethodHandler(routes)).MatcherFunc(controller.isRouted)
 }
 
 func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
-	api, err := model.FindAPIForAccountIDForSwagger(db, s.APIID, s.AccountID)
+	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
+	swaggerMatch := &SwaggerMatch{}
+	err := json.Unmarshal([]byte(match.Route.GetName()), swaggerMatch)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	api, err := model.FindAPIForAccountIDForSwagger(db, swaggerMatch.APIID, swaggerMatch.AccountID)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

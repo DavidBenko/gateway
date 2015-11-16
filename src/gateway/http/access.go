@@ -58,8 +58,8 @@ type AccessLoggingRouter struct {
 }
 
 // Handle wraps the handler in an AccessLoggingHandler for the router.
-func (l *AccessLoggingRouter) Handle(pattern string, handler http.Handler) {
-	l.router.Handle(pattern, AccessLoggingHandler(l.prefix, l.uuidHeader, handler))
+func (l *AccessLoggingRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return l.router.Handle(pattern, AccessLoggingHandler(l.prefix, l.uuidHeader, handler))
 }
 
 // NewAccessLoggingRouter wraps the router.

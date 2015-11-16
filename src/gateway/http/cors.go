@@ -3,6 +3,8 @@ package http
 import (
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 // CORSHeaderHandler sets the core CORS headers before delegating to the handler.
@@ -32,8 +34,8 @@ type CORSAwareRouter struct {
 }
 
 // Handle wraps the handler in an CORSHeaderHandler for the router.
-func (r *CORSAwareRouter) Handle(pattern string, handler http.Handler) {
-	r.router.Handle(pattern, CORSHeaderHandler(r.allow, handler))
+func (r *CORSAwareRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return r.router.Handle(pattern, CORSHeaderHandler(r.allow, handler))
 }
 
 // NewCORSAwareRouter wraps the router.
