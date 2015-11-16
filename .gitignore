@@ -56,3 +56,5 @@ test/cookies
 **/*_gen.go
 
 *.sw[op]
+.tags*
+tags
