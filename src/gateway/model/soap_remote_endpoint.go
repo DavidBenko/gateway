@@ -200,9 +200,10 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 	}
 	e.ID = id
 
+	tag := tx.TopTag()
 	tx.AddPostCommitHook(func(t *apsql.Tx) {
 		// copy to ensure there's no chance of concurrency issues
-		go afterSave(t, e.Copy())
+		go afterSave(t, e.Copy(), tag)
 	})
 
 	return tx.Notify(
@@ -258,26 +259,30 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 	}
 
 	if fireAfterSave {
+		tag := tx.TopTag()
 		tx.AddPostCommitHook(func(t *apsql.Tx) {
 			// copy to ensure there's no chance of concurrency issues
-			go afterSave(t, e.Copy())
+			go afterSave(t, e.Copy(), tag)
 		})
 	}
 
 	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
 }
 
-func afterSave(origTx *apsql.Tx, e *SoapRemoteEndpoint) {
+func afterSave(origTx *apsql.Tx, e *SoapRemoteEndpoint, tag string) {
 	db := origTx.DB
-	processWsdl(db, e)
+	processWsdl(db, e, tag)
 }
 
-func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint) {
+func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint, tag string) {
 	e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusProcessing)
 	e.RemoteEndpoint.StatusMessage = apsql.MakeNullStringNull()
 
 	// In a new transaction, update the status to processing before we do anything
 	err := db.DoInTransaction(func(tx *apsql.Tx) error {
+		tx.PushTag(tag)
+		defer tx.PopTag()
+
 		err := e.RemoteEndpoint.update(tx, false)
 		if err != nil {
 			return aperrors.NewWrapped("soap_remote_endpoint.go: updating remote endpoint", err)
@@ -294,6 +299,9 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint) {
 	}
 
 	err = db.DoInTransaction(func(tx *apsql.Tx) error {
+		tx.PushTag(tag)
+		defer tx.PopTag()
+
 		return ingestWsdl(tx, e)
 	})
 
@@ -307,6 +315,9 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint) {
 	}
 
 	err = db.DoInTransaction(func(tx *apsql.Tx) error {
+		tx.PushTag(tag)
+		defer tx.PopTag()
+
 		err := e.RemoteEndpoint.update(tx, false)
 		if err != nil {
 			return aperrors.NewWrapped("soap_remote_endpoint.go: Updating final state on remote endpoint", err)

@@ -98,6 +98,11 @@ func (tx *Tx) PopTag() {
 	tx.tags = tx.tags[:len(tx.tags)-1]
 }
 
+// TopTag gets the top notification tag
+func (tx *Tx) TopTag() string {
+	return tx.tags[len(tx.tags)-1]
+}
+
 // Notify creates a notification and posts it against this transaction.
 //
 // The implementation of posting a notification varies with database driver.
