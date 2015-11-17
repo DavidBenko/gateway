@@ -35,10 +35,6 @@ admin:
 	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
 assets: install_bindata soapclient
-	# Clean and prepare the target path.
-	./scripts/clean-static
-	./scripts/prepare-static
-	# Generate static content.
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
 	go-bindata -o src/gateway/proxy/vm/bindata.go -pkg vm $(BINDATA_DEBUG) -prefix "src/gateway/proxy/vm/static/" src/gateway/proxy/vm/static/...
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
