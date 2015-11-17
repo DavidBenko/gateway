@@ -141,6 +141,20 @@ func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *j
 
 	request.client = client
 
+	if len(request.URL) > 0 {
+		url, err := url.Parse(request.URL)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("error parsing url: %s", err))
+		}
+		switch url.Scheme {
+		case "http", "https":
+		default:
+			return nil, errors.New("url scheme must be 'http' or 'https'")
+		}
+	} else {
+		return nil, errors.New("url must not be empty")
+	}
+
 	return request, nil
 }
 
