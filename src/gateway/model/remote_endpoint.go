@@ -154,15 +154,17 @@ func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
 		errors.Add("base", fmt.Sprintf("error in http config: %s", err))
 		return
 	}
-	url, err := url.Parse(request.URL)
-	if err != nil {
-		errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
-		return
-	}
-	switch url.Scheme {
-	case "", "http", "https":
-	default:
-		errors.Add("url", "url scheme must be 'http' or 'https'")
+	if len(request.URL) > 0 {
+		url, err := url.Parse(request.URL)
+		if err != nil {
+			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
+			return
+		}
+		switch url.Scheme {
+		case "http", "https":
+		default:
+			errors.Add("url", "url scheme must be 'http' or 'https'")
+		}
 	}
 }
 
