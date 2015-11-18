@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strings"
 
 	"gateway/code"
 	"gateway/config"
@@ -148,22 +149,45 @@ func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors) {
 	}
 }
 
+func ValidateURL(rurl string, errors aperrors.Errors) bool {
+	if len(rurl) > 0 {
+		if !strings.HasPrefix(rurl, "http://") && !strings.HasPrefix(rurl, "https://") {
+			errors.Add("url", "url must start with 'http://' or 'https://'")
+			return false
+		}
+		purl, err := url.ParseRequestURI(rurl)
+		if err != nil {
+			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
+			return false
+		}
+		switch purl.Scheme {
+		case "http", "https":
+		default:
+			errors.Add("url", "url scheme must be 'http' or 'https'")
+			return false
+		}
+	}
+	return true
+}
+
 func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
 	request := &HTTPRequest{}
 	if err := json.Unmarshal(e.Data, request); err != nil {
 		errors.Add("base", fmt.Sprintf("error in http config: %s", err))
 		return
 	}
-	if len(request.URL) > 0 {
-		url, err := url.Parse(request.URL)
-		if err != nil {
-			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
+
+	if !ValidateURL(request.URL, errors) {
+		return
+	}
+	for _, environment := range e.EnvironmentData {
+		request := &HTTPRequest{}
+		if err := json.Unmarshal(environment.Data, request); err != nil {
+			errors.Add("base", fmt.Sprintf("error in environment http config: %s", err))
 			return
 		}
-		switch url.Scheme {
-		case "http", "https":
-		default:
-			errors.Add("url", "url scheme must be 'http' or 'https'")
+		if !ValidateURL(request.URL, errors) {
+			return
 		}
 	}
 }

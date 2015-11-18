@@ -14,6 +14,17 @@ func (e Errors) Empty() bool {
 	return len(e) == 0
 }
 
+func (e Errors) String() string {
+	errs, sep := "", ""
+	for _, i := range e {
+		for _, j := range i {
+			errs += sep + j
+			sep = " "
+		}
+	}
+	return errs
+}
+
 type WrappedError struct {
 	context string
 	err     error
