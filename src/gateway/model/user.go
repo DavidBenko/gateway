@@ -21,6 +21,7 @@ type User struct {
 	ID                      int64  `json:"id"`
 	Name                    string `json:"name"`
 	Email                   string `json:"email"`
+	Admin                   bool   `json:"admin"`
 	NewPassword             string `json:"password"`
 	NewPasswordConfirmation string `json:"password_confirmation"`
 	HashedPassword          string `json:"-" db:"hashed_password"`
@@ -59,7 +60,7 @@ func (u *User) ValidateFromDatabaseError(err error) aperrors.Errors {
 func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 	users := []*User{}
 	err := db.Select(&users,
-		`SELECT id, name, email FROM users
+		`SELECT id, name, email, admin FROM users
 		 WHERE account_id = ? ORDER BY name ASC;`,
 		accountID)
 	return users, err
@@ -69,7 +70,7 @@ func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, name, email FROM users
+		`SELECT id, name, email, admin FROM users
 		 WHERE id = ? AND account_id = ?;`,
 		id, accountID)
 	return &user, err
@@ -79,7 +80,7 @@ func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, name, email FROM users
+		`SELECT id, name, email, admin FROM users
 		 WHERE account_id = ? ORDER BY id LIMIT 1;`,
 		accountID)
 	return &user, err
@@ -97,7 +98,7 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, account_id, hashed_password
+		`SELECT id, account_id, admin, hashed_password
 		 FROM users WHERE email = ?;`,
 		strings.ToLower(email))
 	return &user, err
@@ -107,7 +108,7 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 func FindUserByID(db *apsql.DB, id int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, account_id, name, email
+		`SELECT id, account_id, name, email, admin
 		 FROM users WHERE id = ?;`,
 		id)
 	return &user, err
@@ -115,12 +116,17 @@ func FindUserByID(db *apsql.DB, id int64) (*User, error) {
 
 // Insert inserts the user into the database as a new row.
 func (u *User) Insert(tx *apsql.Tx) (err error) {
+	var count int
+	tx.Get(&count, tx.SQL("users/count"), u.AccountID)
+
 	if license.DeveloperVersion {
-		var count int
-		tx.Get(&count, tx.SQL("users/count"), u.AccountID)
 		if count >= license.DeveloperVersionUsers {
 			return errors.New(fmt.Sprintf("Developer version allows %v user(s).", license.DeveloperVersionUsers))
 		}
+	}
+
+	if count == 0 {
+		u.Admin = true
 	}
 
 	if err = u.hashPassword(); err != nil {
@@ -128,14 +134,21 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	u.ID, err = tx.InsertOne(
-		`INSERT INTO users (account_id, name, email, hashed_password)
-		 VALUES (?, ?, ?, ?)`,
-		u.AccountID, u.Name, strings.ToLower(u.Email), u.HashedPassword)
+		`INSERT INTO users (account_id, name, email, admin, hashed_password)
+		 VALUES (?, ?, ?, ?, ?)`,
+		u.AccountID, u.Name, strings.ToLower(u.Email), u.Admin, u.HashedPassword)
 	return err
 }
 
 // Update updates the user in the database.
 func (u *User) Update(tx *apsql.Tx) error {
+	var count int
+	tx.Get(&count, tx.SQL("users/count"), u.AccountID)
+
+	if count == 1 {
+		u.Admin = true
+	}
+
 	var err error
 	if u.NewPassword != "" {
 		err = u.hashPassword()
@@ -144,16 +157,16 @@ func (u *User) Update(tx *apsql.Tx) error {
 		}
 		return tx.UpdateOne(
 			`UPDATE users
-			 SET name = ?, email = ?, hashed_password = ?
+			 SET name = ?, email = ?, admin = ?, hashed_password = ?
 			 WHERE id = ? AND account_id = ?;`,
-			u.Name, strings.ToLower(u.Email), u.HashedPassword, u.ID, u.AccountID)
+			u.Name, strings.ToLower(u.Email), u.Admin, u.HashedPassword, u.ID, u.AccountID)
 	}
 
 	return tx.UpdateOne(
 		`UPDATE users
-			 SET name = ?, email = ?
+			 SET name = ?, email = ?, admin = ?
 			 WHERE id = ? AND account_id = ?;`,
-		u.Name, strings.ToLower(u.Email), u.ID, u.AccountID)
+		u.Name, strings.ToLower(u.Email), u.Admin, u.ID, u.AccountID)
 }
 
 func (u *User) hashPassword() error {
