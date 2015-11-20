@@ -215,7 +215,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
       return c.notFound()
     }
     log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
-    return aphttp.DefaultServerError()
+    return aphttp.NewServerError(err)
   }
 
   <% if after_delete %>

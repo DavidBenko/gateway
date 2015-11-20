@@ -88,10 +88,29 @@ func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
 func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
-	return tx.DeleteOne(
+	var count int
+	tx.Get(&count, tx.SQL("users/count_admin"), accountID)
+
+	if count == 1 {
+		user := User{}
+		err := tx.Get(&user, tx.SQL("users/find_id"), id)
+		if err != nil {
+			return err
+		}
+		if user.Admin {
+			return errors.New("There must be at least one admin user")
+		}
+	}
+
+	err := tx.DeleteOne(
 		`DELETE FROM users
 		 WHERE id = ? AND account_id = ?;`,
 		id, accountID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("users", accountID, userID, 0, id, apsql.Delete)
 }
 
 // FindUserByEmail returns the user with the email specified.
@@ -107,10 +126,7 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 // FindUserByID returns the user with the id specified.
 func FindUserByID(db *apsql.DB, id int64) (*User, error) {
 	user := User{}
-	err := db.Get(&user,
-		`SELECT id, account_id, name, email, admin
-		 FROM users WHERE id = ?;`,
-		id)
+	err := db.Get(&user, db.SQL("users/find_id"), id)
 	return &user, err
 }
 
@@ -137,16 +153,27 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 		`INSERT INTO users (account_id, name, email, admin, hashed_password)
 		 VALUES (?, ?, ?, ?, ?)`,
 		u.AccountID, u.Name, strings.ToLower(u.Email), u.Admin, u.HashedPassword)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Insert)
 }
 
 // Update updates the user in the database.
 func (u *User) Update(tx *apsql.Tx) error {
 	var count int
-	tx.Get(&count, tx.SQL("users/count"), u.AccountID)
+	tx.Get(&count, tx.SQL("users/count_admin"), u.AccountID)
 
 	if count == 1 {
-		u.Admin = true
+		user := User{}
+		err := tx.Get(&user, tx.SQL("users/find_id"), u.ID)
+		if err != nil {
+			return err
+		}
+		if user.Admin && !u.Admin {
+			return errors.New("There must be at least one admin user")
+		}
 	}
 
 	var err error
@@ -155,18 +182,28 @@ func (u *User) Update(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		return tx.UpdateOne(
+		err = tx.UpdateOne(
 			`UPDATE users
 			 SET name = ?, email = ?, admin = ?, hashed_password = ?
 			 WHERE id = ? AND account_id = ?;`,
 			u.Name, strings.ToLower(u.Email), u.Admin, u.HashedPassword, u.ID, u.AccountID)
+		if err != nil {
+			return err
+		}
+
+		return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Update)
 	}
 
-	return tx.UpdateOne(
+	err = tx.UpdateOne(
 		`UPDATE users
 			 SET name = ?, email = ?, admin = ?
 			 WHERE id = ? AND account_id = ?;`,
 		u.Name, strings.ToLower(u.Email), u.Admin, u.ID, u.AccountID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Update)
 }
 
 func (u *User) hashPassword() error {

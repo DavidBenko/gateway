@@ -33,6 +33,7 @@ var RESOURCE_MAP = map[string]string{
 	"libraries":        "library",
 	"proxy_endpoints":  "proxy-endpoint",
 	"remote_endpoints": "remote-endpoint",
+	"users":            "user",
 }
 
 var ACTION_MAP = [...]string{
