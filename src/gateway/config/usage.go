@@ -29,6 +29,14 @@ var usageStrings = map[string]string{
 	"proxy-code-timeout":     "The timeout in seconds to use for proxy script code.",
 	"proxy-code-error-lines": "The number of lines of code to show around script errors in dev mode.",
 
+	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-http-enabled":       "Whether or not http remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-sqlserver-enabled":  "Whether or not MS SQLServer remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-mysql-enabled":      "Whether or not MySQL remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-postgresql-enabled": "Whether or not PostgreSQL remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-mongodb-enabled":    "Whether or not MongoDB remote endpoints are enabled. Defaults to true.",
+
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
 

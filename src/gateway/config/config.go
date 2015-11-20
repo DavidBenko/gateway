@@ -18,12 +18,13 @@ type Configuration struct {
 	License string `flag:"license"`
 	Server  bool   `flag:"server" default:"false"`
 
-	Database Database
-	Proxy    ProxyServer
-	Admin    ProxyAdmin
-	Elastic  ElasticLogging
-	Bleve    BleveLogging
-	Soap     Soap
+	Database       Database
+	Proxy          ProxyServer
+	Admin          ProxyAdmin
+	Elastic        ElasticLogging
+	Bleve          BleveLogging
+	Soap           Soap
+	RemoteEndpoint RemoteEndpoint
 }
 
 // Database specifies configuration options for your database
@@ -56,6 +57,17 @@ type ProxyServer struct {
 	HTTPTimeout   int64 `flag:"proxy-http-timeout" default:"60"`
 	CodeTimeout   int64 `flag:"proxy-code-timeout" default:"5"`
 	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
+}
+
+// RemoteEndpoint specifies which types of remote endpionts are available
+type RemoteEndpoint struct {
+	HTTPEnabled       bool `flag:"remote-endpoint-http-enabled" default:"true"`
+	SQLServerEnabled  bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
+	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
+	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
+	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
+	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
+	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
