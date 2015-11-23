@@ -22,19 +22,6 @@ import (
 )
 
 const (
-	// RemoteEndpointTypeHTTP denotes that a remote endpoint is an HTTP endpoint
-	RemoteEndpointTypeHTTP = "http"
-	// RemoteEndpointTypeSQLServer denotes that a remote endpoint is a MS SQL Server database
-	RemoteEndpointTypeSQLServer = "sqlserver"
-	RemoteEndpointTypeMySQL     = "mysql"
-	RemoteEndpointTypePostgres  = "postgres"
-	RemoteEndpointTypeMongo     = "mongodb"
-	RemoteEndpointTypeScript    = "script"
-	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
-	RemoteEndpointTypeSoap = "soap"
-)
-
-const (
 	// RemoteEndpointStatusPending is one of the possible statuses for the Status field on
 	// the RemoteEndpoint struct.  Pending indicates that no processing has yet been attempted
 	// on a RemoteEndpoint

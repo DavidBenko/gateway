@@ -121,6 +121,8 @@ func main() {
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 
+	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
+
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)
 	if err != nil {

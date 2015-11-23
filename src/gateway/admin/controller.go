@@ -15,6 +15,7 @@ import (
 //go:generate ./controller.rb --model Library --account --api
 //go:generate ./controller.rb --model ProxyEndpoint --account --api
 //go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
+//go:generate ./controller.rb --model RemoteEndpointType
 //go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
 //go:generate ./controller.rb --model ProxyEndpointSchema --account --api --proxy-endpoint
 

@@ -42,6 +42,10 @@ func (s *Server) prepareRequest(
 	endpoint *model.RemoteEndpoint,
 	data *json.RawMessage,
 ) (request.Request, error) {
+	if !model.IsRemoteEndpointTypeEnabled(endpoint.Type) {
+		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
+	}
+
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
 		return request.NewHTTPRequest(s.httpClient, endpoint, data)
