@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 )
 
@@ -125,8 +126,8 @@ type SessionAuthRouter struct {
 }
 
 // Handle wraps the handler in the auth check.
-func (s *SessionAuthRouter) Handle(pattern string, handler http.Handler) {
-	s.router.Handle(pattern, s.Wrap(handler))
+func (s *SessionAuthRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return s.router.Handle(pattern, s.Wrap(handler))
 }
 
 // Wrap provides the wrapped handling functionality.

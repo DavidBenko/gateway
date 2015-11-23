@@ -8,9 +8,14 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	//"gateway/model"
 	sql "gateway/sql"
 
 	"github.com/gorilla/mux"
+)
+
+var (
+	defaultDomain string
 )
 
 // Setup sets up the session and adds admin routes.
@@ -36,6 +41,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		// sessions are unprotected to allow users to authenticate
 		RouteSessions("/sessions", admin, db, conf)
 	}
+
+	defaultDomain = psconf.Domain
 
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession
@@ -82,6 +89,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteResource(&EndpointGroupsController{base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
 	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
 
 	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
 
@@ -95,6 +103,15 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	router.HandleFunc(adminPath, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
+
+	var swagger aphttp.Router
+	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+		router)
+	if conf.CORSEnabled {
+		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
+	}
+	sc := newSwaggerController(db)
+	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

@@ -135,6 +135,8 @@ func (c *endpointCache) Notify(n *apsql.Notification) {
 		fallthrough
 	case n.Table == "libraries":
 		fallthrough
+	case n.Table == "proxy_endpoint_schemas":
+		fallthrough
 	case n.Table == "remote_endpoints" && (n.Event == apsql.Update || n.Event == apsql.Delete):
 		fallthrough
 	case n.Table == "proxy_endpoints":

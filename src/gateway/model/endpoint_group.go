@@ -55,7 +55,7 @@ func DeleteEndpointGroupForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID,
 	if err != nil {
 		return err
 	}
-	return tx.Notify("endpoint_groups", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("endpoint_groups", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the endpointGroup into the database as a new row.
@@ -65,7 +65,7 @@ func (e *EndpointGroup) Insert(tx *apsql.Tx) (err error) {
 	if err != nil {
 		return
 	}
-	err = tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	err = tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 	return
 }
 
@@ -76,5 +76,5 @@ func (e *EndpointGroup) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
+	return tx.Notify("endpoint_groups", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
 }

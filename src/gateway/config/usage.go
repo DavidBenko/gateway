@@ -17,8 +17,9 @@ var usageStrings = map[string]string{
 	"soap-thread-pool-size": "The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request).  Defaults to 0.",
 	"soap-java-opts":        "The JVM options to pass to the JVM on startup that will be used to invoke SOAP services",
 
-	"proxy-host": "The hostname of the proxy server",
-	"proxy-port": "The port of the proxy server",
+	"proxy-domain": "The domain name for the proxy server. Required when running in server mode, else defaults to lvh.me",
+	"proxy-host":   "The hostname of the proxy server",
+	"proxy-port":   "The port of the proxy server",
 
 	"proxy-request-id-header": "The header to send the proxy request ID back in. Not sent if blank.",
 	"proxy-enable-os-env":     "Whether or not to expose the OS's ENV to proxy code.",
@@ -59,7 +60,8 @@ var usageStrings = map[string]string{
 
 	"admin-add-default-env":  "Whether or not to add a default environment to new APIs in dev mode",
 	"admin-default-env-name": "The name of the default environment to create",
-	"admin-add-localhost":    "Whether or not to add a localhost host to a the first API in dev mode",
+
+	"admin-create-default-host": "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
 
 	"elastic-logging-domain":   "The domain name of the elastic server",
 	"elastic-logging-username": "The user name for the elastic server",

@@ -5,6 +5,7 @@ UPDATE apis
       cors_allow_headers = ?,
       cors_allow_credentials = ?,
       cors_request_headers = ?,
-      cors_max_age = ?
+      cors_max_age = ?,
+      enable_swagger = ?
 WHERE id = ?
   AND account_id = ?;

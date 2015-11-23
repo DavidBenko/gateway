@@ -6,6 +6,7 @@ import (
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/model"
+	"gateway/names"
 	apsql "gateway/sql"
 	"log"
 	"net/http"
@@ -73,10 +74,6 @@ func (c *APIsController) importAPI(api *model.API, tx *apsql.Tx) aphttp.Error {
 		return aphttp.NewServerError(err)
 	}
 
-	if err := c.addLocalhost(api, tx); err != nil {
-		return aphttp.DefaultServerError()
-	}
-
 	return nil
 }
 
@@ -108,9 +105,6 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 		if err := c.addDefaultEnvironment(api, tx); err != nil {
 			return err
 		}
-		if err := c.addLocalhost(api, tx); err != nil {
-			return err
-		}
 	} else {
 		tx.PushTag(apsql.NotificationTagImport)
 		defer tx.PopTag()
@@ -120,14 +114,14 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 		api.Normalize()
 	}
 
+	if err := c.addDefaultHost(api, tx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) error {
-	if !c.conf.DevMode {
-		return nil
-	}
-
 	if c.conf.AddDefaultEnvironment {
 		env := &model.Environment{Name: c.conf.DefaultEnvironmentName}
 		env.AccountID = api.AccountID
@@ -141,25 +135,19 @@ func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) err
 	return nil
 }
 
-func (c *APIsController) addLocalhost(api *model.API, tx *apsql.Tx) error {
-	if !c.conf.DevMode {
+func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) error {
+	if !c.conf.CreateDefaultHost {
 		return nil
 	}
 
-	if c.conf.AddLocalhost {
-		any, err := model.AnyHostExists(tx)
-		if err != nil {
-			return err
-		}
-		if !any {
-			host := &model.Host{Name: "localhost", Hostname: "localhost"}
-			host.AccountID = api.AccountID
-			host.APIID = api.ID
+	generatedHostName := names.GenerateHostName()
 
-			if err := host.Insert(tx); err != nil {
-				return err
-			}
-		}
+	host := &model.Host{Name: generatedHostName, Hostname: fmt.Sprintf("%s.%s", generatedHostName, defaultDomain)}
+	host.AccountID = api.AccountID
+	host.APIID = api.ID
+
+	if err := host.Insert(tx); err != nil {
+		return err
 	}
 
 	return nil

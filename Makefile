@@ -40,6 +40,7 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/soap/bindata.go -pkg soap $(BINDATA_DEBUG) -prefix "soapclient/build/libs/" soapclient/build/libs/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
+	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
 
 generate: install_goimports
 	go generate gateway/...
@@ -99,7 +100,7 @@ test: build
 test_api_sqlite_fast:
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
+	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -proxy-domain="example.com" -proxy-domain="example.com" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
 	sleep 30
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
@@ -108,7 +109,7 @@ test_api_sqlite: build test_api_sqlite_fast
 test_api_postgres_fast:
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
+	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" -proxy-domain="example.com" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
 	sleep 30
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
@@ -156,7 +157,8 @@ vendor_get: vendor_clean
 	github.com/go-sql-driver/mysql \
 	golang.org/x/net/websocket \
 	github.com/vincent-petithory/dataurl \
-	github.com/gdamore/mangos
+	github.com/gdamore/mangos \
+	github.com/xeipuuv/gojsonschema
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

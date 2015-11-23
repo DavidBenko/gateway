@@ -81,7 +81,7 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID i
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("hosts", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the host into the database as a new row.
@@ -91,7 +91,7 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, h.ID, apsql.Insert)
+	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Insert)
 }
 
 // Update updates the host in the database.
@@ -101,5 +101,5 @@ func (h *Host) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, h.ID, apsql.Update)
+	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Update)
 }
