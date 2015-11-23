@@ -13,6 +13,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var (
+	defaultDomain string
+)
+
 // Setup sets up the session and adds admin routes.
 func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	conf, psconf := configuration.Admin, configuration.Proxy
@@ -36,6 +40,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		// sessions are unprotected to allow users to authenticate
 		RouteSessions("/sessions", admin, db, conf)
 	}
+
+	defaultDomain = psconf.Domain
 
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession

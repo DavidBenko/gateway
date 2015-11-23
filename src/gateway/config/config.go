@@ -3,6 +3,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
+
+var defaultDomain = "lvh.me"
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
@@ -45,8 +48,9 @@ type Soap struct {
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
-	Host string `flag:"proxy-host" default:"localhost"`
-	Port int64  `flag:"proxy-port" default:"5000"`
+	Domain string `flat:"proxy-domain" default:"lvh.me"`
+	Host   string `flag:"proxy-host" default:"localhost"`
+	Port   int64  `flag:"proxy-port" default:"5000"`
 
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
 	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
@@ -85,7 +89,8 @@ type ProxyAdmin struct {
 
 	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
-	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
+
+	CreateDefaultHost bool `flag:"admin-create-default-host" default:"true"`
 
 	EnableBroker    bool   `flag:"enable-broker" default:"true"`
 	Broker          string `flag:"broker" default:"localhost"`
@@ -134,7 +139,25 @@ func Parse(args []string) (Configuration, error) {
 	// Set final convenience flags
 	config.Admin.DevMode = config.DevMode()
 
+	// Verify that the configuration is valid before proceeding
+	if err := verify(config); err != nil {
+		return config, err
+	}
+
 	return config, nil
+}
+
+// verify the configuration
+func verify(config Configuration) error {
+	if config.DevMode() {
+		return nil
+	}
+	// Verify that a domain is set (other than the default)
+	if config.Proxy.Domain == defaultDomain {
+		return fmt.Errorf("proxy-domain not provided.  proxy-domain must be set when running in server mode")
+	}
+
+	return nil
 }
 
 func parseConfigFile(config *Configuration) error {
