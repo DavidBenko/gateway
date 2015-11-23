@@ -19,6 +19,7 @@ var requestSession func(r *http.Request) *sessions.Session
 var (
 	userIDKey    = "user_id"
 	accountIDKey = "account_id"
+	adminKey     = "admin"
 )
 
 func setupSessions(conf config.ProxyAdmin) {
@@ -91,9 +92,19 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 	session := requestSession(r)
 	session.Values[userIDKey] = user.ID
 	session.Values[accountIDKey] = user.AccountID
+	session.Values[adminKey] = user.Admin
 	session.Save(r, w)
 
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	wrapped := struct {
+		User *model.User `json:"user"`
+	}{user}
+	dataJSON, err := json.MarshalIndent(wrapped, "", "    ")
+	if err != nil {
+		log.Printf("%s Error serializing data: %v, %v", config.System, err, user)
+		return aphttp.DefaultServerError()
+	}
+	fmt.Fprintf(w, "%s\n", string(dataJSON))
 	return nil
 }
 
@@ -114,14 +125,15 @@ func _deleteSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewSessionAuthRouter wraps a router with session checking behavior.
-func NewSessionAuthRouter(router aphttp.Router, whitelist []string) aphttp.Router {
-	return &SessionAuthRouter{router, whitelist}
+func NewSessionAuthRouter(router aphttp.Router, whitelist []string, adminRequired bool) aphttp.Router {
+	return &SessionAuthRouter{router, whitelist, adminRequired}
 }
 
 // SessionAuthRouter wraps all Handle calls in an HTTP Basic check.
 type SessionAuthRouter struct {
 	router           aphttp.Router
 	whitelistMethods []string
+	adminRequired    bool
 }
 
 // Handle wraps the handler in the auth check.
@@ -160,7 +172,11 @@ func (s *SessionAuthRouter) checkAuth(w http.ResponseWriter, r *http.Request) bo
 	session := requestSession(r)
 	userID := session.Values[userIDKey]
 	accountID := session.Values[accountIDKey]
-	if userID == nil || accountID == nil {
+	admin := session.Values[adminKey]
+	if userID == nil || accountID == nil || admin == nil {
+		return false
+	}
+	if s.adminRequired && !admin.(bool) {
 		return false
 	}
 	return userID.(int64) > 0 && accountID.(int64) > 0

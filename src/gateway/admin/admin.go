@@ -40,11 +40,13 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession
 	userID := userIDFromSession
-	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"})
+	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"}, false)
+	authAdminUser := NewSessionAuthRouter(admin, []string{"OPTIONS"}, true)
 	if conf.DevMode {
 		accountID = accountIDForDevMode(db)
 		userID = userIDForDevMode(db)
 		authAdmin = admin
+		authAdminUser = admin
 	}
 
 	base := BaseController{conf: conf, accountID: accountID, userID: userID}
@@ -67,7 +69,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteLogSearch(search, "/apis/{apiID}/logs", authAdmin, db, conf)
 	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
 
-	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
+	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
 
 	apisController := &APIsController{base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)

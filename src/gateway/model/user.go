@@ -122,7 +122,7 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, account_id, admin, hashed_password
+		`SELECT id, account_id, name, email, admin, hashed_password
 		 FROM users WHERE email = ?;`,
 		strings.ToLower(email))
 	return &user, err
