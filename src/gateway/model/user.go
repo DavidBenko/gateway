@@ -86,22 +86,27 @@ func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	return &user, err
 }
 
-// DeleteUserForAccountID deletes the user with the id and account_id specified.
-func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
+func CanDeleteUser(tx *apsql.Tx, id int64) error {
+	user := User{}
+	err := tx.Get(&user, tx.SQL("users/find_id"), id)
+	if err != nil {
+		return err
+	}
+
 	var count int
-	tx.Get(&count, tx.SQL("users/count_admin"), accountID)
+	tx.Get(&count, tx.SQL("users/count_admin"), user.AccountID)
 
 	if count == 1 {
-		user := User{}
-		err := tx.Get(&user, tx.SQL("users/find_id"), id)
-		if err != nil {
-			return err
-		}
 		if user.Admin {
 			return errors.New("There must be at least one admin user")
 		}
 	}
 
+	return nil
+}
+
+// DeleteUserForAccountID deletes the user with the id and account_id specified.
+func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	err := tx.DeleteOne(
 		`DELETE FROM users
 		 WHERE id = ? AND account_id = ?;`,

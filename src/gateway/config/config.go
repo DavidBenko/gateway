@@ -137,6 +137,10 @@ func Parse(args []string) (Configuration, error) {
 	return config, nil
 }
 
+func Commands() []string {
+	return flag.Args()
+}
+
 func parseConfigFile(config *Configuration) error {
 	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)

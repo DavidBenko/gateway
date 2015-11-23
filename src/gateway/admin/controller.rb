@@ -190,7 +190,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   <% if check_delete %>
     if err = model.CanDelete<%= singular %>(tx, id); err != nil {
-      return aphttp.NewServerError(err)
+      return aphttp.NewError(err, 400)
     }
   <% end %>
 
