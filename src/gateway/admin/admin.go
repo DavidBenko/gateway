@@ -8,6 +8,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	//"gateway/model"
 	sql "gateway/sql"
 
 	"github.com/gorilla/mux"
@@ -100,6 +101,15 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	router.HandleFunc(adminPath, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
+
+	var swagger aphttp.Router
+	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+		router)
+	if conf.CORSEnabled {
+		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
+	}
+	sc := newSwaggerController(db)
+	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

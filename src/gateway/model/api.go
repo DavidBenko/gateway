@@ -22,6 +22,7 @@ type API struct {
 	CORSAllowCredentials bool   `json:"cors_allow_credentials" db:"cors_allow_credentials"`
 	CORSRequestHeaders   string `json:"cors_request_headers" db:"cors_request_headers"`
 	CORSMaxAge           int64  `json:"cors_max_age" db:"cors_max_age"`
+	EnableSwagger        bool   `json:"enable_swagger" db:"enable_swagger"`
 	Export               string `json:"export,omitempty" db:"-"`
 
 	Environments         []*Environment         `json:"environments,omitempty"`
@@ -136,6 +137,31 @@ func FindAPIForProxy(db *apsql.DB, id int64) (*API, error) {
 	return &api, err
 }
 
+func FindAPIForAccountIDForSwagger(db *apsql.DB, id, accountID int64) (*API, error) {
+	api, err := FindAPIForAccountID(db, id, accountID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Finding API", err)
+	}
+
+	api.ProxyEndpoints, err = AllProxyEndpointsForAPIIDAndAccountID(db, id, accountID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching proxy endpoints", err)
+	}
+	for index, endpoint := range api.ProxyEndpoints {
+		api.ProxyEndpoints[index], err = FindProxyEndpointForAPIIDAndAccountID(db, endpoint.ID, id, accountID)
+		if err != nil {
+			return nil, aperrors.NewWrapped("Fetching proxy endpoint", err)
+		}
+	}
+
+	api.ProxyEndpointSchemas, err = AllProxyEndpointSchemasForAPIIDAndAccountID(db, id, accountID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching proxy endpoint schemas", err)
+	}
+
+	return api, nil
+}
+
 // DeleteAPIForAccountID deletes the api with the id and account_id specified.
 func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 	err := tx.DeleteOne(tx.SQL("apis/delete"), id, accountID)
@@ -161,7 +187,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	}
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge)
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger)
 	if err != nil {
 		return
 	}
@@ -174,7 +200,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 func (a *API) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge,
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger,
 		a.ID, a.AccountID)
 	if err != nil {
 		return err

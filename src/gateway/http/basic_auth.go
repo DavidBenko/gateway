@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 // NewHTTPBasicRouter wraps the router.
@@ -24,8 +26,8 @@ type BasicAuthRouter struct {
 }
 
 // Handle wraps the handler in an AccessLoggingHandler for the router.
-func (b *BasicAuthRouter) Handle(pattern string, handler http.Handler) {
-	b.router.Handle(pattern, b.Wrap(handler))
+func (b *BasicAuthRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return b.router.Handle(pattern, b.Wrap(handler))
 }
 
 // Wrap provides the wrapped handling functionality.
