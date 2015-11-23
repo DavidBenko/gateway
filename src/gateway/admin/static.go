@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/model"
 	"gateway/proxy/vm"
 	"gateway/version"
 
@@ -110,6 +111,15 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 		},
 		"goos": func() string {
 			return fmt.Sprintf("<meta name=\"goos\" content=\"%s\">", runtime.GOOS)
+		},
+		"remoteEndpointTypes": func() string {
+			tags := []string{}
+			remoteEndpoints, _ := model.AllRemoteEndpointTypes(nil)
+			for _, re := range remoteEndpoints {
+				tag := fmt.Sprintf("<meta name=\"remote-endoint-%s-enabled\" content=\"%t\">", re.Value, re.Enabled)
+				tags = append(tags, tag)
+			}
+			return strings.Join(tags, "\n    ")
 		},
 	}
 
