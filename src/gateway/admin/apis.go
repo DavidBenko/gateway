@@ -122,10 +122,6 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 }
 
 func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) error {
-	if !c.conf.DevMode {
-		return nil
-	}
-
 	if c.conf.AddDefaultEnvironment {
 		env := &model.Environment{Name: c.conf.DefaultEnvironmentName}
 		env.AccountID = api.AccountID
