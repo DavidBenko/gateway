@@ -48,7 +48,7 @@ type Soap struct {
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
-	Domain string `flat:"proxy-domain" default:"lvh.me"`
+	Domain string `flag:"proxy-domain" default:"lvh.me"`
 	Host   string `flag:"proxy-host" default:"localhost"`
 	Port   int64  `flag:"proxy-port" default:"5000"`
 
