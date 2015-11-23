@@ -520,7 +520,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", accountID, userID, apiID, id, apsql.Delete, msg)
+	return tx.Notify("remote_endpoints", accountID, userID, apiID, 0, id, apsql.Delete, msg)
 }
 
 func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64, tx *apsql.Tx) error {
@@ -535,7 +535,7 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 	}
 
 	// trigger a notification for soap_remote_endpoints
-	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
+	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, 0, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
 	if err != nil {
 		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
 	}
@@ -670,7 +670,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
@@ -823,7 +823,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		if err := e.WriteScript(); err != nil {
 			return err
 		}
-		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
+		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update, msg)
 	}
 
 	if len(existingEnvIDs) == 0 {

@@ -89,7 +89,7 @@ func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, u
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("environments", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the environment into the database as a new row.
@@ -105,7 +105,7 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 // Update updates the environment in the database.
@@ -122,5 +122,5 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
 }

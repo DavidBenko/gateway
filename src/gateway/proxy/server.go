@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // Server encapsulates the proxy server.
@@ -101,7 +102,7 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 }
 
 func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
-	response *proxyResponse, logs *bytes.Buffer, httpErr error) {
+	response *proxyResponse, logs *bytes.Buffer, httpErr aphttp.Error) {
 	start := time.Now()
 
 	var vm *apvm.ProxyVM
@@ -115,7 +116,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 
 	defer func() {
 		if httpErr != nil {
-			s.logError(logger, logPrefix, s.httpError(httpErr))
+			s.logError(logger, logPrefix, httpErr)
 		}
 		s.logDuration(vm, logger, logPrefix, start)
 		log.Print(logs.String())
@@ -123,19 +124,19 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
@@ -144,24 +145,41 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	if r.Method == "OPTIONS" {
 		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
 		if err != nil {
-			httpErr = err
+			httpErr = s.httpError(err)
 			return
 		}
 		if !route.HandlesOptions() {
-			httpErr = s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			err := s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			if err != nil {
+				httpErr = s.httpError(err)
+			}
+			return
+		}
+	}
+
+	request, err := proxyRequestJSON(r, requestID, match.Vars)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
+		err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
+		if err != nil {
+			httpErr = aphttp.NewError(err, 400)
 			return
 		}
 	}
 
 	vm, err = apvm.NewVM(logger, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
-	incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
+	incomingJSON, err := request.Marshal()
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 	vm.Set("__ap_proxyRequestJSON", incomingJSON)
@@ -174,28 +192,43 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 			strconv.Quote(proxyEndpoint.Environment.SessionName)))
 
 	if _, err := vm.RunAll(scripts); err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	responseObject, err := vm.Run("response;")
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 	responseJSON, err := s.objectJSON(vm, responseObject)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
-	response, httpErr = proxyResponseFromJSON(responseJSON)
-	if httpErr != nil {
+	response, err = proxyResponseFromJSON(responseJSON)
+	if err != nil {
+		httpErr = s.httpError(err)
 		return
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil &&
+		(schema.ResponseSchema != "" ||
+			(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
+		responseSchema := schema.ResponseSchema
+		if schema.ResponseSameAsRequest {
+			responseSchema = schema.RequestSchema
+		}
+		err := s.processSchema(responseSchema, response.Body)
+		if err != nil {
+			httpErr = aphttp.NewError(err, 500)
+			return
+		}
 	}
 
 	if proxyEndpoint.CORSEnabled {
@@ -212,11 +245,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 	test, _ := context.Get(r, aphttp.ContextTest).(bool)
 
-	var httpErr aphttp.Error
-	response, logs, proxyError := s.proxyHandler(w, r)
-	if proxyError != nil {
-		httpErr = s.httpError(proxyError)
-	}
+	response, logs, httpErr := s.proxyHandler(w, r)
 
 	if test {
 		responseBody := ""
@@ -245,6 +274,25 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	} else if response != nil {
 		w.Write([]byte(response.Body))
 	}
+	return nil
+}
+
+func (s *Server) processSchema(schema, body string) error {
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	bodyLoader := gojsonschema.NewStringLoader(body)
+	result, err := gojsonschema.Validate(schemaLoader, bodyLoader)
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid() {
+		err := ""
+		for _, description := range result.Errors() {
+			err += fmt.Sprintf(" - %v", description)
+		}
+		return errors.New(err)
+	}
+
 	return nil
 }
 
