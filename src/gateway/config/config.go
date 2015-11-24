@@ -24,6 +24,7 @@ type Configuration struct {
 	Elastic  ElasticLogging
 	Bleve    BleveLogging
 	Soap     Soap
+	SMTP     SMTP
 }
 
 // Database specifies configuration options for your database
@@ -103,6 +104,14 @@ type ElasticLogging struct {
 type BleveLogging struct {
 	File        string `flag:"bleve-logging-file" default:"logs.bleve"`
 	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
+}
+
+type SMTP struct {
+	Server   string `flag:"smtp-server"`
+	Port     int64  `flag:"smtp-port" default:"25"`
+	User     string `flag:"smtp-user"`
+	Password string `flag:"smtp-password"`
+	Sender   string `flag:"smtp-sender"`
 }
 
 const envPrefix = "APGATEWAY_"

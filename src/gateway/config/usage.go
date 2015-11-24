@@ -65,4 +65,10 @@ var usageStrings = map[string]string{
 	"broker-pub-port":  "The port of the broker pub",
 	"broker-sub-port":  "The port of the broker sub",
 	"broker-transport": "The broker transport",
+
+	"smtp-server":   "The address or name of the smtp server",
+	"smtp-port":     "The port of the smtp server",
+	"smtp-user":     "The user name for the smtp server",
+	"smtp-password": "The password for the smtp server",
+	"smtp-sender":   "The sender of emails from gateway",
 }
