@@ -114,12 +114,13 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 		},
 		"remoteEndpointTypes": func() string {
 			tags := []string{}
-			remoteEndpoints, _ := model.AllRemoteEndpointTypes(nil)
-			for _, re := range remoteEndpoints {
-				tag := fmt.Sprintf("<meta name=\"remote-endoint-%s-enabled\" content=\"%t\">", re.Value, re.Enabled)
-				tags = append(tags, tag)
+			remoteEndpointTypes, _ := model.AllRemoteEndpointTypes(nil)
+			for _, re := range remoteEndpointTypes {
+				if re.Enabled {
+					tags = append(tags, re.Value)
+				}
 			}
-			return strings.Join(tags, "\n    ")
+			return fmt.Sprintf("<meta name=\"remote-endoint-types-enabled\" content=\"%s\">", strings.Join(tags, ","))
 		},
 	}
 
