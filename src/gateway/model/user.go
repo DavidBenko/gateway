@@ -27,7 +27,7 @@ type User struct {
 }
 
 // Validate validates the model.
-func (u *User) Validate() aperrors.Errors {
+func (u *User) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if u.Name == "" {
 		errors.Add("name", "must not be blank")

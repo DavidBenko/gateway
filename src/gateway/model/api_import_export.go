@@ -191,7 +191,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 
 		endpoint.AccountID = a.AccountID
 		endpoint.APIID = a.ID
-		if vErr := endpoint.Validate(); !vErr.Empty() {
+		if vErr := endpoint.Validate(true); !vErr.Empty() {
 			return fmt.Errorf("Unable to validate remote endpoint: %v", vErr)
 		}
 		err = endpoint.Insert(tx)

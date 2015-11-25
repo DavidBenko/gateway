@@ -33,7 +33,7 @@ type ProxyEndpointSchema struct {
 	ExportProxyEndpointIndex int `json:"proxy_endpoint_index,omitempty"`
 }
 
-func (s *ProxyEndpointSchema) Validate() aperrors.Errors {
+func (s *ProxyEndpointSchema) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if s.Name == "" {
 		errors.Add("name", "must have a name")

@@ -87,7 +87,7 @@ type HTTPRequest struct {
 }
 
 // Validate validates the model.
-func (e *RemoteEndpoint) Validate() aperrors.Errors {
+func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")

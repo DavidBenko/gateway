@@ -68,7 +68,7 @@ func (a *API) Normalize() {
 }
 
 // Validate validates the model.
-func (a *API) Validate() aperrors.Errors {
+func (a *API) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if a.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -85,7 +85,7 @@ func (a *API) Validate() aperrors.Errors {
 
 	for _, re := range a.RemoteEndpoints {
 		log.Printf("Validating remote endpoints")
-		if err := re.Validate(); !err.Empty() {
+		if err := re.Validate(isInsert); !err.Empty() {
 			log.Printf("Validation not ok!")
 			if base, ok := err["base"]; ok {
 				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", base))

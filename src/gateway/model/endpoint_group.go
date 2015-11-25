@@ -17,7 +17,7 @@ type EndpointGroup struct {
 }
 
 // Validate validates the model.
-func (e *EndpointGroup) Validate() aperrors.Errors {
+func (e *EndpointGroup) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")

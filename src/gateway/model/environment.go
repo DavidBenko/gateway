@@ -27,7 +27,7 @@ type Environment struct {
 }
 
 // Validate validates the model.
-func (e *Environment) Validate() aperrors.Errors {
+func (e *Environment) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")

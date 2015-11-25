@@ -281,7 +281,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   }
   <% end %>
 
-  validationErrors := <%= local %>.Validate()
+  validationErrors := <%= local %>.Validate(isInsert)
   if !validationErrors.Empty() {
     return SerializableValidationErrors{validationErrors}
   }

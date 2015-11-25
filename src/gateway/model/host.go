@@ -18,7 +18,7 @@ type Host struct {
 }
 
 // Validate validates the model.
-func (h *Host) Validate() aperrors.Errors {
+func (h *Host) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if h.Name == "" {
 		errors.Add("name", "must not be blank")
