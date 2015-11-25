@@ -21,6 +21,7 @@ type Configuration struct {
 	License string `flag:"license"`
 	Server  bool   `flag:"server" default:"false"`
 
+	Airbrake       Airbrake
 	Database       Database
 	Proxy          ProxyServer
 	Admin          ProxyAdmin
@@ -28,6 +29,12 @@ type Configuration struct {
 	Bleve          BleveLogging
 	Soap           Soap
 	RemoteEndpoint RemoteEndpoint
+}
+
+// Airbrake specifies configuration for error reporting with Airbrake
+type Airbrake struct {
+	APIKey   string `flag:"" default:""`
+	Endpoint string `flag:"" default:""`
 }
 
 // Database specifies configuration options for your database
