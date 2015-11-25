@@ -105,7 +105,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	case RemoteEndpointTypeHTTP:
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
-		e.ValidateSOAP(errors)
+		e.ValidateSOAP(errors, isInsert)
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
@@ -130,9 +130,21 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	return errors
 }
 
-func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors) {
+func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors, isInsert bool) {
 	if !soap.Available() {
 		errors.Add("base", "SOAP is not currently available.  Requisite dependencies must be met")
+	}
+
+	var (
+		sc  *re.Soap
+		err error
+	)
+	if sc, err = re.SoapConfig(e.Data); err != nil {
+		errors.Add("base", fmt.Sprintf("Unable to validate soap configuration: %v", err))
+	}
+
+	if sc.WSDL == "" && isInsert {
+		errors.Add("wsdl", "WSDL is required for new SOAP endpoints")
 	}
 }
 
