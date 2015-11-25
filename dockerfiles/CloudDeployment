@@ -1,0 +1,23 @@
+FROM debian:jessie
+MAINTAINER Jeff Bozek, jbozek@anypresence.com
+
+### Add JAVA ###
+
+RUN echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee /etc/apt/sources.list.d/webupd8team-java.list && \
+    echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee -a /etc/apt/sources.list.d/webupd8team-java.list && \
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EEA14886 && \
+    apt-get update && \
+    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
+    apt-get install oracle-java8-installer -y && \
+    apt-get clean
+
+ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
+
+ADD build/gateway-linux-amd64 /gateway/gateway
+ADD public_keys/production/production_license /gateway/license
+
+EXPOSE 5000
+WORKDIR /gateway
+
+# Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
+ENTRYPOINT ./gateway -server --proxy-host=$PROXY_HOST --admin-host=$ADMIN_HOST --proxy-domain=$PROXY_DOMAIN --db-driver=postgres --admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY --db-conn-string=$DB_CONN
