@@ -103,7 +103,7 @@ func (r *RemoteEndpointType) Update(tx *sql.Tx) error {
 // Validate validates the model.  This implementation doesn't really do anything
 // since inserts and updates are not supported.  It simply returns an empty
 // errors object.
-func (r *RemoteEndpointType) Validate() aperrors.Errors {
+func (r *RemoteEndpointType) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	return errors
 }

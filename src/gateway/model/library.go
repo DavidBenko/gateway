@@ -20,7 +20,7 @@ type Library struct {
 }
 
 // Validate validates the model.
-func (l *Library) Validate() aperrors.Errors {
+func (l *Library) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if l.Name == "" {
 		errors.Add("name", "must not be blank")
