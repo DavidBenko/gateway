@@ -55,6 +55,8 @@ test/cookies
 # Generated files
 **/*_gen.go
 
+*.key
+
 *.sw[op]
 .tags*
 tags
