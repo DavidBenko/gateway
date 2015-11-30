@@ -13,6 +13,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/errors/report"
 	"gateway/license"
 	"gateway/model"
 	"gateway/proxy"
@@ -52,6 +53,15 @@ func main() {
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
 		log.Fatalf("%s Error connecting to database: %v", config.System, err)
+	}
+
+	// Set up error reporting
+	if conf.Airbrake.APIKey != "" && conf.Airbrake.ProjectID != 0 {
+		abEnv := "production"
+		if conf.DevMode() {
+			abEnv = "development"
+		}
+		report.RegisterReporter(report.ConfigureAirbrake(conf.Airbrake.APIKey, conf.Airbrake.ProjectID, abEnv))
 	}
 
 	// Require a valid license key
