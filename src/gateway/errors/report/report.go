@@ -1,9 +1,6 @@
 package report
 
-import (
-	"log"
-	"net/http"
-)
+import "net/http"
 
 // Reporter provides a general error reporting abstraction
 type Reporter interface {
@@ -11,12 +8,7 @@ type Reporter interface {
 	// Error reports an error.  If the error occurred within the context of an
 	// http request, additional details can be reported if the http.Request object
 	// is provided
-	Error(err error, request *http.Request) error
-
-	// CapturePanic recovers from a panic and reports the error appropriately.
-	// If the error occurred within the context of an http request, additional
-	// details can be reported if the http.Request object is provided
-	CapturePanic(request *http.Request) error
+	Error(err error, request *http.Request)
 }
 
 var reporters []Reporter
@@ -31,19 +23,6 @@ func RegisterReporter(more ...Reporter) {
 // is provided
 func Error(err error, request *http.Request) {
 	for _, rep := range reporters {
-		if err := rep.Error(err, request); err != nil {
-			log.Printf("Problem capturing error: %v", err)
-		}
-	}
-}
-
-// CapturePanic recovers from a panic and reports the error appropriately.
-// If the error occurred within the context of an http request, additional
-// details can be reported if the http.Request object is provided
-func CapturePanic(request *http.Request) {
-	for _, rep := range reporters {
-		if err := rep.CapturePanic(request); err != nil {
-			log.Printf("Problem capturing panic: %v", err)
-		}
+		rep.Error(err, request)
 	}
 }
