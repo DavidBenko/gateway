@@ -56,10 +56,10 @@ func main() {
 	}
 
 	// Set up error reporting
-	if conf.Airbrake.APIKey != "" && conf.Airbrake.ProjectID != 0 {
+	if conf.Airbrake.APIKey != "" && conf.Airbrake.ProjectID != 0 && !conf.DevMode() {
 		abEnv := "production"
-		if conf.DevMode() {
-			abEnv = "development"
+		if conf.Airbrake.Environment != "" {
+			abEnv = conf.Airbrake.Environment
 		}
 		report.RegisterReporter(report.ConfigureAirbrake(conf.Airbrake.APIKey, conf.Airbrake.ProjectID, abEnv))
 	}
