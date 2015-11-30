@@ -6,8 +6,9 @@ var usageStrings = map[string]string{
 	"license": "The path to a valid Gateway license key",
 	"server":  "Whether or not to run in server mode",
 
-	"airbrake-api-key":    "The API key to use for Airbrake notifications",
-	"airbrake-project-id": "The ID assigned to your Airbrake project",
+	"airbrake-api-key":     "The API key to use for Airbrake notifications",
+	"airbrake-project-id":  "The ID assigned to your Airbrake project",
+	"airbrake-environment": "The environment tag under which errors are reported to Airbrake",
 
 	"db-migrate":         "Whether or not to migrate the database on startup",
 	"db-driver":          "The database driver; sqlite or postgres",

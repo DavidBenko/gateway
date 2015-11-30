@@ -33,8 +33,9 @@ type Configuration struct {
 
 // Airbrake specifies configuration for error reporting with Airbrake
 type Airbrake struct {
-	APIKey    string `flag:"airbrake-api-key" default:""`
-	ProjectID int64  `flag:"airbrake-project-id" default:"0"`
+	APIKey      string `flag:"airbrake-api-key" default:""`
+	ProjectID   int64  `flag:"airbrake-project-id" default:"0"`
+	Environment string `flag:"airbrake-environment" default:""`
 }
 
 // Database specifies configuration options for your database
