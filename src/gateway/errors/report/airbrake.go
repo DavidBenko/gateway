@@ -23,7 +23,7 @@ func (a *airbrakeReporter) Error(err error, request *http.Request) {
 
 // ConfigureAirbrake configures airbrake and returns a new reporter that is
 // capable of reporting errors via airbrake.io
-func ConfigureAirbrake(apiKey string, projectID int64) Reporter {
+func ConfigureAirbrake(apiKey string, projectID int64, environment string) Reporter {
 	if airbrake != nil {
 		panic("Airbrake is already configured!")
 	}
@@ -32,7 +32,7 @@ func ConfigureAirbrake(apiKey string, projectID int64) Reporter {
 		ab := gobrake.NewNotifier(projectID, apiKey)
 		airbrake = &airbrakeReporter{ab: ab}
 		ab.AddFilter(func(notice *gobrake.Notice) *gobrake.Notice {
-			notice.Context["environment"] = "production"
+			notice.Context["environment"] = environment
 			return notice
 		})
 	})
