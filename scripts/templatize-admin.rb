@@ -11,7 +11,7 @@ file.gsub!(meta) do |match|
     {{devMode}}
     {{goos}}
     {{remoteEndpointTypes}}
-    <meta name="#{$1}" content="{{replacePath #{$2.dump}}}" />
+    <meta name="#{$1}" content="{{interpolate #{$2.dump}}}" />
 HTML
 end
 
