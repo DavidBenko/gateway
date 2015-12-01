@@ -46,6 +46,7 @@ var usageStrings = map[string]string{
 	"admin-session-encryption-key":        "The encryption key to use for sessions. 32 chars recommended. If unset, encryption is disabled.",
 	"admin-session-auth-key-rotate":       "Same as admin-session-auth-key, to be used during key rotation.",
 	"admin-session-encryption-key-rotate": "Same as admin-session-encryption-key, to be used during key rotation.",
+	"admin-session-cookie-domain":         "The domain to set on the session cookie.",
 
 	"admin-request-id-header": "The header to send the admin request ID back in. Not sent if blank.",
 
