@@ -43,6 +43,12 @@ func setupSessions(conf config.ProxyAdmin) {
 	}
 
 	store := sessions.NewCookieStore(sessionConfig...)
+	if conf.CookieDomain != "" {
+		store.Options.Domain = conf.CookieDomain
+	} else if conf.Host != "" {
+		store.Options.Domain = conf.Host
+	}
+
 	requestSession = func(r *http.Request) *sessions.Session {
 		s, _ := store.Get(r, conf.SessionName)
 		return s
