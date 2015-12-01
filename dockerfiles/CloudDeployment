@@ -16,7 +16,7 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
 ADD build/gateway-linux-amd64 /gateway/gateway
 ADD public_keys/production/production_license /gateway/license
 
-EXPOSE 5000
+EXPOSE 5000 5555 5556
 WORKDIR /gateway
 
 ENV DB_DRIVER sqlite3
