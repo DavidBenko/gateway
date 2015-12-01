@@ -95,6 +95,7 @@ type ProxyAdmin struct {
 	EncryptionKey  string `flag:"admin-session-encryption-key" default:""`
 	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:""`
 	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:""`
+	CookieDomain   string `flag:"admin-session-cookie-domain" default:""`
 
 	RequestIDHeader string `flag:"admin-request-id-header" default:"X-Gateway-Admin-Request"`
 
