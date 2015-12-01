@@ -22,6 +22,7 @@ import (
 
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
 var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
+var brokerHostRegex = regexp.MustCompile(`BROKER_PLACEHOLDER`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -80,7 +81,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 	}
 
 	funcs := template.FuncMap{
-		"replacePath": func(input string) string {
+		"interpolate": func(input string) string {
 			pathReplacer := func(path string) func(string) string {
 				return func(string) string {
 					if conf.PathPrefix == "" {
@@ -92,7 +93,11 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			rightless := strings.TrimRight(conf.PathPrefix, "/")
 			clean := strings.TrimLeft(rightless, "/")
 			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
-			return pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+
+			input = brokerHostRegex.ReplaceAllLiteralString(input, conf.Broker)
+
+			return input
 		},
 		"version": func() string {
 			if !conf.ShowVersion {
