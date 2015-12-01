@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	aperrors "gateway/errors"
+	aphttp "gateway/http"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -68,7 +69,7 @@ func FindEnvironmentForProxy(db *apsql.DB, id int64) (*Environment, error) {
 }
 
 // CanDeleteEnvironment checks whether deleting would violate any constraints
-func CanDeleteEnvironment(tx *apsql.Tx, id int64) error {
+func CanDeleteEnvironment(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoints

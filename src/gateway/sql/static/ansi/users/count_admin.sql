@@ -1,1 +1,1 @@
-SELECT COUNT(id) FROM users WHERE account_id = ? and admin = 1
+SELECT COUNT(id) FROM users WHERE account_id = ? and admin = ?

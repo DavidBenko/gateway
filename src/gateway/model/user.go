@@ -3,9 +3,12 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	aperrors "gateway/errors"
+	aphttp "gateway/http"
 	"gateway/license"
 	apsql "gateway/sql"
 
@@ -13,6 +16,15 @@ import (
 )
 
 const bcryptPasswordCost = 10
+
+var symbols = []byte("0123456789ABCDEF")
+var isymbols = map[byte]int64{}
+
+func init() {
+	for i, j := range symbols {
+		isymbols[j] = int64(i)
+	}
+}
 
 // User represents a user!
 type User struct {
@@ -22,6 +34,7 @@ type User struct {
 	Name                    string `json:"name"`
 	Email                   string `json:"email"`
 	Admin                   bool   `json:"admin"`
+	Token                   string `json:"token"`
 	NewPassword             string `json:"password"`
 	NewPasswordConfirmation string `json:"password_confirmation"`
 	HashedPassword          string `json:"-" db:"hashed_password"`
@@ -86,15 +99,24 @@ func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	return &user, err
 }
 
-func CanDeleteUser(tx *apsql.Tx, id int64) error {
+func CanDeleteUser(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
+	fmt.Println("CanDeleteUser")
+	fmt.Println(auth)
+	if auth == aphttp.AuthTypeSite {
+		return nil
+	}
+
 	user := User{}
-	err := tx.Get(&user, tx.SQL("users/find_id"), id)
+	err := tx.Get(&user, tx.SQL("users/find"), id, accountID)
 	if err != nil {
-		return err
+		return apsql.ErrZeroRowsAffected
 	}
 
 	var count int
-	tx.Get(&count, tx.SQL("users/count_admin"), user.AccountID)
+	err = tx.Get(&count, tx.SQL("users/count_admin"), accountID, true)
+	if err != nil {
+		return nil
+	}
 
 	if count == 1 {
 		if user.Admin {
@@ -126,6 +148,48 @@ func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 		 FROM users WHERE email = ?;`,
 		strings.ToLower(email))
 	return &user, err
+}
+
+func AddUserToken(tx *apsql.Tx, email string) (string, error) {
+	token := make([]byte, 32)
+	timestamp := time.Now().Unix()
+	for i := range token[:16] {
+		token[i] = symbols[timestamp&0xF]
+		timestamp >>= 4
+	}
+	for i := range token[16:] {
+		token[i+16] = symbols[rand.Intn(len(symbols))]
+	}
+
+	err := tx.UpdateOne(tx.SQL("users/add_token"), string(token), email)
+	if err != nil {
+		return "", err
+	}
+
+	return string(token), nil
+}
+
+func ValidateUserToken(tx *apsql.Tx, token string) (*User, error) {
+	if len(token) != 32 {
+		return nil, errors.New("token must be 32 bytes long")
+	}
+	user := User{}
+	err := tx.Get(&user, tx.SQL("users/find_token"), token)
+	if err != nil {
+		return nil, err
+	}
+	var unix int64
+	for i, b := range []byte(token)[:16] {
+		unix |= isymbols[b] << (4 * uint(i))
+	}
+	if time.Unix(unix, 0).Add(24 * time.Hour).Before(time.Now()) {
+		return nil, errors.New("token timestamp is stale")
+	}
+	err = tx.UpdateOne(tx.SQL("users/add_token"), "", user.Email)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 // FindUserByID returns the user with the id specified.
@@ -167,21 +231,24 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 
 // Update updates the user in the database.
 func (u *User) Update(tx *apsql.Tx) error {
+	var err error
 	var count int
-	tx.Get(&count, tx.SQL("users/count_admin"), u.AccountID)
+	err = tx.Get(&count, tx.SQL("users/count_admin"), u.AccountID, true)
+	if err != nil {
+		return apsql.ErrZeroRowsAffected
+	}
 
 	if count == 1 {
 		user := User{}
 		err := tx.Get(&user, tx.SQL("users/find_id"), u.ID)
 		if err != nil {
-			return err
+			return apsql.ErrZeroRowsAffected
 		}
 		if user.Admin && !u.Admin {
 			return errors.New("There must be at least one admin user")
 		}
 	}
 
-	var err error
 	if u.NewPassword != "" {
 		err = u.hashPassword()
 		if err != nil {

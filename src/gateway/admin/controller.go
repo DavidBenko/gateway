@@ -31,6 +31,7 @@ type BaseController struct {
 	conf      config.ProxyAdmin
 	accountID func(r *http.Request) int64
 	userID    func(r *http.Request) int64
+	auth      aphttp.AuthType
 }
 
 func (c *BaseController) apiID(r *http.Request) int64 {

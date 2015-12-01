@@ -15,6 +15,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/http"
 	"gateway/license"
 	"gateway/model"
 	"gateway/proxy"
@@ -492,7 +493,7 @@ func processCommands(cmds []string, db *sql.DB) {
 			log.Fatal("the entered email doesn't match")
 		}
 		err = db.DoInTransaction(func(tx *sql.Tx) error {
-			err := model.CanDeleteUser(tx, user.ID)
+			err := model.CanDeleteUser(tx, user.ID, user.AccountID, http.AuthTypeAdmin)
 			if err != nil {
 				return err
 			}
