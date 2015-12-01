@@ -11,6 +11,12 @@
   "Ports": [
     {
       "ContainerPort": "5000"
+    },
+    {
+      "ContainerPort": "5555"
+    },
+    {
+      "ContainerPort": "5556"
     }
   ]
 }
