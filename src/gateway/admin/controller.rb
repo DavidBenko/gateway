@@ -106,7 +106,7 @@ import (
   aphttp "gateway/http"
   "gateway/model"
   apsql "gateway/sql"
-  "log"
+  logger "log"
   "net/http"
 )
 
@@ -132,7 +132,7 @@ func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
   <% end %>
 
   if err != nil {
-    log.Printf("%s Error listing <%= pretty %>: %v", config.System, err)
+    logger.Printf("%s Error listing <%= pretty %>: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
 
@@ -209,7 +209,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   <% if before_delete %>
     if err = c.BeforeDelete(<%= local %>, tx); err != nil {
-      log.Printf("%s Error before delete: %v", config.System, err)
+      logger.Printf("%s Error before delete: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   <% end %>
@@ -230,13 +230,13 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
     }
-    log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
+    logger.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
 
   <% if after_delete %>
     if err := c.AfterDelete(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after delete: %v", config.System, err)
+      logger.Printf("%s Error after delete: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   <% end %>
@@ -276,7 +276,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
 
   <% if before_validate %>
   if err := c.BeforeValidate(<%= local %>, tx); err != nil {
-    log.Printf("%s Error before validate: %v", config.System, err)
+    logger.Printf("%s Error before validate: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
   <% end %>
@@ -288,7 +288,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
 
   <% if after_validate %>
   if err := c.AfterValidate(<%= local %>, tx); err != nil {
-    log.Printf("%s Error after validate: %v", config.System, err)
+    logger.Printf("%s Error after validate: %v", config.System, err)
     return aphttp.DefaultServerError()
   }
   <% end %>
@@ -296,7 +296,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if before_insert %>
   if isInsert {
     if err := c.BeforeInsert( <%= local %>, tx); err != nil {
-      log.Printf("%s Error before insert: %v", config.System, err)
+      logger.Printf("%s Error before insert: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }
@@ -304,7 +304,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if before_update %>
   if !isInsert {
     if err := c.BeforeUpdate( <%= local %>, tx); err != nil {
-      log.Printf("%s Error before update: %v", config.System, err)
+      logger.Printf("%s Error before update: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }
@@ -318,14 +318,14 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     if !validationErrors.Empty() {
       return SerializableValidationErrors{validationErrors}
     }
-    log.Printf("%s Error %s <%= pretty %>: %v", config.System, desc, err)
+    logger.Printf("%s Error %s <%= pretty %>: %v", config.System, desc, err)
     return aphttp.NewServerError(err)
   }
 
   <% if after_insert %>
   if isInsert {
     if err := c.AfterInsert(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after insert: %v", config.System, err)
+      logger.Printf("%s Error after insert: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }
@@ -333,7 +333,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if after_update %>
   if !isInsert {
     if err := c.AfterUpdate(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after update: %v", config.System, err)
+      logger.Printf("%s Error after update: %v", config.System, err)
       return aphttp.DefaultServerError()
     }
   }

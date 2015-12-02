@@ -4,7 +4,7 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log"
+	logger "log"
 	"os"
 	"reflect"
 	"strings"
@@ -186,7 +186,7 @@ func parseConfigFile(config *Configuration) error {
 	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
-		log.Printf(
+		logger.Printf(
 			"%s Config file '%s' does not exist and will not be used.\n",
 			System, configFile)
 		return nil

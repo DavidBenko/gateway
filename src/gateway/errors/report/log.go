@@ -1,7 +1,7 @@
 package report
 
 import (
-	"log"
+	logger "log"
 	"net/http"
 )
 
@@ -12,9 +12,9 @@ type logReporter struct{}
 // is provided
 func (a *logReporter) Error(err error, request *http.Request) {
 	if request == nil {
-		log.Printf("Error encountered: %v", err)
+		logger.Printf("Error encountered: %v", err)
 	} else {
-		log.Printf("Error encountered: %v\nHTTP Request: %v", err, request)
+		logger.Printf("Error encountered: %v\nHTTP Request: %v", err, request)
 	}
 }
 

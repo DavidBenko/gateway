@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
+	logger "log"
 	"os"
 	"os/exec"
 	"path"
@@ -131,7 +131,7 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 
 	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
 	output, err := cmd.CombinedOutput()
-	log.Println(string(output))
+	logger.Println(string(output))
 
 	if err != nil {
 		return fmt.Errorf("Error invoking wsimport: %v", err)
@@ -169,7 +169,7 @@ func inflateSoapClient() (string, error) {
 	jarBytes, err := Asset("soapclient-all.jar")
 
 	if err != nil {
-		log.Printf("%s Could not find embedded soapclient", config.System)
+		logger.Printf("%s Could not find embedded soapclient", config.System)
 		return "", err
 	}
 

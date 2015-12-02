@@ -3,7 +3,7 @@ package admin
 import (
 	"bytes"
 	"fmt"
-	"log"
+	logger "log"
 	"mime"
 	"net/http"
 	"regexp"
@@ -34,7 +34,7 @@ type assetResolver func(path string) ([]byte, error)
 func init() {
 	for k, v := range additionalMimeTypes {
 		if err := mime.AddExtensionType(k, v); err != nil {
-			log.Fatalf("Could not set mime type for %s", k)
+			logger.Fatalf("Could not set mime type for %s", k)
 		}
 	}
 }

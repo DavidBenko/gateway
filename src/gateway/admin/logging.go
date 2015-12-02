@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	logger "log"
 	"net/http"
 	"os"
 	"regexp"
@@ -165,7 +165,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		mangos.SubTCP,
 	)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	logs, e := receive.Channels()
 	defer func() {
@@ -173,7 +173,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 	}()
 	go func() {
 		for err := range e {
-			log.Printf("[logging] %v", err)
+			logger.Printf("[logging] %v", err)
 		}
 	}()
 

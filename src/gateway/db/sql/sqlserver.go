@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	logger "log"
 	"sort"
 
 	"gateway/db"
@@ -96,14 +96,14 @@ func (s *SQLServerSpec) NewDB() (db.DB, error) {
 
 func (s *SQLServerSpec) NeedsUpdate(sp db.Specifier) bool {
 	if sp == nil {
-		log.Panicf("tried to compare to nil db.Specifier!")
+		logger.Panicf("tried to compare to nil db.Specifier!")
 		return false
 	}
 	if spec, ok := sp.(*SQLServerSpec); ok {
 		return spec.Timeout != s.Timeout || s.spec.NeedsUpdate(sp)
 	}
 
-	log.Panicf("tried to compare %T to %T!", s, sp)
+	logger.Panicf("tried to compare %T to %T!", s, sp)
 	return false
 }
 

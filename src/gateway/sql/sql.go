@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gateway/config"
-	"log"
+	logger "log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -77,7 +77,7 @@ func Connect(conf config.Database) (*DB, error) {
 				conf.Driver)
 	}
 
-	log.Printf("%s Connecting to database", config.System)
+	logger.Printf("%s Connecting to database", config.System)
 	sqlxDB, err := sqlx.Open(conf.Driver, conf.ConnectionString)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	logger "log"
 	"net/url"
 	"strings"
 
@@ -530,7 +530,7 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 
 	err := DeleteJarFile(remoteEndpoint.Soap.ID)
 	if err != nil {
-		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+		logger.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
 	// trigger a notification for soap_remote_endpoints

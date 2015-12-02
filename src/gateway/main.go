@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	logger "log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -37,22 +37,22 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Setup logging
-	log.SetFlags(log.Ldate | log.Lmicroseconds)
-	log.SetOutput(admin.Interceptor)
+	logger.SetFlags(logger.Ldate | logger.Lmicroseconds)
+	logger.SetOutput(admin.Interceptor)
 
 	// Parse configuration
 	conf, err := config.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatalf("%s Error parsing config file: %v", config.System, err)
+		logger.Fatalf("%s Error parsing config file: %v", config.System, err)
 	}
 
-	log.Printf("%s Running Gateway %s (%s)",
+	logger.Printf("%s Running Gateway %s (%s)",
 		config.System, version.Name(), version.Commit())
 
 	// Setup the database
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
-		log.Fatalf("%s Error connecting to database: %v", config.System, err)
+		logger.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 
 	// Set up error reporting
@@ -69,27 +69,27 @@ func main() {
 
 	//check for sneaky people
 	if license.DeveloperVersion {
-		log.Printf("%s Checking developer version license constraints", config.System)
+		logger.Printf("%s Checking developer version license constraints", config.System)
 		accounts, _ := model.AllAccounts(db)
 		if len(accounts) > license.DeveloperVersionAccounts {
-			log.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
+			logger.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
 		}
 		for _, account := range accounts {
 			var count int
 			db.Get(&count, db.SQL("users/count"), account.ID)
 			if count > license.DeveloperVersionUsers {
-				log.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
+				logger.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
 			}
 
 			apis, _ := model.AllAPIsForAccountID(db, account.ID)
 			if len(apis) > license.DeveloperVersionAPIs {
-				log.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
+				logger.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
 			}
 			for _, api := range apis {
 				var count int
 				db.Get(&count, db.SQL("proxy_endpoints/count_active"), api.ID)
 				if count > license.DeveloperVersionProxyEndpoints {
-					log.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
+					logger.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
 				}
 			}
 		}
@@ -98,10 +98,10 @@ func main() {
 	if !db.UpToDate() {
 		if conf.Database.Migrate || conf.DevMode() {
 			if err = db.Migrate(); err != nil {
-				log.Fatalf("Error migrating database: %v", err)
+				logger.Fatalf("Error migrating database: %v", err)
 			}
 		} else {
-			log.Fatalf("%s The database is not up to date. "+
+			logger.Fatalf("%s The database is not up to date. "+
 				"Please migrate by invoking with the -db-migrate flag.",
 				config.System)
 		}
@@ -110,20 +110,20 @@ func main() {
 	// Set up dev mode account
 	if conf.DevMode() {
 		if _, err := model.FirstAccount(db); err != nil {
-			log.Printf("%s Creating development account", config.System)
+			logger.Printf("%s Creating development account", config.System)
 			if err := createDevAccount(db); err != nil {
-				log.Fatalf("Could not create account: %v", err)
+				logger.Fatalf("Could not create account: %v", err)
 			}
 		}
 		if account, err := model.FirstAccount(db); err == nil {
 			if users, _ := model.AllUsersForAccountID(db, account.ID); len(users) == 0 {
-				log.Printf("%s Creating development user", config.System)
+				logger.Printf("%s Creating development user", config.System)
 				if err := createDevUser(db); err != nil {
-					log.Fatalf("Could not create account: %v", err)
+					logger.Fatalf("Could not create account: %v", err)
 				}
 			}
 		} else {
-			log.Fatal("Dev account doesn't exist")
+			logger.Fatal("Dev account doesn't exist")
 		}
 	}
 
@@ -136,20 +136,20 @@ func main() {
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)
 	if err != nil {
-		log.Printf("%s Unable to write script files due to error: %v", config.System, err)
+		logger.Printf("%s Unable to write script files due to error: %v", config.System, err)
 	}
 
 	// Configure SOAP
 	err = soap.Configure(conf.Soap, conf.DevMode())
 	if err != nil {
-		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+		logger.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
 	}
 
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 
 	// Start the proxy
-	log.Printf("%s Starting server", config.System)
+	logger.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
 	go proxy.Run()
 
@@ -161,14 +161,14 @@ func main() {
 		sig := <-sigs
 		err := soap.Shutdown(sig)
 		if err != nil {
-			log.Printf("Error shutting down SOAP service: %v", err)
+			logger.Printf("Error shutting down SOAP service: %v", err)
 		}
 		done <- true
 	}()
 
 	<-done
 
-	log.Println("Shutdown complete")
+	logger.Println("Shutdown complete")
 }
 
 func versionCheck() bool {

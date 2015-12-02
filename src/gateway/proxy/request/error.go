@@ -3,7 +3,7 @@ package request
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	logger "log"
 	"net/http"
 
 	"github.com/denisenkom/go-mssqldb"
@@ -56,10 +56,10 @@ func NewSQLErrorResponse(err error, wrapMessage string) Response {
 
 	switch t := err.(type) {
 	case mssql.Error:
-		log.Printf("Encountered a SQL error: %v\n", t)
+		logger.Printf("Encountered a SQL error: %v\n", t)
 		return &SQLServerErrorResponse{&ErrorResponse{http.StatusInternalServerError, errorMessage}, t.Number, t.State, t.Class, t.Message, t.ServerName, t.ProcName, t.LineNo}
 	default:
-		log.Printf("Encountered an error, but not a SQL error: %v\n", t)
+		logger.Printf("Encountered an error, but not a SQL error: %v\n", t)
 		return &ErrorResponse{http.StatusInternalServerError, errorMessage}
 	}
 }

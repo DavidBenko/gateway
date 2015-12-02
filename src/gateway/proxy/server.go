@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	logger "log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -88,8 +88,8 @@ func (s *Server) Run() {
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
-	log.Printf("%s Server listening at %s", config.Proxy, listen)
-	log.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
+	logger.Printf("%s Server listening at %s", config.Proxy, listen)
+	logger.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 
 func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
@@ -112,14 +112,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 
 	logs = &bytes.Buffer{}
-	logger := log.New(logs, "", log.Ldate|log.Lmicroseconds)
+	logger := logger.New(logs, "", logger.Ldate|logger.Lmicroseconds)
 
 	defer func() {
 		if httpErr != nil {
 			s.logError(logger, logPrefix, httpErr)
 		}
 		s.logDuration(vm, logger, logPrefix, start)
-		log.Print(logs.String())
+		logger.Print(logs.String())
 	}()
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
@@ -261,7 +261,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 		body, err := json.Marshal(&response)
 		if err != nil {
-			log.Printf("%s [error] %s", logPrefix, err)
+			logger.Printf("%s [error] %s", logPrefix, err)
 			return s.httpError(err)
 		}
 
@@ -383,7 +383,7 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logger *logger.Logger, logPrefix string, err aphttp.Error) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
@@ -392,7 +392,7 @@ func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error
 	logger.Printf("%s [error] %s", logPrefix, errString)
 }
 
-func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {
+func (s *Server) logDuration(vm *apvm.ProxyVM, logger *logger.Logger, logPrefix string, start time.Time) {
 	var proxiedRequestsDuration time.Duration
 	if vm != nil {
 		proxiedRequestsDuration = vm.ProxiedRequestsDuration

@@ -1,7 +1,7 @@
 package pools
 
 import (
-	"log"
+	logger "log"
 
 	"gateway/db"
 	"gateway/sql"
@@ -31,13 +31,13 @@ func (p *Pools) flushByMsg(msg interface{}) {
 	case db.Specifier:
 		pool, err := p.poolForSpec(m)
 		if err != nil {
-			log.Printf("error flushing DB cache: %s", err.Error())
+			logger.Printf("error flushing DB cache: %s", err.Error())
 		}
 		pool.Lock()
 		FlushEntry(pool, m)
 		pool.Unlock()
 	case error:
-		log.Printf("tried to flush db entry but received error: %s", m.Error())
+		logger.Printf("tried to flush db entry but received error: %s", m.Error())
 	default:
 	}
 }
