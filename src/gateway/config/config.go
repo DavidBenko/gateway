@@ -110,6 +110,7 @@ type ProxyAdmin struct {
 	BrokerPubPort   string `flag:"broker-pub-port" default:"5555"`
 	BrokerSubPort   string `flag:"broker-sub-port" default:"5556"`
 	BrokerTransport string `flag:"broker-transport" default:"tcp"`
+	BrokerWs        string `flag:"broker-ws" default:"localhost:5000"`
 }
 
 type ElasticLogging struct {

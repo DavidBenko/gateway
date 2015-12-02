@@ -95,7 +95,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
 			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
 
-			input = brokerHostRegex.ReplaceAllLiteralString(input, conf.Broker)
+			input = brokerHostRegex.ReplaceAllLiteralString(input, conf.BrokerWs)
 
 			return input
 		},
