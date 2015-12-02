@@ -76,4 +76,5 @@ var usageStrings = map[string]string{
 	"broker-pub-port":  "The port of the broker pub",
 	"broker-sub-port":  "The port of the broker sub",
 	"broker-transport": "The broker transport",
+	"broker-ws":        "The broker websocket location",
 }
