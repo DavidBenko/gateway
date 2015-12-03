@@ -48,7 +48,7 @@ generate: install_goimports
 DeveloperVersionAccounts = 1
 DeveloperVersionUsers = 1
 DeveloperVersionAPIs = 1
-DeveloperVersionProxyEndpoints = 5
+DeveloperVersionProxyEndpoints = 20
 
 LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersionAccounts)\
  -X gateway/license.developerVersionUsers=$(DeveloperVersionUsers)\
