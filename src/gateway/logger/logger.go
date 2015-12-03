@@ -3,6 +3,7 @@ package logger
 import (
 	"gateway/errors/report"
 	"log"
+	"net/http"
 )
 
 // Fatal reports errors via Airbrake and then delegates to log.Fatal
@@ -60,10 +61,21 @@ func Println(v ...interface{}) {
 }
 
 func reportErrors(v ...interface{}) {
+	var (
+		errs []error
+		req  *http.Request
+	)
+
 	for _, item := range v {
 		switch t := item.(type) {
 		case error:
-			report.Error(t, nil)
+			errs = append(errs, t)
+		case *http.Request:
+			req = t
 		}
+	}
+
+	for _, err := range errs {
+		report.Error(err, req)
 	}
 }
