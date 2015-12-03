@@ -13,10 +13,12 @@
       "ContainerPort": "5000"
     },
     {
-      "ContainerPort": "5555"
+      "ContainerPort": "5555",
+      "hostPort" : "5555"
     },
     {
-      "ContainerPort": "5556"
+      "ContainerPort": "5556",
+      "hostPort" : "5556"
     }
   ]
 }
