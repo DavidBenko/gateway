@@ -25,7 +25,7 @@ var (
 	DeveloperVersionAccounts       = 1
 	DeveloperVersionUsers          = 1
 	DeveloperVersionAPIs           = 1
-	DeveloperVersionProxyEndpoints = 5
+	DeveloperVersionProxyEndpoints = 20
 )
 
 func init() {
