@@ -19,6 +19,9 @@ ADD public_keys/production/production_license /gateway/license
 EXPOSE 5000 5555 5556
 WORKDIR /gateway
 
+ENV SERVER false
+ENV DB_MIGRATE false
+ENV CACHE_APIS false
 ENV DB_DRIVER sqlite3
 ENV ADMIN_SESSION_AUTH_KEY please-change-me
 ENV ADMIN_PATH /admin/
@@ -27,14 +30,18 @@ ENV ADMIN_HOST 0.0.0.0
 ENV PROXY_DOMAIN localhost
 ENV ENABLE_BROKER true
 ENV BROKER_HOST localhost
+ENV BROKER_WS localhost:5000
 ENV BROKER_PUB_PORT 5555
 ENV BROKER_SUB_PORT 5556
 ENV SCRIPT_ENABLED false
 ENV ADMIN_SESSION_COOKIE_DOMAIN 0.0.0.0
+ENV BLEVE_LOGGING_FILE ""
+ENV ELASTIC_LOGGING_URL ""
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
-ENTRYPOINT ./gateway -server -db-migrate -proxy-cache-apis -proxy-host=$PROXY_HOST -admin-host=$ADMIN_HOST -proxy-domain=$PROXY_DOMAIN \
+ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$CACHE_APIS -proxy-host=$PROXY_HOST -admin-host=$ADMIN_HOST -proxy-domain=$PROXY_DOMAIN \
   -db-driver=$DB_DRIVER -admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY -admin-path-prefix=$ADMIN_PATH -admin-session-cookie-domain=$ADMIN_SESSION_COOKIE_DOMAIN \
-  -enable-broker=$ENABLE_BROKER -broker=$BROKER_HOST -broker-pub-port=$BROKER_PUB_PORT -broker-sub-port=$BROKER_SUB_PORT \
+  -enable-broker=$ENABLE_BROKER -broker=$BROKER_HOST -broker-pub-port=$BROKER_PUB_PORT -broker-sub-port=$BROKER_SUB_PORT -broker-ws=$BROKER_WS \
+  -bleve-logging-file=$BLEVE_LOGGING_FILE -elastic-logging-url="$ELASTIC_LOGGING_URL" \
   -remote-endpoint-script-enabled=$SCRIPT_ENABLED \
   -db-conn-string="$DB_CONN"
