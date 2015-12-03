@@ -84,7 +84,7 @@ func (c *PasswordResetController) Reset(w http.ResponseWriter, r *http.Request, 
 	}
 	_ = user
 
-	token, err := model.AddUserToken(tx, email)
+	token, err := model.AddUserToken(tx, email, model.TokenTypeReset)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

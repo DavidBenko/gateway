@@ -1,1 +1,1 @@
-SELECT id, account_id, name, email, admin FROM users WHERE id = ?;
+SELECT id, account_id, name, email, admin, confirmed FROM users WHERE id = ?;
