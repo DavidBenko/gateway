@@ -117,7 +117,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 
 	defer func() {
 		if httpErr != nil {
-			s.logError(logger, logPrefix, httpErr)
+			s.logError(logger, logPrefix, httpErr, r)
 		}
 		s.logDuration(vm, logger, logPrefix, start)
 		logger.Print(logs.String())
@@ -384,13 +384,13 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error, r *http.Request) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
 		errString = lines[0]
 	}
-	logger.Printf("%s [error] %s", logPrefix, errString)
+	logger.Printf("%s [error] %s\n%v", logPrefix, errString, r)
 }
 
 func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {

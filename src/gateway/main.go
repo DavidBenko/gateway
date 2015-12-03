@@ -50,12 +50,6 @@ func main() {
 	logger.Printf("%s Running Gateway %s (%s)",
 		config.System, version.Name(), version.Commit())
 
-	// Setup the database
-	db, err := sql.Connect(conf.Database)
-	if err != nil {
-		logger.Fatalf("%s Error connecting to database: %v", config.System, err)
-	}
-
 	// Set up error reporting
 	if conf.Airbrake.APIKey != "" && conf.Airbrake.ProjectID != 0 && !conf.DevMode() {
 		abEnv := "production"
@@ -63,6 +57,12 @@ func main() {
 			abEnv = conf.Airbrake.Environment
 		}
 		report.RegisterReporter(report.ConfigureAirbrake(conf.Airbrake.APIKey, conf.Airbrake.ProjectID, abEnv))
+	}
+
+	// Setup the database
+	db, err := sql.Connect(conf.Database)
+	if err != nil {
+		logger.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 
 	// Require a valid license key
