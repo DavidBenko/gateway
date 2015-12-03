@@ -95,7 +95,7 @@ func processLogs(logs <-chan []byte, add func(message string)) {
 }
 
 func ElasticLoggingService(conf config.ElasticLogging) {
-	if conf.Domain == "" {
+	if conf.Url == "" {
 		return
 	}
 
@@ -106,9 +106,7 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 		defer unsubscribe()
 
 		c := elasti.NewConn()
-		c.Domain = conf.Domain
-		c.Username = conf.Username
-		c.Password = conf.Password
+		c.SetFromUrl(conf.Url)
 
 		_, err := c.CreateIndex("gateway")
 		if err == nil {

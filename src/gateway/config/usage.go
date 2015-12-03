@@ -68,9 +68,7 @@ var usageStrings = map[string]string{
 
 	"admin-create-default-host": "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
 
-	"elastic-logging-domain":   "The domain name of the elastic server",
-	"elastic-logging-username": "The user name for the elastic server",
-	"elastic-logging-password": "The password for the elasitic server",
+	"elastic-logging-url": "The url of the elastic server",
 
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",

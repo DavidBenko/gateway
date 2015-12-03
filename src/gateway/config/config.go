@@ -123,9 +123,7 @@ type ProxyAdmin struct {
 }
 
 type ElasticLogging struct {
-	Domain   string `flag:"elastic-logging-domain" default:""`
-	Username string `flag:"elastic-logging-username" default:""`
-	Password string `flag:"elastic-logging-password" default:""`
+	Url string `flag:"elastic-logging-url" default:""`
 }
 
 type BleveLogging struct {
