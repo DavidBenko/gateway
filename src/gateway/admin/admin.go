@@ -2,12 +2,12 @@ package admin
 
 import (
 	"fmt"
-	logger "log"
 	"net/http"
 	"strings"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	//"gateway/model"
 	sql "gateway/sql"
 

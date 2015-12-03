@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/model"
 	apsql "gateway/sql"
-	logger "log"
 	"net/http"
 
 	"github.com/gorilla/handlers"

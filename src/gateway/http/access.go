@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	logger "log"
 	"net/http"
 	"time"
+
+	"gateway/logger"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"

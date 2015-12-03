@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	logger "log"
 	"os"
 	"os/exec"
 	"path"
@@ -15,6 +14,7 @@ import (
 
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logger"
 )
 
 const (

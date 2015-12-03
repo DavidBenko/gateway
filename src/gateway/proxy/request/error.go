@@ -3,8 +3,9 @@ package request
 import (
 	"encoding/json"
 	"fmt"
-	logger "log"
 	"net/http"
+
+	"gateway/logger"
 
 	"github.com/denisenkom/go-mssqldb"
 )

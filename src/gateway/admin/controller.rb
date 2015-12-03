@@ -104,9 +104,9 @@ import (
   "errors"
   "gateway/config"
   aphttp "gateway/http"
+  "gateway/logger"
   "gateway/model"
   apsql "gateway/sql"
-  logger "log"
   "net/http"
 )
 

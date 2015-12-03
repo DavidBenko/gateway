@@ -5,13 +5,13 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	logger "log"
 	"regexp"
 	"strconv"
 	"time"
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/logger"
 	"gateway/queue"
 	"gateway/queue/mangos"
 

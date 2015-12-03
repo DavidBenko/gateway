@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	logger "log"
 	"strings"
 	"sync"
+
+	"gateway/logger"
 
 	"github.com/jmoiron/sqlx"
 )

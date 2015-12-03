@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logger"
 	"gateway/model"
 	"gateway/soap"
 	"io"
-	logger "log"
 	"net"
 	"strings"
 )

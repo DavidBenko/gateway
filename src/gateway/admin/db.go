@@ -3,8 +3,8 @@ package admin
 import (
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	apsql "gateway/sql"
-	logger "log"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"

@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"fmt"
-	logger "log"
 	"mime"
 	"net/http"
 	"regexp"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logger"
 	"gateway/model"
 	"gateway/proxy/vm"
 	"gateway/version"

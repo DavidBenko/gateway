@@ -3,10 +3,10 @@ package sql
 import (
 	"errors"
 	"fmt"
-	logger "log"
 	"time"
 
 	"gateway/db"
+	"gateway/logger"
 
 	_ "github.com/go-sql-driver/mysql"
 )

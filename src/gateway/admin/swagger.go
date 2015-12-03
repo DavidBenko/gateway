@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
 	"net/http"
 	"strings"
 	"sync"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/model"
 	apsql "gateway/sql"
 

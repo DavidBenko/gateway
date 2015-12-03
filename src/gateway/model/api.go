@@ -5,8 +5,8 @@ import (
 	"fmt"
 	aperrors "gateway/errors"
 	"gateway/license"
+	"gateway/logger"
 	apsql "gateway/sql"
-	logger "log"
 )
 
 // API represents a top level grouping of endpoints accessible at a host.

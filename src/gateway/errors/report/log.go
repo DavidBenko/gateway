@@ -1,8 +1,9 @@
 package report
 
 import (
-	logger "log"
 	"net/http"
+
+	"gateway/logger"
 )
 
 type logReporter struct{}

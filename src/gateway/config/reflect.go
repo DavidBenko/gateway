@@ -2,7 +2,7 @@ package config
 
 import (
 	"flag"
-	logger "log"
+	"gateway/logger"
 	"reflect"
 	"strconv"
 )

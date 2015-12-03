@@ -3,11 +3,11 @@ package proxy
 import (
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/model"
 	apsql "gateway/sql"
 
 	"fmt"
-	logger "log"
 	"net/http"
 	"strconv"
 	"sync"

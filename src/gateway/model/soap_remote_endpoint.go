@@ -6,12 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	logger "log"
 	"os"
 	"path"
 
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logger"
 	"gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"

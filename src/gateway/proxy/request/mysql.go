@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
 
 	"gateway/db/pools"
 	sql "gateway/db/sql"
+	"gateway/logger"
 	"gateway/model"
 )
 

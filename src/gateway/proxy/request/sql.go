@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
+
+	"gateway/logger"
 
 	"github.com/jmoiron/sqlx"
 )

@@ -2,10 +2,10 @@ package proxy
 
 import (
 	"gateway/config"
+	"gateway/logger"
 	"gateway/model"
 	apsql "gateway/sql"
 
-	logger "log"
 	"sync"
 )
 

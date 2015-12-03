@@ -1,9 +1,8 @@
 package pools
 
 import (
-	logger "log"
-
 	"gateway/db"
+	"gateway/logger"
 	"gateway/sql"
 )
 

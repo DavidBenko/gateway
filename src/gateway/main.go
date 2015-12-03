@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	logger "log"
+	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -15,6 +15,7 @@ import (
 	"gateway/config"
 	"gateway/errors/report"
 	"gateway/license"
+	"gateway/logger"
 	"gateway/model"
 	"gateway/proxy"
 	"gateway/service"
@@ -37,8 +38,8 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Setup logging
-	logger.SetFlags(logger.Ldate | logger.Lmicroseconds)
-	logger.SetOutput(admin.Interceptor)
+	log.SetFlags(log.Ldate | log.Lmicroseconds)
+	log.SetOutput(admin.Interceptor)
 
 	// Parse configuration
 	conf, err := config.Parse(os.Args[1:])

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gateway/config"
-	logger "log"
+	"gateway/logger"
 	"regexp"
 	"strconv"
 	"strings"

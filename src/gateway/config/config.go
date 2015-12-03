@@ -4,10 +4,11 @@ package config
 import (
 	"flag"
 	"fmt"
-	logger "log"
 	"os"
 	"reflect"
 	"strings"
+
+	"gateway/logger"
 
 	"github.com/BurntSushi/toml"
 )

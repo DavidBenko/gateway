@@ -4,13 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	logger "log"
 	"regexp"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 
 	"gateway/db"
+	"gateway/logger"
 )
 
 type driver string

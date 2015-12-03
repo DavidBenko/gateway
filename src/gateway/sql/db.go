@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gateway/config"
-	logger "log"
+	"gateway/logger"
 	"sync"
 	"time"
 

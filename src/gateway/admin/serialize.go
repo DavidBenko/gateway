@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	logger "log"
 	"net/http"
 	"strconv"
 
 	"gateway/config"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/model"
 	apsql "gateway/sql"
 

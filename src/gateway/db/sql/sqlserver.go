@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	logger "log"
 	"sort"
 
 	"gateway/db"
+	"gateway/logger"
 
 	_ "github.com/denisenkom/go-mssqldb"
 )

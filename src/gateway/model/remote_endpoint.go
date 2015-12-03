@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
 	"net/url"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"gateway/config"
 	"gateway/db"
 	aperrors "gateway/errors"
+	"gateway/logger"
 	re "gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"

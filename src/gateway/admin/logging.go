@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
 	"net/http"
 	"os"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/queue"
 	"gateway/queue/mangos"
 	apsql "gateway/sql"

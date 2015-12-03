@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	logger "log"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -16,6 +16,7 @@ import (
 	"gateway/config"
 	"gateway/db/pools"
 	aphttp "gateway/http"
+	"gateway/logger"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
@@ -112,7 +113,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 
 	logs = &bytes.Buffer{}
-	logger := logger.New(logs, "", logger.Ldate|logger.Lmicroseconds)
+	logger := log.New(logs, "", log.Ldate|log.Lmicroseconds)
 
 	defer func() {
 		if httpErr != nil {
@@ -383,7 +384,7 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logger *logger.Logger, logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
@@ -392,7 +393,7 @@ func (s *Server) logError(logger *logger.Logger, logPrefix string, err aphttp.Er
 	logger.Printf("%s [error] %s", logPrefix, errString)
 }
 
-func (s *Server) logDuration(vm *apvm.ProxyVM, logger *logger.Logger, logPrefix string, start time.Time) {
+func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {
 	var proxiedRequestsDuration time.Duration
 	if vm != nil {
 		proxiedRequestsDuration = vm.ProxiedRequestsDuration

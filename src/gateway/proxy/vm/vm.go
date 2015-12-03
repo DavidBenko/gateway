@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	logger "log"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logger"
 	"gateway/model"
 	"gateway/sql"
 
@@ -30,7 +31,7 @@ var errCodeTimeout = errors.New("JavaScript took too long to execute")
 type ProxyVM struct {
 	*otto.Otto
 	conf                    config.ProxyServer
-	Logger                  *logger.Logger
+	Logger                  *log.Logger
 	LogPrefix               string
 	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
@@ -42,7 +43,7 @@ type ProxyVM struct {
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
 func NewVM(
-	logger *logger.Logger,
+	logger *log.Logger,
 	logPrefix string,
 	w http.ResponseWriter,
 	r *http.Request,
