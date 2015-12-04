@@ -4,7 +4,6 @@ import "net/http"
 
 // Reporter provides a general error reporting abstraction.
 type Reporter interface {
-
 	// Error reports an error.  If the error occurred within the context of an
 	// http request, additional details can be reported if the http.Request object
 	// is provided.
