@@ -102,7 +102,7 @@ func main() {
 
 	commands := config.Commands()
 	if len(commands) > 0 {
-		processCommands(commands, db)
+		processCommands(commands, conf, db)
 		return
 	}
 
@@ -208,6 +208,7 @@ func createDevUser(db *sql.DB) error {
 		Name:        "developer",
 		Email:       "developer@justapis.com",
 		NewPassword: randomPassword(),
+		Confirmed:   true,
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -268,6 +269,7 @@ var commands = map[string]Command{
 			{"name", true},
 			{"email", true},
 			{"password", true},
+			{"confirmed", true},
 		},
 		"users:create <account-id> name:\"<name>\" email:<email> password:<password>",
 	},
@@ -277,6 +279,7 @@ var commands = map[string]Command{
 			{"name", false},
 			{"email", false},
 			{"password", false},
+			{"confirmed", false},
 		},
 		"users:update <id> name:\"<name>\" email:<email> password:<password>",
 	},
@@ -314,7 +317,7 @@ func getParameters(command string, params []string) map[string]string {
 	return values
 }
 
-func processCommands(cmds []string, db *sql.DB) {
+func processCommands(cmds []string, conf config.Configuration, db *sql.DB) {
 	if cmds[0] == "help" {
 		if len(cmds) > 1 {
 			fmt.Println(commands[cmds[1]].Usage)
@@ -429,14 +432,26 @@ func processCommands(cmds []string, db *sql.DB) {
 		}
 	case "users:create":
 		account := getAccount()
+		confirmed := false
+		if params["confirmed"] == "true" {
+			confirmed = true
+		}
 		user := &model.User{
 			AccountID:   account.ID,
 			Name:        params["name"],
 			Email:       params["email"],
 			NewPassword: params["password"],
+			Confirmed:   confirmed,
 		}
 		err := db.DoInTransaction(func(tx *sql.Tx) error {
-			return user.Insert(tx)
+			err := user.Insert(tx)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				return admin.SendConfirmEmail(conf.SMTP, conf.Proxy, user, tx)
+			}
+			return nil
 		})
 		if err != nil {
 			log.Fatal(err)
@@ -453,6 +468,13 @@ func processCommands(cmds []string, db *sql.DB) {
 		}
 		if params["password"] != "" {
 			user.NewPassword = params["password"]
+		}
+		if params["confirmed"] != "" {
+			if params["confirmed"] == "true" {
+				user.Confirmed = true
+			} else {
+				user.Confirmed = false
+			}
 		}
 		err := db.DoInTransaction(func(tx *sql.Tx) error {
 			return user.Update(tx)

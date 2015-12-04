@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"net/http"
 
 	"gateway/config"
@@ -68,5 +69,66 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
+
+	user := &model.User{
+		AccountID:   account.ID,
+		Name:        registration.Email,
+		Email:       registration.Email,
+		NewPassword: registration.Password,
+	}
+	err = user.Insert(tx)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	err = SendConfirmEmail(c.SMTP, c.ProxyServer, user, tx)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
+
+type ConfirmationController struct {
+	BaseController
+}
+
+func RouteConfirmation(controller *ConfirmationController, path string,
+	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
+
+	routes := map[string]http.Handler{
+		"GET": write(db, controller.Confirmation),
+	}
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+	}
+
+	router.Handle(path, handlers.MethodHandler(routes))
+}
+
+func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
+	err := r.ParseForm()
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	if len(r.Form["token"]) != 1 {
+		return aphttp.NewError(errors.New("token is required"), http.StatusBadRequest)
+	}
+
+	token := r.Form["token"][0]
+	user, err := model.ValidateUserToken(tx, token)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	user.Confirmed = true
+	err = user.Update(tx)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	http.Redirect(w, r, "/admin/", http.StatusFound)
 	return nil
 }

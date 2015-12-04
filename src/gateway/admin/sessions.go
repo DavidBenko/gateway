@@ -85,6 +85,9 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		return aphttp.NewError(errors.New("No user with that email."), http.StatusBadRequest)
 	}
+	if !user.Confirmed {
+		return aphttp.NewError(errors.New("This email address hasn't been confirmed"), http.StatusBadRequest)
+	}
 	if !user.ValidPassword(credentials.Password) {
 		return aphttp.NewError(errors.New("Invalid password."), http.StatusBadRequest)
 	}

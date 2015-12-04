@@ -16,8 +16,6 @@ import (
 )
 
 type PasswordResetController struct {
-	config.SMTP
-	config.ProxyServer
 	BaseController
 }
 
@@ -124,6 +122,7 @@ func (c *PasswordResetController) Reset(w http.ResponseWriter, r *http.Request, 
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
+	w.WriteHeader(http.StatusOK)
 	return nil
 }
 
@@ -165,5 +164,7 @@ func (c *PasswordResetConfirmationController) Confirmation(w http.ResponseWriter
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
+
+	w.WriteHeader(http.StatusOK)
 	return nil
 }

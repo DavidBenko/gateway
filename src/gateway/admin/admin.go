@@ -49,7 +49,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		authAdminUser = admin
 	}
 
-	base := BaseController{conf: conf, accountID: accountID, userID: userID}
+	base := BaseController{conf: conf, accountID: accountID, userID: userID,
+		SMTP: configuration.SMTP, ProxyServer: psconf}
 
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
 
@@ -71,7 +72,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 
 	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
 	RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
-	RoutePasswordReset(&PasswordResetController{configuration.SMTP, psconf, base}, "/password_reset", admin, db, conf)
+	RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
+	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)
 	RoutePasswordResetConfirmation(&PasswordResetConfirmationController{base}, "/password_reset_confirmation", admin, db, conf)
 
 	apisController := &APIsController{base}
