@@ -7,7 +7,7 @@ import (
 
 	"gateway/db/pools"
 	sql "gateway/db/sql"
-	"gateway/logger"
+	"gateway/logreport"
 	"gateway/model"
 )
 
@@ -96,7 +96,7 @@ func (r *MySQLRequest) updateWith(endpointData *MySQLRequest) {
 
 // performQuery is like sql.performQuery, but uses prepared statements.
 func (r *MySQLRequest) performQuery() Response {
-	logger.Printf("Params are %v", r.Parameters)
+	logreport.Printf("Params are %v", r.Parameters)
 
 	if r.conn == nil {
 		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")
@@ -143,7 +143,7 @@ func (r *MySQLRequest) performQuery() Response {
 
 // transactQuery is like sql.transactQuery, but uses prepared statements.
 func (r *MySQLRequest) transactQuery() Response {
-	logger.Printf("Params are %v", r.Parameters)
+	logreport.Printf("Params are %v", r.Parameters)
 
 	if r.conn == nil {
 		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")

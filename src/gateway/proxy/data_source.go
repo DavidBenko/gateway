@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"gateway/config"
-	"gateway/logger"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
 
@@ -91,7 +91,7 @@ func (c *endpointCache) Libraries(apiID int64) ([]*model.Library, error) {
 }
 
 func (c *endpointCache) clearAPI(apiID int64) {
-	logger.Printf("%s Clearing API %d cache", config.System, apiID)
+	logreport.Printf("%s Clearing API %d cache", config.System, apiID)
 
 	del := false
 	c.mutex.RLock()
@@ -117,7 +117,7 @@ func (c *endpointCache) clearAPI(apiID int64) {
 }
 
 func (c *endpointCache) clearAll() {
-	logger.Printf("%s Clearing all API caches", config.System)
+	logreport.Printf("%s Clearing all API caches", config.System)
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -145,6 +145,6 @@ func (c *endpointCache) Notify(n *apsql.Notification) {
 }
 
 func (c *endpointCache) Reconnect() {
-	logger.Printf("%s API cache notified of database reconnection", config.System)
+	logreport.Printf("%s API cache notified of database reconnection", config.System)
 	go c.clearAll()
 }

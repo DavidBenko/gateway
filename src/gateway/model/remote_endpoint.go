@@ -12,7 +12,7 @@ import (
 	"gateway/config"
 	"gateway/db"
 	aperrors "gateway/errors"
-	"gateway/logger"
+	"gateway/logreport"
 	re "gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"
@@ -530,7 +530,7 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 
 	err := DeleteJarFile(remoteEndpoint.Soap.ID)
 	if err != nil {
-		logger.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+		logreport.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
 	// trigger a notification for soap_remote_endpoints

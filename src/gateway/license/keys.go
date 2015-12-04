@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"gateway/config"
 	apcrypto "gateway/crypto"
-	"gateway/logger"
+	"gateway/logreport"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -56,38 +56,38 @@ func ValidateForever(path string, interval time.Duration) {
 		if data, err = ioutil.ReadFile(defaultLicenseFileLocation); err != nil {
 			// No license file present?  No worries, let's default to the developer version
 			if os.IsNotExist(err) {
-				logger.Printf("%s Starting gateway in developer mode", config.System)
+				logreport.Printf("%s Starting gateway in developer mode", config.System)
 				DeveloperVersion = true
 				return
 			}
-			logger.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
+			logreport.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
 		}
 	} else {
 		data, err = ioutil.ReadFile(path)
 		if err != nil {
-			logger.Fatalf("%s Could not read license at '%s': %v", config.System, path, err)
+			logreport.Fatalf("%s Could not read license at '%s': %v", config.System, path, err)
 		}
 	}
 
 	signed, err := DeserializeSignedLicense(data)
 	if err != nil {
-		logger.Fatalf("%s Could not deserialize license at '%s'", config.System, path)
+		logreport.Fatalf("%s Could not deserialize license at '%s'", config.System, path)
 	}
 
 	publicKeyData, err := Asset("public_key")
 	if err != nil {
-		logger.Fatalf("%s Could not find embedded key", config.System)
+		logreport.Fatalf("%s Could not find embedded key", config.System)
 	}
 
 	pemData, _ := apcrypto.PEMDataFromData(publicKeyData, "PUBLIC KEY")
 	publicKey, err := apcrypto.RSAPublicKey(pemData)
 	if err != nil {
-		logger.Fatalf("%s Could not decode embedded key", config.System)
+		logreport.Fatalf("%s Could not decode embedded key", config.System)
 	}
 
 	checkValidity := func() {
 		if !signed.IsValid(publicKey) {
-			logger.Fatalf("%s License at '%s' is not valid.", config.System, path)
+			logreport.Fatalf("%s License at '%s' is not valid.", config.System, path)
 		}
 	}
 

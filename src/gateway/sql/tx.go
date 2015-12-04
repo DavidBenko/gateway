@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"gateway/logger"
+	"gateway/logreport"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -52,7 +52,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 // InsertOne inserts a row into the DB and returns the ID of the new row.
 func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err error) {
 	if strings.HasSuffix(baseQuery, ";") {
-		logger.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
+		logreport.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
 	}
 	if tx.DB.Driver == Postgres {
 		query := tx.q(baseQuery + ` RETURNING "id";`)

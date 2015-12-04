@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/logger"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/proxy/vm"
 	"gateway/version"
@@ -34,7 +34,7 @@ type assetResolver func(path string) ([]byte, error)
 func init() {
 	for k, v := range additionalMimeTypes {
 		if err := mime.AddExtensionType(k, v); err != nil {
-			logger.Fatalf("Could not set mime type for %s", k)
+			logreport.Fatalf("Could not set mime type for %s", k)
 		}
 	}
 }

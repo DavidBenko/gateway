@@ -1,4 +1,4 @@
-package logger
+package logreport
 
 import (
 	"gateway/errors/report"

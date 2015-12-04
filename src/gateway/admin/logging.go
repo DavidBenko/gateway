@@ -13,7 +13,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
-	"gateway/logger"
+	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
 	apsql "gateway/sql"
@@ -165,7 +165,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		mangos.SubTCP,
 	)
 	if err != nil {
-		logger.Fatal(err)
+		logreport.Fatal(err)
 	}
 	logs, e := receive.Channels()
 	defer func() {
@@ -173,7 +173,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 	}()
 	go func() {
 		for err := range e {
-			logger.Printf("[logging] %v", err)
+			logreport.Printf("[logging] %v", err)
 		}
 	}()
 

@@ -7,7 +7,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
-	"gateway/logger"
+	"gateway/logreport"
 	//"gateway/model"
 	sql "gateway/sql"
 
@@ -61,7 +61,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	if conf.EnableBroker {
 		broker, err := newAggregator(conf)
 		if err != nil {
-			logger.Fatal(err)
+			logreport.Fatal(err)
 		}
 		stream := &LogStreamController{base, broker}
 		RouteLogStream(stream, "/logs/socket", authAdmin)

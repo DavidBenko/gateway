@@ -5,7 +5,7 @@ import (
 	"fmt"
 	aperrors "gateway/errors"
 	"gateway/license"
-	"gateway/logger"
+	"gateway/logreport"
 	apsql "gateway/sql"
 )
 
@@ -84,16 +84,16 @@ func (a *API) Validate(isInsert bool) aperrors.Errors {
 	}
 
 	for _, re := range a.RemoteEndpoints {
-		logger.Printf("Validating remote endpoints")
+		logreport.Printf("Validating remote endpoints")
 		if err := re.Validate(isInsert); !err.Empty() {
-			logger.Printf("Validation not ok!")
+			logreport.Printf("Validation not ok!")
 			if base, ok := err["base"]; ok {
 				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", base))
 			} else {
 				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", err))
 			}
 		} else {
-			logger.Printf("Validation ok!")
+			logreport.Printf("Validation ok!")
 		}
 	}
 	return errors

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gateway/db"
-	"gateway/logger"
+	"gateway/logreport"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -70,13 +70,13 @@ func (m *MySQLSpec) NewDB() (db.DB, error) {
 
 func (m *MySQLSpec) NeedsUpdate(s db.Specifier) bool {
 	if s == nil {
-		logger.Panicf("tried to compare to nil db.Specifier!")
+		logreport.Panicf("tried to compare to nil db.Specifier!")
 		return false
 	}
 	if tSpec, ok := s.(*MySQLSpec); ok {
 		return m.Timeout != tSpec.Timeout || m.spec.NeedsUpdate(s)
 	}
-	logger.Panicf("tried to compare wrong database kinds: %T and %T", m, s)
+	logreport.Panicf("tried to compare wrong database kinds: %T and %T", m, s)
 	return false
 }
 

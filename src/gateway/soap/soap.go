@@ -14,7 +14,7 @@ import (
 
 	"gateway/config"
 	aperrors "gateway/errors"
-	"gateway/logger"
+	"gateway/logreport"
 )
 
 const (
@@ -131,7 +131,7 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 
 	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
 	output, err := cmd.CombinedOutput()
-	logger.Println(string(output))
+	logreport.Println(string(output))
 
 	if err != nil {
 		return fmt.Errorf("Error invoking wsimport: %v", err)
@@ -169,7 +169,7 @@ func inflateSoapClient() (string, error) {
 	jarBytes, err := Asset("soapclient-all.jar")
 
 	if err != nil {
-		logger.Printf("%s Could not find embedded soapclient", config.System)
+		logreport.Printf("%s Could not find embedded soapclient", config.System)
 		return "", err
 	}
 

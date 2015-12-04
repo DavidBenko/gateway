@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"gateway/logger"
+	"gateway/logreport"
 
 	"github.com/denisenkom/go-mssqldb"
 )
@@ -57,10 +57,10 @@ func NewSQLErrorResponse(err error, wrapMessage string) Response {
 
 	switch t := err.(type) {
 	case mssql.Error:
-		logger.Printf("Encountered a SQL error: %v\n", t)
+		logreport.Printf("Encountered a SQL error: %v\n", t)
 		return &SQLServerErrorResponse{&ErrorResponse{http.StatusInternalServerError, errorMessage}, t.Number, t.State, t.Class, t.Message, t.ServerName, t.ProcName, t.LineNo}
 	default:
-		logger.Printf("Encountered an error, but not a SQL error: %v\n", t)
+		logreport.Printf("Encountered an error, but not a SQL error: %v\n", t)
 		return &ErrorResponse{http.StatusInternalServerError, errorMessage}
 	}
 }

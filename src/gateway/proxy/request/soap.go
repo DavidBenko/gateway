@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"gateway/config"
 	aperrors "gateway/errors"
-	"gateway/logger"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/soap"
 	"io"
@@ -163,7 +163,7 @@ func (soapRequest *SoapRequest) Perform() Response {
 		readlen, err := conn.Read(responseBytes)
 		if err != nil {
 			if err != io.EOF {
-				logger.Printf("Error when reading from socket: %s", err)
+				logreport.Printf("Error when reading from socket: %s", err)
 				return NewErrorResponse(aperrors.NewWrapped("[soap] Reading data from soapclient", err))
 			}
 			done = true
@@ -187,10 +187,10 @@ func (soapRequest *SoapRequest) Perform() Response {
 
 // JSON marshals the SoapResponse to JSON
 func (soapResponse *SoapResponse) JSON() ([]byte, error) {
-	logger.Printf("Attempting to marshal soap response")
+	logreport.Printf("Attempting to marshal soap response")
 	bytes, err := json.Marshal(&soapResponse)
 	if err != nil {
-		logger.Printf("FOUND AN ERROR %s", err)
+		logreport.Printf("FOUND AN ERROR %s", err)
 	}
 	return bytes, err
 }
