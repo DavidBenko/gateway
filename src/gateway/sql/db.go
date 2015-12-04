@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"gateway/config"
-	"log"
 	"sync"
 	"time"
 
@@ -15,6 +14,8 @@ import (
 
 	// Add postgres driver
 	"github.com/lib/pq"
+
+	"gateway/logreport"
 )
 
 const currentVersion = 4
@@ -166,7 +167,7 @@ func (db *DB) waitForNotification(l *pq.Listener) {
 				var notification Notification
 				err := json.Unmarshal([]byte(pgNotification.Extra), &notification)
 				if err != nil {
-					log.Printf("%s Error parsing notification '%s': %v",
+					logreport.Printf("%s Error parsing notification '%s': %v",
 						config.System, pgNotification.Extra, err)
 					continue
 				}
@@ -184,7 +185,7 @@ func (db *DB) waitForNotification(l *pq.Listener) {
 
 func (db *DB) listenerConnectionEvent(ev pq.ListenerEventType, err error) {
 	if err != nil {
-		log.Printf("%s Database listener connection problem: %v", config.System, err)
+		logreport.Printf("%s Database listener connection problem: %v", config.System, err)
 	}
 }
 
@@ -196,7 +197,7 @@ func (db *DB) SQL(name string) string {
 		asset = fmt.Sprintf("%s/%s.sql", db.Driver, name)
 		bytes, err = Asset(asset)
 		if err != nil {
-			log.Fatalf("%s could not find %s", config.System, asset)
+			logreport.Fatalf("%s could not find %s", config.System, asset)
 		}
 	}
 	return string(bytes)

@@ -2,7 +2,7 @@ package config
 
 import (
 	"flag"
-	"log"
+	"gateway/logreport"
 	"reflect"
 	"strconv"
 )
@@ -16,7 +16,7 @@ func setupFlags(value reflect.Value) {
 		func(field reflect.Value, name, value string) {
 			usage, ok := usageStrings[name]
 			if !ok {
-				log.Fatalf("No usage string for flag %s", name)
+				logreport.Fatalf("No usage string for flag %s", name)
 			}
 			switch field.Kind() {
 			case reflect.Int64:
@@ -103,7 +103,7 @@ func reflectConfiguration(
 func parseInt(value string) int64 {
 	i, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	return i
 }
@@ -111,7 +111,7 @@ func parseInt(value string) int64 {
 func parseBool(value string) bool {
 	b, err := strconv.ParseBool(value)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	return b
 }

@@ -2,12 +2,12 @@ package admin
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	//"gateway/model"
 	sql "gateway/sql"
 
@@ -61,7 +61,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	if conf.EnableBroker {
 		broker, err := newAggregator(conf)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		stream := &LogStreamController{base, broker}
 		RouteLogStream(stream, "/logs/socket", authAdmin)

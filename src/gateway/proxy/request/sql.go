@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+
+	"gateway/logreport"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -48,7 +49,7 @@ func (r *sqlRequest) Perform() Response {
 }
 
 func (r *sqlRequest) performQuery() Response {
-	log.Printf("Params are %v", r.Parameters)
+	logreport.Printf("Params are %v", r.Parameters)
 
 	if r.conn == nil {
 		return NewSQLErrorResponse(errors.New("nil database connection"), "nil database connection")
@@ -86,7 +87,7 @@ func (r *sqlRequest) performQuery() Response {
 }
 
 func (r *sqlRequest) transactQuery() Response {
-	log.Printf("Params are %v", r.Parameters)
+	logreport.Printf("Params are %v", r.Parameters)
 
 	// Begin transaction
 	tx, err := r.conn.Beginx()

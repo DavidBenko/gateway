@@ -5,8 +5,8 @@ import (
 	"fmt"
 	aperrors "gateway/errors"
 	"gateway/license"
+	"gateway/logreport"
 	apsql "gateway/sql"
-	"log"
 )
 
 // API represents a top level grouping of endpoints accessible at a host.
@@ -84,16 +84,16 @@ func (a *API) Validate(isInsert bool) aperrors.Errors {
 	}
 
 	for _, re := range a.RemoteEndpoints {
-		log.Printf("Validating remote endpoints")
+		logreport.Printf("Validating remote endpoints")
 		if err := re.Validate(isInsert); !err.Empty() {
-			log.Printf("Validation not ok!")
+			logreport.Printf("Validation not ok!")
 			if base, ok := err["base"]; ok {
 				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", base))
 			} else {
 				errors.Add("base", fmt.Sprintf("associated remote endpoint is invalid -- %v", err))
 			}
 		} else {
-			log.Printf("Validation ok!")
+			logreport.Printf("Validation ok!")
 		}
 	}
 	return errors

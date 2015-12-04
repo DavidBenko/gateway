@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 
 	"gateway/config"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
 
@@ -35,7 +35,7 @@ func accountIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
 	return func(r *http.Request) int64 {
 		account, err := model.FirstAccount(db)
 		if err != nil {
-			log.Fatal("Could not get dev mode account")
+			logreport.Fatal("Could not get dev mode account")
 		}
 		return account.ID
 	}
@@ -54,11 +54,11 @@ func userIDForDevMode(db *apsql.DB) func(r *http.Request) int64 {
 	return func(r *http.Request) int64 {
 		account, err := model.FirstAccount(db)
 		if err != nil {
-			log.Fatal("Could not get dev mode account")
+			logreport.Fatal("Could not get dev mode account")
 		}
 		user, err := model.FindFirstUserForAccountID(db, account.ID)
 		if err != nil {
-			log.Fatal("Could not get dev mode user")
+			logreport.Fatal("Could not get dev mode user")
 		}
 		return user.ID
 	}
@@ -101,7 +101,7 @@ func deserialize(dest interface{}, file io.Reader) aphttp.Error {
 func serialize(data interface{}, w http.ResponseWriter) aphttp.Error {
 	dataJSON, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
-		log.Printf("%s Error serializing data: %v, %v", config.System, err, data)
+		logreport.Printf("%s Error serializing data: %v, %v", config.System, err, data)
 		return aphttp.DefaultServerError()
 	}
 

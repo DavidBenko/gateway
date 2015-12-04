@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/handlers"
@@ -24,7 +24,7 @@ var (
 
 func setupSessions(conf config.ProxyAdmin) {
 	if conf.AuthKey == "" {
-		log.Fatal("Admin session auth key is required.")
+		logreport.Fatal("Admin session auth key is required.")
 	}
 
 	rotating := (conf.AuthKey2 != "")
@@ -83,7 +83,7 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 		Password string `json:"password"`
 	}
 	if err := deserialize(&credentials, r.Body); err != nil {
-		log.Printf("%s Error reading credentials: %v", config.System, err)
+		logreport.Printf("%s Error reading credentials: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
 
