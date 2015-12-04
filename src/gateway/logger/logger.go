@@ -6,58 +6,41 @@ import (
 	"net/http"
 )
 
-// Fatal reports errors via Airbrake and then delegates to log.Fatal
-func Fatal(v ...interface{}) {
-	reportErrors(v...)
-	log.Fatal(v...)
+var (
+	// Print reports errors via Airbrake and then delegates to log.Print.
+	Print = wrap(log.Print)
+	// Printf reports errors via Airbrake and then delegates to log.Printf.
+	Printf = wrapf(log.Printf)
+	// Println reports errors via Airbrake and then delegates to log.Println.
+	Println = wrap(log.Println)
+
+	// Fatal reports errors via Airbrake and then delegates to log.Fatal.
+	Fatal = wrap(log.Fatal)
+	// Fatalf reports errors via Airbrake and then delegates to log.Fatalf.
+	Fatalf = wrapf(log.Fatalf)
+	// Fatalln reports errors via Airbrake and then delegates to log.Fatalln.
+	Fatalln = wrap(log.Fatalln)
+
+	// Panic reports errors via Airbrake and then delegates to log.Panic
+	Panic = wrap(log.Panic)
+	// Panicf reports errors via Airbrake and then delegates to log.Panicf.
+	Panicf = wrapf(log.Panicf)
+	// Panicln reports errors via Airbrake and then delegates to log.Panicln.
+	Panicln = wrap(log.Panicln)
+)
+
+func wrap(f func(v ...interface{})) func(v ...interface{}) {
+	return func(v ...interface{}) {
+		reportErrors(v...)
+		f(v...)
+	}
 }
 
-// Fatalf reports errors via Airbrake and then delegates to log.Fatalf
-func Fatalf(format string, v ...interface{}) {
-	reportErrors(v...)
-	log.Fatalf(format, v...)
-}
-
-// Fatalln reports errors via Airbrake and then delegates to log.Fatalln
-func Fatalln(v ...interface{}) {
-	reportErrors(v...)
-	log.Fatalln(v...)
-}
-
-// Panic reports errors via Airbrake and then delegates to log.Panic
-func Panic(v ...interface{}) {
-	reportErrors(v...)
-	log.Panic(v...)
-}
-
-// Panicf reports errors via Airbrake and then delegates to log.Panicf
-func Panicf(format string, v ...interface{}) {
-	reportErrors(v...)
-	log.Panicf(format, v...)
-}
-
-// Panicln reports errors via Airbrake and then delegates to log.Panicln
-func Panicln(v ...interface{}) {
-	reportErrors(v...)
-	log.Panicln(v...)
-}
-
-// Print reports errors via Airbrake and then delegates to log.Print
-func Print(v ...interface{}) {
-	reportErrors(v...)
-	log.Print(v...)
-}
-
-// Printf reports errors via Airbrake and then delegates to log.Printf
-func Printf(format string, v ...interface{}) {
-	reportErrors(v...)
-	log.Printf(format, v...)
-}
-
-// Println reports errors via Airbrake and then delegates to log.Println
-func Println(v ...interface{}) {
-	reportErrors(v...)
-	log.Println(v...)
+func wrapf(f func(fmt string, v ...interface{})) func(fmt string, v ...interface{}) {
+	return func(fmt string, v ...interface{}) {
+		reportErrors(v...)
+		f(fmt, v...)
+	}
 }
 
 func reportErrors(v ...interface{}) {
