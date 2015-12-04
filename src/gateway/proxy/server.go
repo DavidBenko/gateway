@@ -198,7 +198,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		httpErr = s.httpError(err)
+		httpErr = s.httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}
 
@@ -303,6 +303,18 @@ func (s *Server) httpError(err error) aphttp.Error {
 	}
 
 	return aphttp.NewServerError(err)
+}
+
+func (s *Server) httpJavascriptError(err error, env *model.Environment) aphttp.Error {
+	if env == nil {
+		return s.httpError(err)
+	}
+
+	if env.ShowJavascriptErrors {
+		return aphttp.NewServerError(err)
+	}
+
+	return aphttp.DefaultServerError()
 }
 
 func (s *Server) objectJSON(vm *apvm.ProxyVM, object otto.Value) (string, error) {
