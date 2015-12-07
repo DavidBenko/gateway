@@ -223,6 +223,8 @@ func createDevUser(db *sql.DB) error {
 	return nil
 }
 
+type Process func(params map[string]string, conf config.Configuration, db *sql.DB)
+
 type Parameter struct {
 	Name     string
 	Required bool
@@ -231,37 +233,43 @@ type Parameter struct {
 type Command struct {
 	Parameters []Parameter
 	Usage      string
+	Process    Process
 }
 
 var commands = map[string]Command{
 	"accounts": {
 		[]Parameter{},
 		"accounts",
+		accounts,
 	},
 	"accounts:create": {
 		[]Parameter{
 			{"name", true},
 		},
 		"accounts:create name:\"<name>\"",
+		accountsCreate,
 	},
 	"accounts:update": {
 		[]Parameter{
 			{"id", true},
 			{"name", false},
 		},
-		"accounts:update <id> name:\"<name>\"",
+		"accounts:update <id> [name:\"<name>\"]",
+		accountsUpdate,
 	},
 	"accounts:destroy": {
 		[]Parameter{
 			{"id", true},
 		},
 		"accounts:destroy <id>",
+		accountsDestroy,
 	},
 	"users": {
 		[]Parameter{
 			{"id", true},
 		},
 		"users <account-id>",
+		users,
 	},
 	"users:create": {
 		[]Parameter{
@@ -269,9 +277,11 @@ var commands = map[string]Command{
 			{"name", true},
 			{"email", true},
 			{"password", true},
+			{"admin", true},
 			{"confirmed", true},
 		},
-		"users:create <account-id> name:\"<name>\" email:<email> password:<password>",
+		"users:create <account-id> name:\"<name>\" email:<email> password:<password> admin:<true/false> confirmed:<true/false>",
+		usersCreate,
 	},
 	"users:update": {
 		[]Parameter{
@@ -279,15 +289,18 @@ var commands = map[string]Command{
 			{"name", false},
 			{"email", false},
 			{"password", false},
+			{"admin", false},
 			{"confirmed", false},
 		},
-		"users:update <id> name:\"<name>\" email:<email> password:<password>",
+		"users:update <id> [name:\"<name>\"] [email:<email>] [password:<password>] [admin:<true/false>] [confirmed:<true/false>]",
+		usersUpdate,
 	},
 	"users:destroy": {
 		[]Parameter{
 			{"id", true},
 		},
 		"users:destroy <id>",
+		usersDestroy,
 	},
 }
 
@@ -317,6 +330,240 @@ func getParameters(command string, params []string) map[string]string {
 	return values
 }
 
+func getAccount(params map[string]string, db *sql.DB) *model.Account {
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		log.Fatal(err)
+	}
+	account, err := model.FindAccount(db, int64(id))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return account
+}
+
+func getUser(params map[string]string, db *sql.DB) *model.User {
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		log.Fatal(err)
+	}
+	user, err := model.FindUserByID(db, int64(id))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return user
+}
+
+func accounts(params map[string]string, conf config.Configuration, db *sql.DB) {
+	accounts, err := model.AllAccounts(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("=== Accounts")
+	for _, account := range accounts {
+		fmt.Printf("%v %v\n", account.ID, account.Name)
+	}
+}
+
+func accountsCreate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	account := &model.Account{
+		Name: params["name"],
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		return account.Insert(tx)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Create account %v %v\n", account.ID, account.Name)
+}
+
+func accountsUpdate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	account := getAccount(params, db)
+	if params["name"] != "" {
+		account.Name = params["name"]
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		return account.Update(tx)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Updated account %v %v\n", account.ID, account.Name)
+}
+
+func accountsDestroy(params map[string]string, conf config.Configuration, db *sql.DB) {
+	account := getAccount(params, db)
+	fmt.Printf("delete account: %v %v?\n", account.ID, account.Name)
+	fmt.Printf("enter id (%v):", account.ID)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	enteredId, err := strconv.Atoi(response)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if account.ID != int64(enteredId) {
+		log.Fatal("the entered id doesn't match")
+	}
+	fmt.Printf("enter name (%v):", account.Name)
+	response, err = reader.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	if account.Name != response {
+		log.Fatal("the entered name doesn't match")
+	}
+	err = db.DoInTransaction(func(tx *sql.Tx) error {
+		return model.DeleteAccount(tx, account.ID)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Destroyed account %v %v\n", account.ID, account.Name)
+}
+
+func users(params map[string]string, conf config.Configuration, db *sql.DB) {
+	account := getAccount(params, db)
+	users, err := model.AllUsersForAccountID(db, account.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("=== Users for Account %v %v\n", account.ID, account.Name)
+	for _, user := range users {
+		s := fmt.Sprintf("%v %v %v", user.ID, user.Name, user.Email)
+		if user.Admin {
+			s += " admin"
+		}
+		if user.Confirmed {
+			s += " confirmed"
+		}
+		fmt.Printf("%v\n", s)
+	}
+}
+
+func usersCreate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	account := getAccount(params, db)
+	_admin := false
+	if params["admin"] == "true" {
+		_admin = true
+	}
+	confirmed := false
+	if params["confirmed"] == "true" {
+		confirmed = true
+	}
+	user := &model.User{
+		AccountID:   account.ID,
+		Name:        params["name"],
+		Email:       params["email"],
+		NewPassword: params["password"],
+		Admin:       _admin,
+		Confirmed:   confirmed,
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		err := user.Insert(tx)
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			return admin.SendConfirmEmail(conf.SMTP, conf.Proxy, user, tx)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Created user %v %v for account %v %v\n", user.ID, user.Email,
+		account.ID, account.Name)
+}
+
+func usersUpdate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	user := getUser(params, db)
+	if params["name"] != "" {
+		user.Name = params["name"]
+	}
+	if params["email"] != "" {
+		user.Email = params["email"]
+	}
+	if params["password"] != "" {
+		user.NewPassword = params["password"]
+	}
+	if params["admin"] != "" {
+		if params["admin"] == "true" {
+			user.Admin = true
+		} else {
+			user.Admin = false
+		}
+	}
+	if params["confirmed"] != "" {
+		if params["confirmed"] == "true" {
+			user.Confirmed = true
+		} else {
+			user.Confirmed = false
+		}
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		return user.Update(tx)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	account, err := model.FindAccount(db, user.AccountID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Updated user %v %v for account %v %v\n", user.ID, user.Email,
+		account.ID, account.Name)
+}
+
+func usersDestroy(params map[string]string, conf config.Configuration, db *sql.DB) {
+	user := getUser(params, db)
+	fmt.Printf("delete user: %v %v?\n", user.ID, user.Email)
+	fmt.Printf("enter id (%v):", user.ID)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	enteredId, err := strconv.Atoi(response)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if user.ID != int64(enteredId) {
+		log.Fatal("the entered id doesn't match")
+	}
+	fmt.Printf("enter email (%v):", user.Email)
+	response, err = reader.ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	if user.Email != response {
+		log.Fatal("the entered email doesn't match")
+	}
+	err = db.DoInTransaction(func(tx *sql.Tx) error {
+		err := model.CanDeleteUser(tx, user.ID, user.AccountID, http.AuthTypeAdmin)
+		if err != nil {
+			return err
+		}
+		return model.DeleteUserForAccountID(tx, user.ID, user.AccountID, 0)
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	account, err := model.FindAccount(db, user.AccountID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Destroyed user %v %v on account %v %v\n", user.ID, user.Email,
+		account.ID, account.Name)
+}
+
 func processCommands(cmds []string, conf config.Configuration, db *sql.DB) {
 	if cmds[0] == "help" {
 		if len(cmds) > 1 {
@@ -332,203 +579,5 @@ func processCommands(cmds []string, conf config.Configuration, db *sql.DB) {
 	if params == nil {
 		return
 	}
-	getAccount := func() *model.Account {
-		id, err := strconv.Atoi(params["id"])
-		if err != nil {
-			log.Fatal(err)
-		}
-		account, err := model.FindAccount(db, int64(id))
-		if err != nil {
-			log.Fatal(err)
-		}
-		return account
-	}
-	getUser := func() *model.User {
-		id, err := strconv.Atoi(params["id"])
-		if err != nil {
-			log.Fatal(err)
-		}
-		user, err := model.FindUserByID(db, int64(id))
-		if err != nil {
-			log.Fatal(err)
-		}
-		return user
-	}
-	switch cmds[0] {
-	case "accounts":
-		accounts, err := model.AllAccounts(db)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("=== Accounts")
-		for _, account := range accounts {
-			fmt.Printf("%v %v\n", account.ID, account.Name)
-		}
-	case "accounts:create":
-		account := &model.Account{
-			Name: params["name"],
-		}
-		err := db.DoInTransaction(func(tx *sql.Tx) error {
-			return account.Insert(tx)
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Create account %v %v\n", account.ID, account.Name)
-	case "accounts:update":
-		account := getAccount()
-		if params["name"] != "" {
-			account.Name = params["name"]
-		}
-		err := db.DoInTransaction(func(tx *sql.Tx) error {
-			return account.Update(tx)
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Updated account %v %v\n", account.ID, account.Name)
-	case "accounts:destroy":
-		account := getAccount()
-		fmt.Printf("delete account: %v %v?\n", account.ID, account.Name)
-		fmt.Printf("enter id (%v):", account.ID)
-		reader := bufio.NewReader(os.Stdin)
-		response, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		response = strings.Trim(response, "\n")
-		enteredId, err := strconv.Atoi(response)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if account.ID != int64(enteredId) {
-			log.Fatal("the entered id doesn't match")
-		}
-		fmt.Printf("enter name (%v):", account.Name)
-		response, err = reader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		response = strings.Trim(response, "\n")
-		if account.Name != response {
-			log.Fatal("the entered name doesn't match")
-		}
-		err = db.DoInTransaction(func(tx *sql.Tx) error {
-			return model.DeleteAccount(tx, account.ID)
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Destroyed account %v %v\n", account.ID, account.Name)
-	case "users":
-		account := getAccount()
-		users, err := model.AllUsersForAccountID(db, account.ID)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("=== Users for Account %v %v\n", account.ID, account.Name)
-		for _, user := range users {
-			fmt.Printf("%v %v %v\n", user.ID, user.Name, user.Email)
-		}
-	case "users:create":
-		account := getAccount()
-		confirmed := false
-		if params["confirmed"] == "true" {
-			confirmed = true
-		}
-		user := &model.User{
-			AccountID:   account.ID,
-			Name:        params["name"],
-			Email:       params["email"],
-			NewPassword: params["password"],
-			Confirmed:   confirmed,
-		}
-		err := db.DoInTransaction(func(tx *sql.Tx) error {
-			err := user.Insert(tx)
-			if err != nil {
-				return err
-			}
-			if !confirmed {
-				return admin.SendConfirmEmail(conf.SMTP, conf.Proxy, user, tx)
-			}
-			return nil
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Created user %v %v for account %v %v\n", user.ID, user.Email,
-			account.ID, account.Name)
-	case "users:update":
-		user := getUser()
-		if params["name"] != "" {
-			user.Name = params["name"]
-		}
-		if params["email"] != "" {
-			user.Email = params["email"]
-		}
-		if params["password"] != "" {
-			user.NewPassword = params["password"]
-		}
-		if params["confirmed"] != "" {
-			if params["confirmed"] == "true" {
-				user.Confirmed = true
-			} else {
-				user.Confirmed = false
-			}
-		}
-		err := db.DoInTransaction(func(tx *sql.Tx) error {
-			return user.Update(tx)
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		account, err := model.FindAccount(db, user.AccountID)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Updated user %v %v for account %v %v\n", user.ID, user.Email,
-			account.ID, account.Name)
-	case "users:destroy":
-		user := getUser()
-		fmt.Printf("delete user: %v %v?\n", user.ID, user.Email)
-		fmt.Printf("enter id (%v):", user.ID)
-		reader := bufio.NewReader(os.Stdin)
-		response, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		response = strings.Trim(response, "\n")
-		enteredId, err := strconv.Atoi(response)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if user.ID != int64(enteredId) {
-			log.Fatal("the entered id doesn't match")
-		}
-		fmt.Printf("enter email (%v):", user.Email)
-		response, err = reader.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-		}
-		response = strings.Trim(response, "\n")
-		if user.Email != response {
-			log.Fatal("the entered email doesn't match")
-		}
-		err = db.DoInTransaction(func(tx *sql.Tx) error {
-			err := model.CanDeleteUser(tx, user.ID, user.AccountID, http.AuthTypeAdmin)
-			if err != nil {
-				return err
-			}
-			return model.DeleteUserForAccountID(tx, user.ID, user.AccountID, 0)
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-		account, err := model.FindAccount(db, user.AccountID)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Destroyed user %v %v on account %v %v\n", user.ID, user.Email,
-			account.ID, account.Name)
-	}
+	commands[cmds[0]].Process(params, conf, db)
 }
