@@ -93,6 +93,8 @@ type ProxyAdmin struct {
 	BrokerPubPort   string `flag:"broker-pub-port" default:"5555"`
 	BrokerSubPort   string `flag:"broker-sub-port" default:"5556"`
 	BrokerTransport string `flag:"broker-transport" default:"tcp"`
+
+	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
 }
 
 type ElasticLogging struct {

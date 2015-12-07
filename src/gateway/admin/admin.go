@@ -71,8 +71,10 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
 
 	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
-	RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
-	RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
+	if conf.EnableRegistration {
+		RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
+		RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
+	}
 	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)
 	RoutePasswordResetConfirmation(&PasswordResetConfirmationController{base}, "/password_reset_confirmation", admin, db, conf)
 
