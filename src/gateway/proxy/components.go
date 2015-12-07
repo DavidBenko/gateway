@@ -172,11 +172,12 @@ func (s *Server) evaluateCallConditional(vm *vm.ProxyVM, call *model.ProxyEndpoi
 }
 
 func (s *Server) evaluateConditional(vm *vm.ProxyVM, conditional string, expected bool) (bool, error) {
-	if conditional == "" {
+	trimmedConditional := strings.TrimSpace(conditional)
+	if trimmedConditional == "" {
 		return true, nil
 	}
 
-	value, err := vm.Run(conditional)
+	value, err := vm.Run(trimmedConditional)
 	if err != nil {
 		return false, err
 	}
