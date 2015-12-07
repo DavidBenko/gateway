@@ -3,8 +3,8 @@ package admin
 import (
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
@@ -22,7 +22,7 @@ func performInTransaction(db *apsql.DB, method transactional) error {
 	if methodErr != nil {
 		err = tx.Rollback()
 		if err != nil {
-			log.Printf("%s Error rolling back transaction!", config.System)
+			logreport.Printf("%s Error rolling back transaction!", config.System)
 		}
 		return methodErr
 	}
@@ -52,17 +52,17 @@ func TransactionWrappedHandler(db *apsql.DB, handler TransactionAwareHandler) ap
 	return func(w http.ResponseWriter, r *http.Request) aphttp.Error {
 		tx, err := db.Begin()
 		if err != nil {
-			log.Printf("%s Error beginning transaction: %v", config.System, err)
+			logreport.Printf("%s Error beginning transaction: %v", config.System, err)
 			return aphttp.DefaultServerError()
 		}
 		handlerError := handler(w, r, tx)
 		if handlerError != nil {
 			if err = tx.Rollback(); err != nil {
-				log.Printf("%s Error rolling back transaction: %v", config.System, err)
+				logreport.Printf("%s Error rolling back transaction: %v", config.System, err)
 			}
 		} else {
 			if err = tx.Commit(); err != nil {
-				log.Printf("%s Error committing transaction: %v", config.System, err)
+				logreport.Printf("%s Error committing transaction: %v", config.System, err)
 			}
 		}
 		return handlerError

@@ -16,6 +16,7 @@ import (
 	"gateway/config"
 	"gateway/db/pools"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
@@ -88,8 +89,8 @@ func (s *Server) Run() {
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
-	log.Printf("%s Server listening at %s", config.Proxy, listen)
-	log.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
+	logreport.Printf("%s Server listening at %s", config.Proxy, listen)
+	logreport.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 
 func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
@@ -116,10 +117,10 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 
 	defer func() {
 		if httpErr != nil {
-			s.logError(logger, logPrefix, httpErr)
+			s.logError(logger, logPrefix, httpErr, r)
 		}
 		s.logDuration(vm, logger, logPrefix, start)
-		log.Print(logs.String())
+		logreport.Print(logs.String())
 	}()
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
@@ -140,7 +141,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
-	logger.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
+	logreport.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
 
 	if r.Method == "OPTIONS" {
 		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
@@ -197,7 +198,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		httpErr = s.httpError(err)
+		httpErr = s.httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}
 
@@ -261,7 +262,7 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 
 		body, err := json.Marshal(&response)
 		if err != nil {
-			log.Printf("%s [error] %s", logPrefix, err)
+			logreport.Printf("%s [error] %s", logPrefix, err)
 			return s.httpError(err)
 		}
 
@@ -302,6 +303,18 @@ func (s *Server) httpError(err error) aphttp.Error {
 	}
 
 	return aphttp.NewServerError(err)
+}
+
+func (s *Server) httpJavascriptError(err error, env *model.Environment) aphttp.Error {
+	if env == nil {
+		return s.httpError(err)
+	}
+
+	if env.ShowJavascriptErrors {
+		return aphttp.NewServerError(err)
+	}
+
+	return aphttp.DefaultServerError()
 }
 
 func (s *Server) objectJSON(vm *apvm.ProxyVM, object otto.Value) (string, error) {
@@ -383,13 +396,13 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error, r *http.Request) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
 		errString = lines[0]
 	}
-	logger.Printf("%s [error] %s", logPrefix, errString)
+	logreport.Printf("%s [error] %s\n%v", logPrefix, errString, r)
 }
 
 func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {
@@ -400,6 +413,6 @@ func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix str
 
 	total := time.Since(start)
 	processing := total - proxiedRequestsDuration
-	logger.Printf("%s [time] %v (processing %v, requests %v)",
+	logreport.Printf("%s [time] %v (processing %v, requests %v)",
 		logPrefix, total, processing, proxiedRequestsDuration)
 }

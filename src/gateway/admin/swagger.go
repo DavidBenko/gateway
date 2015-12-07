@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
 
@@ -41,7 +41,7 @@ func newSwaggerController(db *apsql.DB) *SwaggerController {
 func (s *SwaggerController) rebuild() {
 	hosts, err := model.AllHosts(s.db)
 	if err != nil {
-		log.Printf("%s Error fetching hosts to route: %v", config.System, err)
+		logreport.Printf("%s Error fetching hosts to route: %v", config.System, err)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (s *SwaggerController) rebuild() {
 		}
 		name, err := json.Marshal(match)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		route.Name(string(name))
 		route.Host(host.Hostname)
@@ -83,7 +83,7 @@ func (s *SwaggerController) Notify(n *apsql.Notification) {
 }
 
 func (s *SwaggerController) Reconnect() {
-	log.Printf("%s Admin notified of database reconnection", config.System)
+	logreport.Printf("%s Admin notified of database reconnection", config.System)
 	go s.rebuild()
 }
 
@@ -105,7 +105,7 @@ func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *
 	swaggerMatch := &SwaggerMatch{}
 	err := json.Unmarshal([]byte(match.Route.GetName()), swaggerMatch)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 
 	api, err := model.FindAPIForAccountIDForSwagger(db, swaggerMatch.APIID, swaggerMatch.AccountID)

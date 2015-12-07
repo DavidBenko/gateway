@@ -48,7 +48,7 @@ generate: install_goimports
 DeveloperVersionAccounts = 1
 DeveloperVersionUsers = 1
 DeveloperVersionAPIs = 1
-DeveloperVersionProxyEndpoints = 5
+DeveloperVersionProxyEndpoints = 20
 
 LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersionAccounts)\
  -X gateway/license.developerVersionUsers=$(DeveloperVersionUsers)\
@@ -158,7 +158,8 @@ vendor_get: vendor_clean
 	golang.org/x/net/websocket \
 	github.com/vincent-petithory/dataurl \
 	github.com/gdamore/mangos \
-	github.com/xeipuuv/gojsonschema
+	github.com/xeipuuv/gojsonschema \
+	gopkg.in/airbrake/gobrake.v2
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

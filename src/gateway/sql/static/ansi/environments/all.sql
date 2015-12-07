@@ -8,7 +8,8 @@ SELECT
   environments.session_auth_key as session_auth_key,
   environments.session_encryption_key as session_encryption_key,
   environments.session_auth_key_rotate as session_auth_key_rotate,
-  environments.session_encryption_key_rotate as session_encryption_key_rotate
+  environments.session_encryption_key_rotate as session_encryption_key_rotate,
+  environments.show_javascript_errors as show_javascript_errors
 FROM environments, apis
 WHERE environments.api_id = ?
   AND environments.api_id = apis.id

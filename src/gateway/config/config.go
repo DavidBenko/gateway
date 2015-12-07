@@ -4,10 +4,11 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strings"
+
+	"gateway/logreport"
 
 	"github.com/BurntSushi/toml"
 )
@@ -21,6 +22,7 @@ type Configuration struct {
 	License string `flag:"license"`
 	Server  bool   `flag:"server" default:"false"`
 
+	Airbrake       Airbrake
 	Database       Database
 	Proxy          ProxyServer
 	Admin          ProxyAdmin
@@ -28,6 +30,13 @@ type Configuration struct {
 	Bleve          BleveLogging
 	Soap           Soap
 	RemoteEndpoint RemoteEndpoint
+}
+
+// Airbrake specifies configuration for error reporting with Airbrake
+type Airbrake struct {
+	APIKey      string `flag:"airbrake-api-key" default:""`
+	ProjectID   int64  `flag:"airbrake-project-id" default:"0"`
+	Environment string `flag:"airbrake-environment" default:""`
 }
 
 // Database specifies configuration options for your database
@@ -176,7 +185,7 @@ func parseConfigFile(config *Configuration) error {
 	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
-		log.Printf(
+		logreport.Printf(
 			"%s Config file '%s' does not exist and will not be used.\n",
 			System, configFile)
 		return nil

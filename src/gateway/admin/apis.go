@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/names"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 	"strings"
 
@@ -70,7 +70,7 @@ func (c *APIsController) importAPI(api *model.API, tx *apsql.Tx) aphttp.Error {
 		if !validationErrors.Empty() {
 			return SerializableValidationErrors{validationErrors}
 		}
-		log.Printf("%s Error importing api: %v", config.System, err)
+		logreport.Printf("%s Error importing api: %v", config.System, err)
 		return aphttp.NewServerError(err)
 	}
 
@@ -84,7 +84,7 @@ func (c *APIsController) BeforeValidate(api *model.API, tx *apsql.Tx) error {
 
 	newAPI, err := c.decodeExport(api, tx)
 	if err != nil {
-		log.Printf("Unable to decode export due to error: %v", err)
+		logreport.Printf("Unable to decode export due to error: %v", err)
 		return errors.New("Unable to decode export.")
 	}
 
