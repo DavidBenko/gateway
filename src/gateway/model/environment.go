@@ -24,6 +24,8 @@ type Environment struct {
 	SessionEncryptionKey       string `json:"session_encryption_key" db:"session_encryption_key"`
 	SessionAuthKeyRotate       string `json:"session_auth_key_rotate" db:"session_auth_key_rotate"`
 	SessionEncryptionKeyRotate string `json:"session_encryption_key_rotate" db:"session_encryption_key_rotate"`
+
+	ShowJavascriptErrors bool `json:"show_javascript_errors" db:"show_javascript_errors"`
 }
 
 // Validate validates the model.
@@ -101,7 +103,7 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 	e.ID, err = tx.InsertOne(tx.SQL("environments/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors)
 	if err != nil {
 		return err
 	}
@@ -117,7 +119,7 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	err = tx.UpdateOne(tx.SQL("environments/update"),
 		e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate,
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors,
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
