@@ -9,9 +9,20 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/soap"
+	"gateway/sql"
 	"io"
 	"net"
+	"net/http"
+	"os"
 	"strings"
+)
+
+const (
+	filePrefix = "file://"
+)
+
+var (
+	serviceUnavailable = &ErrorResponse{StatusCode: http.StatusServiceUnavailable, Error: "Service temporarily unavailable"}
 )
 
 // SoapRequest encapsulates a request made via SOAP
@@ -25,7 +36,9 @@ type SoapRequest struct {
 	JarURL                  string                   `json:"jarUrl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
 
-	soapConf config.Soap
+	soapConf       config.Soap
+	remoteEndpoint *model.RemoteEndpoint
+	db             *sql.DB
 }
 
 // WssePasswordCredentials represents credentials for a SOAP request as specified
@@ -41,10 +54,12 @@ type SoapResponse struct {
 }
 
 // NewSoapRequest constructs a new SoapRequest
-func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf config.Soap) (Request, error) {
+func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf config.Soap, db *sql.DB) (Request, error) {
 	request := new(SoapRequest)
 
 	request.soapConf = soapConf
+	request.remoteEndpoint = endpoint
+	request.db = db
 
 	if err := json.Unmarshal(*data, request); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
@@ -135,6 +150,19 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
+	jarURL := soapRequest.JarURL
+	if strings.HasPrefix(jarURL, filePrefix) {
+		jarURL = jarURL[len(filePrefix):]
+	}
+	// Check for existence of jar file -- if not present, then cache the jar file
+	// on the file system.
+	if _, err := os.Stat(jarURL); os.IsNotExist(err) {
+		err := model.CacheJarFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
+		if err != nil {
+			return NewErrorResponse(aperrors.NewWrapped("[soap] Getting generated Jar bytes for soap endpoint", err))
+		}
+	}
+
 	requestBytes, err := json.Marshal(&soapRequest)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[soap] Unmarshaling request data", err))
