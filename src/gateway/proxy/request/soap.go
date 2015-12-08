@@ -53,7 +53,12 @@ type SoapResponse struct {
 }
 
 // NewSoapRequest constructs a new SoapRequest
-func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf config.Soap, db *sql.DB) (Request, error) {
+func NewSoapRequest(
+	endpoint *model.RemoteEndpoint,
+	data *json.RawMessage,
+	soapConf config.Soap,
+	db *sql.DB,
+) (Request, error) {
 	request := new(SoapRequest)
 
 	request.soapConf = soapConf
