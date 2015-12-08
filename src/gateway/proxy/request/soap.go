@@ -13,7 +13,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -150,13 +149,9 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
-	jarURL := soapRequest.JarURL
-	if strings.HasPrefix(jarURL, filePrefix) {
-		jarURL = jarURL[len(filePrefix):]
-	}
-	// Check for existence of jar file -- if not present, then cache the jar file
-	// on the file system.
-	if _, err := os.Stat(jarURL); os.IsNotExist(err) {
+	if exists, err := model.JarExists(soapRequest.remoteEndpoint.Soap.ID); err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Checking for existence of jar file", err))
+	} else if err == nil && !exists {
 		err := model.CacheJarFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
 		if err != nil {
 			return NewErrorResponse(aperrors.NewWrapped("[soap] Getting generated Jar bytes for soap endpoint", err))
