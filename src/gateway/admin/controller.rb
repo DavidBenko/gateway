@@ -10,6 +10,7 @@ transform_method = nil
 transform_type = nil
 account = false
 api = false
+proxy_endpoint = false
 custom_struct = false
 check_delete = false
 after_insert = false
@@ -31,6 +32,9 @@ OptionParser.new do |opts|
   end
   opts.on("--api", "Is model linked to API?") do |value|
     api = value
+  end
+  opts.on("--proxy-endpoint", "Is model linked to Proxy Endpoint?") do |value|
+    proxy_endpoint = value
   end
   opts.on("--check-delete", "Check if delete is possible first?") do |value|
     check_delete = value
@@ -100,9 +104,9 @@ import (
   "errors"
   "gateway/config"
   aphttp "gateway/http"
+  "gateway/logreport"
   "gateway/model"
   apsql "gateway/sql"
-  "log"
   "net/http"
 )
 
@@ -115,7 +119,10 @@ type <%= controller %> struct {
 func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
 
-  <% if account && api %>
+  <% if account && api && proxy_endpoint %>
+    <%= local_plural %>, err := model.All<%= plural %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
+      c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
+  <% elsif account && api %>
     <%= local_plural %>, err := model.All<%= plural %>ForAPIIDAndAccountID(db,
       c.apiID(r), c.accountID(r))
   <% elsif account %>
@@ -125,7 +132,7 @@ func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
   <% end %>
 
   if err != nil {
-    log.Printf("%s Error listing <%= pretty %>: %v", config.System, err)
+    logreport.Printf("%s Error listing <%= pretty %>: %v\\n%v", config.System, err, r)
     return aphttp.DefaultServerError()
   }
 
@@ -143,7 +150,10 @@ func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
 
   id := instanceID(r)
-  <% if account && api %>
+  <% if account && api && proxy_endpoint %>
+    <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
+      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
+  <% elsif account && api %>
     <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
       id, c.apiID(r), c.accountID(r))
   <% elsif account %>
@@ -175,7 +185,10 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   <% if after_delete || before_delete %>
     db := tx.DB
 
-    <% if account && api %>
+    <% if account && api && proxy_endpoint %>
+      <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAPIIDAndAccountID(db,
+        id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
+    <% elsif account && api %>
       <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
         id, c.apiID(r), c.accountID(r))
     <% elsif account %>
@@ -199,12 +212,15 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
 
   <% if before_delete %>
     if err = c.BeforeDelete(<%= local %>, tx); err != nil {
-      log.Printf("%s Error before delete: %v", config.System, err)
+      logreport.Printf("%s Error before delete: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   <% end %>
 
-  <% if account && api %>
+  <% if account && api && proxy_endpoint %>
+    err = model.Delete<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(tx,
+      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r), c.userID(r))
+  <% elsif account && api %>
     err = model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
       id, c.apiID(r), c.accountID(r), c.userID(r))
   <% elsif account %>
@@ -217,13 +233,13 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
     }
-    log.Printf("%s Error deleting <%= pretty %>: %v", config.System, err)
+    logreport.Printf("%s Error deleting <%= pretty %>: %v\\n%v", config.System, err, r)
     return aphttp.NewServerError(err)
   }
 
   <% if after_delete %>
     if err := c.AfterDelete(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after delete: %v", config.System, err)
+      logreport.Printf("%s Error after delete: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   <% end %>
@@ -246,6 +262,9 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     <%= local %>.AccountID = c.accountID(r)
     <%= local %>.UserID = c.userID(r)
   <% end %>
+  <% if proxy_endpoint %>
+    <%= local %>.ProxyEndpointID = c.proxyEndpointID(r)
+  <% end %>
 
   var method func(*apsql.Tx) error
   var desc string
@@ -260,19 +279,19 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
 
   <% if before_validate %>
   if err := c.BeforeValidate(<%= local %>, tx); err != nil {
-    log.Printf("%s Error before validate: %v", config.System, err)
+    logreport.Printf("%s Error before validate: %v\\n%v", config.System, err, r)
     return aphttp.DefaultServerError()
   }
   <% end %>
 
-  validationErrors := <%= local %>.Validate()
+  validationErrors := <%= local %>.Validate(isInsert)
   if !validationErrors.Empty() {
     return SerializableValidationErrors{validationErrors}
   }
 
   <% if after_validate %>
   if err := c.AfterValidate(<%= local %>, tx); err != nil {
-    log.Printf("%s Error after validate: %v", config.System, err)
+    logreport.Printf("%s Error after validate: %v\\n%v", config.System, err, r)
     return aphttp.DefaultServerError()
   }
   <% end %>
@@ -280,7 +299,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if before_insert %>
   if isInsert {
     if err := c.BeforeInsert( <%= local %>, tx); err != nil {
-      log.Printf("%s Error before insert: %v", config.System, err)
+      logreport.Printf("%s Error before insert: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   }
@@ -288,7 +307,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if before_update %>
   if !isInsert {
     if err := c.BeforeUpdate( <%= local %>, tx); err != nil {
-      log.Printf("%s Error before update: %v", config.System, err)
+      logreport.Printf("%s Error before update: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   }
@@ -302,14 +321,14 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     if !validationErrors.Empty() {
       return SerializableValidationErrors{validationErrors}
     }
-    log.Printf("%s Error %s <%= pretty %>: %v", config.System, desc, err)
+    logreport.Printf("%s Error %s <%= pretty %>: %v\\n%v", config.System, desc, err, r)
     return aphttp.NewServerError(err)
   }
 
   <% if after_insert %>
   if isInsert {
     if err := c.AfterInsert(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after insert: %v", config.System, err)
+      logreport.Printf("%s Error after insert: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   }
@@ -317,7 +336,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% if after_update %>
   if !isInsert {
     if err := c.AfterUpdate(<%= local %>, tx); err != nil {
-      log.Printf("%s Error after update: %v", config.System, err)
+      logreport.Printf("%s Error after update: %v\\n%v", config.System, err, r)
       return aphttp.DefaultServerError()
     }
   }

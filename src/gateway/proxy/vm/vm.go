@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
 
@@ -190,12 +191,12 @@ var shared = func() *otto.Otto {
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 
 		_, err = vm.Run(fileJS)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 	}
 

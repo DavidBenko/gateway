@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"gateway/logreport"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -20,7 +21,7 @@ func AccessLoggingHandler(prefix string, uuidHeader string, handler http.Handler
 
 		uuid, err := newUUID()
 		if err != nil {
-			log.Printf("%s Could not generate request UUID", prefix)
+			logreport.Printf("%s Could not generate request UUID", prefix)
 			uuid = "x"
 		}
 		context.Set(r, ContextRequestIDKey, uuid)
@@ -46,7 +47,7 @@ func AccessLoggingHandler(prefix string, uuidHeader string, handler http.Handler
 		handler.ServeHTTP(l, r)
 
 		clf := buildCommonLogLine(r, *r.URL, t, l.Status(), l.Size())
-		log.Printf("%s [access] %s", logPrefix, clf)
+		logreport.Printf("%s [access] %s", logPrefix, clf)
 	})
 }
 
@@ -58,8 +59,8 @@ type AccessLoggingRouter struct {
 }
 
 // Handle wraps the handler in an AccessLoggingHandler for the router.
-func (l *AccessLoggingRouter) Handle(pattern string, handler http.Handler) {
-	l.router.Handle(pattern, AccessLoggingHandler(l.prefix, l.uuidHeader, handler))
+func (l *AccessLoggingRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return l.router.Handle(pattern, AccessLoggingHandler(l.prefix, l.uuidHeader, handler))
 }
 
 // NewAccessLoggingRouter wraps the router.

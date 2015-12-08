@@ -6,12 +6,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logreport"
 	"gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"
@@ -59,7 +59,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 	case apsql.Update, apsql.Insert:
 		err := cacheJarFile(l.DB, n.APIID)
 		if err != nil {
-			log.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
+			logreport.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	case apsql.Delete:
 		var remoteEndpointID int64
@@ -69,7 +69,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 			remoteEndpointID = int64(tmp)
 
 			if !ok {
-				log.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, "deletion message did not come in expected format")
+				logreport.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, "deletion message did not come in expected format")
 				return
 			}
 		}
@@ -77,7 +77,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 		err := DeleteJarFile(remoteEndpointID)
 
 		if err != nil {
-			log.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, err)
+			logreport.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	}
 }
@@ -93,7 +93,7 @@ func writeToJarFile(bytes []byte, filename string) error {
 }
 
 func DeleteJarFile(soapRemoteEndpointID int64) error {
-	log.Printf("Received a request to delete jar file for soapRemoteEndpointID %d", soapRemoteEndpointID)
+	logreport.Printf("Received a request to delete jar file for soapRemoteEndpointID %d", soapRemoteEndpointID)
 	jarDir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
@@ -211,6 +211,7 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		e.RemoteEndpoint.AccountID,
 		e.RemoteEndpoint.UserID,
 		e.RemoteEndpoint.APIID,
+		0,
 		e.ID,
 		apsql.Insert,
 	)
@@ -266,7 +267,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 		})
 	}
 
-	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
+	return tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, 0, e.ID, apsql.Update)
 }
 
 func afterSave(origTx *apsql.Tx, e *SoapRemoteEndpoint, tag string) {
@@ -295,7 +296,7 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint, tag string) {
 	})
 
 	if err != nil {
-		log.Printf("%s Unable to update status to %v.  Processing will continue anyway.", config.System, RemoteEndpointStatusProcessing)
+		logreport.Printf("%s Unable to update status to %v.  Processing will continue anyway.", config.System, RemoteEndpointStatusProcessing)
 	}
 
 	err = db.DoInTransaction(func(tx *apsql.Tx) error {
@@ -306,7 +307,7 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint, tag string) {
 	})
 
 	if err != nil {
-		log.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
+		logreport.Printf("%s WSDL could not be processed due to error encountered:  %v", config.System, err)
 		e.RemoteEndpoint.Status = apsql.MakeNullString(RemoteEndpointStatusFailed)
 		e.RemoteEndpoint.StatusMessage = apsql.MakeNullString(err.Error())
 	} else {
@@ -330,12 +331,12 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint, tag string) {
 	})
 
 	if err != nil {
-		log.Printf("%s Unable to update status of RemoteSoapEndpoint due to error: %v", config.System, err)
+		logreport.Printf("%s Unable to update status of RemoteSoapEndpoint due to error: %v", config.System, err)
 	}
 }
 
 func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
-	log.Printf("%s Starting wsdl ingestion", "[debug]")
+	logreport.Printf("%s Starting wsdl ingestion", "[debug]")
 
 	dir, err := soap.EnsureJarPath()
 	if err != nil {
@@ -355,14 +356,14 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", e.ID))
 	err = soap.Wsimport(filename, outputfile)
 	if err != nil {
-		log.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
+		logreport.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
 		return err
 	}
 
 	// update the DB with the generated jars bytes!
 	bytes, err := ioutil.ReadFile(outputfile)
 	if err != nil {
-		log.Printf("%s Couldn't read bytes! %v", "[debug]", err)
+		logreport.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		return err
 	}
 	e.generatedJar = bytes
@@ -374,9 +375,9 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		return err
 	}
 
-	err = tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, e.ID, apsql.Update)
+	err = tx.Notify(soapRemoteEndpoints, e.RemoteEndpoint.AccountID, e.RemoteEndpoint.UserID, e.RemoteEndpoint.APIID, 0, e.ID, apsql.Update)
 	if err != nil {
-		log.Printf("%s Unable to notify of update: %v", "[debug]", err)
+		logreport.Printf("%s Unable to notify of update: %v", "[debug]", err)
 		return err
 	}
 
@@ -386,7 +387,7 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		return err
 	}
 
-	log.Printf("%s Finished wsdl ingestion", "[debug]")
+	logreport.Printf("%s Finished wsdl ingestion", "[debug]")
 
 	return nil
 }

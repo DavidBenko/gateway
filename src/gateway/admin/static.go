@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"mime"
 	"net/http"
 	"regexp"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logreport"
+	"gateway/model"
 	"gateway/proxy/vm"
 	"gateway/version"
 
@@ -21,6 +22,7 @@ import (
 
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
 var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
+var brokerHostRegex = regexp.MustCompile(`BROKER_PLACEHOLDER`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -32,7 +34,7 @@ type assetResolver func(path string) ([]byte, error)
 func init() {
 	for k, v := range additionalMimeTypes {
 		if err := mime.AddExtensionType(k, v); err != nil {
-			log.Fatalf("Could not set mime type for %s", k)
+			logreport.Fatalf("Could not set mime type for %s", k)
 		}
 	}
 }
@@ -79,7 +81,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 	}
 
 	funcs := template.FuncMap{
-		"replacePath": func(input string) string {
+		"interpolate": func(input string) string {
 			pathReplacer := func(path string) func(string) string {
 				return func(string) string {
 					if conf.PathPrefix == "" {
@@ -91,7 +93,11 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			rightless := strings.TrimRight(conf.PathPrefix, "/")
 			clean := strings.TrimLeft(rightless, "/")
 			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
-			return pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+
+			input = brokerHostRegex.ReplaceAllLiteralString(input, conf.BrokerWs)
+
+			return input
 		},
 		"version": func() string {
 			if !conf.ShowVersion {
@@ -110,6 +116,16 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 		},
 		"goos": func() string {
 			return fmt.Sprintf("<meta name=\"goos\" content=\"%s\">", runtime.GOOS)
+		},
+		"remoteEndpointTypes": func() string {
+			tags := []string{}
+			remoteEndpointTypes, _ := model.AllRemoteEndpointTypes(nil)
+			for _, re := range remoteEndpointTypes {
+				if re.Enabled {
+					tags = append(tags, re.Value)
+				}
+			}
+			return fmt.Sprintf("<meta name=\"remote-endoint-types-enabled\" content=\"%s\">", strings.Join(tags, ","))
 		},
 	}
 

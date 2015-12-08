@@ -42,7 +42,7 @@ type proxyResponse struct {
 	Headers    map[string]interface{} `json:"headers"`
 }
 
-func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (string, error) {
+func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (*proxyRequest, error) {
 	request := proxyRequest{
 		Method:        r.Method,
 		Host:          r.Host,
@@ -58,26 +58,30 @@ func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (strin
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	request.Body = string(body)
 
 	r.Body = ioutil.NopCloser(bytes.NewReader(body))
 	if err = r.ParseForm(); err != nil {
-		return "", err
+		return nil, err
 	}
 	request.Form = aphttp.DesliceValues(r.PostForm)
 
 	query, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	request.Query = aphttp.DesliceValues(query)
 
 	params := joinSlices(r.PostForm, query, aphttp.ResliceValues(vars))
 	request.Params = aphttp.DesliceValues(params)
 
-	json, err := json.Marshal(request)
+	return &request, nil
+}
+
+func (r *proxyRequest) Marshal() (string, error) {
+	json, err := json.Marshal(r)
 	if err != nil {
 		return "", err
 	}

@@ -5,33 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
+	"strings"
 
 	"gateway/code"
 	"gateway/config"
 	"gateway/db"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	re "gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
 	"github.com/vincent-petithory/dataurl"
-)
-
-const (
-	// RemoteEndpointTypeHTTP denotes that a remote endpoint is an HTTP endpoint
-	RemoteEndpointTypeHTTP = "http"
-	// RemoteEndpointTypeSQLServer denotes that a remote endpoint is a MS SQL Server database
-	RemoteEndpointTypeSQLServer = "sqlserver"
-	RemoteEndpointTypeMySQL     = "mysql"
-	RemoteEndpointTypePostgres  = "postgres"
-	RemoteEndpointTypeMongo     = "mongodb"
-	RemoteEndpointTypeScript    = "script"
-	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
-	RemoteEndpointTypeSoap = "soap"
 )
 
 const (
@@ -100,7 +88,7 @@ type HTTPRequest struct {
 }
 
 // Validate validates the model.
-func (e *RemoteEndpoint) Validate() aperrors.Errors {
+func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -118,7 +106,7 @@ func (e *RemoteEndpoint) Validate() aperrors.Errors {
 	case RemoteEndpointTypeHTTP:
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
-		e.ValidateSOAP(errors)
+		e.ValidateSOAP(errors, isInsert)
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
@@ -143,10 +131,43 @@ func (e *RemoteEndpoint) Validate() aperrors.Errors {
 	return errors
 }
 
-func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors) {
+func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors, isInsert bool) {
 	if !soap.Available() {
 		errors.Add("base", "SOAP is not currently available.  Requisite dependencies must be met")
 	}
+
+	var (
+		sc  *re.Soap
+		err error
+	)
+	if sc, err = re.SoapConfig(e.Data); err != nil {
+		errors.Add("base", fmt.Sprintf("Unable to validate soap configuration: %v", err))
+	}
+
+	if sc.WSDL == "" && isInsert {
+		errors.Add("wsdl", "WSDL is required for new SOAP endpoints")
+	}
+}
+
+func ValidateURL(rurl string, errors aperrors.Errors) bool {
+	if len(rurl) > 0 {
+		if !strings.HasPrefix(rurl, "http://") && !strings.HasPrefix(rurl, "https://") {
+			errors.Add("url", "url must start with 'http://' or 'https://'")
+			return false
+		}
+		purl, err := url.ParseRequestURI(rurl)
+		if err != nil {
+			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
+			return false
+		}
+		switch purl.Scheme {
+		case "http", "https":
+		default:
+			errors.Add("url", "url scheme must be 'http' or 'https'")
+			return false
+		}
+	}
+	return true
 }
 
 func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
@@ -155,16 +176,18 @@ func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
 		errors.Add("base", fmt.Sprintf("error in http config: %s", err))
 		return
 	}
-	if len(request.URL) > 0 {
-		url, err := url.Parse(request.URL)
-		if err != nil {
-			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
+
+	if !ValidateURL(request.URL, errors) {
+		return
+	}
+	for _, environment := range e.EnvironmentData {
+		request := &HTTPRequest{}
+		if err := json.Unmarshal(environment.Data, request); err != nil {
+			errors.Add("base", fmt.Sprintf("error in environment http config: %s", err))
 			return
 		}
-		switch url.Scheme {
-		case "http", "https":
-		default:
-			errors.Add("url", "url scheme must be 'http' or 'https'")
+		if !ValidateURL(request.URL, errors) {
+			return
 		}
 	}
 }
@@ -497,7 +520,7 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", accountID, userID, apiID, id, apsql.Delete, msg)
+	return tx.Notify("remote_endpoints", accountID, userID, apiID, 0, id, apsql.Delete, msg)
 }
 
 func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64, tx *apsql.Tx) error {
@@ -508,11 +531,11 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 
 	err := DeleteJarFile(remoteEndpoint.Soap.ID)
 	if err != nil {
-		log.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+		logreport.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
 	// trigger a notification for soap_remote_endpoints
-	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
+	err = tx.Notify("soap_remote_endpoints", accountID, userID, apiID, 0, remoteEndpoint.Soap.ID, apsql.Delete, remoteEndpoint.Soap.ID)
 	if err != nil {
 		return fmt.Errorf("%s Failed to send notification that soap_remote_endpoint was deleted for id %d: %v", config.System, remoteEndpoint.Soap.ID, err)
 	}
@@ -647,7 +670,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 func (e *RemoteEndpoint) afterInsert(tx *apsql.Tx) error {
@@ -800,7 +823,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		if err := e.WriteScript(); err != nil {
 			return err
 		}
-		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update, msg)
+		return tx.Notify("remote_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update, msg)
 	}
 
 	if len(existingEnvIDs) == 0 {

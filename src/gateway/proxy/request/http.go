@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 
+	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/model"
 )
@@ -141,18 +142,11 @@ func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *j
 
 	request.client = client
 
-	if len(request.URL) > 0 {
-		url, err := url.Parse(request.URL)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("error parsing url: %s", err))
-		}
-		switch url.Scheme {
-		case "http", "https":
-		default:
-			return nil, errors.New("url scheme must be 'http' or 'https'")
-		}
-	} else {
+	if len(request.URL) == 0 {
 		return nil, errors.New("url must not be empty")
+	}
+	if errs := make(aperrors.Errors); !model.ValidateURL(request.URL, errs) {
+		return nil, errors.New(errs.String())
 	}
 
 	return request, nil

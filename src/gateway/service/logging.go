@@ -5,13 +5,13 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"time"
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
 
@@ -95,26 +95,24 @@ func processLogs(logs <-chan []byte, add func(message string)) {
 }
 
 func ElasticLoggingService(conf config.ElasticLogging) {
-	if conf.Domain == "" {
+	if conf.Url == "" {
 		return
 	}
 
-	log.Printf("%s Starting Elastic logging service", config.System)
+	logreport.Printf("%s Starting Elastic logging service", config.System)
 
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
 		defer unsubscribe()
 
 		c := elasti.NewConn()
-		c.Domain = conf.Domain
-		c.Username = conf.Username
-		c.Password = conf.Password
+		c.SetFromUrl(conf.Url)
 
 		_, err := c.CreateIndex("gateway")
 		if err == nil {
 			err = c.PutMappingFromJSON("gateway", "log", []byte(MESSAGE_MAPPING))
 			if err != nil {
-				log.Fatal(err)
+				logreport.Fatal(err)
 			}
 		}
 		add := func(message string) {
@@ -124,7 +122,7 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 			}
 			_, err = c.Index("gateway", "log", "", nil, elasticMessage)
 			if err != nil {
-				log.Printf("[elastic] %v", err)
+				logreport.Printf("[elastic] %v", err)
 			}
 		}
 		processLogs(logs, add)
@@ -146,11 +144,11 @@ func NewBleveMessage(message string) *BleveMessage {
 		var err error
 		date, err = time.Parse(LOG_TIME_FORMAT, logDate[1])
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		seconds, err := strconv.Atoi(logDate[2])
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		date = date.Add(time.Duration(seconds) * time.Microsecond)
 	} else {
@@ -183,7 +181,7 @@ func (m *BleveMessage) Type() string {
 func (m *BleveMessage) Id() string {
 	data, err := json.Marshal(m)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	return fmt.Sprintf("%x", sha1.Sum(data))
 }
@@ -193,14 +191,14 @@ func BleveLoggingService(conf config.BleveLogging) {
 		return
 	}
 
-	log.Printf("%s Starting Bleve logging service", config.System)
+	logreport.Printf("%s Starting Bleve logging service", config.System)
 
 	mapping := bleve.NewIndexMapping()
 	index, err := bleve.New(conf.File, mapping)
 	if err != nil {
 		index, err = bleve.Open(conf.File)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 	}
 	admin.Bleve = index
@@ -210,7 +208,7 @@ func BleveLoggingService(conf config.BleveLogging) {
 		for bleveMessage := range indexer {
 			err := index.Index(bleveMessage.Id(), bleveMessage)
 			if err != nil {
-				log.Printf("[bleve] %v", err)
+				logreport.Printf("[bleve] %v", err)
 			}
 		}
 	}()
@@ -241,7 +239,7 @@ func BleveLoggingService(conf config.BleveLogging) {
 				search.Size = 1024
 				searchResults, err := index.Search(search)
 				if err != nil {
-					log.Printf("[bleve-delete] %v", err)
+					logreport.Printf("[bleve-delete] %v", err)
 				}
 				if len(searchResults.Hits) == 0 {
 					break
@@ -258,7 +256,7 @@ func BleveLoggingService(conf config.BleveLogging) {
 
 func LogPublishingService(conf config.ProxyAdmin) {
 
-	log.Printf("%s Starting log publisher", config.System)
+	logreport.Printf("%s Starting log publisher", config.System)
 
 	go func() {
 		logs, unsubscribe := admin.Interceptor.Subscribe()
@@ -270,7 +268,7 @@ func LogPublishingService(conf config.ProxyAdmin) {
 			mangos.PubTCP,
 		)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		c, e := send.Channels()
 		defer func() {
@@ -278,7 +276,7 @@ func LogPublishingService(conf config.ProxyAdmin) {
 		}()
 		go func() {
 			for err := range e {
-				log.Printf("[logging] %v", err)
+				logreport.Printf("[logging] %v", err)
 			}
 		}()
 

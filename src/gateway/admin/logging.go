@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
 	apsql "gateway/sql"
@@ -165,7 +165,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		mangos.SubTCP,
 	)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	logs, e := receive.Channels()
 	defer func() {
@@ -173,7 +173,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 	}()
 	go func() {
 		for err := range e {
-			log.Printf("[logging] %v", err)
+			logreport.Printf("[logging] %v", err)
 		}
 	}()
 
@@ -223,7 +223,7 @@ type LogSearchResult struct {
 
 func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
 	e := elasti.NewConn()
-	e.Domain = c.Domain
+	e.SetFromUrl(c.Url)
 
 	queryMust := []interface{}{}
 	convert := func(t string) string {
@@ -378,7 +378,7 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
 	var results []LogSearchResult
 	r.ParseForm()
-	if c.Domain == "" {
+	if c.Url == "" {
 		var httperr aphttp.Error
 		results, httperr = c.BleveSearch(r)
 		if httperr != nil {

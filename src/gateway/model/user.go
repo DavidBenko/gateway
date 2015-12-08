@@ -49,7 +49,7 @@ type User struct {
 }
 
 // Validate validates the model.
-func (u *User) Validate() aperrors.Errors {
+func (u *User) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if u.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -143,7 +143,7 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 		return err
 	}
 
-	return tx.Notify("users", accountID, userID, 0, id, apsql.Delete)
+	return tx.Notify("users", accountID, userID, 0, 0, id, apsql.Delete)
 }
 
 // FindUserByEmail returns the user with the email specified.
@@ -259,7 +259,7 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 		return err
 	}
 
-	return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Insert)
+	return tx.Notify("users", u.AccountID, u.UserID, 0, 0, u.ID, apsql.Insert)
 }
 
 // Update updates the user in the database.
@@ -296,7 +296,7 @@ func (u *User) Update(tx *apsql.Tx) error {
 			return err
 		}
 
-		return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Update)
+		return tx.Notify("users", u.AccountID, u.UserID, 0, 0, u.ID, apsql.Update)
 	}
 
 	err = tx.UpdateOne(
@@ -308,7 +308,7 @@ func (u *User) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("users", u.AccountID, u.UserID, 0, u.ID, apsql.Update)
+	return tx.Notify("users", u.AccountID, u.UserID, 0, 0, u.ID, apsql.Update)
 }
 
 func (u *User) hashPassword() error {

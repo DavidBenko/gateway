@@ -20,7 +20,7 @@ type Library struct {
 }
 
 // Validate validates the model.
-func (l *Library) Validate() aperrors.Errors {
+func (l *Library) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if l.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -66,7 +66,7 @@ func DeleteLibraryForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userI
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("libraries", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the library into the database as a new row.
@@ -80,7 +80,7 @@ func (l *Library) Insert(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, l.ID, apsql.Insert)
+	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, 0, l.ID, apsql.Insert)
 }
 
 // Update updates the library in the databasl.
@@ -94,5 +94,5 @@ func (l *Library) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, l.ID, apsql.Update)
+	return tx.Notify("libraries", l.AccountID, l.UserID, l.APIID, 0, l.ID, apsql.Update)
 }

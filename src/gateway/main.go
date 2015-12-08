@@ -15,8 +15,10 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/errors/report"
 	"gateway/http"
 	"gateway/license"
+	"gateway/logreport"
 	"gateway/mail"
 	"gateway/model"
 	"gateway/proxy"
@@ -46,16 +48,25 @@ func main() {
 	// Parse configuration
 	conf, err := config.Parse(os.Args[1:])
 	if err != nil {
-		log.Fatalf("%s Error parsing config file: %v", config.System, err)
+		logreport.Fatalf("%s Error parsing config file: %v", config.System, err)
 	}
 
-	log.Printf("%s Running Gateway %s (%s)",
+	logreport.Printf("%s Running Gateway %s (%s)",
 		config.System, version.Name(), version.Commit())
+
+	// Set up error reporting
+	if conf.Airbrake.APIKey != "" && conf.Airbrake.ProjectID != 0 && !conf.DevMode() {
+		abEnv := "production"
+		if conf.Airbrake.Environment != "" {
+			abEnv = conf.Airbrake.Environment
+		}
+		report.RegisterReporter(report.ConfigureAirbrake(conf.Airbrake.APIKey, conf.Airbrake.ProjectID, abEnv))
+	}
 
 	// Setup the database
 	db, err := sql.Connect(conf.Database)
 	if err != nil {
-		log.Fatalf("%s Error connecting to database: %v", config.System, err)
+		logreport.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 
 	// Require a valid license key
@@ -63,27 +74,27 @@ func main() {
 
 	//check for sneaky people
 	if license.DeveloperVersion {
-		log.Printf("%s Checking developer version license constraints", config.System)
+		logreport.Printf("%s Checking developer version license constraints", config.System)
 		accounts, _ := model.AllAccounts(db)
 		if len(accounts) > license.DeveloperVersionAccounts {
-			log.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
+			logreport.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
 		}
 		for _, account := range accounts {
 			var count int
 			db.Get(&count, db.SQL("users/count"), account.ID)
 			if count > license.DeveloperVersionUsers {
-				log.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
+				logreport.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
 			}
 
 			apis, _ := model.AllAPIsForAccountID(db, account.ID)
 			if len(apis) > license.DeveloperVersionAPIs {
-				log.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
+				logreport.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
 			}
 			for _, api := range apis {
 				var count int
 				db.Get(&count, db.SQL("proxy_endpoints/count_active"), api.ID)
 				if count > license.DeveloperVersionProxyEndpoints {
-					log.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
+					logreport.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
 				}
 			}
 		}
@@ -92,10 +103,10 @@ func main() {
 	if !db.UpToDate() {
 		if conf.Database.Migrate || conf.DevMode() {
 			if err = db.Migrate(); err != nil {
-				log.Fatalf("Error migrating database: %v", err)
+				logreport.Fatalf("Error migrating database: %v", err)
 			}
 		} else {
-			log.Fatalf("%s The database is not up to date. "+
+			logreport.Fatalf("%s The database is not up to date. "+
 				"Please migrate by invoking with the -db-migrate flag.",
 				config.System)
 		}
@@ -110,20 +121,20 @@ func main() {
 	// Set up dev mode account
 	if conf.DevMode() {
 		if _, err := model.FirstAccount(db); err != nil {
-			log.Printf("%s Creating development account", config.System)
+			logreport.Printf("%s Creating development account", config.System)
 			if err := createDevAccount(db); err != nil {
-				log.Fatalf("Could not create account: %v", err)
+				logreport.Fatalf("Could not create account: %v", err)
 			}
 		}
 		if account, err := model.FirstAccount(db); err == nil {
 			if users, _ := model.AllUsersForAccountID(db, account.ID); len(users) == 0 {
-				log.Printf("%s Creating development user", config.System)
+				logreport.Printf("%s Creating development user", config.System)
 				if err := createDevUser(db); err != nil {
-					log.Fatalf("Could not create account: %v", err)
+					logreport.Fatalf("Could not create account: %v", err)
 				}
 			}
 		} else {
-			log.Fatal("Dev account doesn't exist")
+			logreport.Fatal("Dev account doesn't exist")
 		}
 	}
 
@@ -131,23 +142,25 @@ func main() {
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 
+	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
+
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)
 	if err != nil {
-		log.Printf("%s Unable to write script files due to error: %v", config.System, err)
+		logreport.Printf("%s Unable to write script files due to error: %v", config.System, err)
 	}
 
 	// Configure SOAP
 	err = soap.Configure(conf.Soap, conf.DevMode())
 	if err != nil {
-		log.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+		logreport.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
 	}
 
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 
 	// Start the proxy
-	log.Printf("%s Starting server", config.System)
+	logreport.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
 	go proxy.Run()
 
@@ -159,14 +172,14 @@ func main() {
 		sig := <-sigs
 		err := soap.Shutdown(sig)
 		if err != nil {
-			log.Printf("Error shutting down SOAP service: %v", err)
+			logreport.Printf("Error shutting down SOAP service: %v", err)
 		}
 		done <- true
 	}()
 
 	<-done
 
-	log.Println("Shutdown complete")
+	logreport.Println("Shutdown complete")
 }
 
 func versionCheck() bool {
@@ -334,11 +347,11 @@ func getParameters(command string, params []string) map[string]string {
 func getAccount(params map[string]string, db *sql.DB) *model.Account {
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	account, err := model.FindAccount(db, int64(id))
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	return account
 }
@@ -346,11 +359,11 @@ func getAccount(params map[string]string, db *sql.DB) *model.Account {
 func getUser(params map[string]string, db *sql.DB) *model.User {
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	user, err := model.FindUserByID(db, int64(id))
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	return user
 }
@@ -358,7 +371,7 @@ func getUser(params map[string]string, db *sql.DB) *model.User {
 func accounts(params map[string]string, conf config.Configuration, db *sql.DB) {
 	accounts, err := model.AllAccounts(db)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Println("=== Accounts")
 	for _, account := range accounts {
@@ -374,7 +387,7 @@ func accountsCreate(params map[string]string, conf config.Configuration, db *sql
 		return account.Insert(tx)
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Create account %v %v\n", account.ID, account.Name)
 }
@@ -388,7 +401,7 @@ func accountsUpdate(params map[string]string, conf config.Configuration, db *sql
 		return account.Update(tx)
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Updated account %v %v\n", account.ID, account.Name)
 }
@@ -400,30 +413,30 @@ func accountsDestroy(params map[string]string, conf config.Configuration, db *sq
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	response = strings.Trim(response, "\n")
 	enteredId, err := strconv.Atoi(response)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	if account.ID != int64(enteredId) {
-		log.Fatal("the entered id doesn't match")
+		logreport.Fatal("the entered id doesn't match")
 	}
 	fmt.Printf("enter name (%v):", account.Name)
 	response, err = reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	response = strings.Trim(response, "\n")
 	if account.Name != response {
-		log.Fatal("the entered name doesn't match")
+		logreport.Fatal("the entered name doesn't match")
 	}
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
 		return model.DeleteAccount(tx, account.ID)
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Destroyed account %v %v\n", account.ID, account.Name)
 }
@@ -432,7 +445,7 @@ func users(params map[string]string, conf config.Configuration, db *sql.DB) {
 	account := getAccount(params, db)
 	users, err := model.AllUsersForAccountID(db, account.ID)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("=== Users for Account %v %v\n", account.ID, account.Name)
 	for _, user := range users {
@@ -476,7 +489,7 @@ func usersCreate(params map[string]string, conf config.Configuration, db *sql.DB
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Created user %v %v for account %v %v\n", user.ID, user.Email,
 		account.ID, account.Name)
@@ -511,11 +524,11 @@ func usersUpdate(params map[string]string, conf config.Configuration, db *sql.DB
 		return user.Update(tx)
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	account, err := model.FindAccount(db, user.AccountID)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Updated user %v %v for account %v %v\n", user.ID, user.Email,
 		account.ID, account.Name)
@@ -528,24 +541,24 @@ func usersDestroy(params map[string]string, conf config.Configuration, db *sql.D
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	response = strings.Trim(response, "\n")
 	enteredId, err := strconv.Atoi(response)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	if user.ID != int64(enteredId) {
-		log.Fatal("the entered id doesn't match")
+		logreport.Fatal("the entered id doesn't match")
 	}
 	fmt.Printf("enter email (%v):", user.Email)
 	response, err = reader.ReadString('\n')
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	response = strings.Trim(response, "\n")
 	if user.Email != response {
-		log.Fatal("the entered email doesn't match")
+		logreport.Fatal("the entered email doesn't match")
 	}
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
 		err := model.CanDeleteUser(tx, user.ID, user.AccountID, http.AuthTypeAdmin)
@@ -555,11 +568,11 @@ func usersDestroy(params map[string]string, conf config.Configuration, db *sql.D
 		return model.DeleteUserForAccountID(tx, user.ID, user.AccountID, 0)
 	})
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	account, err := model.FindAccount(db, user.AccountID)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	fmt.Printf("Destroyed user %v %v on account %v %v\n", user.ID, user.Email,
 		account.ID, account.Name)

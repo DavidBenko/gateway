@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 )
 
@@ -24,7 +25,7 @@ var (
 
 func setupSessions(conf config.ProxyAdmin) {
 	if conf.AuthKey == "" {
-		log.Fatal("Admin session auth key is required.")
+		logreport.Fatal("Admin session auth key is required.")
 	}
 
 	rotating := (conf.AuthKey2 != "")
@@ -43,6 +44,12 @@ func setupSessions(conf config.ProxyAdmin) {
 	}
 
 	store := sessions.NewCookieStore(sessionConfig...)
+	if conf.CookieDomain != "" {
+		store.Options.Domain = conf.CookieDomain
+	} else if conf.Host != "" {
+		store.Options.Domain = conf.Host
+	}
+
 	requestSession = func(r *http.Request) *sessions.Session {
 		s, _ := store.Get(r, conf.SessionName)
 		return s
@@ -77,7 +84,7 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 		Password string `json:"password"`
 	}
 	if err := deserialize(&credentials, r.Body); err != nil {
-		log.Printf("%s Error reading credentials: %v", config.System, err)
+		logreport.Printf("%s Error reading credentials: %v", config.System, err)
 		return aphttp.DefaultServerError()
 	}
 
@@ -98,7 +105,7 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 	}{user}
 	dataJSON, err := json.MarshalIndent(wrapped, "", "    ")
 	if err != nil {
-		log.Printf("%s Error serializing data: %v, %v", config.System, err, user)
+		logreport.Printf("%s Error serializing data: %v, %v", config.System, err, user)
 		return aphttp.DefaultServerError()
 	}
 	fmt.Fprintf(w, "%s\n", string(dataJSON))
@@ -134,8 +141,8 @@ type SessionAuthRouter struct {
 }
 
 // Handle wraps the handler in the auth check.
-func (s *SessionAuthRouter) Handle(pattern string, handler http.Handler) {
-	s.router.Handle(pattern, s.Wrap(handler))
+func (s *SessionAuthRouter) Handle(pattern string, handler http.Handler) *mux.Route {
+	return s.router.Handle(pattern, s.Wrap(handler))
 }
 
 // Wrap provides the wrapped handling functionality.

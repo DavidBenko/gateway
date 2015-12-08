@@ -2,15 +2,20 @@ package admin
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
+	//"gateway/model"
 	sql "gateway/sql"
 
 	"github.com/gorilla/mux"
+)
+
+var (
+	defaultDomain string
 )
 
 // Setup sets up the session and adds admin routes.
@@ -37,6 +42,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		RouteSessions("/sessions", admin, db, conf)
 	}
 
+	defaultDomain = psconf.Domain
+
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession
 	userID := userIDFromSession
@@ -57,7 +64,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	if conf.EnableBroker {
 		broker, err := newAggregator(conf)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 		stream := &LogStreamController{base, broker}
 		RouteLogStream(stream, "/logs/socket", authAdmin)
@@ -91,6 +98,9 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteResource(&EndpointGroupsController{base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
 	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
+
+	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
 
 	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler(conf)))
@@ -102,6 +112,15 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	router.HandleFunc(adminPath, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
+
+	var swagger aphttp.Router
+	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+		router)
+	if conf.CORSEnabled {
+		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
+	}
+	sc := newSwaggerController(db)
+	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

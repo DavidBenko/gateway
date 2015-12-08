@@ -3,11 +3,11 @@ package proxy
 import (
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
 
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -50,7 +50,7 @@ func (r *proxyRouter) Match(request *http.Request, match *mux.RouteMatch) bool {
 	apiIDString := hostMatch.Route.GetName()
 	apiID, err := strconv.ParseInt(apiIDString, 10, 64)
 	if err != nil {
-		log.Fatalf("%s Error converting APIID to int64: %v", config.System, err)
+		logreport.Fatalf("%s Error converting APIID to int64: %v", config.System, err)
 	}
 	router, ok := r.apiRouters[apiID]
 	if !ok {
@@ -63,7 +63,7 @@ func (r *proxyRouter) Match(request *http.Request, match *mux.RouteMatch) bool {
 	if match.Route != nil {
 		endpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 		if err != nil {
-			log.Fatalf("%s Error converting EndpointID to int64: %v", config.System, err)
+			logreport.Fatalf("%s Error converting EndpointID to int64: %v", config.System, err)
 		}
 		context.Set(request, aphttp.ContextEndpointIDKey, endpointID)
 	}
@@ -79,11 +79,11 @@ func (r *proxyRouter) rebuildAll() error {
 }
 
 func (r *proxyRouter) rebuildHosts() error {
-	log.Printf("%s Rebuilding hosts router", config.System)
+	logreport.Printf("%s Rebuilding hosts router", config.System)
 
 	hosts, err := model.AllHosts(r.db)
 	if err != nil {
-		log.Printf("%s Error fetching hosts to route: %v",
+		logreport.Printf("%s Error fetching hosts to route: %v",
 			config.System, err)
 		return err
 	}
@@ -98,7 +98,7 @@ func (r *proxyRouter) rebuildHosts() error {
 
 	apis, err := model.AllAPIs(r.db)
 	if err != nil {
-		log.Printf("%s Error fetching apis: %v",
+		logreport.Printf("%s Error fetching apis: %v",
 			config.System, err)
 		return err
 	}
@@ -132,11 +132,11 @@ func merge(methods map[int64]map[string]map[string]bool) map[string]map[string]b
 }
 
 func (r *proxyRouter) rebuildAPIRouters() error {
-	log.Printf("%s Rebuilding all API routers", config.System)
+	logreport.Printf("%s Rebuilding all API routers", config.System)
 
 	proxyEndpoints, err := model.AllProxyEndpointsForRouting(r.db)
 	if err != nil {
-		log.Printf("%s Error fetching proxy endpoints for all APIs to route: %v",
+		logreport.Printf("%s Error fetching proxy endpoints for all APIs to route: %v",
 			config.System, err)
 		return err
 	}
@@ -165,11 +165,11 @@ func (r *proxyRouter) rebuildAPIRouters() error {
 }
 
 func (r *proxyRouter) rebuildAPIRouterForAPIID(apiID int64) error {
-	log.Printf("%s Rebuilding API router for API %d", config.System, apiID)
+	logreport.Printf("%s Rebuilding API router for API %d", config.System, apiID)
 
 	proxyEndpoints, err := model.AllProxyEndpointsForRoutingForAPIID(r.db, apiID)
 	if err != nil {
-		log.Printf("%s Error fetching proxy endpoints for API %d to route: %v",
+		logreport.Printf("%s Error fetching proxy endpoints for API %d to route: %v",
 			config.System, apiID, err)
 		return err
 	}
@@ -190,7 +190,7 @@ func (r *proxyRouter) rebuildAPIRouterForAPIID(apiID int64) error {
 }
 
 func (r *proxyRouter) deleteAPIRouterForAPIID(apiID int64) error {
-	log.Printf("%s Deleting API router for API %d", config.System, apiID)
+	logreport.Printf("%s Deleting API router for API %d", config.System, apiID)
 
 	defer r.apiRoutersMutex.Unlock()
 	r.apiRoutersMutex.Lock()
@@ -210,7 +210,7 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router,
 	apiMethods map[string]map[string]bool) error {
 	routes, err := endpoint.GetRoutes()
 	if err != nil {
-		log.Printf("%s Error getting proxy endpoint %d routes: %v",
+		logreport.Printf("%s Error getting proxy endpoint %d routes: %v",
 			config.System, endpoint.ID, err)
 		return err
 	}
@@ -255,6 +255,8 @@ func (r *proxyRouter) Notify(n *apsql.Notification) {
 	case n.Table == "apis" && n.Event == apsql.Delete:
 		go r.rebuildHosts()
 		go r.deleteAPIRouterForAPIID(n.APIID)
+	case n.Table == "apis" && n.Event == apsql.Insert:
+		go r.rebuildHosts()
 	case n.Table == "hosts":
 		go r.rebuildHosts()
 	case n.Table == "proxy_endpoints":
@@ -263,6 +265,6 @@ func (r *proxyRouter) Notify(n *apsql.Notification) {
 }
 
 func (r *proxyRouter) Reconnect() {
-	log.Printf("%s Proxy notified of database reconnection", config.System)
+	logreport.Printf("%s Proxy notified of database reconnection", config.System)
 	go r.rebuildAll()
 }

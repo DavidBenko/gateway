@@ -16,6 +16,9 @@ import (
 //go:generate ./controller.rb --model ProxyEndpoint --account --api
 //go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
 //go:generate ./controller.rb --model User --account --after-insert-hook --check-delete --transform-method c.sanitize --transform-type sanitizedUser
+//go:generate ./controller.rb --model RemoteEndpointType
+//go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
+//go:generate ./controller.rb --model ProxyEndpointSchema --account --api --proxy-endpoint
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
@@ -38,4 +41,8 @@ type BaseController struct {
 
 func (c *BaseController) apiID(r *http.Request) int64 {
 	return apiIDFromPath(r)
+}
+
+func (c *BaseController) proxyEndpointID(r *http.Request) int64 {
+	return endpointIDFromPath(r)
 }

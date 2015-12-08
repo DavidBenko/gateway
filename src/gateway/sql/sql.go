@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"gateway/config"
-	"log"
+	"gateway/logreport"
 	"regexp"
 	"strconv"
 	"strings"
@@ -39,14 +39,15 @@ const (
 
 // Notification is used to serialize information to pass with events
 type Notification struct {
-	Table     string
-	AccountID int64
-	UserID    int64
-	APIID     int64
-	ID        int64
-	Event     NotificationEventType
-	Tag       string
-	Messages  []interface{}
+	Table           string
+	AccountID       int64
+	UserID          int64
+	APIID           int64
+	ProxyEndpointID int64
+	ID              int64
+	Event           NotificationEventType
+	Tag             string
+	Messages        []interface{}
 }
 
 // A Listener gets notified of notifications
@@ -76,7 +77,7 @@ func Connect(conf config.Database) (*DB, error) {
 				conf.Driver)
 	}
 
-	log.Printf("%s Connecting to database", config.System)
+	logreport.Printf("%s Connecting to database", config.System)
 	sqlxDB, err := sqlx.Open(conf.Driver, conf.ConnectionString)
 	if err != nil {
 		return nil, err

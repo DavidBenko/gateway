@@ -16,7 +16,7 @@ type Account struct {
 }
 
 // Validate validates the model.
-func (a *Account) Validate() aperrors.Errors {
+func (a *Account) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if a.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -61,7 +61,7 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", id, 0, 0, id, sql.Delete)
+	return tx.Notify("accounts", id, 0, 0, 0, id, sql.Delete)
 }
 
 // Insert inserts the account into the database as a new row.
