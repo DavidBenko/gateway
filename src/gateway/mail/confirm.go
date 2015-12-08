@@ -12,7 +12,7 @@ import (
 )
 
 const confirmTemplate = `{{define "body"}}
-  Click on the below link to confirm you email:<br/>
+  Click on the below link to confirm your email:<br/>
   <a href="http://{{.Host}}:{{.Port}}{{.Prefix}}confirmation?token={{.Token}}">confirm email</a>
 {{end}}
 `
