@@ -7,6 +7,7 @@ import (
 	"gateway/config"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
+	"gateway/mail"
 	"gateway/model"
 	apsql "gateway/sql"
 
@@ -81,7 +82,7 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = SendConfirmEmail(c.SMTP, c.ProxyServer, user, tx)
+	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, user, tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

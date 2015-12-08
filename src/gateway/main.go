@@ -17,6 +17,7 @@ import (
 	"gateway/config"
 	"gateway/http"
 	"gateway/license"
+	"gateway/mail"
 	"gateway/model"
 	"gateway/proxy"
 	"gateway/service"
@@ -470,7 +471,7 @@ func usersCreate(params map[string]string, conf config.Configuration, db *sql.DB
 			return err
 		}
 		if !confirmed {
-			return admin.SendConfirmEmail(conf.SMTP, conf.Proxy, user, tx)
+			return mail.SendConfirmEmail(conf.SMTP, conf.Proxy, user, tx)
 		}
 		return nil
 	})
