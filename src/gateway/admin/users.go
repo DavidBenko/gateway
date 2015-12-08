@@ -23,5 +23,5 @@ func (c *UsersController) AfterInsert(user *model.User, tx *apsql.Tx) error {
 		return nil
 	}
 
-	return mail.SendConfirmEmail(c.SMTP, c.ProxyServer, user, tx)
+	return mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx)
 }

@@ -82,7 +82,7 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, user, tx)
+	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

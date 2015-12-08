@@ -26,5 +26,6 @@ type EmailTemplate struct {
 	Subject string
 	Host    string
 	Port    int64
+	Prefix  string
 	Token   string
 }

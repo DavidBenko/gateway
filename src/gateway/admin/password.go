@@ -46,7 +46,7 @@ func (c *PasswordResetController) Reset(w http.ResponseWriter, r *http.Request, 
 		return nil
 	}
 
-	err = mail.SendResetEmail(c.SMTP, c.ProxyServer, user, tx)
+	err = mail.SendResetEmail(c.SMTP, c.ProxyServer, c.conf, user, tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

@@ -13,22 +13,28 @@ import (
 
 const resetTemplate = `{{define "body"}}
   Click on the below link to reset your password:<br/>
-  <a href="http://{{.Host}}:{{.Port}}/admin#/password/reset-confirmation?token={{.Token}}">reset password</a>
+  <a href="http://{{.Host}}:{{.Port}}{{.Prefix}}#/password/reset-confirmation?token={{.Token}}">reset password</a>
 {{end}}
 `
 
-func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, user *model.User, tx *apsql.Tx) error {
+func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
+	user *model.User, tx *apsql.Tx) error {
 	token, err := model.AddUserToken(tx, user.Email, model.TokenTypeReset)
 	if err != nil {
 		return err
 	}
 
+	host := proxyServer.Host
+	if admin.Host != "" {
+		host = admin.Host
+	}
 	context := EmailTemplate{
 		From:    _smtp.Sender,
 		To:      user.Email,
 		Subject: "JustAPIs Password Reset",
-		Host:    proxyServer.Host,
+		Host:    host,
 		Port:    proxyServer.Port,
+		Prefix:  admin.PathPrefix,
 		Token:   token,
 	}
 	t := template.New("template")

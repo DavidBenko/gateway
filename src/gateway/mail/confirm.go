@@ -13,22 +13,28 @@ import (
 
 const confirmTemplate = `{{define "body"}}
   Click on the below link to confirm you email:<br/>
-  <a href="http://{{.Host}}:{{.Port}}/admin/confirmation?token={{.Token}}">confirm email</a>
+  <a href="http://{{.Host}}:{{.Port}}{{.Prefix}}confirmation?token={{.Token}}">confirm email</a>
 {{end}}
 `
 
-func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, user *model.User, tx *apsql.Tx) error {
+func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
+	user *model.User, tx *apsql.Tx) error {
 	token, err := model.AddUserToken(tx, user.Email, model.TokenTypeConfirm)
 	if err != nil {
 		return err
 	}
 
+	host := proxyServer.Host
+	if admin.Host != "" {
+		host = admin.Host
+	}
 	context := EmailTemplate{
 		From:    _smtp.Sender,
 		To:      user.Email,
 		Subject: "JustAPIs Email Confirmation",
-		Host:    proxyServer.Host,
+		Host:    host,
 		Port:    proxyServer.Port,
+		Prefix:  admin.PathPrefix,
 		Token:   token,
 	}
 	t := template.New("template")
