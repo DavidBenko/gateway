@@ -130,6 +130,6 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	http.Redirect(w, r, "/admin/", http.StatusFound)
+	http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
 	return nil
 }
