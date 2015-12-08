@@ -107,6 +107,9 @@ func DeleteJarFile(soapRemoteEndpointID int64) error {
 	return os.Remove(jarFileName)
 }
 
+// CacheAllJarFiles iterates through all SoapRemoteEndpoints, and copies the
+// generatedJar to the file system in the appropriate file location if the file
+// is missing.
 func CacheAllJarFiles(db *apsql.DB) error {
 	endpoints, err := allSoapRemoteEndpoints(db)
 	if err != nil {
@@ -127,6 +130,8 @@ func CacheAllJarFiles(db *apsql.DB) error {
 	return nil
 }
 
+// JarExists checks for the existence of the JAR file corresponding to the
+// given soapRemoteEndpointID on the file system.
 func JarExists(soapRemoteEndpointID int64) (bool, error) {
 	jarURL, err := soap.JarURLForSoapRemoteEndpointID(soapRemoteEndpointID)
 	if err != nil {
@@ -144,6 +149,7 @@ func JarExists(soapRemoteEndpointID int64) (bool, error) {
 	return true, nil
 }
 
+// Caches the JAR file for the given soapRemoteEndpointID on the file system.
 func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 	logreport.Printf("Caching jar file for soap_remote_endpoint with ID %v", soapRemoteEndpointID)
 	jarDir, err := soap.EnsureJarPath()
