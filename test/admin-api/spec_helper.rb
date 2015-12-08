@@ -43,38 +43,180 @@ def logout!
 end
 
 def fixtures
-  {
+  fixts = {
     accounts: {
-      lulz: { name: "LulzCorp" },
-      foo:  { name: "Foo Corp" },
-      bar:  { name: "Bar Corp" },
+      lulz: { name: 'LulzCorp' },
+      foo:  { name: 'Foo Corp' },
+      bar:  { name: 'Bar Corp' },
     },
     users: {
-      geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password", admin: true, confirmed: true },
-      brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password", confirmed: true },
-      poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password", confirmed: true },
+      geff:  { name: 'Geff',  email: 'g@ffery.com', password: 'password', password_confirmation: 'password', admin: true, confirmed: true },
+      brain: { name: 'Brain', email: 'br@in.com',   password: 'password', password_confirmation: 'password', confirmed: true },
+      poter: { name: 'Poter', email: 'p@ter.com',   password: 'password', password_confirmation: 'password', confirmed: true },
+    },
+    environments: {
+      basic: {
+        name: 'Basic',
+        description: 'A basic environment',
+        data: {method: 'POST'},
+        session_name: 'session',
+        session_auth_key: 'auth-key',
+        session_encryption_key: 'encryption-key',
+        session_auth_key_rotate: '???',
+        session_encryption_key_rotate: '!!!',
+        show_javascript_errors: true,
+      },
+    },
+    environment_data: {
+      basic: {
+        name: 'Basic',
+        description: 'A basic environment.',
+        data: {method: 'POST'},
+        environment_id: 1,
+        session_name: 'session',
+        session_auth_key: 'auth-key',
+        session_encryption_key: 'encryption-key',
+        session_auth_key_rotate: '???',
+        session_encryption_key_rotate: '!!!',
+        show_javascript_errors: true,
+      },
+    },
+    transformations: {
+      basic: {
+        type: 'js',
+        data: 'some_basic_javascript();',
+      },
+      normal: {
+        type: 'js',
+        data: 'some_normal_javascript();',
+      },
     },
     apis: {
       widgets: {
-        name: "Widgets",
-        description: "Lots of widgets here",
-        cors_allow_origin: "*",
-        cors_allow_headers: "content-type, accept",
+        name: 'Widgets',
+        description: 'Lots of widgets here',
+        cors_allow_origin: '*',
+        cors_allow_headers: 'content-type, accept',
         cors_allow_credentials: true,
-        cors_request_headers: "*",
+        cors_request_headers: '*',
         cors_max_age: 600
       },
       gadgets: {
-        name: "Gadgets",
-        description: "No widgets",
-        cors_allow_origin: "*",
-        cors_allow_headers: "content-type, accept",
+        name: 'Gadgets',
+        description: 'No widgets',
+        cors_allow_origin: '*',
+        cors_allow_headers: 'content-type, accept',
         cors_allow_credentials: true,
-        cors_request_headers: "*",
+        cors_request_headers: '*',
         cors_max_age: 600
       },
-    }
+    },
   }
+
+  fixts[:remote_endpoints] = {
+    basic: {
+      name: 'Basic',
+      codename: 'basic',
+      description: 'A simple remote endpoint.',
+      type: 'http',
+      data: {
+        method:'GET',
+        url:'http://localhost:8080',
+        body:'',
+        headers: { a: 2 },
+        query: { b: 'c' },
+      },
+    },
+  }
+
+  fixts[:calls] = {
+    basic: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+    },
+    normal: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+    },
+  }
+
+  fixts[:shared_components] = {
+    single: {
+      name: 'Ordinary single component',
+      description: 'An utterly unremarkable shared_component',
+      type: 'single',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      call: fixts[:calls][:basic],
+      data: {},
+    },
+    multi: {
+      name: 'Less Ordinary multi component',
+      description: 'A somewhat less ordinary shared_component',
+      type: 'multi',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      calls: [
+        fixts[:calls][:basic],
+        fixts[:calls][:normal],
+      ],
+    },
+    js: {
+      name: 'Javascripty',
+      description: 'A JavaScripty shared_component',
+      type: 'multi',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      calls: [
+        fixts[:calls][:basic],
+        fixts[:calls][:normal],
+      ],
+    },
+  }
+
+  return fixts
 end
 
 class Hash
