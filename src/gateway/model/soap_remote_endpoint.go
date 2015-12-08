@@ -57,7 +57,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 
 	switch n.Event {
 	case apsql.Update, apsql.Insert:
-		err := cacheJarFile(l.DB, n.APIID)
+		err := CacheJarFile(l.DB, n.APIID)
 		if err != nil {
 			logreport.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
@@ -103,7 +103,8 @@ func DeleteJarFile(soapRemoteEndpointID int64) error {
 	return os.Remove(jarFileName)
 }
 
-func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+	logreport.Printf("Caching jar file for soap_remote_endpoint with ID %v", soapRemoteEndpointID)
 	jarDir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
