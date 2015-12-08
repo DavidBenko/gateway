@@ -116,7 +116,7 @@ func CacheAllJarFiles(db *apsql.DB) error {
 		return err
 	}
 	for _, endpoint := range endpoints {
-		exists, err := JarExists(endpoint.ID)
+		exists, err := endpoint.JarExists()
 		if err != nil {
 			return err
 		}
@@ -132,8 +132,8 @@ func CacheAllJarFiles(db *apsql.DB) error {
 
 // JarExists checks for the existence of the JAR file corresponding to the
 // given soapRemoteEndpointID on the file system.
-func JarExists(soapRemoteEndpointID int64) (bool, error) {
-	jarURL, err := soap.JarURLForSoapRemoteEndpointID(soapRemoteEndpointID)
+func (s *SoapRemoteEndpoint) JarExists() (bool, error) {
+	jarURL, err := soap.JarURLForSoapRemoteEndpointID(s.ID)
 	if err != nil {
 		return false, err
 	}

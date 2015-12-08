@@ -147,7 +147,7 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
-	if exists, err := model.JarExists(soapRequest.remoteEndpoint.Soap.ID); err != nil {
+	if exists, err := soapRequest.remoteEndpoint.Soap.JarExists(); err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[soap] Checking for existence of jar file", err))
 	} else if err == nil && !exists {
 		err := model.CacheJarFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
