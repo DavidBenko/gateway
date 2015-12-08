@@ -12,17 +12,10 @@ import (
 	"gateway/sql"
 	"io"
 	"net"
-	"net/http"
 	"strings"
 )
 
-const (
-	filePrefix = "file://"
-)
-
-var (
-	serviceUnavailable = &ErrorResponse{StatusCode: http.StatusServiceUnavailable, Error: "Service temporarily unavailable"}
-)
+const filePrefix = "file://"
 
 // SoapRequest encapsulates a request made via SOAP
 type SoapRequest struct {
