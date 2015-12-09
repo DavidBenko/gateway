@@ -12,6 +12,7 @@ import (
 	"gateway/config"
 	"gateway/db"
 	aperrors "gateway/errors"
+	aphttp "gateway/http"
 	"gateway/logreport"
 	re "gateway/model/remote_endpoint"
 	"gateway/soap"
@@ -435,7 +436,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 }
 
 // CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
-func CanDeleteRemoteEndpoint(tx *apsql.Tx, id int64) error {
+func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoint_calls

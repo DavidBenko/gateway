@@ -29,7 +29,7 @@ describe "sessions" do
       end
 
       it { expect_status(200) }
-      it { expect(body).to be_empty }
+      it { expect(body).not_to be_empty }
 
       it "should let you into private areas" do
         get "/apis"
@@ -45,7 +45,7 @@ describe "sessions" do
       end
 
       it_behaves_like "invalid credentials"
-      it { expect_json("error", "No user with that email") }
+      it { expect_json("error", "Invalid credentials") }
     end
 
     context "invalid password" do
@@ -56,7 +56,7 @@ describe "sessions" do
       end
 
       it_behaves_like "invalid credentials"
-      it { expect_json("error", "Invalid password") }
+      it { expect_json("error", "Invalid credentials") }
     end
 
     context "invalid while logged in" do

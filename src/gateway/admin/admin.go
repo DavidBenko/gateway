@@ -35,8 +35,8 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		// siteAdmin is additionally protected for the site owner
 		siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
 		RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
-		RouteResource(&UsersController{BaseController{accountID: accountIDFromPath, userID: userIDDummy}},
-			"/accounts/{accountID}/users", siteAdmin, db, conf)
+		RouteResource(&UsersController{BaseController{accountID: accountIDFromPath, userID: userIDDummy,
+			auth: aphttp.AuthTypeSite}}, "/accounts/{accountID}/users", siteAdmin, db, conf)
 
 		// sessions are unprotected to allow users to authenticate
 		RouteSessions("/sessions", admin, db, conf)
@@ -47,14 +47,17 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	// protected by requiring login (except dev mode)
 	accountID := accountIDFromSession
 	userID := userIDFromSession
-	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"})
+	authAdmin := NewSessionAuthRouter(admin, []string{"OPTIONS"}, false)
+	authAdminUser := NewSessionAuthRouter(admin, []string{"OPTIONS"}, true)
 	if conf.DevMode {
 		accountID = accountIDForDevMode(db)
 		userID = userIDForDevMode(db)
 		authAdmin = admin
+		authAdminUser = admin
 	}
 
-	base := BaseController{conf: conf, accountID: accountID, userID: userID}
+	base := BaseController{conf: conf, accountID: accountID, userID: userID,
+		SMTP: configuration.SMTP, ProxyServer: psconf}
 
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
 
@@ -74,7 +77,13 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteLogSearch(search, "/apis/{apiID}/logs", authAdmin, db, conf)
 	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
 
-	RouteResource(&UsersController{base}, "/users", authAdmin, db, conf)
+	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
+	if conf.EnableRegistration {
+		RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
+		RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
+	}
+	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)
+	RoutePasswordResetConfirmation(&PasswordResetConfirmationController{base}, "/password_reset_confirmation", admin, db, conf)
 
 	apisController := &APIsController{base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
