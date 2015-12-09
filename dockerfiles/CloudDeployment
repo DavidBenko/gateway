@@ -1,3 +1,5 @@
+# anypresence/gateway:deployment
+# version 0.0.1
 FROM debian:jessie
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
@@ -14,7 +16,6 @@ RUN echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | te
 ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
 
 ADD build/gateway-linux-amd64 /gateway/gateway
-ADD public_keys/production/production_license /gateway/license
 
 EXPOSE 5000 5555 5556
 WORKDIR /gateway
@@ -37,11 +38,26 @@ ENV SCRIPT_ENABLED false
 ENV ADMIN_SESSION_COOKIE_DOMAIN 0.0.0.0
 ENV BLEVE_LOGGING_FILE ""
 ENV ELASTIC_LOGGING_URL ""
+ENV LICENSE_CONTENT ""
+ENV AIRBRAKE_API_KEY ""
+ENV AIRBRAKE_ENVIRONMENT ""
+ENV AIRBRAKE_PROJECT_ID ""
+ENV SMTP_USER ""
+ENV SMTP_PASSWORD ""
+ENV SMTP_SENDER ""
+ENV SMTP_SERVER ""
+ENV SMTP_PORT ""
+ENV ADMIN_ENABLE_REGISTRATION true
+ENV ADMIN_SHOW_VERSION true
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
-ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$CACHE_APIS -proxy-host=$PROXY_HOST -admin-host=$ADMIN_HOST -proxy-domain=$PROXY_DOMAIN \
-  -db-driver=$DB_DRIVER -admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY -admin-path-prefix=$ADMIN_PATH -admin-session-cookie-domain=$ADMIN_SESSION_COOKIE_DOMAIN \
+ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$CACHE_APIS \
+  -proxy-host=$PROXY_HOST  -proxy-domain=$PROXY_DOMAIN \
+  -admin-host=$ADMIN_HOST -admin-enable-registration=$ADMIN_ENABLE_REGISTRATION -admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY -admin-path-prefix=$ADMIN_PATH -admin-session-cookie-domain=$ADMIN_SESSION_COOKIE_DOMAIN -admin-show-version=$ADMIN_SHOW_VERSION \
   -enable-broker=$ENABLE_BROKER -broker=$BROKER_HOST -broker-pub-port=$BROKER_PUB_PORT -broker-sub-port=$BROKER_SUB_PORT -broker-ws=$BROKER_WS \
   -bleve-logging-file=$BLEVE_LOGGING_FILE -elastic-logging-url="$ELASTIC_LOGGING_URL" \
   -remote-endpoint-script-enabled=$SCRIPT_ENABLED \
-  -db-conn-string="$DB_CONN"
+  -airbrake-api-key="$AIRBRAKE_API_KEY" -airbrake-environment="AIRBRAKE_ENVIRONMENT" -airbrake-project-id="$AIRBRAKE_PROJECT_ID" \
+  -smtp-user="$SMTP_USER" -smtp-password="$SMTP_PASSWORD" -smtp-sender="$SMTP_SENDER" -smtp-server="$SMTP_SERVER" -smtp-port=$SMTP_PORT \
+  -license-content="$LICENSE_CONTENT" \
+  -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN"
