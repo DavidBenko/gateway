@@ -50,16 +50,18 @@ func readLicense(conf config.Configuration) []byte {
 		err  error
 	)
 
+	// License passed in on the command line in base64 encoding
 	if conf.LicenseContent != "" {
-		// License passed in on the command line in base64 encoding
 		licenseContents, err := base64.StdEncoding.DecodeString(conf.LicenseContent)
 		if err != nil {
 			logreport.Fatalf("%s License content is not a valid base64 encoded string", config.System)
 		}
-		data = []byte(licenseContents)
-	} else if conf.License == "" {
-		// No path specified for the license, so default to well-known location
-		// './license' in the current working dir
+		return []byte(licenseContents)
+	}
+
+	// No path specified for the license, so default to well-known location
+	// './license' in the current working dir
+	if conf.License == "" {
 		if data, err = ioutil.ReadFile(defaultLicenseFileLocation); err != nil {
 			// No license file present?  No worries, let's default to the developer version
 			if os.IsNotExist(err) {
@@ -69,12 +71,13 @@ func readLicense(conf config.Configuration) []byte {
 			}
 			logreport.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
 		}
-	} else {
-		// Read license from specified file path
-		data, err = ioutil.ReadFile(conf.License)
-		if err != nil {
-			logreport.Fatalf("%s Could not read license at '%s': %v", config.System, conf.License, err)
-		}
+
+		return data
+	}
+
+	// Read license from specified file path
+	if data, err = ioutil.ReadFile(conf.License); err != nil {
+		logreport.Fatalf("%s Could not read license at '%s': %v", config.System, conf.License, err)
 	}
 
 	return data
