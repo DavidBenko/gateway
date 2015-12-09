@@ -202,8 +202,11 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   <% end %>
 
   <% if check_delete %>
-    if err = model.CanDelete<%= singular %>(tx, id); err != nil {
-      return aphttp.NewServerError(err)
+    if err = model.CanDelete<%= singular %>(tx, id, c.accountID(r), c.auth); err != nil {
+      if err == apsql.ErrZeroRowsAffected {
+        return c.notFound()
+      }
+      return aphttp.NewError(err, 400)
     }
   <% end %>
 
@@ -231,7 +234,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
       return c.notFound()
     }
     logreport.Printf("%s Error deleting <%= pretty %>: %v\\n%v", config.System, err, r)
-    return aphttp.DefaultServerError()
+    return aphttp.NewServerError(err)
   }
 
   <% if after_delete %>

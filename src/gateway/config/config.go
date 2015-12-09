@@ -17,10 +17,11 @@ var defaultDomain = "lvh.me"
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	Version bool   `flag:"version" default:"false"`
-	File    string `flag:"config" default:"gateway.conf"`
-	License string `flag:"license"`
-	Server  bool   `flag:"server" default:"false"`
+	Version        bool   `flag:"version" default:"false"`
+	File           string `flag:"config" default:"gateway.conf"`
+	License        string `flag:"license"`
+	LicenseContent string `flag:"license-content"`
+	Server         bool   `flag:"server" default:"false"`
 
 	Airbrake       Airbrake
 	Database       Database
@@ -30,6 +31,7 @@ type Configuration struct {
 	Bleve          BleveLogging
 	Soap           Soap
 	RemoteEndpoint RemoteEndpoint
+	SMTP           SMTP
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -120,6 +122,8 @@ type ProxyAdmin struct {
 	BrokerSubPort   string `flag:"broker-sub-port" default:"5556"`
 	BrokerTransport string `flag:"broker-transport" default:"tcp"`
 	BrokerWs        string `flag:"broker-ws" default:"localhost:5000"`
+
+	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
 }
 
 type ElasticLogging struct {
@@ -129,6 +133,14 @@ type ElasticLogging struct {
 type BleveLogging struct {
 	File        string `flag:"bleve-logging-file" default:"logs.bleve"`
 	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
+}
+
+type SMTP struct {
+	Server   string `flag:"smtp-server"`
+	Port     int64  `flag:"smtp-port" default:"25"`
+	User     string `flag:"smtp-user"`
+	Password string `flag:"smtp-password"`
+	Sender   string `flag:"smtp-sender"`
 }
 
 const envPrefix = "APGATEWAY_"
@@ -166,6 +178,10 @@ func Parse(args []string) (Configuration, error) {
 	}
 
 	return config, nil
+}
+
+func Commands() []string {
+	return flag.Args()
 }
 
 // verify the configuration

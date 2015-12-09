@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN confirmed BOOLEAN NOT NULL DEFAULT 0;
+UPDATE users SET confirmed=1;

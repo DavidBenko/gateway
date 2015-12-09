@@ -1,10 +1,11 @@
 package config
 
 var usageStrings = map[string]string{
-	"version": "Whether to print the version and quit",
-	"config":  "The path to the configuration file",
-	"license": "The path to a valid Gateway license key",
-	"server":  "Whether or not to run in server mode",
+	"version":         "Whether to print the version and quit",
+	"config":          "The path to the configuration file",
+	"license":         "The path to a valid Gateway license key",
+	"license-content": "The license contents as a base64 encoded string.  If present, license option is ignored",
+	"server":          "Whether or not to run in server mode",
 
 	"airbrake-api-key":     "The API key to use for Airbrake notifications",
 	"airbrake-project-id":  "The ID assigned to your Airbrake project",
@@ -66,6 +67,8 @@ var usageStrings = map[string]string{
 	"admin-add-default-env":  "Whether or not to add a default environment to new APIs in dev mode",
 	"admin-default-env-name": "The name of the default environment to create",
 
+	"admin-enable-registration": "Enable account registration API",
+
 	"admin-create-default-host": "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
 
 	"elastic-logging-url": "The url of the elastic server",
@@ -79,4 +82,10 @@ var usageStrings = map[string]string{
 	"broker-sub-port":  "The port of the broker sub",
 	"broker-transport": "The broker transport",
 	"broker-ws":        "The broker websocket location",
+
+	"smtp-server":   "The address or name of the smtp server",
+	"smtp-port":     "The port of the smtp server",
+	"smtp-user":     "The user name for the smtp server",
+	"smtp-password": "The password for the smtp server",
+	"smtp-sender":   "The sender of emails from gateway",
 }
