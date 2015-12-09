@@ -17,10 +17,11 @@ var defaultDomain = "lvh.me"
 
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	Version bool   `flag:"version" default:"false"`
-	File    string `flag:"config" default:"gateway.conf"`
-	License string `flag:"license"`
-	Server  bool   `flag:"server" default:"false"`
+	Version        bool   `flag:"version" default:"false"`
+	File           string `flag:"config" default:"gateway.conf"`
+	License        string `flag:"license"`
+	LicenseContent string `flag:"license-content"`
+	Server         bool   `flag:"server" default:"false"`
 
 	Airbrake       Airbrake
 	Database       Database

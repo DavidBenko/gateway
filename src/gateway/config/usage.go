@@ -1,10 +1,11 @@
 package config
 
 var usageStrings = map[string]string{
-	"version": "Whether to print the version and quit",
-	"config":  "The path to the configuration file",
-	"license": "The path to a valid Gateway license key",
-	"server":  "Whether or not to run in server mode",
+	"version":         "Whether to print the version and quit",
+	"config":          "The path to the configuration file",
+	"license":         "The path to a valid Gateway license key",
+	"license-content": "The license contents as a base64 encoded string.  If present, license option is ignored",
+	"server":          "Whether or not to run in server mode",
 
 	"airbrake-api-key":     "The API key to use for Airbrake notifications",
 	"airbrake-project-id":  "The ID assigned to your Airbrake project",
