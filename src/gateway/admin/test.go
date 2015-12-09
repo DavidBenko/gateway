@@ -70,9 +70,11 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 		}
 
 		testResponse.Method = method
-		testResponse.Status = response.Status
 		for name, values := range response.Header {
 			for _, value := range values {
+				if name == "Content-Length" {
+					value = fmt.Sprintf("%v", len(testResponse.Body))
+				}
 				header := &aphttp.TestHeader{Name: name, Value: value}
 				testResponse.Headers = append(testResponse.Headers, header)
 			}
