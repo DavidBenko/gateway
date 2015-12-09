@@ -3,6 +3,7 @@ package license
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"gateway/config"
@@ -43,35 +44,59 @@ func init() {
 	}
 }
 
-// ValidateForever reads the signed license file at path, and validates it
-// immediately, and then again each interval in a separate goroutine.
-// Failure to validate is fatal.
-func ValidateForever(path string, interval time.Duration) {
-	// if no provided license file, then use license at default location of './license'
-	var data []byte
-	var err error
-	// No path specified for the license
-	if path == "" {
-		// Default to well-known location 'license' in the current working dir
+func readLicense(conf config.Configuration) []byte {
+	var (
+		data []byte
+		err  error
+	)
+
+	if conf.LicenseContent != "" {
+		// License passed in on the command line in base64 encoding
+		licenseContents, err := base64.StdEncoding.DecodeString(conf.LicenseContent)
+		if err != nil {
+			logreport.Fatalf("%s License content is not a valid base64 encoded string", config.System)
+		}
+		data = []byte(licenseContents)
+	} else if conf.License == "" {
+		// No path specified for the license, so default to well-known location
+		// './license' in the current working dir
 		if data, err = ioutil.ReadFile(defaultLicenseFileLocation); err != nil {
 			// No license file present?  No worries, let's default to the developer version
 			if os.IsNotExist(err) {
 				logreport.Printf("%s Starting gateway in developer mode", config.System)
 				DeveloperVersion = true
-				return
+				return data
 			}
 			logreport.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
 		}
 	} else {
-		data, err = ioutil.ReadFile(path)
+		// Read license from specified file path
+		data, err = ioutil.ReadFile(conf.License)
 		if err != nil {
-			logreport.Fatalf("%s Could not read license at '%s': %v", config.System, path, err)
+			logreport.Fatalf("%s Could not read license at '%s': %v", config.System, conf.License, err)
 		}
+	}
+
+	return data
+}
+
+// ValidateForever reads the signed license file at path, or reads the license
+// directly from the command line (after base 64 decoding it), and validates it
+// immediately, and then again each interval in a separate goroutine.
+// Failure to validate is fatal.
+func ValidateForever(conf config.Configuration, interval time.Duration) {
+	// read in the license
+	data := readLicense(conf)
+
+	// developer version -- no actual license
+	if len(data) == 0 {
+		DeveloperVersion = true
+		return
 	}
 
 	signed, err := DeserializeSignedLicense(data)
 	if err != nil {
-		logreport.Fatalf("%s Could not deserialize license at '%s'", config.System, path)
+		logreport.Fatalf("%s Could not deserialize license", config.System)
 	}
 
 	publicKeyData, err := Asset("public_key")
@@ -87,7 +112,7 @@ func ValidateForever(path string, interval time.Duration) {
 
 	checkValidity := func() {
 		if !signed.IsValid(publicKey) {
-			logreport.Fatalf("%s License at '%s' is not valid.", config.System, path)
+			logreport.Fatalf("%s License is not valid.", config.System)
 		}
 	}
 

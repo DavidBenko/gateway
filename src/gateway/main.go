@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Require a valid license key
-	license.ValidateForever(conf.License, time.Hour)
+	license.ValidateForever(conf, time.Hour)
 
 	//check for sneaky people
 	if license.DeveloperVersion {
