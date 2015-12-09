@@ -55,7 +55,7 @@ func readLicense(conf config.Configuration) ([]byte, error) {
 	if conf.LicenseContent != "" {
 		licenseContents, err := base64.StdEncoding.DecodeString(conf.LicenseContent)
 		if err != nil {
-			return data, fmt.Errorf("License content is not a valid base64 encoded string: %v", err)
+			return nil, fmt.Errorf("License content is not a valid base64 encoded string: %v", err)
 		}
 		return []byte(licenseContents), nil
 	}
@@ -70,7 +70,7 @@ func readLicense(conf config.Configuration) ([]byte, error) {
 				DeveloperVersion = true
 				return data, nil
 			}
-			return data, fmt.Errorf("Unable to read license file at '%s': %v", defaultLicenseFileLocation, err)
+			return nil, fmt.Errorf("Unable to read license file at '%s': %v", defaultLicenseFileLocation, err)
 		}
 
 		return data, nil
@@ -78,7 +78,7 @@ func readLicense(conf config.Configuration) ([]byte, error) {
 
 	// Read license from specified file path
 	if data, err = ioutil.ReadFile(conf.License); err != nil {
-		return data, fmt.Errorf("Could not read license at '%s': %v", conf.License, err)
+		return nil, fmt.Errorf("Could not read license at '%s': %v", conf.License, err)
 	}
 
 	return data, nil
