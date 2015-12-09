@@ -50,9 +50,9 @@ def fixtures
       bar:  { name: "Bar Corp" },
     },
     users: {
-      geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password" },
-      brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password" },
-      poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password" },
+      geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password", admin: true, confirmed: true },
+      brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password", confirmed: true },
+      poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password", confirmed: true },
     },
     apis: {
       widgets: {

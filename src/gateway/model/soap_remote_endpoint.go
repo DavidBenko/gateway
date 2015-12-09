@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 
 	"gateway/config"
 	aperrors "gateway/errors"
@@ -19,7 +20,10 @@ import (
 	"github.com/vincent-petithory/dataurl"
 )
 
-const soapRemoteEndpoints = "soap_remote_endpoints"
+const (
+	soapRemoteEndpoints = "soap_remote_endpoints"
+	filePrefix          = "file://"
+)
 
 // SoapRemoteEndpoint contains attributes for a remote endpoint of type Soap
 type SoapRemoteEndpoint struct {
@@ -57,7 +61,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 
 	switch n.Event {
 	case apsql.Update, apsql.Insert:
-		err := cacheJarFile(l.DB, n.APIID)
+		err := CacheJarFile(l.DB, n.APIID)
 		if err != nil {
 			logreport.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
 		}
@@ -103,7 +107,51 @@ func DeleteJarFile(soapRemoteEndpointID int64) error {
 	return os.Remove(jarFileName)
 }
 
-func cacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+// CacheAllJarFiles iterates through all SoapRemoteEndpoints, and copies the
+// generatedJar to the file system in the appropriate file location if the file
+// is missing.
+func CacheAllJarFiles(db *apsql.DB) error {
+	endpoints, err := allSoapRemoteEndpoints(db)
+	if err != nil {
+		return err
+	}
+	for _, endpoint := range endpoints {
+		exists, err := endpoint.JarExists()
+		if err != nil {
+			return err
+		}
+		if exists {
+			continue
+		}
+		if err := CacheJarFile(db, endpoint.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// JarExists checks for the existence of the JAR file corresponding to the
+// given soapRemoteEndpointID on the file system.
+func (s *SoapRemoteEndpoint) JarExists() (bool, error) {
+	jarURL, err := soap.JarURLForSoapRemoteEndpointID(s.ID)
+	if err != nil {
+		return false, err
+	}
+	if strings.HasPrefix(jarURL, filePrefix) {
+		jarURL = jarURL[len(filePrefix):]
+	}
+	if _, err := os.Stat(jarURL); os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// Caches the JAR file for the given soapRemoteEndpointID on the file system.
+func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+	logreport.Printf("Caching jar file for soap_remote_endpoint with ID %v", soapRemoteEndpointID)
 	jarDir, err := soap.EnsureJarPath()
 	if err != nil {
 		return err
@@ -215,6 +263,15 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 		e.ID,
 		apsql.Insert,
 	)
+}
+
+func allSoapRemoteEndpoints(db *apsql.DB) ([]*SoapRemoteEndpoint, error) {
+	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint
+						FROM soap_remote_endpoints`
+
+	soapRemoteEndpoints := []*SoapRemoteEndpoint{}
+	err := db.Select(&soapRemoteEndpoints, query)
+	return soapRemoteEndpoints, err
 }
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint

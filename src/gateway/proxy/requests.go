@@ -58,7 +58,7 @@ func (s *Server) prepareRequest(
 	case model.RemoteEndpointTypeMongo:
 		return request.NewMongoRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeSoap:
-		return request.NewSoapRequest(endpoint, data, s.soapConf)
+		return request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
 	case model.RemoteEndpointTypeScript:
 		return request.NewScriptRequest(endpoint, data)
 	}
