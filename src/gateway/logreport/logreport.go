@@ -1,10 +1,15 @@
 package logreport
 
 import (
-	"gateway/errors/report"
+	"bytes"
 	"log"
 	"net/http"
+
+	"gateway/errors/report"
 )
+
+type Log func(v ...interface{})
+type Logf func(fmt string, v ...interface{})
 
 var (
 	// Print reports errors via Airbrake and then delegates to log.Print.
@@ -29,14 +34,14 @@ var (
 	Panicln = wrap(log.Panicln)
 )
 
-func wrap(f func(v ...interface{})) func(v ...interface{}) {
+func wrap(f func(v ...interface{})) Log {
 	return func(v ...interface{}) {
 		reportErrors(v...)
 		f(v...)
 	}
 }
 
-func wrapf(f func(fmt string, v ...interface{})) func(fmt string, v ...interface{}) {
+func wrapf(f func(fmt string, v ...interface{})) Logf {
 	return func(fmt string, v ...interface{}) {
 		reportErrors(v...)
 		f(fmt, v...)
@@ -60,5 +65,13 @@ func reportErrors(v ...interface{}) {
 
 	for _, err := range errs {
 		report.Error(err, req)
+	}
+}
+
+func PrintfCopier(buffer *bytes.Buffer) Logf {
+	logger := log.New(buffer, "", log.Ldate|log.Lmicroseconds)
+	return func(fmt string, v ...interface{}) {
+		Printf(fmt, v...)
+		logger.Printf(fmt, v...)
 	}
 }

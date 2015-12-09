@@ -95,7 +95,7 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []request.Request) (
 	}
 
 	for i, req := range proxyRequests {
-		vm.Logger.Printf("%s [request] %s %s (%v)", vm.LogPrefix,
+		vm.LogPrint("%s [request] %s %s (%v)", vm.LogPrefix,
 			req.Log(s.devMode), responses[i].Log(), requestDurations[i])
 	}
 
