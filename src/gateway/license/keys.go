@@ -10,6 +10,7 @@ import (
 	apcrypto "gateway/crypto"
 	"gateway/logreport"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -44,7 +45,7 @@ func init() {
 	}
 }
 
-func readLicense(conf config.Configuration) []byte {
+func readLicense(conf config.Configuration) ([]byte, error) {
 	var (
 		data []byte
 		err  error
@@ -54,9 +55,9 @@ func readLicense(conf config.Configuration) []byte {
 	if conf.LicenseContent != "" {
 		licenseContents, err := base64.StdEncoding.DecodeString(conf.LicenseContent)
 		if err != nil {
-			logreport.Fatalf("%s License content is not a valid base64 encoded string", config.System)
+			return data, fmt.Errorf("License content is not a valid base64 encoded string: %v", err)
 		}
-		return []byte(licenseContents)
+		return []byte(licenseContents), nil
 	}
 
 	// No path specified for the license, so default to well-known location
@@ -67,20 +68,20 @@ func readLicense(conf config.Configuration) []byte {
 			if os.IsNotExist(err) {
 				logreport.Printf("%s Starting gateway in developer mode", config.System)
 				DeveloperVersion = true
-				return data
+				return data, nil
 			}
-			logreport.Fatalf("%s Unable to read license file at '%s': %v", config.System, defaultLicenseFileLocation, err)
+			return data, fmt.Errorf("Unable to read license file at '%s': %v", defaultLicenseFileLocation, err)
 		}
 
-		return data
+		return data, nil
 	}
 
 	// Read license from specified file path
 	if data, err = ioutil.ReadFile(conf.License); err != nil {
-		logreport.Fatalf("%s Could not read license at '%s': %v", config.System, conf.License, err)
+		return data, fmt.Errorf("Could not read license at '%s': %v", conf.License, err)
 	}
 
-	return data
+	return data, nil
 }
 
 // ValidateForever reads the signed license file at path, or reads the license
@@ -89,7 +90,10 @@ func readLicense(conf config.Configuration) []byte {
 // Failure to validate is fatal.
 func ValidateForever(conf config.Configuration, interval time.Duration) {
 	// read in the license
-	data := readLicense(conf)
+	data, err := readLicense(conf)
+	if err != nil {
+		log.Fatalf("%s %s", config.System, err.Error())
+	}
 
 	// developer version -- no actual license
 	if len(data) == 0 {
