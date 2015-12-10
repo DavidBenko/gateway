@@ -13,7 +13,7 @@ import (
 
 const confirmTemplate = `{{define "body"}}
   Click on the below link to confirm your email:<br/>
-  <a href="http://{{.Host}}:{{.Port}}{{.Prefix}}confirmation?token={{.Token}}">confirm email</a>
+  <a href="{{.UrlPrefix}}confirmation?token={{.Token}}">confirm email</a>
 {{end}}
 `
 
@@ -28,12 +28,20 @@ func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin c
 	if admin.Host != "" {
 		host = admin.Host
 	}
-	context := EmailTemplate{
+	if _smtp.EmailHost != "" {
+		host = _smtp.EmailHost
+	}
+	port := proxyServer.Port
+	if _smtp.EmailPort != 0 {
+		port = _smtp.EmailPort
+	}
+	context := &EmailTemplate{
 		From:    _smtp.Sender,
 		To:      user.Email,
 		Subject: "JustAPIs Email Confirmation",
+		Scheme:  _smtp.EmailScheme,
 		Host:    host,
-		Port:    proxyServer.Port,
+		Port:    port,
 		Prefix:  admin.PathPrefix,
 		Token:   token,
 	}

@@ -136,11 +136,14 @@ type BleveLogging struct {
 }
 
 type SMTP struct {
-	Server   string `flag:"smtp-server"`
-	Port     int64  `flag:"smtp-port" default:"25"`
-	User     string `flag:"smtp-user"`
-	Password string `flag:"smtp-password"`
-	Sender   string `flag:"smtp-sender"`
+	Server      string `flag:"smtp-server"`
+	Port        int64  `flag:"smtp-port" default:"25"`
+	User        string `flag:"smtp-user"`
+	Password    string `flag:"smtp-password"`
+	Sender      string `flag:"smtp-sender"`
+	EmailScheme string `flag:"smtp-email-scheme" default:"http"`
+	EmailHost   string `flag:"smtp-email-host"`
+	EmailPort   int64  `flag:"smtp-email-port" default:"0"`
 }
 
 const envPrefix = "APGATEWAY_"
