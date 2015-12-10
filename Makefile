@@ -101,11 +101,22 @@ test: build
 build_tail:
 	go build -o ./bin/tail ./src/tail/main.go
 
-test_api_sqlite_fast:
+test_api_sqlite_fast: build_tail
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -proxy-domain="example.com" -proxy-domain="example.com" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 30
+	-rm ./tmp/gateway_log.txt
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+	  -db-conn-string="./tmp/gateway_test.db" \
+	  -proxy-domain="example.com" \
+	  -proxy-domain="example.com" \
+	  -server="true" > ./tmp/gateway_log.txt & \
+	  echo "$$!" > ./tmp/server.pid
+
+	# Sleep until we see "Server listening" or time out
+	# ./bin/tail --verbose ./tmp/gateway_log.txt "Server listening"
+	./bin/tail ./tmp/gateway_log.txt "Server listening"
+
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
 test_api_sqlite: build test_api_sqlite_fast
