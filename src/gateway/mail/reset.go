@@ -13,7 +13,7 @@ import (
 
 const resetTemplate = `{{define "body"}}
   Click on the below link to reset your password:<br/>
-  <a href="http://{{.Host}}:{{.Port}}{{.Prefix}}#/password/reset-confirmation?token={{.Token}}">reset password</a>
+  <a href="{{.UrlPrefix}}#/password/reset-confirmation?token={{.Token}}">reset password</a>
 {{end}}
 `
 
@@ -28,12 +28,20 @@ func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin con
 	if admin.Host != "" {
 		host = admin.Host
 	}
-	context := EmailTemplate{
+	if _smtp.EmailHost != "" {
+		host = _smtp.EmailHost
+	}
+	port := proxyServer.Port
+	if _smtp.EmailPort != 0 {
+		port = _smtp.EmailPort
+	}
+	context := &EmailTemplate{
 		From:    _smtp.Sender,
 		To:      user.Email,
 		Subject: "JustAPIs Password Reset",
+		Scheme:  _smtp.EmailScheme,
 		Host:    host,
-		Port:    proxyServer.Port,
+		Port:    port,
 		Prefix:  admin.PathPrefix,
 		Token:   token,
 	}
