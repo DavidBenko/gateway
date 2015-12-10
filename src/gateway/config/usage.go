@@ -83,9 +83,12 @@ var usageStrings = map[string]string{
 	"broker-transport": "The broker transport",
 	"broker-ws":        "The broker websocket location",
 
-	"smtp-server":   "The address or name of the smtp server",
-	"smtp-port":     "The port of the smtp server",
-	"smtp-user":     "The user name for the smtp server",
-	"smtp-password": "The password for the smtp server",
-	"smtp-sender":   "The sender of emails from gateway",
+	"smtp-server":       "The address or name of the smtp server",
+	"smtp-port":         "The port of the smtp server",
+	"smtp-user":         "The user name for the smtp server",
+	"smtp-password":     "The password for the smtp server",
+	"smtp-sender":       "The sender of emails from gateway",
+	"smtp-email-scheme": "The scheme to be used in email links",
+	"smtp-email-host":   "The host to be used in email links",
+	"smtp-email-port":   "The port to be used in email links",
 }
