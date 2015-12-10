@@ -98,6 +98,9 @@ runpg:
 test: build
 	go test ./src/...
 
+build_tail:
+	go build -o ./bin/tail ./src/tail/main.go
+
 test_api_sqlite_fast:
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
