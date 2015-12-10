@@ -1,5 +1,9 @@
 package mail
 
+import (
+	"fmt"
+)
+
 const mailTemplate = `From: {{.From}}
 To: {{.To}}
 Subject: {{.Subject}}
@@ -24,8 +28,17 @@ type EmailTemplate struct {
 	From    string
 	To      string
 	Subject string
+	Scheme  string
 	Host    string
 	Port    int64
 	Prefix  string
 	Token   string
+}
+
+func (e *EmailTemplate) UrlPrefix() string {
+	if (e.Scheme == "http" && e.Port == 80) || (e.Scheme == "https" && e.Port == 443) {
+		return fmt.Sprintf("%v://%v%v", e.Scheme, e.Host, e.Prefix)
+	} else {
+		return fmt.Sprintf("%v://%v:%v%v", e.Scheme, e.Host, e.Port, e.Prefix)
+	}
 }
