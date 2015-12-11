@@ -223,6 +223,9 @@ func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	if apsql.IsNotNullConstraint(err, "remote_endpoint_environment_data", "environment_id") {
 		errors.Add("environment_data", "must include a valid environment in this API")
 	}
+	if apsql.IsUniqueConstraint(err, "remote_endpoint_environment_data", "remote_endpoint_id", "environment_id") {
+		errors.Add("environment", "is already taken")
+	}
 	return errors
 }
 
