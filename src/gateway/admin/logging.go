@@ -177,16 +177,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		}
 	}()
 
-	filter, newline := makeFilter(ws), false
-	for _, b := range <-logs {
-		if newline {
-			if filter(b) {
-				return
-			}
-		} else if b == '\n' {
-			newline = true
-		}
-	}
+	filter := makeFilter(ws)
 	for input := range logs {
 		for _, b := range input {
 			if filter(b) {

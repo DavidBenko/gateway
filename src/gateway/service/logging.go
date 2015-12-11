@@ -71,25 +71,14 @@ func NewElasticMessage(message string) *ElasticMessage {
 }
 
 func processLogs(logs <-chan []byte, add func(message string)) {
-	buffer, newline := &bytes.Buffer{}, false
-	process := func(b byte) {
-		buffer.WriteByte(b)
-		if b == '\n' {
-			add(buffer.String())
-			buffer.Reset()
-		}
-	}
-
-	for _, b := range <-logs {
-		if newline {
-			process(b)
-		} else if b == '\n' {
-			newline = true
-		}
-	}
+	buffer := &bytes.Buffer{}
 	for input := range logs {
 		for _, b := range input {
-			process(b)
+			buffer.WriteByte(b)
+			if b == '\n' {
+				add(buffer.String())
+				buffer.Reset()
+			}
 		}
 	}
 }
