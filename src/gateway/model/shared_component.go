@@ -45,6 +45,7 @@ func (s *SharedComponent) Validate(isInsert bool) aperrors.Errors {
 	// Validate base Component.
 	errors.AddErrors(pec.validateType())
 	errors.AddErrors(pec.validateTransformations())
+	errors.AddErrors(pec.validateCalls())
 
 	return errors
 }

@@ -68,6 +68,7 @@ func (c *ProxyEndpointComponent) Validate(isInsert bool) aperrors.Errors {
 
 	errors.AddErrors(c.validateType())
 	errors.AddErrors(c.validateTransformations())
+	errors.AddErrors(c.validateCalls())
 
 	return errors
 }
@@ -106,14 +107,24 @@ func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {
 	return errors
 }
 
+func (c *ProxyEndpointComponent) validateCalls() aperrors.Errors {
+	errors := make(aperrors.Errors)
+
+	for _, c := range c.AllCalls() {
+		errors.AddErrors(c.Validate())
+	}
+
+	return errors
+}
+
 // AllCalls provides a common interface to iterate through single and multi-call
 // components' calls.
 func (c *ProxyEndpointComponent) AllCalls() []*ProxyEndpointCall {
-	if c.Type == ProxyEndpointComponentTypeSingle {
+	if c.Type == ProxyEndpointComponentTypeSingle && c.Call != nil {
 		return []*ProxyEndpointCall{c.Call}
 	}
 
-	return c.Calls
+	return c.Calls // will be nil if type single and c.Call is nil
 }
 
 // PopulateComponents populates all relationships for a map of IDs to

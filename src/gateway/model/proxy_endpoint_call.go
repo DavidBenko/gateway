@@ -2,6 +2,8 @@ package model
 
 import (
 	"errors"
+
+	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
 
@@ -23,7 +25,18 @@ type ProxyEndpointCall struct {
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
 
-// AllProxyEndpointCallsForEndpointID returns all calls of a set of endpoint component.
+// Validate validates the ProxyEndpointCall to make sure it has a RemoteEndpoint
+// ID set.
+func (c *ProxyEndpointCall) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
+	if c.RemoteEndpointID == 0 {
+		errors.Add("remote_endpoint_id", "must be non-zero")
+	}
+
+	return errors
+}
+
+// AllProxyEndpointCallsForComponentIDs returns all calls of a set of endpoint component.
 func AllProxyEndpointCallsForComponentIDs(db *apsql.DB, componentIDs []int64) ([]*ProxyEndpointCall, error) {
 	calls := []*ProxyEndpointCall{}
 	numIDs := len(componentIDs)
