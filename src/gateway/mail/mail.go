@@ -1,7 +1,13 @@
 package mail
 
 import (
+	"bytes"
 	"fmt"
+	"net/smtp"
+	"text/template"
+
+	"gateway/config"
+	"gateway/model"
 )
 
 const mailTemplate = `From: {{.From}}
@@ -35,10 +41,69 @@ type EmailTemplate struct {
 	Token   string
 }
 
+func NewEmailTemplate(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
+	user *model.User) *EmailTemplate {
+	host := proxyServer.Host
+	if admin.Host != "" {
+		host = admin.Host
+	}
+	if _smtp.EmailHost != "" {
+		host = _smtp.EmailHost
+	}
+	port := proxyServer.Port
+	if _smtp.EmailPort != 0 {
+		port = _smtp.EmailPort
+	}
+	return &EmailTemplate{
+		From:   _smtp.Sender,
+		To:     user.Email,
+		Scheme: _smtp.EmailScheme,
+		Host:   host,
+		Port:   port,
+		Prefix: admin.PathPrefix,
+	}
+}
+
 func (e *EmailTemplate) UrlPrefix() string {
 	if (e.Scheme == "http" && e.Port == 80) || (e.Scheme == "https" && e.Port == 443) {
 		return fmt.Sprintf("%v://%v%v", e.Scheme, e.Host, e.Prefix)
 	} else {
 		return fmt.Sprintf("%v://%v:%v%v", e.Scheme, e.Host, e.Port, e.Prefix)
 	}
+}
+
+func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) error {
+	t := template.New("template")
+	t, err := t.Parse(mailTemplate)
+	if err != nil {
+		return err
+	}
+	t, err = t.Parse(text)
+	if err != nil {
+		return err
+	}
+	var body bytes.Buffer
+	err = t.Execute(&body, data)
+	if err != nil {
+		return err
+	}
+
+	auth := smtp.PlainAuth(
+		"",
+		_smtp.User,
+		_smtp.Password,
+		_smtp.Server,
+	)
+	err = smtp.SendMail(
+		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
+		auth,
+		_smtp.Sender,
+		[]string{user.Email},
+		body.Bytes(),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
