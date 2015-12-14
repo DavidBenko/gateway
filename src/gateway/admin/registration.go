@@ -130,6 +130,11 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
+	err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
 	http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
 	return nil
 }

@@ -1,11 +1,6 @@
 package mail
 
 import (
-	"bytes"
-	"fmt"
-	"net/smtp"
-	"text/template"
-
 	"gateway/config"
 	"gateway/model"
 	apsql "gateway/sql"
@@ -24,55 +19,10 @@ func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin c
 		return err
 	}
 
-	host := proxyServer.Host
-	if admin.Host != "" {
-		host = admin.Host
-	}
-	if _smtp.EmailHost != "" {
-		host = _smtp.EmailHost
-	}
-	port := proxyServer.Port
-	if _smtp.EmailPort != 0 {
-		port = _smtp.EmailPort
-	}
-	context := &EmailTemplate{
-		From:    _smtp.Sender,
-		To:      user.Email,
-		Subject: "JustAPIs Email Confirmation",
-		Scheme:  _smtp.EmailScheme,
-		Host:    host,
-		Port:    port,
-		Prefix:  admin.PathPrefix,
-		Token:   token,
-	}
-	t := template.New("template")
-	t, err = t.Parse(mailTemplate)
-	if err != nil {
-		return err
-	}
-	t, err = t.Parse(confirmTemplate)
-	if err != nil {
-		return err
-	}
-	var body bytes.Buffer
-	err = t.Execute(&body, context)
-	if err != nil {
-		return err
-	}
-
-	auth := smtp.PlainAuth(
-		"",
-		_smtp.User,
-		_smtp.Password,
-		_smtp.Server,
-	)
-	err = smtp.SendMail(
-		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
-		auth,
-		_smtp.Sender,
-		[]string{user.Email},
-		body.Bytes(),
-	)
+	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
+	context.Subject = "JustAPIs Email Confirmation"
+	context.Token = token
+	err = Send(confirmTemplate, context, _smtp, user)
 	if err != nil {
 		return err
 	}

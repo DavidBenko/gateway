@@ -149,25 +149,26 @@ func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors, isInsert bool) {
 	}
 }
 
-func ValidateURL(rurl string, errors aperrors.Errors) bool {
+func ValidateURL(rurl string) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if len(rurl) > 0 {
 		if !strings.HasPrefix(rurl, "http://") && !strings.HasPrefix(rurl, "https://") {
 			errors.Add("url", "url must start with 'http://' or 'https://'")
-			return false
+			return errors
 		}
 		purl, err := url.ParseRequestURI(rurl)
 		if err != nil {
 			errors.Add("url", fmt.Sprintf("error parsing url: %s", err))
-			return false
+			return errors
 		}
 		switch purl.Scheme {
 		case "http", "https":
 		default:
 			errors.Add("url", "url scheme must be 'http' or 'https'")
-			return false
+			return errors
 		}
 	}
-	return true
+	return nil
 }
 
 func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
@@ -177,16 +178,19 @@ func (e *RemoteEndpoint) ValidateHTTP(errors aperrors.Errors) {
 		return
 	}
 
-	if !ValidateURL(request.URL, errors) {
+	if errs := ValidateURL(request.URL); errs != nil {
+		errors.AddAll(errs)
 		return
 	}
 	for _, environment := range e.EnvironmentData {
 		request := &HTTPRequest{}
 		if err := json.Unmarshal(environment.Data, request); err != nil {
-			errors.Add("base", fmt.Sprintf("error in environment http config: %s", err))
+			errors.Add("environment_data", fmt.Sprintf("error in environment http config: %s", err))
 			return
 		}
-		if !ValidateURL(request.URL, errors) {
+		if errs := ValidateURL(request.URL); errs != nil {
+			errs.MoveAllToName("environment_data")
+			errors.AddAll(errs)
 			return
 		}
 	}
@@ -198,18 +202,23 @@ func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
 		errors.Add("base", fmt.Sprintf("error in script config: %s", err))
 		return
 	}
-	script.Validate(errors)
+	if errs := script.Validate(); errs != nil {
+		errors.AddAll(errs)
+	}
 
 	for _, environment := range e.EnvironmentData {
 		escript := &re.Script{}
 		if err := json.Unmarshal(environment.Data, escript); err != nil {
-			errors.Add("base", fmt.Sprintf("error in script config: %s", err))
+			errors.Add("environment_data", fmt.Sprintf("error in script config: %s", err))
 			return
 		}
 		script_copy := &re.Script{}
 		*script_copy = *script
 		script_copy.UpdateWith(escript)
-		script_copy.Validate(errors)
+		if errs := script_copy.Validate(); errs != nil {
+			errs.MoveAllToName("environment_data")
+			errors.AddAll(errs)
+		}
 	}
 }
 
@@ -222,6 +231,9 @@ func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	}
 	if apsql.IsNotNullConstraint(err, "remote_endpoint_environment_data", "environment_id") {
 		errors.Add("environment_data", "must include a valid environment in this API")
+	}
+	if apsql.IsUniqueConstraint(err, "remote_endpoint_environment_data", "remote_endpoint_id", "environment_id") {
+		errors.Add("environment_data", "environment is already taken")
 	}
 	return errors
 }
