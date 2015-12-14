@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 
-	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/model"
 )
@@ -145,7 +144,7 @@ func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *j
 	if len(request.URL) == 0 {
 		return nil, errors.New("url must not be empty")
 	}
-	if errs := make(aperrors.Errors); !model.ValidateURL(request.URL, errs) {
+	if errs := model.ValidateURL(request.URL); errs != nil {
 		return nil, errors.New(errs.String())
 	}
 

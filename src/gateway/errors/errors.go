@@ -9,6 +9,26 @@ func (e Errors) Add(name, message string) {
 	e[name] = append(e[name], message)
 }
 
+func (e Errors) AddAll(errors Errors) {
+	for name, value := range errors {
+		for _, message := range value {
+			e.Add(name, message)
+		}
+	}
+}
+
+func (e Errors) MoveAllToName(name string) {
+	for key, value := range e {
+		if key == name {
+			continue
+		}
+		for _, message := range value {
+			e.Add(name, message)
+		}
+		delete(e, key)
+	}
+}
+
 // Empty reports if there are no errors.
 func (e Errors) Empty() bool {
 	return len(e) == 0
