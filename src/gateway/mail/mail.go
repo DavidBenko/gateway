@@ -24,6 +24,12 @@ Content-Type: text/html; charset="UTF-8";
 	<title>{{.Subject}}</title>
 	<style type="text/css">
 	 body{width:100% !important; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; margin:0; padding:0;}
+	 ul li {
+    color: #386EFF;
+	 }
+	 ul li a {
+    color: blue;
+	 }
 	</style>
  </head>
  <body>{{template "body" .}}</body>
