@@ -184,7 +184,7 @@ func AddUserToken(tx *apsql.Tx, email string, tokenType TokenType) (string, erro
 	return token, nil
 }
 
-func ValidateUserToken(tx *apsql.Tx, token string) (*User, error) {
+func ValidateUserToken(tx *apsql.Tx, token string, delete bool) (*User, error) {
 	parts := strings.Split(token, "-")
 	if len(parts) != 2 {
 		return nil, errors.New("token must be of the form 'type-123ABC...'")
@@ -218,9 +218,11 @@ func ValidateUserToken(tx *apsql.Tx, token string) (*User, error) {
 			return nil, errors.New("token timestamp is stale")
 		}
 	}
-	err = tx.UpdateOne(tx.SQL("users/add_token"), "", user.Email)
-	if err != nil {
-		return nil, err
+	if delete {
+		err = tx.UpdateOne(tx.SQL("users/add_token"), "", user.Email)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &user, nil
 }

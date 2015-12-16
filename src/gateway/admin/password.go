@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 
 	"gateway/config"
@@ -55,6 +57,44 @@ func (c *PasswordResetController) Reset(w http.ResponseWriter, r *http.Request, 
 	return nil
 }
 
+type PasswordResetCheckController struct {
+	BaseController
+}
+
+func RoutePasswordResetCheck(controller *PasswordResetCheckController, path string,
+	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
+
+	routes := map[string]http.Handler{
+		"GET": write(db, controller.Check),
+	}
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+	}
+
+	router.Handle(path, handlers.MethodHandler(routes))
+}
+
+func (c *PasswordResetCheckController) Check(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
+	err := r.ParseForm()
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	if len(r.Form["token"]) != 1 {
+		return aphttp.NewError(errors.New("token is required"), http.StatusBadRequest)
+	}
+
+	token := r.Form["token"][0]
+	_, err = model.ValidateUserToken(tx, token, false)
+	if err != nil {
+		http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
+		return nil
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("%v#/password/reset-confirmation?token=%v", c.conf.PathPrefix, token), http.StatusFound)
+	return nil
+}
+
 type PasswordResetConfirmationController struct {
 	BaseController
 }
@@ -84,7 +124,7 @@ func (c *PasswordResetConfirmationController) Confirmation(w http.ResponseWriter
 	if err := deserialize(&request, r.Body); err != nil {
 		return err
 	}
-	user, err := model.ValidateUserToken(tx, request.PasswordResetConfirmation.Token)
+	user, err := model.ValidateUserToken(tx, request.PasswordResetConfirmation.Token, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

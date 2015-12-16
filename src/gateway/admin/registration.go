@@ -119,9 +119,10 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 	}
 
 	token := r.Form["token"][0]
-	user, err := model.ValidateUserToken(tx, token)
+	user, err := model.ValidateUserToken(tx, token, true)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
+		return nil
 	}
 
 	user.Confirmed = true

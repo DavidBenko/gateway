@@ -83,6 +83,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
 	}
 	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)
+	RoutePasswordResetCheck(&PasswordResetCheckController{base}, "/password_reset_check", admin, db, conf)
 	RoutePasswordResetConfirmation(&PasswordResetConfirmationController{base}, "/password_reset_confirmation", admin, db, conf)
 
 	apisController := &APIsController{base}
