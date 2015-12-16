@@ -271,7 +271,7 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 	size := 100
 	if len(r.Form["limit"]) == 1 {
 		sz, err := strconv.Atoi(r.Form["limit"][0])
-		if err != nil {
+		if err == nil {
 			size = sz
 		}
 	}
@@ -345,7 +345,7 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 	size := 100
 	if len(r.Form["limit"]) == 1 {
 		sz, err := strconv.Atoi(r.Form["limit"][0])
-		if err != nil {
+		if err == nil {
 			size = sz
 		}
 	}
