@@ -8,7 +8,7 @@ import (
 
 const resetTemplate = `{{define "body"}}
   Click on the below link to reset your password:<br/>
-  <a href="{{.UrlPrefix}}#/password/reset-confirmation?token={{.Token}}">reset password</a>
+  <a href="{{.UrlPrefix}}password_reset_check?token={{.Token}}">reset password</a>
 {{end}}
 `
 
