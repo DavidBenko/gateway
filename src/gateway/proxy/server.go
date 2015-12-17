@@ -165,6 +165,10 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
 		err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
 		if err != nil {
+			if err.Error() == "EOF" {
+				httpErr = aphttp.NewError(errors.New("a json document is required in the request"), 422)
+				return
+			}
 			httpErr = aphttp.NewError(err, 400)
 			return
 		}
@@ -225,6 +229,10 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 		err := s.processSchema(responseSchema, response.Body)
 		if err != nil {
+			if err.Error() == "EOF" {
+				httpErr = aphttp.NewError(errors.New("a json document is required in the response"), 500)
+				return
+			}
 			httpErr = aphttp.NewError(err, 500)
 			return
 		}
