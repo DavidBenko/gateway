@@ -7,8 +7,19 @@ import (
 )
 
 const confirmTemplate = `{{define "body"}}
-  Click on the below link to confirm your email:<br/>
-  <a href="{{.UrlPrefix}}confirmation?token={{.Token}}">confirm email</a>
+  <p>Thanks for your interest in JustAPIs.</p>
+	<p>
+	  Click on the link below to confirm your email:<br/>
+    <a href="{{.UrlPrefix}}confirmation?token={{.Token}}">confirm email</a>
+	</p>
+	<p>
+	  If you have any questions or require support, please contact
+	  <a href="mailto:support@anypresence.com">support@anypresence.com</a>
+	</p>
+	<p>
+	  Thank you<br/>
+    -The AnyPresence Team
+	</p>
 {{end}}
 `
 

@@ -7,8 +7,15 @@ import (
 )
 
 const resetTemplate = `{{define "body"}}
-  Click on the below link to reset your password:<br/>
-  <a href="{{.UrlPrefix}}password_reset_check?token={{.Token}}">reset password</a>
+  <p>
+	  Click on the link below to reset your password:<br/>
+		<a href="{{.UrlPrefix}}password_reset_check?token={{.Token}}">reset password</a>
+	</p>
+  <p>
+	  If you have any questions or require support, please contact
+		<a href="mailto:support@anypresence.com">support@anypresence.com</a><br/>
+		- The AnyPresence Team
+	</p>
 {{end}}
 `
 
