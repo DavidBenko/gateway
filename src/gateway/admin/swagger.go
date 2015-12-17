@@ -197,8 +197,9 @@ func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *
 					}
 				}
 				path[strings.ToLower(method)] = map[string]interface{}{
-					"tags":       []interface{}{endpoint.Name},
-					"parameters": parameters,
+					"description": endpoint.Description,
+					"tags":        []interface{}{endpoint.Name},
+					"parameters":  parameters,
 					"responses": map[string]interface{}{
 						"200": ok,
 						"default": map[string]interface{}{
