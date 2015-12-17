@@ -79,8 +79,8 @@ describe "accounts" do
         post "/accounts",  account: fixtures[:accounts][:lulz]
       end
 
-      it { expect_status(400) }
-      it { expect_json("errors", {name: ["is already taken"]}) }
+      it { expect_status(200) }
+      it { expect_json("account.name", "LulzCorp") }
     end
   end
 
@@ -155,8 +155,8 @@ describe "accounts" do
         put "/accounts/#{@id}", {account: { name: "BooBoo Butt"}}
       end
 
-      it { expect_status(400) }
-      it { expect_json("errors", {name: ["is already taken"]}) }
+      it { expect_status(200) }
+      it { expect_json("account.name", "BooBoo Butt")}
     end
 
     context "non-existing" do
