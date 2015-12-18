@@ -30,7 +30,7 @@ def shared_component_for(api_id, remote_id, acc_id, keyword)
   })
 end
 
-shared_examples "empty " do
+shared_examples "empty shared_components" do
   it { expect_status(200) }
   it { expect_json_types({shared_components: :array}) }
   it { expect_json("shared_components", []) }
@@ -44,17 +44,18 @@ end
 shared_examples "a valid shared_component" do
   it { expect_status(200) }
   it { expect_json_types("shared_component", {
-    id: :int,
-    api_id: :int,
-    description: :string,
-    type: :string,
-    conditional: :string,
+    id:                   :int,
+    api_id:               :int,
+    name:                 :string,
+    description:          :string,
+    type:                 :string,
+    conditional:          :string,
     conditional_positive: :bool,
-    before: :array_or_null,
-    after: :array_or_null,
-    call: :object_or_null,
-    calls: :array_or_null,
-  })}
+    before:               :array_or_null,
+    after:                :array_or_null,
+    call:                 :object_or_null,
+    calls:                :array_or_null,
+  }) }
 end
 
 describe "shared_components" do
