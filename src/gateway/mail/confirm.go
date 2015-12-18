@@ -7,6 +7,15 @@ import (
 )
 
 const confirmTemplate = `{{define "body"}}
+  {{if .Resend}}
+	<p>
+	  <b>
+		  You tried to register an already registered but unconfirmed account.
+			Upon confirming, please use the first password you registered with.
+			If you forget that, please choose the password reset link.
+		</b>
+	</p>
+	{{end}}
   <p>Thanks for your interest in JustAPIs.</p>
 	<p>
 	  Click on the link below to confirm your email:<br/>
@@ -25,15 +34,21 @@ const confirmTemplate = `{{define "body"}}
 
 func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
 	user *model.User, tx *apsql.Tx, async bool) error {
-	token, err := model.AddUserToken(tx, user.Email, model.TokenTypeConfirm)
-	if err != nil {
-		return err
+	token, resend := user.Token, true
+	if token == "" {
+		var err error
+		token, err = model.AddUserToken(tx, user.Email, model.TokenTypeConfirm)
+		if err != nil {
+			return err
+		}
+		resend = false
 	}
 
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
 	context.Subject = "JustAPIs Email Confirmation"
 	context.Token = token
-	err = Send(confirmTemplate, context, _smtp, user, async)
+	context.Resend = resend
+	err := Send(confirmTemplate, context, _smtp, user, async)
 	if err != nil {
 		return err
 	}
