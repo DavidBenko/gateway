@@ -46,6 +46,7 @@ type EmailTemplate struct {
 	Port    int64
 	Prefix  string
 	Token   string
+	Resend  bool
 }
 
 func NewEmailTemplate(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,

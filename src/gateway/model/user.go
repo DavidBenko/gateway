@@ -77,6 +77,10 @@ func (u *User) ValidateFromDatabaseError(err error) aperrors.Errors {
 	return errors
 }
 
+func (u *User) HasConfirmToken() bool {
+	return strings.HasPrefix(u.Token, "confirm-")
+}
+
 // AllUsersForAccountID returns all users on the Account in default order.
 func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 	users := []*User{}
@@ -150,7 +154,7 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, account_id, name, email, admin, confirmed, hashed_password
+		`SELECT id, account_id, name, email, admin, token, confirmed, hashed_password
 		 FROM users WHERE email = ?;`,
 		strings.ToLower(email))
 	return &user, err

@@ -6,6 +6,14 @@ import (
 )
 
 const welcomeTemplate = `{{define "body"}}
+  {{if .Resend}}
+	<p>
+	  <b>
+		  You tried to register an already registered and confirmed email address.
+		  If you forgot your password, please visit the password reset link to get a new one.
+		</b>
+	</p>
+	{{end}}
 	<p>Thanks for confirming your JustAPIs account email.</p>
 	<p><b>To use the online version of JustAPIs, click <a href="{{.UrlPrefix}}#/login">here</a></b></p>
 	<p style="margin-bottom: 0px;"><b>To download JustAPIs, select the appropriate install package (zip archive):</b></p>
@@ -34,9 +42,10 @@ const welcomeTemplate = `{{define "body"}}
 `
 
 func SendWelcomeEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
-	user *model.User, async bool) error {
+	user *model.User, resend, async bool) error {
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
 	context.Subject = "Welcome to JustAPIs!"
+	context.Resend = resend
 	err := Send(welcomeTemplate, context, _smtp, user, async)
 	if err != nil {
 		return err
