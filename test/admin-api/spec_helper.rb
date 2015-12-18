@@ -4,6 +4,36 @@ Airborne.configure do |config|
   config.base_url = "http://localhost:5000/admin"
 end
 
+def shared_component_for(api_id, remote_id, acc_id, keyword)
+  sh = fixtures[:shared_components][keyword]
+
+  # Insert remote_id in each call as remote_endpoint_id.
+  if !sh[:call].nil? then
+    sh[:call][:remote_endpoint_id] = remote_id
+  elsif !sh[:calls].nil? then
+    sh[:calls].each do |call|
+      call[:remote_endpoint_id] = remote_id
+    end
+  end
+
+  # Insert remote_endpoint_id, api_id, and account_id for the shared_component.
+  return sh.merge({
+    api_id:             api_id,
+    remote_endpoint_id: remote_id,
+    account_id:         acc_id,
+  })
+end
+
+def proxy_endpoint_for(api_id, env_id, remote_id, acc_id, components, keyword)
+  fixtures[:proxy_endpoints][keyword].merge({
+    api_id:             api_id,
+    environment_id:     env_id,
+    remote_endpoint_id: remote_id,
+    account_id:         acc_id,
+    components:         components,
+  })
+end
+
 def clear_db!
   get "/accounts"
   json_body[:accounts].each do |account|
@@ -28,6 +58,16 @@ def clear_apis!
   get "/apis"
   json_body[:apis].each do |api|
     delete "/apis/#{api[:id]}"
+  end
+end
+
+def clear_proxy_endpoints!
+  get "/apis"
+  json_body[:apis].each do |api|
+    get "/apis/#{api[:id]}/proxy_endpoints"
+    json_body[:proxy_endpoints].each do |shared|
+      delete "/apis/#{api[:id]}/proxy_endpoints/#{shared[:id]}"
+    end
   end
 end
 
@@ -109,6 +149,14 @@ def fixtures
         cors_allow_credentials: true,
         cors_request_headers: '*',
         cors_max_age: 600
+      },
+    },
+    components: {
+      simple: {
+        conditional: 'var foo = function () {\n\n};',
+        conditional_positive: true,
+        type: 'js',
+        data: 'code string',
       },
     },
   }
@@ -213,6 +261,21 @@ def fixtures
         fixts[:calls][:basic],
         fixts[:calls][:normal],
       ],
+    },
+  }
+
+  fixts[:proxy_endpoints] = {
+    simple: {
+      name: 'Simple Proxy',
+      description: 'A simple Proxy Endpoint',
+      active: true,
+      cors_enabled: true,
+      routes: [{
+        path: '/proxy',
+        methods: ['GET'],
+      }],
+      components: [fixts[:components][:simple]],
+      tests: [],
     },
   }
 
