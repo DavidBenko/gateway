@@ -34,10 +34,10 @@ const welcomeTemplate = `{{define "body"}}
 `
 
 func SendWelcomeEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
-	user *model.User) error {
+	user *model.User, async bool) error {
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
 	context.Subject = "Welcome to JustAPIs!"
-	err := Send(welcomeTemplate, context, _smtp, user)
+	err := Send(welcomeTemplate, context, _smtp, user, async)
 	if err != nil {
 		return err
 	}

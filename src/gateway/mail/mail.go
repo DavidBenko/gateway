@@ -79,7 +79,27 @@ func (e *EmailTemplate) UrlPrefix() string {
 	}
 }
 
-func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) error {
+func send(email string, _smtp config.SMTP, body []byte) error {
+	auth := smtp.PlainAuth(
+		"",
+		_smtp.User,
+		_smtp.Password,
+		_smtp.Server,
+	)
+	err := smtp.SendMail(
+		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
+		auth,
+		_smtp.Sender,
+		[]string{email},
+		body,
+	)
+	if err != nil {
+		logreport.Printf("error sending email %v", err)
+	}
+	return err
+}
+
+func Send(text string, data interface{}, _smtp config.SMTP, user *model.User, async bool) error {
 	t := template.New("template")
 	t, err := t.Parse(mailTemplate)
 	if err != nil {
@@ -95,24 +115,11 @@ func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) er
 		return err
 	}
 
-	auth := smtp.PlainAuth(
-		"",
-		_smtp.User,
-		_smtp.Password,
-		_smtp.Server,
-	)
-	go func() {
-		err := smtp.SendMail(
-			fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
-			auth,
-			_smtp.Sender,
-			[]string{user.Email},
-			body.Bytes(),
-		)
-		if err != nil {
-			logreport.Printf("error sending email %v", err)
-		}
-	}()
+	if async {
+		go send(user.Email, _smtp, body.Bytes())
+	} else {
+		return send(user.Email, _smtp, body.Bytes())
+	}
 
 	return nil
 }
