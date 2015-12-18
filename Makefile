@@ -159,7 +159,8 @@ vendor_get: vendor_clean
 	github.com/vincent-petithory/dataurl \
 	github.com/gdamore/mangos \
 	github.com/xeipuuv/gojsonschema \
-	gopkg.in/airbrake/gobrake.v2
+	gopkg.in/airbrake/gobrake.v2 \
+	github.com/go-ldap/ldap
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
