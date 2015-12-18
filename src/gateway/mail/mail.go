@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"gateway/config"
+	"gateway/logreport"
 	"gateway/model"
 )
 
@@ -100,16 +101,18 @@ func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) er
 		_smtp.Password,
 		_smtp.Server,
 	)
-	err = smtp.SendMail(
-		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
-		auth,
-		_smtp.Sender,
-		[]string{user.Email},
-		body.Bytes(),
-	)
-	if err != nil {
-		return err
-	}
+	go func() {
+		err := smtp.SendMail(
+			fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
+			auth,
+			_smtp.Sender,
+			[]string{user.Email},
+			body.Bytes(),
+		)
+		if err != nil {
+			logreport.Printf("error sending email %v", err)
+		}
+	}()
 
 	return nil
 }
