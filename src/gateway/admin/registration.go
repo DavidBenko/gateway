@@ -82,7 +82,7 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx)
+	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
@@ -131,7 +131,7 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user)
+	err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

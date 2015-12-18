@@ -20,7 +20,7 @@ const resetTemplate = `{{define "body"}}
 `
 
 func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
-	user *model.User, tx *apsql.Tx) error {
+	user *model.User, tx *apsql.Tx, async bool) error {
 	token, err := model.AddUserToken(tx, user.Email, model.TokenTypeReset)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin con
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
 	context.Subject = "JustAPIs Password Reset"
 	context.Token = token
-	err = Send(resetTemplate, context, _smtp, user)
+	err = Send(resetTemplate, context, _smtp, user, async)
 	if err != nil {
 		return err
 	}

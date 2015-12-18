@@ -489,7 +489,7 @@ func usersCreate(params map[string]string, conf config.Configuration, db *sql.DB
 			return err
 		}
 		if !confirmed {
-			return mail.SendConfirmEmail(conf.SMTP, conf.Proxy, conf.Admin, user, tx)
+			return mail.SendConfirmEmail(conf.SMTP, conf.Proxy, conf.Admin, user, tx, false)
 		}
 		return nil
 	})

@@ -24,7 +24,7 @@ const confirmTemplate = `{{define "body"}}
 `
 
 func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
-	user *model.User, tx *apsql.Tx) error {
+	user *model.User, tx *apsql.Tx, async bool) error {
 	token, err := model.AddUserToken(tx, user.Email, model.TokenTypeConfirm)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin c
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
 	context.Subject = "JustAPIs Email Confirmation"
 	context.Token = token
-	err = Send(confirmTemplate, context, _smtp, user)
+	err = Send(confirmTemplate, context, _smtp, user, async)
 	if err != nil {
 		return err
 	}
