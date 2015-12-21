@@ -1,0 +1,36 @@
+{{define "body"}}
+<br/>
+{{if .Resend}}
+<span style="font-size:14px; font-weight: bold;">
+	You tried to register an already registered and confirmed email address.
+	If you forgot your password, please visit the password reset link to get a new one.
+</span><br/>
+<br/>
+{{end}}
+<strong><span style="font-size:14px;">Thanks for confirming your JustAPIs account email.</span></strong><br/>
+<br/>
+To use the online version of JustAPIs, visit&nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a><br/>
+<br/>
+To download JustAPIs, select the appropriate install package (zip archive):
+<ul>
+	<li>Mac OSX: <a href="http://www2.anypresence.com/mac">http://www2.anypresence.com/mac</a></li>
+	<li>Linux 64-bit: <a href="http://www2.anypresence.com/linux64">http://www2.anypresence.com/linux64</a></li>
+	<li>Linux 32-bit: <a href="http://www2.anypresence.com/linux32">http://www2.anypresence.com/linux32</a></li>
+	<li>Windows 32-bit: <a href="http://www2.anypresence.com/win32">http://www2.anypresence.com/win32</a></li>
+	<li>Windows 64-bit: <a href="http://www2.anypresence.com/win64">http://www2.anypresence.com/win64</a></li>
+	<li>Linux ARMv6: <a href="http://www2.anypresence.com/linux_armv6">http://www2.anypresence.com/linux_armv6</a></li>
+	<li>Linux ARMv7: <a href="http://www2.anypresence.com/linux_armv7">http://www2.anypresence.com/linux_armv7</a></li>
+</ul>
+<br/>
+To learn how to use JustAPIs, follow instructions in this Quick Start Guide: <a href="http://docs.justapis.com/quickstart">http://docs.justapis.com/quickstart</a><br/>
+<br/>
+If you have any questions or require support, please contact <a href="mailto:support@anypresence.com" style="color:#6350b0;">support@anypresence.com</a>. &nbsp;<br/>
+<br/>
+The AnyPresence Team<br/>
+<br/>
+<br/>
+P.S.<br/>
+Don't forget to take the JustAPIs T-Shirt Challenge: &nbsp;<a href="http://tshirt.justapis.com/">http://tshirt.justapis.com/</a><br/>
+<br/>
+&nbsp;
+{{end}}

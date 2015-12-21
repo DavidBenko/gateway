@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 8
+const currentVersion = 9
 
 type driverType string
 
@@ -111,6 +111,12 @@ func (db *DB) Migrate() error {
 	if version < 8 {
 		if err = migrateToV8(db); err != nil {
 			return fmt.Errorf("Could not migrate to schema v8: %v", err)
+		}
+	}
+
+	if version < 9 {
+		if err = migrateToV9(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v9: %v", err)
 		}
 	}
 

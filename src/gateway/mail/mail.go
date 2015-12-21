@@ -7,34 +7,9 @@ import (
 	"text/template"
 
 	"gateway/config"
+	"gateway/logreport"
 	"gateway/model"
 )
-
-const mailTemplate = `From: {{.From}}
-To: {{.To}}
-Subject: {{.Subject}}
-MIME-version: 1.0;
-Content-Type: text/html; charset="UTF-8";
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
- <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-	<title>{{.Subject}}</title>
-	<style type="text/css">
-	 body{width:100% !important; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; margin:0; padding:0;}
-	 ul li {
-    color: #386EFF;
-	 }
-	 ul li a {
-    color: blue;
-	 }
-	</style>
- </head>
- <body>{{template "body" .}}</body>
-</html>
-`
 
 type EmailTemplate struct {
 	From    string
@@ -45,6 +20,7 @@ type EmailTemplate struct {
 	Port    int64
 	Prefix  string
 	Token   string
+	Resend  bool
 }
 
 func NewEmailTemplate(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
@@ -78,13 +54,41 @@ func (e *EmailTemplate) UrlPrefix() string {
 	}
 }
 
-func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) error {
+func send(email string, _smtp config.SMTP, body []byte) error {
+	auth := smtp.PlainAuth(
+		"",
+		_smtp.User,
+		_smtp.Password,
+		_smtp.Server,
+	)
+	err := smtp.SendMail(
+		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
+		auth,
+		_smtp.Sender,
+		[]string{email},
+		body,
+	)
+	if err != nil {
+		logreport.Printf("error sending email %v", err)
+	}
+	return err
+}
+
+func Send(bodyTemplate string, data interface{}, _smtp config.SMTP, user *model.User, async bool) error {
 	t := template.New("template")
-	t, err := t.Parse(mailTemplate)
+	html, err := Asset("mail.html")
 	if err != nil {
 		return err
 	}
-	t, err = t.Parse(text)
+	t, err = t.Parse(string(html))
+	if err != nil {
+		return err
+	}
+	html, err = Asset(bodyTemplate)
+	if err != nil {
+		return err
+	}
+	t, err = t.Parse(string(html))
 	if err != nil {
 		return err
 	}
@@ -94,21 +98,10 @@ func Send(text string, data interface{}, _smtp config.SMTP, user *model.User) er
 		return err
 	}
 
-	auth := smtp.PlainAuth(
-		"",
-		_smtp.User,
-		_smtp.Password,
-		_smtp.Server,
-	)
-	err = smtp.SendMail(
-		fmt.Sprintf("%v:%v", _smtp.Server, _smtp.Port),
-		auth,
-		_smtp.Sender,
-		[]string{user.Email},
-		body.Bytes(),
-	)
-	if err != nil {
-		return err
+	if async {
+		go send(user.Email, _smtp, body.Bytes())
+	} else {
+		return send(user.Email, _smtp, body.Bytes())
 	}
 
 	return nil

@@ -65,6 +65,24 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 	if registration.Organization != "" {
 		name = registration.Organization
 	}
+
+	if user, err := model.FindUserByEmail(tx.DB, registration.Email); err == nil {
+		if user.Confirmed {
+			err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user, true, true)
+			if err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+		} else if user.HasConfirmToken() {
+			err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx, true)
+			if err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+
 	account := &model.Account{Name: name}
 	err := account.Insert(tx)
 	if err != nil {
@@ -82,7 +100,7 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx)
+	err = mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
@@ -131,7 +149,7 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user)
+	err = mail.SendWelcomeEmail(c.SMTP, c.ProxyServer, c.conf, user, false, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

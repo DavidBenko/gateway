@@ -104,6 +104,10 @@ var usageStrings = map[string]string{
 
 	"admin-create-default-host": "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
 
+	"admin-force-ssl":                 "Whether or not to redirect requests sent over HTTP to their HTTPS equivalent. Should only be used when an http proxy or load balancer exists in front of the gateway instance which terminates SSL before passing the request to the gateway. Defaults to false.",
+	"admin-forwarded-for-header":      "The header in which to expect the source IP address. Defaults to X-Forwarded-For",
+	"admin-forwarded-protocol-header": "The header in which to expect the source protocol. Defaults to X-Forwarded-Proto",
+
 	"elastic-logging-url": "The url of the elastic server",
 
 	"bleve-logging-file":         "The bleve file to store logs in",
