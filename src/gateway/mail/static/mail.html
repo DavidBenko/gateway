@@ -1,0 +1,41 @@
+From: {{.From}}
+To: {{.To}}
+Subject: {{.Subject}}
+MIME-version: 1.0;
+Content-Type: text/html; charset="UTF-8";
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>{{.Subject}}</title>
+	</head>
+	<body style="font-family: arial,helvetica,sans-serif;font-size: 12px;">
+		<div class="ii gt" id=":1bt">
+			<div bgcolor="#F4F9FC" lang="EN-US" link="blue" vlink="purple">
+				<div style="font-size: 12px;">
+					<table border="0" cellpadding="0" cellspacing="0" style="width: 700px;">
+						<tbody>
+							<tr>
+								<td style="border: 0pt solid #707070; padding: 0in;" valign="top">
+									<table border="0" cellpadding="0" cellspacing="0" style="width: 698px;">
+										<tbody>
+											<tr>
+												<td style="padding: 3.75pt 20px 3.75pt 30px; font-size: 14px; background: none 0% 0% repeat scroll white;" valign="top" class="" pardot-data="">
+													{{template "body" .}}
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<div style="font-size: 12px;">&nbsp;</div>
+				<div style="font-size: 12px;">
+
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
