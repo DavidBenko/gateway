@@ -124,10 +124,6 @@ type ProxyAdmin struct {
 	BrokerWs        string `flag:"broker-ws" default:"localhost:5000"`
 
 	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
-
-	ForceSSL                bool   `flag:"admin-force-ssl" default:"false"`
-	ForwardedForHeader      string `flag:"admin-forwarded-for-header" default:"X-Forwarded-For"`
-	ForwardedProtocolHeader string `flag:"admin-forwarded-protocol-header" default:"X-Forwarded-Proto"`
 }
 
 type ElasticLogging struct {
