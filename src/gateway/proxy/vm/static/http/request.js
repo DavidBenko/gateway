@@ -550,3 +550,52 @@ AP.Script.Request = function() {
     this.env = _.clone(request.env);
   }
 }
+
+/**
+ * LDAP holds helper classes for LDAP related tasks.
+ *
+ * @namespace
+ */
+AP.LDAP = AP.LDAP || {};
+
+/**
+ * Creates a new LDAP request
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.LDAP.Request = function() {
+
+  /**
+   * The host where the target LDAP service is hosted
+   * @type {string}
+   */
+  this.host = null;
+
+  /**
+   * The port on which the LDAP service is listening.  Defaults to 389
+   * @type {Number}
+   */
+  this.port = 389;
+
+  /**
+   * The username to use for authentication to the LDAP service
+   * @type {string}
+   */
+  this.username = null;
+
+  /**
+   * The password to use for authentication to the LDAP servcie
+   * @type {string}
+   */
+  this.password = null;
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.host = _.clone(request.host);
+    this.port = _.clone(request.port);
+    this.username = _.clone(request.username);
+    this.password = _.clone(request.password);
+  }
+}

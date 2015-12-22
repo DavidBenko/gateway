@@ -115,6 +115,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		if err != nil {
 			errors.Add("base", fmt.Sprintf("error in database config: %s", err))
 		}
+	case RemoteEndpointTypeLDAP:
+		e.ValidateLDAP(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -220,6 +222,10 @@ func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
 			errors.AddAll(errs)
 		}
 	}
+}
+
+func (e *RemoteEndpoint) ValidateLDAP(errors aperrors.Errors) {
+	// TODO
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
@@ -755,7 +761,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
-	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap {
+	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap && e.Type != RemoteEndpointTypeLDAP {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:
