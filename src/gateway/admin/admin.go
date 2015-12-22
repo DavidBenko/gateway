@@ -29,10 +29,6 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 		admin = aphttp.NewCORSAwareRouter(conf.CORSOrigin, admin)
 	}
 
-	if conf.ForceSSL {
-		admin = aphttp.NewForceSSLRouter(admin, conf.ForwardedProtocolHeader)
-	}
-
 	if !conf.DevMode {
 		setupSessions(conf)
 
