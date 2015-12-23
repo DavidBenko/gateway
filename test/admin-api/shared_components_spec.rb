@@ -10,26 +10,6 @@ def clear_shared_components!
   end
 end
 
-def shared_component_for(api_id, remote_id, acc_id, keyword)
-  sh = fixtures[:shared_components][keyword]
-
-  # Insert remote_id in each call as remote_endpoint_id.
-  if !sh[:call].nil? then
-    sh[:call][:remote_endpoint_id] = remote_id
-  elsif !sh[:calls].nil? then
-    sh[:calls].each do |call|
-      call[:remote_endpoint_id] = remote_id
-    end
-  end
-
-  # Insert remote_endpoint_id, api_id, and account_id for the shared_component.
-  return sh.merge({
-    api_id:             api_id,
-    remote_endpoint_id: remote_id,
-    account_id:         acc_id,
-  })
-end
-
 shared_examples "empty shared_components" do
   it { expect_status(200) }
   it { expect_json_types({shared_components: :array}) }
