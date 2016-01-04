@@ -135,6 +135,25 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
+	sharedComponents, err := s.proxyData.Components(proxyEndpoint.APIID)
+	if err != nil {
+		httpErr = s.httpError(err)
+		return
+	}
+
+	componentsToRun := make([]*model.ProxyEndpointComponent, len(proxyEndpoint.Components))
+	for i, comp := range proxyEndpoint.Components {
+		if shID := comp.SharedComponentID; shID != nil {
+			// If this component has a reference to a
+			// SharedComponent, then use that SharedComponent's
+			// ProxyEndpointComponent as the component to run.
+			componentsToRun[i] = &(sharedComponents[*shID].ProxyEndpointComponent)
+		} else {
+			// Otherwise, just use the component.
+			componentsToRun[i] = comp
+		}
+	}
+
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
 		httpErr = s.httpError(err)
@@ -201,7 +220,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
-	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+	if err = s.runComponents(vm, componentsToRun); err != nil {
 		httpErr = s.httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}
