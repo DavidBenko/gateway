@@ -30,6 +30,7 @@ var RESOURCE_MAP = map[string]string{
 	"accounts":               "account",
 	"apis":                   "api",
 	"collections":            "store-collection",
+	"components":             "component",
 	"endpoint_groups":        "endpoint-group",
 	"environments":           "environment",
 	"hosts":                  "host",
