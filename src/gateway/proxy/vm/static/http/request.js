@@ -586,10 +586,22 @@ AP.LDAP.Request = function() {
   this.username = null;
 
   /**
-   * The password to use for authentication to the LDAP servcie
+   * The password to use for authentication to the LDAP service
    * @type {string}
    */
   this.password = null;
+
+  /**
+   * The operation name of the LDAP function to invoke
+   * @type {string}
+   */
+   this.operationName = null;
+
+  /**
+   * The arguments that will be passed to the LDAP function call
+   * @type {Object}
+   */
+  this.arguments = {};
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -597,5 +609,53 @@ AP.LDAP.Request = function() {
     this.port = _.clone(request.port);
     this.username = _.clone(request.username);
     this.password = _.clone(request.password);
+    this.operationName = _.clone(request.operationName);
+    this.arguments = _.clone(request.arguments);
   }
+}
+
+
+// TODO
+AP.LDAP.Scope = {
+  base:    "base",
+  one:     "one",
+  single:  "single",
+  subtree: "subtree"
+}
+
+// TODO
+AP.LDAP.DereferenceAliases = {
+  never:  "never",
+  search: "search",
+  find:   "find",
+  always: "always"
+}
+
+/**
+ * Execute an LDAP request.
+ */
+AP.LDAP.Request.prototype._execute = function(arguments, operationName) {
+  this.arguments = arguments;
+  this.operationName = operationName;
+}
+
+/**
+ * Execute a search request.
+ */
+AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
+  dereferenceAliases, sizeLimit, timeLimit,
+  typesOnly, filter, attributes, controls
+) {
+  var searchParams = {
+    "baseDistinguishedName": baseDistinguishedName,
+    "scope": scope,
+    "dereferenceAliases": dereferenceAliases,
+    "sizeLimit": sizeLimit,
+    "timeLimit": timeLimit,
+    "typesOnly": typesOnly,
+    "filter": filter,
+    "attributes": attributes,
+    "controls": controls
+  };
+  this._execute(searchParams, "search");
 }
