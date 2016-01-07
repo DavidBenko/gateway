@@ -169,23 +169,6 @@ func (l *LDAPRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
-/*
-var buffer bytes.Buffer
-buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.URL))
-if devMode {
-	buffer.WriteString(fmt.Sprintf("\nQuery Parameters:\n"))
-	for k, v := range h.Query {
-		buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
-	}
-	buffer.WriteString(fmt.Sprintf("Headers:\n"))
-	for k, v := range h.Headers {
-		buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
-	}
-	buffer.WriteString(fmt.Sprintf("Body:\n%s", h.Body))
-}
-return buffer.String()
-*/
-
 // Perform satisfies request.Request's Perform method
 func (l *LDAPRequest) Perform() Response {
 	conn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Host, l.Port))
