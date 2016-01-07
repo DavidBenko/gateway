@@ -603,6 +603,13 @@ AP.LDAP.Request = function() {
    */
   this.arguments = {};
 
+  /**
+   * The additional options that are applied to the LDAP operation
+   * @type {Object}
+   */
+  this.options = null;
+
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.host = _.clone(request.host);
@@ -611,6 +618,7 @@ AP.LDAP.Request = function() {
     this.password = _.clone(request.password);
     this.operationName = _.clone(request.operationName);
     this.arguments = _.clone(request.arguments);
+    this.options = _.clone(request.options);
   }
 }
 
@@ -634,9 +642,10 @@ AP.LDAP.DereferenceAliases = {
 /**
  * Execute an LDAP request.
  */
-AP.LDAP.Request.prototype._execute = function(arguments, operationName) {
+AP.LDAP.Request.prototype._execute = function(arguments, operationName, opts) {
   this.arguments = arguments;
   this.operationName = operationName;
+  this.opts = opts;
 }
 
 /**
@@ -644,7 +653,8 @@ AP.LDAP.Request.prototype._execute = function(arguments, operationName) {
  */
 AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
   dereferenceAliases, sizeLimit, timeLimit,
-  typesOnly, filter, attributes, controls
+  typesOnly, filter, attributes, controls,
+  opts
 ) {
   var searchParams = {
     "baseDistinguishedName": baseDistinguishedName,
@@ -655,7 +665,8 @@ AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
     "typesOnly": typesOnly,
     "filter": filter,
     "attributes": attributes,
-    "controls": controls
+    "controls": controls,
+    "options": opts
   };
-  this._execute(searchParams, "search");
+  this._execute(searchParams, "search", opts);
 }

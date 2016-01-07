@@ -13,6 +13,67 @@ type SearchOperation struct {
 	Filter                string      `json:"filter"`
 	Attributes            []string    `json:"attributes"`
 	Controls              []string    `json:"controls"`
+
+	IncludeByteValue bool `json:"-"`
+}
+
+// NewSearchOperation TODO
+func NewSearchOperation(options map[string]interface{}) *SearchOperation {
+	search := new(SearchOperation)
+	if value, ok := options["includeByteValues"]; ok {
+		if boolVal, ok := value.(bool); ok {
+			search.IncludeByteValue = boolVal
+		}
+	}
+	return search
+}
+
+// SearchResult TODO
+type SearchResult struct {
+	Entries []*Entry `json:"entries"`
+}
+
+// NewSearchResult TODO
+func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResult {
+	res := new(SearchResult)
+	for _, entry := range sr.Entries {
+		res.Entries = append(res.Entries, NewEntry(entry, includeByteValues))
+	}
+	return res
+}
+
+// Entry TODO
+type Entry struct {
+	DistinguishedName string            `json:"distinguishedName"`
+	Attributes        []*EntryAttribute `json:"attributes"`
+}
+
+// NewEntry TODO
+func NewEntry(le *ldap.Entry, includeByteValues bool) *Entry {
+	e := new(Entry)
+	e.DistinguishedName = le.DN
+	for _, entryAttribute := range le.Attributes {
+		e.Attributes = append(e.Attributes, NewEntryAttribute(entryAttribute, includeByteValues))
+	}
+	return e
+}
+
+// EntryAttribute TODO
+type EntryAttribute struct {
+	Name       string   `json:"name"`
+	Values     []string `json:"values"`
+	ByteValues [][]byte `json:"byteValues,omitempty"`
+}
+
+// NewEntryAttribute TODO
+func NewEntryAttribute(lea *ldap.EntryAttribute, includeByteValues bool) *EntryAttribute {
+	ea := new(EntryAttribute)
+	ea.Name = lea.Name
+	ea.Values = lea.Values
+	if includeByteValues {
+		ea.ByteValues = lea.ByteValues
+	}
+	return ea
 }
 
 // Invoke TODO
@@ -43,8 +104,20 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 
 	result, err := conn.Search(searchRequest)
 	if err != nil {
-		return nil, err
+		var e *ldap.Error
+		var ok bool
+		if e, ok = err.(*ldap.Error); !ok {
+			return nil, err
+		}
+		return &Response{
+			StatusCode:        e.ResultCode,
+			StatusDescription: ldap.LDAPResultCodeMap[e.ResultCode],
+		}, nil
 	}
 
-	return &Response{SearchResult: result}, nil
+	return &Response{
+		SearchResult:      NewSearchResult(result, s.IncludeByteValue),
+		StatusCode:        ldap.LDAPResultSuccess,
+		StatusDescription: ldap.LDAPResultCodeMap[ldap.LDAPResultSuccess],
+	}, nil
 }

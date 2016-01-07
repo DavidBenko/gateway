@@ -25,6 +25,7 @@ type LDAPRequest struct {
 
 	operationName string
 	arguments     LDAPOperation
+	options       map[string]interface{}
 }
 
 // UnmarshalJSON TODO
@@ -40,6 +41,10 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 	}
 	var arguments json.RawMessage
 	for k, v := range fields {
+		if v == nil {
+			continue
+		}
+
 		switch k {
 		case "host":
 			var host string
@@ -75,6 +80,12 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal([]byte(*v), &arguments); err != nil {
 				return err
 			}
+		case "options":
+			var options map[string]interface{}
+			if err := json.Unmarshal([]byte(*v), &options); err != nil {
+				return err
+			}
+			l.options = options
 		}
 	}
 
@@ -83,7 +94,7 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 	if arguments != nil {
 		switch l.operationName {
 		case "search":
-			op = new(apldap.SearchOperation)
+			op = apldap.NewSearchOperation(l.options)
 		case "":
 		default:
 			return fmt.Errorf("Unsupported LDAP operation %s", l.operationName)

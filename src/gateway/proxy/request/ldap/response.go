@@ -1,14 +1,12 @@
 package ldap
 
-import (
-	"encoding/json"
-
-	"github.com/go-ldap/ldap"
-)
+import "encoding/json"
 
 // Response TODO
 type Response struct {
-	SearchResult *ldap.SearchResult `json:"searchResults"`
+	SearchResult      *SearchResult `json:"searchResults,omitempty"`
+	StatusCode        uint8         `json:"statusCode"`
+	StatusDescription string        `json:"statusDescription,omitempty"`
 }
 
 // JSON TODO
