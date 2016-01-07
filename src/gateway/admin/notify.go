@@ -27,20 +27,20 @@ type Notification struct {
 }
 
 var RESOURCE_MAP = map[string]string{
-	"accounts":               "account",
-	"apis":                   "api",
-	"collections":            "store-collection",
-	"components":             "component",
-	"endpoint_groups":        "endpoint-group",
-	"environments":           "environment",
-	"hosts":                  "host",
-	"libraries":              "library",
-	"objects":                "store-object",
-	"proxy_endpoints":        "proxy-endpoint",
-	"proxy_endpoint_schemas": "proxy-endpoint-schema",
-	"remote_endpoints":       "remote-endpoint",
-	"scratch_pads":           "remote-endpoint-environment-datum-scratch-pad",
-	"users":                  "user",
+	"accounts":                  "account",
+	"apis":                      "api",
+	"collections":               "store-collection",
+	"endpoint_groups":           "endpoint-group",
+	"environments":              "environment",
+	"hosts":                     "host",
+	"libraries":                 "library",
+	"objects":                   "store-object",
+	"proxy_endpoints":           "proxy-endpoint",
+	"proxy_endpoint_schemas":    "proxy-endpoint-schema",
+	"remote_endpoints":          "remote-endpoint",
+	"scratch_pads":              "remote-endpoint-environment-datum-scratch-pad",
+	"users":                     "user",
+	"proxy_endpoint_components": "shared-component",
 }
 
 var ACTION_MAP = [...]string{
