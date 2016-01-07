@@ -623,15 +623,19 @@ AP.LDAP.Request = function() {
 }
 
 
-// TODO
+/**
+ * An enumeration containing possible values for search scope
+ */
 AP.LDAP.Scope = {
   base:    "base",
-  one:     "one",
   single:  "single",
   subtree: "subtree"
 }
 
-// TODO
+/**
+ * An enumeration containing possible values for dereferencing aliases
+ * during a search
+ */
 AP.LDAP.DereferenceAliases = {
   never:  "never",
   search: "search",

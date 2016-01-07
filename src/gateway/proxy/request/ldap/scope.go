@@ -9,26 +9,23 @@ import (
 )
 
 const (
-	// ScopeBase TODO
+	// ScopeBase indicates that search will be restricted to the base value
 	ScopeBase = Scope("base")
-	// ScopeOne TODO
-	ScopeOne = Scope("one")
-	// ScopeSingle TODO
+	// ScopeSingle indicates that search will be restricted to a single level
 	ScopeSingle = Scope("single")
-	// ScopeSubtree TODO
+	// ScopeSubtree indicates that search will be conducted on the entire subtree
 	ScopeSubtree = Scope("subtree")
 )
 
-// Scope TODO
+// Scope represents possible scopes that can be specified in a search
 type Scope string
 
-// IntValue TODO
+// IntValue returns the go-ldap/ldap library's corresponding int value that matches
+// the given Scope value
 func (s Scope) IntValue() (int, error) {
 	switch s {
 	case "base":
 		return ld.ScopeBaseObject, nil
-	case "one":
-		return 0, fmt.Errorf("No support for 'one' yet")
 	case "single":
 		return ld.ScopeSingleLevel, nil
 	case "subtree":
@@ -39,14 +36,12 @@ func (s Scope) IntValue() (int, error) {
 	}
 }
 
-// UnmarshalJSON TODO
+// UnmarshalJSON unmarshals the JSON into a Scope
 func (s *Scope) UnmarshalJSON(data []byte) error {
 	content := strings.Trim(string(data), `"`)
 	switch content {
 	case "base":
 		*s = ScopeBase
-	case "one":
-		*s = ScopeOne
 	case "single":
 		*s = ScopeSingle
 	case "subtree":

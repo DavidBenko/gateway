@@ -7,21 +7,22 @@ import (
 	ld "github.com/go-ldap/ldap"
 )
 
-// Dereference TODO
+// Dereference is an enumeration of possible values for whether or not to
+// dereference values
 type Dereference string
 
 const (
-	// DereferenceNever TODO
+	// DereferenceNever means that values are never dereferenced
 	DereferenceNever = Dereference("never")
-	// DereferenceInSearch TODO
+	// DereferenceInSearch means that values are dereferenced in search results, but not otherwise
 	DereferenceInSearch = Dereference("search")
-	// DereferenceFindingBaseObj TODO
+	// DereferenceFindingBaseObj means that values are dereferenced when finding the base object, but otherwise not
 	DereferenceFindingBaseObj = Dereference("find")
-	// DereferenceAlways TODO
+	// DereferenceAlways means that values are always dereferenced
 	DereferenceAlways = Dereference("always")
 )
 
-// IntValue TODO
+// IntValue returns the appropriate integer value for the given possible value of type Dereference
 func (d Dereference) IntValue() (int, error) {
 	switch d {
 	case "never":
@@ -37,9 +38,8 @@ func (d Dereference) IntValue() (int, error) {
 	}
 }
 
-// UnmarshalJSON TODO
+// UnmarshalJSON unmarshals a JSON value into a Dereference
 func (d *Dereference) UnmarshalJSON(data []byte) error {
-	//log.Printf("-- UnmarshalJSON -- data is %s", string(data))
 	content := strings.Trim(string(data), `"`)
 	switch content {
 	case "never":

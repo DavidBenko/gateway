@@ -1,8 +1,13 @@
 package ldap
 
-import "github.com/go-ldap/ldap"
+import (
+	"bytes"
+	"fmt"
 
-// SearchOperation TODO
+	"github.com/go-ldap/ldap"
+)
+
+// SearchOperation encapsulates an LDAP search
 type SearchOperation struct {
 	BaseDistinguishedName string      `json:"baseDistinguishedName"`
 	Scope                 Scope       `json:"scope"`
@@ -17,7 +22,8 @@ type SearchOperation struct {
 	IncludeByteValue bool `json:"-"`
 }
 
-// NewSearchOperation TODO
+// NewSearchOperation creates a new SearchOperation, examining the options and
+// setting appropriate values on the created struct
 func NewSearchOperation(options map[string]interface{}) *SearchOperation {
 	search := new(SearchOperation)
 	if value, ok := options["includeByteValues"]; ok {
@@ -28,55 +34,24 @@ func NewSearchOperation(options map[string]interface{}) *SearchOperation {
 	return search
 }
 
-// SearchResult TODO
-type SearchResult struct {
-	Entries []*Entry `json:"entries"`
+// PrettyString returns a pretty string representation of the SearchOperation
+func (s *SearchOperation) PrettyString() string {
+	var buf bytes.Buffer
+	kv := "  %s: %+v\n"
+	buf.WriteString("SearchOperation:\n")
+	buf.WriteString(fmt.Sprintf(kv, "BaseDistinguishedName", s.BaseDistinguishedName))
+	buf.WriteString(fmt.Sprintf(kv, "Scope", s.Scope))
+	buf.WriteString(fmt.Sprintf(kv, "DereferenceAliases", s.DereferenceAliases))
+	buf.WriteString(fmt.Sprintf(kv, "SizeLimit", s.SizeLimit))
+	buf.WriteString(fmt.Sprintf(kv, "TimeLimit", s.TimeLimit))
+	buf.WriteString(fmt.Sprintf(kv, "Filter", s.Filter))
+	buf.WriteString(fmt.Sprintf(kv, "Attributes", s.Attributes))
+	buf.WriteString(fmt.Sprintf(kv, "Controls", s.Controls))
+	buf.WriteString(fmt.Sprintf(kv, "IncludeByteValue", s.IncludeByteValue))
+	return buf.String()
 }
 
-// NewSearchResult TODO
-func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResult {
-	res := new(SearchResult)
-	for _, entry := range sr.Entries {
-		res.Entries = append(res.Entries, NewEntry(entry, includeByteValues))
-	}
-	return res
-}
-
-// Entry TODO
-type Entry struct {
-	DistinguishedName string            `json:"distinguishedName"`
-	Attributes        []*EntryAttribute `json:"attributes"`
-}
-
-// NewEntry TODO
-func NewEntry(le *ldap.Entry, includeByteValues bool) *Entry {
-	e := new(Entry)
-	e.DistinguishedName = le.DN
-	for _, entryAttribute := range le.Attributes {
-		e.Attributes = append(e.Attributes, NewEntryAttribute(entryAttribute, includeByteValues))
-	}
-	return e
-}
-
-// EntryAttribute TODO
-type EntryAttribute struct {
-	Name       string   `json:"name"`
-	Values     []string `json:"values"`
-	ByteValues [][]byte `json:"byteValues,omitempty"`
-}
-
-// NewEntryAttribute TODO
-func NewEntryAttribute(lea *ldap.EntryAttribute, includeByteValues bool) *EntryAttribute {
-	ea := new(EntryAttribute)
-	ea.Name = lea.Name
-	ea.Values = lea.Values
-	if includeByteValues {
-		ea.ByteValues = lea.ByteValues
-	}
-	return ea
-}
-
-// Invoke TODO
+// Invoke satisfies LDAPOperation's Invoke method
 func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 	var scope int
 	var deref int
@@ -120,4 +95,52 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 		StatusCode:        ldap.LDAPResultSuccess,
 		StatusDescription: ldap.LDAPResultCodeMap[ldap.LDAPResultSuccess],
 	}, nil
+}
+
+// SearchResult represents the results of an LDAP search operation
+type SearchResult struct {
+	Entries []*Entry `json:"entries"`
+}
+
+// NewSearchResult creates a new SearchResult
+func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResult {
+	res := new(SearchResult)
+	for _, entry := range sr.Entries {
+		res.Entries = append(res.Entries, NewEntry(entry, includeByteValues))
+	}
+	return res
+}
+
+// Entry represents an individual entry in the results returned by LDAP search
+type Entry struct {
+	DistinguishedName string            `json:"distinguishedName"`
+	Attributes        []*EntryAttribute `json:"attributes"`
+}
+
+// NewEntry creates a new Entry
+func NewEntry(le *ldap.Entry, includeByteValues bool) *Entry {
+	e := new(Entry)
+	e.DistinguishedName = le.DN
+	for _, entryAttribute := range le.Attributes {
+		e.Attributes = append(e.Attributes, NewEntryAttribute(entryAttribute, includeByteValues))
+	}
+	return e
+}
+
+// EntryAttribute represents an attribute on an individual search result Entry
+type EntryAttribute struct {
+	Name       string   `json:"name"`
+	Values     []string `json:"values"`
+	ByteValues [][]byte `json:"byteValues,omitempty"`
+}
+
+// NewEntryAttribute creates a new EntryAttribute
+func NewEntryAttribute(lea *ldap.EntryAttribute, includeByteValues bool) *EntryAttribute {
+	ea := new(EntryAttribute)
+	ea.Name = lea.Name
+	ea.Values = lea.Values
+	if includeByteValues {
+		ea.ByteValues = lea.ByteValues
+	}
+	return ea
 }

@@ -1,21 +1,23 @@
 package ldap
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-// Response TODO
+// Response represents the result of an LDAP operation
 type Response struct {
 	SearchResult      *SearchResult `json:"searchResults,omitempty"`
 	StatusCode        uint8         `json:"statusCode"`
 	StatusDescription string        `json:"statusDescription,omitempty"`
 }
 
-// JSON TODO
+// JSON satisfies JSON method of request.Response
 func (r *Response) JSON() ([]byte, error) {
 	return json.Marshal(&r)
 }
 
-// Log TODO
+// Log satisfies Log method of request.Response
 func (r *Response) Log() string {
-	// TODO
-	return "Response TODO"
+	return fmt.Sprintf("%d %s", r.StatusCode, r.StatusDescription)
 }

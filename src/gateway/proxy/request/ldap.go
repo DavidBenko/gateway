@@ -1,8 +1,10 @@
 package request
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	aperrors "gateway/errors"
 	"gateway/model"
@@ -11,12 +13,13 @@ import (
 	"github.com/go-ldap/ldap"
 )
 
-// LDAPOperation TODO
+// LDAPOperation represents an operation against an LDAP server.
 type LDAPOperation interface {
 	Invoke(*ldap.Conn) (*apldap.Response, error)
+	PrettyString() string
 }
 
-// LDAPRequest TODO
+// LDAPRequest encapsulates a request to an LDAP server
 type LDAPRequest struct {
 	Host     string
 	Port     int
@@ -28,7 +31,9 @@ type LDAPRequest struct {
 	options       map[string]interface{}
 }
 
-// UnmarshalJSON TODO
+// UnmarshalJSON is a custom method to unmarshal LDAPRequest.  A custom method
+// is needed since 'arguments' is an LDAPOperation, which is not a concrete
+// type, but an interface
 func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 
 	if l == nil {
@@ -111,7 +116,7 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NewLDAPRequest TODO
+// NewLDAPRequest creates a new LDAP request
 func NewLDAPRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	request := new(LDAPRequest)
 
@@ -153,12 +158,35 @@ func (l *LDAPRequest) updateWith(other *LDAPRequest) {
 	}
 }
 
-// Log TODO
+// Log satisfies request.Request's Log method
 func (l *LDAPRequest) Log(devMode bool) string {
-	return "TODO"
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("%s ldap://%s:%s@%s:%d", l.operationName, l.Username, strings.Repeat("*", len(l.Password)), l.Host, l.Port))
+	if devMode {
+		buffer.WriteString("\n")
+		buffer.WriteString(l.arguments.PrettyString())
+	}
+	return buffer.String()
 }
 
-// Perform TODO
+/*
+var buffer bytes.Buffer
+buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.URL))
+if devMode {
+	buffer.WriteString(fmt.Sprintf("\nQuery Parameters:\n"))
+	for k, v := range h.Query {
+		buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+	}
+	buffer.WriteString(fmt.Sprintf("Headers:\n"))
+	for k, v := range h.Headers {
+		buffer.WriteString(fmt.Sprintf("    %s: %s\n", k, v))
+	}
+	buffer.WriteString(fmt.Sprintf("Body:\n%s", h.Body))
+}
+return buffer.String()
+*/
+
+// Perform satisfies request.Request's Perform method
 func (l *LDAPRequest) Perform() Response {
 	conn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Host, l.Port))
 	if err != nil {
