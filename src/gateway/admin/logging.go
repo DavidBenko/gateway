@@ -85,7 +85,9 @@ func newPublisher(in chan []byte) *logPublisher {
 						select {
 						case j.write <- buffer:
 						default:
-							logreport.Report(errors.New("dropped log message for: " + j.name))
+							err := errors.New("dropped log message for: " + j.name)
+							fmt.Printf("[logging] %v\n", err)
+							logreport.Report(err)
 						}
 					}
 				}
