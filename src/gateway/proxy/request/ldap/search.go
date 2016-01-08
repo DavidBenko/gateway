@@ -17,7 +17,6 @@ type SearchOperation struct {
 	TypesOnly             bool        `json:"typesOnly"`
 	Filter                string      `json:"filter"`
 	Attributes            []string    `json:"attributes"`
-	Controls              []string    `json:"controls"`
 
 	IncludeByteValue bool `json:"-"`
 }
@@ -31,6 +30,7 @@ func NewSearchOperation(options map[string]interface{}) *SearchOperation {
 			search.IncludeByteValue = boolVal
 		}
 	}
+
 	return search
 }
 
@@ -46,7 +46,6 @@ func (s *SearchOperation) PrettyString() string {
 	buf.WriteString(fmt.Sprintf(kv, "TimeLimit", s.TimeLimit))
 	buf.WriteString(fmt.Sprintf(kv, "Filter", s.Filter))
 	buf.WriteString(fmt.Sprintf(kv, "Attributes", s.Attributes))
-	buf.WriteString(fmt.Sprintf(kv, "Controls", s.Controls))
 	buf.WriteString(fmt.Sprintf(kv, "IncludeByteValue", s.IncludeByteValue))
 	return buf.String()
 }
@@ -74,7 +73,7 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 		s.TypesOnly,
 		s.Filter,
 		s.Attributes,
-		nil, // TODO - add controls
+		nil,
 	)
 
 	result, err := conn.Search(searchRequest)
@@ -101,6 +100,7 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 type SearchResult struct {
 	Entries          []*Entry `json:"entries"`
 	SearchReferences []string `json:"searchReferences,omitempty"` // search references are references to another LDAP server
+	Controls         []string `json:"controls,omitempty"`
 }
 
 // NewSearchResult creates a new SearchResult
@@ -111,6 +111,9 @@ func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResul
 	}
 	for _, referral := range sr.Referrals {
 		res.SearchReferences = append(res.SearchReferences, referral)
+	}
+	for _, control := range sr.Controls {
+		res.Controls = append(res.Controls, control.String())
 	}
 	return res
 }
