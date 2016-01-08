@@ -24,6 +24,8 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+const CHANNEL_SIZE = 1024
+
 var Interceptor = newInterceptor()
 
 type LogStreamController struct {
@@ -35,16 +37,22 @@ func RouteLogStream(c *LogStreamController, path string, router aphttp.Router) {
 	router.Handle(path, websocket.Handler(c.logHandler))
 }
 
+type Subscriber struct {
+	name  string
+	write chan []byte
+}
+
 type logPublisher struct {
-	subscribers            []chan []byte
-	subscribe, unsubscribe chan chan []byte
-	write                  chan []byte
+	subscribers []Subscriber
+	subscribe   chan Subscriber
+	unsubscribe chan chan []byte
+	write       chan []byte
 }
 
 func newPublisher(in chan []byte) *logPublisher {
 	l := &logPublisher{
-		subscribers: make([]chan []byte, 8),
-		subscribe:   make(chan chan []byte, 8),
+		subscribers: make([]Subscriber, 8),
+		subscribe:   make(chan Subscriber, 8),
 		unsubscribe: make(chan chan []byte, 8),
 		write:       in,
 	}
@@ -54,7 +62,7 @@ func newPublisher(in chan []byte) *logPublisher {
 			case s := <-l.subscribe:
 				found := false
 				for i, j := range l.subscribers {
-					if j == nil {
+					if j.write == nil {
 						l.subscribers[i] = s
 						found = true
 						break
@@ -65,16 +73,20 @@ func newPublisher(in chan []byte) *logPublisher {
 				}
 			case u := <-l.unsubscribe:
 				for i, j := range l.subscribers {
-					if j == u {
-						l.subscribers[i] = nil
+					if j.write == u {
+						l.subscribers[i] = Subscriber{"", nil}
 						close(u)
 						break
 					}
 				}
 			case buffer := <-l.write:
 				for _, j := range l.subscribers {
-					if j != nil {
-						j <- buffer
+					if j.write != nil {
+						select {
+						case j.write <- buffer:
+						default:
+							logreport.Report(errors.New("dropped log message for: " + j.name))
+						}
 					}
 				}
 			}
@@ -90,9 +102,9 @@ func (l *logPublisher) Write(p []byte) (n int, err error) {
 	return os.Stdout.Write(p)
 }
 
-func (l *logPublisher) Subscribe() (logs <-chan []byte, unsubscribe func()) {
-	_logs := make(chan []byte, 8)
-	l.subscribe <- _logs
+func (l *logPublisher) Subscribe(name string) (logs <-chan []byte, unsubscribe func()) {
+	_logs := make(chan []byte, CHANNEL_SIZE)
+	l.subscribe <- Subscriber{name, _logs}
 	logs = _logs
 	unsubscribe = func() {
 		go func() {
@@ -106,7 +118,7 @@ func (l *logPublisher) Subscribe() (logs <-chan []byte, unsubscribe func()) {
 }
 
 func newInterceptor() *logPublisher {
-	return newPublisher(make(chan []byte, 8))
+	return newPublisher(make(chan []byte, CHANNEL_SIZE))
 }
 
 func newAggregator(conf config.ProxyAdmin) (*mangos.Broker, error) {

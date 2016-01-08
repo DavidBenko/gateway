@@ -34,6 +34,10 @@ var (
 	Panicln = wrap(log.Panicln)
 )
 
+func Report(v ...interface{}) {
+	reportErrors(v...)
+}
+
 func wrap(f func(v ...interface{})) Log {
 	return func(v ...interface{}) {
 		reportErrors(v...)
