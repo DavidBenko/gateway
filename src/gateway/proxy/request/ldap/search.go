@@ -99,7 +99,8 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 
 // SearchResult represents the results of an LDAP search operation
 type SearchResult struct {
-	Entries []*Entry `json:"entries"`
+	Entries          []*Entry `json:"entries"`
+	SearchReferences []string `json:"searchReferences,omitempty"` // search references are references to another LDAP server
 }
 
 // NewSearchResult creates a new SearchResult
@@ -107,6 +108,9 @@ func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResul
 	res := new(SearchResult)
 	for _, entry := range sr.Entries {
 		res.Entries = append(res.Entries, NewEntry(entry, includeByteValues))
+	}
+	for _, referral := range sr.Referrals {
+		res.SearchReferences = append(res.SearchReferences, referral)
 	}
 	return res
 }
