@@ -25,6 +25,7 @@ import (
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
+	"gateway/store"
 	"gateway/version"
 )
 
@@ -164,6 +165,12 @@ func main() {
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 
+	// Configure the object store
+	objectStore, err := store.Configure(conf.Store)
+	if err != nil {
+		logreport.Fatalf("Unable to configure the object store: %v", err)
+	}
+
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
@@ -179,6 +186,9 @@ func main() {
 		if err != nil {
 			logreport.Printf("Error shutting down SOAP service: %v", err)
 		}
+
+		objectStore.Shutdown()
+
 		done <- true
 	}()
 

@@ -30,6 +30,7 @@ type Configuration struct {
 	Elastic        ElasticLogging
 	Bleve          BleveLogging
 	Soap           Soap
+	Store          Store
 	RemoteEndpoint RemoteEndpoint
 	SMTP           SMTP
 }
@@ -58,6 +59,14 @@ type Soap struct {
 	JavaOpts       string `flag:"soap-java-opts" default:""`
 }
 
+// Store specifies configuration options for store remote endpoints
+type Store struct {
+	Migrate          bool   `flag:"store-migrate"     default:"false"`
+	Type             string `flag:"store-type"        default:"boltdb"`
+	ConnectionString string `flag:"store-conn-string" default:"store.db"`
+	MaxConnections   int64  `flag:"store-max-connections" default:"50"`
+}
+
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
 	Domain string `flag:"proxy-domain" default:"lvh.me"`
@@ -83,6 +92,7 @@ type RemoteEndpoint struct {
 	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
+	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
@@ -174,6 +184,9 @@ func Parse(args []string) (Configuration, error) {
 
 	// Set final convenience flags
 	config.Admin.DevMode = config.DevMode()
+
+	// Enable store remote endpoints if store is configured
+	config.RemoteEndpoint.StoreEnabled = config.Store.Type != ""
 
 	// Verify that the configuration is valid before proceeding
 	if err := verify(config); err != nil {

@@ -107,6 +107,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
 		e.ValidateSOAP(errors, isInsert)
+	case RemoteEndpointTypeStore:
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,

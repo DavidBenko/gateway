@@ -31,6 +31,8 @@ const (
 	RemoteEndpointTypeScript = "script"
 	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
 	RemoteEndpointTypeSoap = "soap"
+	// RemoteEndpointTypeStore denotes that a remote endpoint is an Object Store database
+	RemoteEndpointTypeStore = "store"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -45,6 +47,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeMongo:     &RemoteEndpointType{ID: 5, Value: RemoteEndpointTypeMongo, Enabled: reConf.MongoDBEnabled},
 		RemoteEndpointTypeScript:    &RemoteEndpointType{ID: 6, Value: RemoteEndpointTypeScript, Enabled: reConf.ScriptEnabled},
 		RemoteEndpointTypeSoap:      &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
+		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 	}
 }
 

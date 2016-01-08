@@ -55,6 +55,11 @@ var usageStrings = map[string]string{
 	"soap-thread-pool-size": "The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request).  Defaults to 0.",
 	"soap-java-opts":        "The JVM options to pass to the JVM on startup that will be used to invoke SOAP services",
 
+	"store-migrate":         "Whether or not to migrate the store database on startup",
+	"store-type":            "The type of database to use for store remote endpoints",
+	"store-conn-string":     "The database connection string for the store. See: db-conn-string",
+	"store-max-connections": "The maximum number of connections to use",
+
 	"proxy-domain": "The domain name for the proxy server. Required when running in server mode, else defaults to lvh.me",
 	"proxy-host":   "The hostname of the proxy server",
 	"proxy-port":   "The port of the proxy server",
@@ -75,6 +80,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-mysql-enabled":      "Whether or not MySQL remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-postgresql-enabled": "Whether or not PostgreSQL remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-mongodb-enabled":    "Whether or not MongoDB remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-store-enabled":      "Whether or not Store remote endpoints are enabled. Defaults to false.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
