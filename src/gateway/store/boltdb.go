@@ -571,6 +571,11 @@ func compareNull(op string, a, b interface{}) bool {
 }
 
 func processExpression(node *node32, context *Context) (v Value) {
+	if node.pegRule == ruleboolean {
+		v.b = string(context.buffer[node.begin:node.end]) == "true"
+		return
+	}
+
 	path, _json, valid := node.up, context.json, false
 	for path != nil {
 		if path.pegRule == ruleword {

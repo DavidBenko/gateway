@@ -15,6 +15,7 @@ e2 <- e3 ( and e3 )*
 e3 <- expression
     / open e1 close
 expression <- path op value2
+            / boolean sp
 op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
 path <- word ('.' word)* sp
 word <- [[a-z0-9]]+

@@ -194,4 +194,13 @@ func TestSelect(t *testing.T) {
 		}
 		last = int64(age)
 	}
+
+	err, objects = s.Select(0, "people", "true")
+	t.Log(objects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 3 {
+		t.Fatal("there should be 3 objects")
+	}
 }
