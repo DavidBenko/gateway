@@ -1142,7 +1142,7 @@ func (p *JQL) Init() {
 			position, tokenIndex, depth = position78, tokenIndex78, depth78
 			return false
 		},
-		/* 10 op <- <(('=' / ('!' '=') / '>' / '<' / ('>' '=') / ('<' '=')) sp)> */
+		/* 10 op <- <(('=' / ('!' '=') / ('>' '=') / ('<' '=') / '>' / '<') sp)> */
 		func() bool {
 			position80, tokenIndex80, depth80 := position, tokenIndex, depth
 			{
@@ -1172,10 +1172,18 @@ func (p *JQL) Init() {
 						goto l85
 					}
 					position++
+					if buffer[position] != rune('=') {
+						goto l85
+					}
+					position++
 					goto l82
 				l85:
 					position, tokenIndex, depth = position82, tokenIndex82, depth82
 					if buffer[position] != rune('<') {
+						goto l86
+					}
+					position++
+					if buffer[position] != rune('=') {
 						goto l86
 					}
 					position++
@@ -1186,18 +1194,10 @@ func (p *JQL) Init() {
 						goto l87
 					}
 					position++
-					if buffer[position] != rune('=') {
-						goto l87
-					}
-					position++
 					goto l82
 				l87:
 					position, tokenIndex, depth = position82, tokenIndex82, depth82
 					if buffer[position] != rune('<') {
-						goto l80
-					}
-					position++
-					if buffer[position] != rune('=') {
 						goto l80
 					}
 					position++

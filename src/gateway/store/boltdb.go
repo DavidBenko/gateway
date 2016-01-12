@@ -206,11 +206,9 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 	var results []interface{}
 	if len(constraints.order.path) > 0 {
 		cursor := bucket.Cursor()
-		key, value := cursor.Next()
+		key, value := cursor.First()
 		for key != nil {
-			_value := make([]byte, len(value))
-			copy(_value, value)
-			decoder := json.NewDecoder(bytes.NewReader(_value))
+			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
 			var _json interface{}
 			err = decoder.Decode(&_json)
@@ -218,6 +216,13 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 				return err, nil
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
+				var _json interface{}
+				_value := make([]byte, len(value))
+				copy(_value, value)
+				err = json.Unmarshal(_value, &_json)
+				if err != nil {
+					return err, nil
+				}
 				_json.(map[string]interface{})["$id"] = btoi(key)
 				results = append(results, _json)
 			}
@@ -237,7 +242,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 		}
 	} else {
 		cursor := bucket.Cursor()
-		key, value := cursor.Next()
+		key, value := cursor.First()
 		if constraints.hasOffset {
 			offset := 0
 			for key != nil && offset < constraints.offset {
@@ -245,9 +250,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 			}
 		}
 		for key != nil {
-			_value := make([]byte, len(value))
-			copy(_value, value)
-			decoder := json.NewDecoder(bytes.NewReader(_value))
+			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
 			var _json interface{}
 			err = decoder.Decode(&_json)
@@ -255,6 +258,13 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 				return err, nil
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
+				var _json interface{}
+				_value := make([]byte, len(value))
+				copy(_value, value)
+				err = json.Unmarshal(_value, &_json)
+				if err != nil {
+					return err, nil
+				}
 				_json.(map[string]interface{})["$id"] = btoi(key)
 				results = append(results, _json)
 				if constraints.hasLimit && len(results) == constraints.limit {
@@ -345,6 +355,10 @@ func (r *Results) Less(i, j int) bool {
 			iii.SetString(ii.String())
 			jjj.SetString(jj.String())
 			return iii.Cmp(jjj) < 0
+		}
+	case float64:
+		if jj, valid := jj.(float64); valid {
+			return ii < jj
 		}
 	case bool:
 		if jj, valid := jj.(bool); valid {
