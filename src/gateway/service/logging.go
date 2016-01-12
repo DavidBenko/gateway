@@ -91,7 +91,7 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 	logreport.Printf("%s Starting Elastic logging service", config.System)
 
 	go func() {
-		logs, unsubscribe := admin.Interceptor.Subscribe()
+		logs, unsubscribe := admin.Interceptor.Subscribe("ElasticLoggingService")
 		defer unsubscribe()
 
 		c := elasti.NewConn()
@@ -203,7 +203,7 @@ func BleveLoggingService(conf config.BleveLogging) {
 	}()
 
 	go func() {
-		logs, unsubscribe := admin.Interceptor.Subscribe()
+		logs, unsubscribe := admin.Interceptor.Subscribe("BleveLoggingService")
 		defer unsubscribe()
 
 		add := func(message string) {
@@ -248,7 +248,7 @@ func LogPublishingService(conf config.ProxyAdmin) {
 	logreport.Printf("%s Starting log publisher", config.System)
 
 	go func() {
-		logs, unsubscribe := admin.Interceptor.Subscribe()
+		logs, unsubscribe := admin.Interceptor.Subscribe("LogPublishingService")
 		defer unsubscribe()
 
 		send, err := queue.Publish(
