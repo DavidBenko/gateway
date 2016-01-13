@@ -20,185 +20,185 @@ type BoltDBStore struct {
 	boltdb *bolt.DB
 }
 
-func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) (error, interface{}) {
+func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) (interface{}, error) {
 	delete(object.(map[string]interface{}), "$id")
 	value, err := json.Marshal(object)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	tx, err := s.boltdb.Begin(true)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	account, err := tx.CreateBucketIfNotExists(itob(uint64(accountID)))
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	bucket, err := account.CreateBucketIfNotExists([]byte(collection))
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	key, err := bucket.NextSequence()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	err = bucket.Put(itob(key), value)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	object.(map[string]interface{})["$id"] = key
 
-	return nil, object
+	return object, nil
 }
 
-func (s *BoltDBStore) SelectByID(accountID int64, collection string, id uint64) (error, interface{}) {
+func (s *BoltDBStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
 	tx, err := s.boltdb.Begin(false)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	account := tx.Bucket(itob(uint64(accountID)))
 	if account == nil {
-		return errors.New("bucket for account doesn't exist"), nil
+		return nil, errors.New("bucket for account doesn't exist")
 	}
 
 	bucket := account.Bucket([]byte(collection))
 	if bucket == nil {
-		return errors.New("collection doesn't exist"), nil
+		return nil, errors.New("collection doesn't exist")
 	}
 
 	value := bucket.Get(itob(id))
 	if value == nil {
-		return errors.New("id doesn't exist"), nil
+		return nil, errors.New("id doesn't exist")
 	}
 
 	var _json interface{}
 	err = json.Unmarshal(value, &_json)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	_json.(map[string]interface{})["$id"] = id
 
-	return nil, _json
+	return _json, nil
 }
 
-func (s *BoltDBStore) UpdateByID(accountID int64, collection string, id uint64, object interface{}) (error, interface{}) {
+func (s *BoltDBStore) UpdateByID(accountID int64, collection string, id uint64, object interface{}) (interface{}, error) {
 	delete(object.(map[string]interface{}), "$id")
 	value, err := json.Marshal(object)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	tx, err := s.boltdb.Begin(true)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	account, err := tx.CreateBucketIfNotExists(itob(uint64(accountID)))
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	bucket, err := account.CreateBucketIfNotExists([]byte(collection))
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	err = bucket.Put(itob(id), value)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	object.(map[string]interface{})["$id"] = id
 
-	return nil, object
+	return object, nil
 }
 
-func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) (error, interface{}) {
+func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) (interface{}, error) {
 	tx, err := s.boltdb.Begin(true)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	account := tx.Bucket(itob(uint64(accountID)))
 	if account == nil {
-		return errors.New("bucket for account doesn't exist"), nil
+		return nil, errors.New("bucket for account doesn't exist")
 	}
 
 	bucket := account.Bucket([]byte(collection))
 	if bucket == nil {
-		return errors.New("collection doesn't exist"), nil
+		return nil, errors.New("collection doesn't exist")
 	}
 
 	value := bucket.Get(itob(id))
 	if value == nil {
-		return errors.New("id doesn't exist"), nil
+		return nil, errors.New("id doesn't exist")
 	}
 
 	err = bucket.Delete(itob(id))
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	var _json interface{}
 	err = json.Unmarshal(value, &_json)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	_json.(map[string]interface{})["$id"] = id
 
-	return nil, _json
+	return _json, nil
 }
 
-func (s *BoltDBStore) Select(accountID int64, collection string, query string, params ...interface{}) (error, []interface{}) {
+func (s *BoltDBStore) Select(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
 	tx, err := s.boltdb.Begin(false)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	account := tx.Bucket(itob(uint64(accountID)))
 	if account == nil {
-		return errors.New("bucket for account doesn't exist"), nil
+		return nil, errors.New("bucket for account doesn't exist")
 	}
 
 	bucket := account.Bucket([]byte(collection))
 	if bucket == nil {
-		return errors.New("collection doesn't exist"), nil
+		return nil, errors.New("collection doesn't exist")
 	}
 
 	jql := &JQL{Buffer: query}
 	jql.Init()
 	err = jql.Parse()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
@@ -213,7 +213,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 			var _json interface{}
 			err = decoder.Decode(&_json)
 			if err != nil {
-				return err, nil
+				return nil, err
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
 				var _json interface{}
@@ -221,7 +221,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 				copy(_value, value)
 				err = json.Unmarshal(_value, &_json)
 				if err != nil {
-					return err, nil
+					return nil, err
 				}
 				_json.(map[string]interface{})["$id"] = btoi(key)
 				results = append(results, _json)
@@ -255,7 +255,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 			var _json interface{}
 			err = decoder.Decode(&_json)
 			if err != nil {
-				return err, nil
+				return nil, err
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
 				var _json interface{}
@@ -263,7 +263,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 				copy(_value, value)
 				err = json.Unmarshal(_value, &_json)
 				if err != nil {
-					return err, nil
+					return nil, err
 				}
 				_json.(map[string]interface{})["$id"] = btoi(key)
 				results = append(results, _json)
@@ -275,7 +275,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 		}
 	}
 
-	return nil, results
+	return results, nil
 }
 
 func (s *BoltDBStore) Shutdown() {

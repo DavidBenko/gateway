@@ -12,11 +12,11 @@ const (
 )
 
 type Store interface {
-	Insert(accountID int64, collection string, object interface{}) (error, interface{})
-	SelectByID(accountID int64, collection string, id uint64) (error, interface{})
-	UpdateByID(accountID int64, collection string, id uint64, object interface{}) (error, interface{})
-	DeleteByID(accountID int64, collection string, id uint64) (error, interface{})
-	Select(accountID int64, collection string, query string, params ...interface{}) (error, []interface{})
+	Insert(accountID int64, collection string, object interface{}) (interface{}, error)
+	SelectByID(accountID int64, collection string, id uint64) (interface{}, error)
+	UpdateByID(accountID int64, collection string, id uint64, object interface{}) (interface{}, error)
+	DeleteByID(accountID int64, collection string, id uint64) (interface{}, error)
+	Select(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error)
 	Shutdown()
 }
 

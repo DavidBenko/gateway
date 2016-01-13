@@ -82,7 +82,7 @@ func TestInsert(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	err, object := s.Insert(0, "people", objects[0])
+	object, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestSelectByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	err, object := s.Insert(0, "people", objects[0])
+	object, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestSelectByID(t *testing.T) {
 		t.Fatal("object $id should be set")
 	}
 	id := object.(map[string]interface{})["$id"].(uint64)
-	err, object = s.SelectByID(0, "people", id)
+	object, err = s.SelectByID(0, "people", id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestUpdateByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	err, object := s.Insert(0, "people", objects[0])
+	object, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestUpdateByID(t *testing.T) {
 	_json := object.(map[string]interface{})
 	id := _json["$id"].(uint64)
 	_json["age"] = 26
-	err, object = s.UpdateByID(0, "people", id, object)
+	object, err = s.UpdateByID(0, "people", id, object)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestDeleteByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	err, object := s.Insert(0, "people", objects[0])
+	object, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestDeleteByID(t *testing.T) {
 		t.Fatal("object $id should be set")
 	}
 	id := object.(map[string]interface{})["$id"].(uint64)
-	err, object = s.DeleteByID(0, "people", id)
+	object, err = s.DeleteByID(0, "people", id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestSelect(t *testing.T) {
 
 	objects := parse(t)
 	for _, obj := range objects {
-		err, object := s.Insert(0, "people", obj)
+		object, err := s.Insert(0, "people", obj)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +173,7 @@ func TestSelect(t *testing.T) {
 			t.Fatal("object $id should be set")
 		}
 	}
-	err, objects := s.Select(0, "people", "age >= 18 order age asc")
+	objects, err := s.Select(0, "people", "age >= 18 order age asc")
 	t.Log(objects)
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestSelect(t *testing.T) {
 		last = int64(age)
 	}
 
-	err, objects = s.Select(0, "people", "true")
+	objects, err = s.Select(0, "people", "true")
 	t.Log(objects)
 	if err != nil {
 		t.Fatal(err)

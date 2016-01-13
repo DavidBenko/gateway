@@ -30,7 +30,7 @@ func storeOperationInsert(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("object is not an Object")
 	}
-	err, result := request.Store.Insert(request.AccountID, collection, object)
+	result, err := request.Store.Insert(request.AccountID, collection, object)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func storeOperationSelect(request *StoreRequest) ([]map[string]interface{}, erro
 			}
 			arguments[i] = value
 		}
-		err, results := request.Store.Select(request.AccountID, collection, query, arguments[3:]...)
+		results, err := request.Store.Select(request.AccountID, collection, query, arguments[3:]...)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +69,7 @@ func storeOperationSelect(request *StoreRequest) ([]map[string]interface{}, erro
 			data = append(data, result.(map[string]interface{}))
 		}
 	case float64:
-		err, result := request.Store.SelectByID(request.AccountID, collection, uint64(query))
+		result, err := request.Store.SelectByID(request.AccountID, collection, uint64(query))
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func storeOperationUpdate(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("object is not an Object")
 	}
-	err, result := request.Store.UpdateByID(request.AccountID, collection, uint64(id), object)
+	result, err := request.Store.UpdateByID(request.AccountID, collection, uint64(id), object)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func storeOperationDelete(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("id is not a number")
 	}
-	err, result := request.Store.DeleteByID(request.AccountID, collection, uint64(id))
+	result, err := request.Store.DeleteByID(request.AccountID, collection, uint64(id))
 	if err != nil {
 		return nil, err
 	}
