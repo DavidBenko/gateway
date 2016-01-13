@@ -115,7 +115,7 @@ test_api_sqlite_fast: build_tail
 
 	# Sleep until we see "Server listening" or time out
 	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
-	./bin/tail -file ./tmp/gateway_log.txt "Server listening"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
 
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
@@ -136,7 +136,7 @@ test_api_postgres_fast: build_tail
 
 	# Sleep until we see "Server listening" or time out
 	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
-	./bin/tail -file ./tmp/gateway_log.txt "Server listening"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
 
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
