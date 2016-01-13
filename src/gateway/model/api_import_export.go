@@ -154,6 +154,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	environmentsIDMap := make(map[int]int64)
 	for index, environment := range a.Environments {
 		environment.AccountID = a.AccountID
+		environment.UserID = a.UserID
 		environment.APIID = a.ID
 		err = environment.Insert(tx)
 		if err != nil {
@@ -165,6 +166,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	endpointGroupsIDMap := make(map[int]int64)
 	for index, endpointGroup := range a.EndpointGroups {
 		endpointGroup.AccountID = a.AccountID
+		endpointGroup.UserID = a.UserID
 		endpointGroup.APIID = a.ID
 		err = endpointGroup.Insert(tx)
 		if err != nil {
@@ -175,6 +177,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 
 	for _, library := range a.Libraries {
 		library.AccountID = a.AccountID
+		library.UserID = a.UserID
 		library.APIID = a.ID
 		err = library.Insert(tx)
 		if err != nil {
@@ -190,6 +193,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 
 		endpoint.AccountID = a.AccountID
+		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
 		if vErr := endpoint.Validate(true); !vErr.Empty() {
 			return fmt.Errorf("Unable to validate remote endpoint: %v", vErr)
@@ -220,6 +224,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 
 		endpoint.AccountID = a.AccountID
+		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
 		err = endpoint.Insert(tx)
 		if err != nil {
@@ -230,6 +235,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 
 	for _, schema := range a.ProxyEndpointSchemas {
 		schema.AccountID = a.AccountID
+		schema.UserID = a.UserID
 		schema.APIID = a.ID
 		schema.ProxyEndpointID = proxyEndpointsIDMap[schema.ExportProxyEndpointIndex]
 		schema.ExportProxyEndpointIndex = 0

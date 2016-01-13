@@ -91,6 +91,7 @@ func (c *APIsController) BeforeValidate(api *model.API, tx *apsql.Tx) error {
 	newAPI.Name = api.Name
 	newAPI.ID = api.ID
 	newAPI.AccountID = api.AccountID
+	newAPI.UserID = api.UserID
 
 	*api = *newAPI
 	return nil
@@ -125,6 +126,7 @@ func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) err
 	if c.conf.AddDefaultEnvironment {
 		env := &model.Environment{Name: c.conf.DefaultEnvironmentName}
 		env.AccountID = api.AccountID
+		env.UserID = api.UserID
 		env.APIID = api.ID
 
 		if err := env.Insert(tx); err != nil {
@@ -144,6 +146,7 @@ func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) error {
 
 	host := &model.Host{Name: generatedHostName, Hostname: fmt.Sprintf("%s.%s", generatedHostName, defaultDomain)}
 	host.AccountID = api.AccountID
+	host.UserID = api.UserID
 	host.APIID = api.ID
 
 	if err := host.Insert(tx); err != nil {
