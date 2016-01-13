@@ -5,41 +5,46 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/hpcloud/tail"
 )
 
-var verbose = flag.Bool("verbose", false, "run in verbose mode")
+var (
+	verbose  = flag.Bool("verbose", false, "run in verbose mode")
+	filename = flag.String("file", "", "the file to watch")
+	timeout  = flag.String("timeout", "30", "the maximum waiting time")
+)
 
 func main() {
 	flag.Parse()
 
-	minArgs := 3
-	if yes, _ := regexp.MatchString("verbose", os.Args[1]); yes {
-		minArgs++
+	if *filename == "" {
+		log.Fatal("missing filename: use -file <file>")
 	}
 
-	switch {
-	case len(os.Args) < minArgs-1:
-		log.Fatal("Missing log filename")
-	case len(os.Args) < minArgs:
-		log.Fatal("No log entries to finish on")
+	if _, err := strconv.Atoi(*timeout); err == nil {
+		*timeout += "s"
 	}
 
-	// Generate regex to finish on
-	cases := make([]*regexp.Regexp, len(os.Args)-(minArgs-1))
-	for i, c := range os.Args[minArgs-1:] {
-		cases[i] = regexp.MustCompile(strings.Trim(c, "\""))
+	dur, err := time.ParseDuration(*timeout)
+	if err != nil {
+		log.Fatalf("bad timeout value %q: %#v", *timeout, err)
 	}
 
-	t, err := tail.TailFile(os.Args[minArgs-2], tail.Config{
+	exp := os.Args[len(os.Args)-1]
+	watchFor, err := regexp.Compile(exp)
+	if err != nil {
+		log.Fatalf("bad watch regexp %s: %#v", exp, err)
+	}
+
+	t, err := tail.TailFile(*filename, tail.Config{
 		Follow: true,
 		Poll:   true,
 	})
 	if err != nil {
-		log.Fatalf("log tailer failed: %#v", err)
+		log.Fatalf("failed to create log tailer: %#v", err)
 	}
 
 	ch := make(chan struct{})
@@ -51,22 +56,20 @@ func main() {
 				log.Fatalf("log tailer failed: %#v", line.Err)
 			}
 			if *verbose {
-				log.Println(line.Text)
+				println(line.Text)
 			}
-			for _, c := range cases {
-				if c.MatchString(line.Text) {
-					ch <- struct{}{}
-					return
+			if watchFor.MatchString(line.Text) {
+				if *verbose {
+					log.Printf("matched %s OK", exp)
 				}
+				ch <- struct{}{}
 			}
 		}
 	}()
 
 	select {
-	case <-time.After(30 * time.Second):
-		log.Fatalf("Log tailer timed out without seeing any of %#v",
-			os.Args[minArgs-1:],
-		)
+	case <-time.After(dur):
+		log.Fatalf("Log tailer timed out without seeing any of %s", exp)
 	case <-ch:
 		os.Exit(0)
 	}
