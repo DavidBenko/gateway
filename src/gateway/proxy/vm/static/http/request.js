@@ -550,3 +550,73 @@ AP.Script.Request = function() {
     this.env = _.clone(request.env);
   }
 }
+
+/**
+ * Store holds helper classes for Store related tasks
+ *
+ * @namespace
+ */
+AP.Store = AP.Store || {};
+
+/**
+ * Creates a new Store request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.Store.Request = function() {
+  this.arguments = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+
+AP.Store.Request.prototype.query = function() {
+  this.arguments = arguments;
+}
+
+/**
+ * Inserts an object into a collection.
+ *
+ * @param {string} collection The collection to insert the object into.
+ * @param {Object} object An object to insert.
+ */
+AP.Store.Request.prototype.insert = function(collection, object) {
+  this.query("insert", collection, object);
+}
+
+/**
+ * Selects object(s) from a collection.
+ *
+ * @param {string} collection The collection to select object(s) from.
+ * @param {string|Number} query A query or id for selecting object(s).
+ */
+AP.Store.Request.prototype.select = function(collection, query) {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift("select");
+  this.query.apply(this, args);
+}
+
+/**
+ * Updates an object in a collection.
+ *
+ * @param {string} collection The collection to update the object in.
+ * @param {Number} id The id of the object to update.
+ * @param {Object} object An object to update with.
+ */
+AP.Store.Request.prototype.update = function(collection, id, object) {
+  this.query("update", collection, id, object);
+}
+
+/**
+ * Deletes an object from a collection.
+ *
+ * @param {string} collection The collection to delete the object from.
+ * @param {Number} id The id of the object to delete.
+ */
+AP.Store.Request.prototype.delete = function(collection, id) {
+  this.query("delete", collection, id);
+}

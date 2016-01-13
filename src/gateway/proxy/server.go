@@ -19,6 +19,7 @@ import (
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
+	"gateway/store"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -39,11 +40,12 @@ type Server struct {
 	proxyData   proxyDataSource
 	ownDb       *sql.DB // in-application datastore
 	dbPools     *pools.Pools
+	store       store.Store
 	httpClient  *http.Client
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
+func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	var source proxyDataSource
@@ -66,6 +68,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 		proxyData:  source,
 		ownDb:      ownDb,
 		dbPools:    pools,
+		store:      s,
 		httpClient: &http.Client{Timeout: httpTimeout},
 	}
 }

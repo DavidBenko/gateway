@@ -61,6 +61,8 @@ func (s *Server) prepareRequest(
 		return request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
 	case model.RemoteEndpointTypeScript:
 		return request.NewScriptRequest(endpoint, data)
+	case model.RemoteEndpointTypeStore:
+		return request.NewStoreRequest(s.store, endpoint, data)
 	}
 	return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 }

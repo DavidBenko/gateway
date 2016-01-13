@@ -173,7 +173,7 @@ func main() {
 
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
-	proxy := proxy.NewServer(conf, db)
+	proxy := proxy.NewServer(conf, db, objectStore)
 	go proxy.Run()
 
 	sigs := make(chan os.Signal, 1)
