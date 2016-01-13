@@ -277,15 +277,16 @@ func (u *User) Update(tx *apsql.Tx) error {
 		return apsql.ErrZeroRowsAffected
 	}
 
-	if count == 1 {
-		user := User{}
-		err := tx.Get(&user, tx.SQL("users/find_id"), u.ID)
-		if err != nil {
-			return apsql.ErrZeroRowsAffected
-		}
-		if user.Admin && !u.Admin {
-			return errors.New("There must be at least one admin user")
-		}
+	user := User{}
+	err = tx.Get(&user, tx.SQL("users/find_id"), u.ID)
+	if err != nil {
+		return apsql.ErrZeroRowsAffected
+	}
+	if user.Confirmed && !u.Confirmed {
+		return errors.New("Can't unconfirm user")
+	}
+	if count == 1 && user.Admin && !u.Admin {
+		return errors.New("There must be at least one admin user")
 	}
 
 	if u.NewPassword != "" {
