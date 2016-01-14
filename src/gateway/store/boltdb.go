@@ -15,9 +15,62 @@ import (
 	"github.com/boltdb/bolt"
 )
 
+const (
+	boltdbCurrentVersion = 1
+	metaBucket           = "meta"
+	versionKey           = "version"
+)
+
 type BoltDBStore struct {
 	conf   config.Store
 	boltdb *bolt.DB
+}
+
+func (s *BoltDBStore) Migrate() error {
+	currentVersion := uint64(0)
+	tx, err := s.boltdb.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	meta, err := tx.CreateBucketIfNotExists([]byte(metaBucket))
+	if err != nil {
+		return err
+	}
+
+	v, migrate := meta.Get([]byte(versionKey)), s.conf.Migrate
+	if v == nil {
+		err := meta.Put([]byte(versionKey), itob(currentVersion))
+		if err != nil {
+			return err
+		}
+		migrate = true
+	} else {
+		currentVersion = btoi(v)
+	}
+
+	if currentVersion == boltdbCurrentVersion {
+		return nil
+	}
+
+	if !migrate {
+		return errors.New("The store is not up to date. Please migrate by invoking with the -store-migrate flag.")
+	}
+
+	if currentVersion < 1 {
+		err := meta.Put([]byte(versionKey), itob(1))
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) ([]interface{}, error) {

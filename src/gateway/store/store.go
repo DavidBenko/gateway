@@ -29,6 +29,12 @@ func Configure(conf config.Store) (Store, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		err = s.Migrate()
+		if err != nil {
+			return nil, err
+		}
+
 		return &s, nil
 	}
 
