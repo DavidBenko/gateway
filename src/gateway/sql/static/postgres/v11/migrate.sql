@@ -61,3 +61,10 @@ DROP COLUMN endpoint_id;
 
 ALTER TABLE proxy_endpoint_components
 DROP COLUMN position;
+
+CREATE INDEX idx_proxy_endpoint_components_type_discriminator ON proxy_endpoint_components USING btree(type_discriminator);
+CREATE INDEX idx_proxy_endpoint_components_api_id ON proxy_endpoint_components USING btree(api_id);
+CREATE INDEX idx_proxy_endpoint_component_references_proxy_endpoint_id ON proxy_endpoint_component_references USING btree(proxy_endpoint_id);
+CREATE INDEX idx_proxy_endpoint_component_references_proxy_endpoint_component_id ON proxy_endpoint_component_references USING btree(proxy_endpoint_component_id);
+
+ANALYZE;

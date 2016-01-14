@@ -68,3 +68,10 @@ BEGIN
 END;
 
 DROP TABLE _proxy_endpoint_components;
+
+CREATE INDEX idx_proxy_endpoint_components_type_discriminator ON proxy_endpoint_components(type_discriminator);
+CREATE INDEX idx_proxy_endpoint_components_api_id ON proxy_endpoint_components(api_id);
+CREATE INDEX idx_proxy_endpoint_component_references_proxy_endpoint_id ON proxy_endpoint_component_references(proxy_endpoint_id);
+CREATE INDEX idx_proxy_endpoint_component_references_proxy_endpoint_component_id ON proxy_endpoint_component_references(proxy_endpoint_component_id);
+
+ANALYZE;
