@@ -82,12 +82,30 @@ func TestInsert(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	object, err := s.Insert(0, "people", objects[0])
+	objects, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if object.(map[string]interface{})["$id"] == nil {
-		t.Fatal("object $id should be set")
+	for _, object := range objects {
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
+	}
+}
+
+func TestInsertArray(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	objects := parse(t)
+	objs, err := s.Insert(0, "people", objects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, object := range objs {
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
 	}
 }
 
@@ -96,10 +114,11 @@ func TestSelectByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	object, err := s.Insert(0, "people", objects[0])
+	objects, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
+	object := objects[0]
 	if object.(map[string]interface{})["$id"] == nil {
 		t.Fatal("object $id should be set")
 	}
@@ -118,10 +137,11 @@ func TestUpdateByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	object, err := s.Insert(0, "people", objects[0])
+	objects, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
+	object := objects[0]
 	if object.(map[string]interface{})["$id"] == nil {
 		t.Fatal("object $id should be set")
 	}
@@ -142,10 +162,11 @@ func TestDeleteByID(t *testing.T) {
 	defer teardown(t, name, s)
 
 	objects := parse(t)
-	object, err := s.Insert(0, "people", objects[0])
+	objects, err := s.Insert(0, "people", objects[0])
 	if err != nil {
 		t.Fatal(err)
 	}
+	object := objects[0]
 	if object.(map[string]interface{})["$id"] == nil {
 		t.Fatal("object $id should be set")
 	}
@@ -159,16 +180,46 @@ func TestDeleteByID(t *testing.T) {
 	}
 }
 
+func TestDeleteBulk(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	objects := parse(t)
+	objs, err := s.Insert(0, "people", objects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, object := range objs {
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
+	}
+
+	objs, err = s.Delete(0, "people", "age >= $1", 18)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objs) != 3 {
+		t.Fatal("there should be 3 objects")
+	}
+	for _, object := range objs {
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
+	}
+}
+
 func TestSelect(t *testing.T) {
 	name, s := setup(t)
 	defer teardown(t, name, s)
 
 	objects := parse(t)
 	for _, obj := range objects {
-		object, err := s.Insert(0, "people", obj)
+		objects, err := s.Insert(0, "people", obj)
 		if err != nil {
 			t.Fatal(err)
 		}
+		object := objects[0]
 		if object.(map[string]interface{})["$id"] == nil {
 			t.Fatal("object $id should be set")
 		}

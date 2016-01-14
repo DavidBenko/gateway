@@ -26,15 +26,17 @@ func storeOperationInsert(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("collection is not a string")
 	}
-	object, valid := request.Arguments["2"].(map[string]interface{})
+	object, valid := request.Arguments["2"].(interface{})
 	if !valid {
 		return nil, errors.New("object is not an Object")
 	}
-	result, err := request.Store.Insert(request.AccountID, collection, object)
+	results, err := request.Store.Insert(request.AccountID, collection, object)
 	if err != nil {
 		return nil, err
 	}
-	data = append(data, result.(map[string]interface{}))
+	for _, result := range results {
+		data = append(data, result.(map[string]interface{}))
+	}
 
 	return data, nil
 }
@@ -112,15 +114,32 @@ func storeOperationDelete(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("collection is not a string")
 	}
-	id, valid := request.Arguments["2"].(float64)
-	if !valid {
-		return nil, errors.New("id is not a number")
+	switch query := request.Arguments["2"].(type) {
+	case string:
+		arguments := make([]interface{}, len(request.Arguments))
+		for key, value := range request.Arguments {
+			i, err := strconv.Atoi(key)
+			if err != nil {
+				return nil, err
+			}
+			arguments[i] = value
+		}
+		results, err := request.Store.Delete(request.AccountID, collection, query, arguments[3:]...)
+		if err != nil {
+			return nil, err
+		}
+		for _, result := range results {
+			data = append(data, result.(map[string]interface{}))
+		}
+	case float64:
+		result, err := request.Store.DeleteByID(request.AccountID, collection, uint64(query))
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, result.(map[string]interface{}))
+	default:
+		return nil, errors.New("invalid type for query")
 	}
-	result, err := request.Store.DeleteByID(request.AccountID, collection, uint64(id))
-	if err != nil {
-		return nil, err
-	}
-	data = append(data, result.(map[string]interface{}))
 
 	return data, nil
 }

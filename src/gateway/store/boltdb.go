@@ -20,13 +20,7 @@ type BoltDBStore struct {
 	boltdb *bolt.DB
 }
 
-func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) (interface{}, error) {
-	delete(object.(map[string]interface{}), "$id")
-	value, err := json.Marshal(object)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) ([]interface{}, error) {
 	tx, err := s.boltdb.Begin(true)
 	if err != nil {
 		return nil, err
@@ -43,14 +37,42 @@ func (s *BoltDBStore) Insert(accountID int64, collection string, object interfac
 		return nil, err
 	}
 
-	key, err := bucket.NextSequence()
-	if err != nil {
-		return nil, err
+	add := func(object interface{}) error {
+		delete(object.(map[string]interface{}), "$id")
+		value, err := json.Marshal(object)
+		if err != nil {
+			return err
+		}
+
+		key, err := bucket.NextSequence()
+		if err != nil {
+			return err
+		}
+
+		err = bucket.Put(itob(key), value)
+		if err != nil {
+			return err
+		}
+		object.(map[string]interface{})["$id"] = key
+
+		return nil
 	}
 
-	err = bucket.Put(itob(key), value)
-	if err != nil {
-		return nil, err
+	var results []interface{}
+	if objects, valid := object.([]interface{}); valid {
+		for _, object := range objects {
+			err := add(object)
+			if err != nil {
+				return nil, err
+			}
+		}
+		results = objects
+	} else {
+		err := add(object)
+		if err != nil {
+			return nil, err
+		}
+		results = []interface{}{object}
 	}
 
 	err = tx.Commit()
@@ -58,9 +80,7 @@ func (s *BoltDBStore) Insert(accountID int64, collection string, object interfac
 		return nil, err
 	}
 
-	object.(map[string]interface{})["$id"] = key
-
-	return object, nil
+	return results, nil
 }
 
 func (s *BoltDBStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
@@ -177,8 +197,8 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 	return _json, nil
 }
 
-func (s *BoltDBStore) Select(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
-	tx, err := s.boltdb.Begin(false)
+func (s *BoltDBStore) Delete(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
+	tx, err := s.boltdb.Begin(true)
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +214,40 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 		return nil, errors.New("collection doesn't exist")
 	}
 
+	objects, err := s._Select(tx, accountID, collection, query, params...)
+	if err != nil {
+		return nil, err
+	}
+	for _, object := range objects {
+		id := object.(map[string]interface{})["$id"].(uint64)
+		err = bucket.Delete(itob(id))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return objects, nil
+}
+
+func (s *BoltDBStore) _Select(tx *bolt.Tx, accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
+	account := tx.Bucket(itob(uint64(accountID)))
+	if account == nil {
+		return nil, errors.New("bucket for account doesn't exist")
+	}
+
+	bucket := account.Bucket([]byte(collection))
+	if bucket == nil {
+		return nil, errors.New("collection doesn't exist")
+	}
+
 	jql := &JQL{Buffer: query}
 	jql.Init()
-	err = jql.Parse()
+	err := jql.Parse()
 	if err != nil {
 		return nil, err
 	}
@@ -273,6 +324,21 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 			}
 			key, value = cursor.Next()
 		}
+	}
+
+	return results, nil
+}
+
+func (s *BoltDBStore) Select(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
+	tx, err := s.boltdb.Begin(false)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	results, err := s._Select(tx, accountID, collection, query, params...)
+	if err != nil {
+		return nil, err
 	}
 
 	return results, nil
