@@ -615,8 +615,10 @@ AP.Store.Request.prototype.update = function(collection, id, object) {
  * Deletes an object from a collection.
  *
  * @param {string} collection The collection to delete the object from.
- * @param {Number} id The id of the object to delete.
+ * @param {string|Number} query A query or id for the object(s) to delete.
  */
-AP.Store.Request.prototype.delete = function(collection, id) {
-  this.query("delete", collection, id);
+AP.Store.Request.prototype.delete = function(collection, query) {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift("delete");
+  this.query.apply(this, args);
 }
