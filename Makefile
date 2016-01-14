@@ -98,20 +98,46 @@ runpg:
 test: build
 	go test ./src/...
 
-test_api_sqlite_fast:
+build_tail:
+	go build -o ./bin/tail ./src/tail/main.go
+
+test_api_sqlite_fast: build_tail
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -proxy-domain="example.com" -proxy-domain="example.com" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 30
+	-rm ./tmp/gateway_log.txt
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+	  -db-conn-string="./tmp/gateway_test.db" \
+	  -proxy-domain="example.com" \
+	  -proxy-domain="example.com" \
+	  -server="true" > ./tmp/gateway_log.txt & \
+	  echo "$$!" > ./tmp/server.pid
+
+	# Sleep until we see "Server listening" or time out
+	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
+
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
 test_api_sqlite: build test_api_sqlite_fast
 
-test_api_postgres_fast:
+test_api_postgres_fast: build_tail
+	mkdir -p tmp
+	-rm ./tmp/gateway_log.txt
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" -proxy-domain="example.com" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 30
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+	  -db-driver=postgres \
+	  -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" \
+	  -proxy-domain="example.com" \
+	  -server="true" > ./tmp/gateway_log.txt & \
+	  echo "$$!" > ./tmp/server.pid
+
+	# Sleep until we see "Server listening" or time out
+	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
+
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
 test_api_postgres: build test_api_postgres_fast
@@ -161,6 +187,8 @@ vendor_get: vendor_clean
 	github.com/gdamore/mangos \
 	github.com/xeipuuv/gojsonschema \
 	gopkg.in/airbrake/gobrake.v2 \
+	gopkg.in/tomb.v1 \
+	github.com/hpcloud/tail \
 	github.com/go-ldap/ldap
 
 vendor_update: vendor_get
