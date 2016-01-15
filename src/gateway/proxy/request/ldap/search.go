@@ -50,7 +50,7 @@ func (s *SearchOperation) PrettyString() string {
 	return buf.String()
 }
 
-// Invoke satisfies LDAPOperation's Invoke method
+// Invoke satisfies apldap.Operation's Invoke method
 func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 	var scope int
 	var deref int

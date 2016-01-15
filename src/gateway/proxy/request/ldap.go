@@ -14,12 +14,6 @@ import (
 	"github.com/go-ldap/ldap"
 )
 
-// LDAPOperation represents an operation against an LDAP server.
-type LDAPOperation interface {
-	Invoke(*ldap.Conn) (*apldap.Response, error)
-	PrettyString() string
-}
-
 // LDAPRequest encapsulates a request to an LDAP server
 type LDAPRequest struct {
 	Host     string
@@ -28,14 +22,14 @@ type LDAPRequest struct {
 	Password string
 
 	operationName string
-	arguments     LDAPOperation
+	arguments     apldap.Operation
 	options       map[string]interface{}
 
 	connection *apldap.ConnectionAdapter
 }
 
 // UnmarshalJSON is a custom method to unmarshal LDAPRequest.  A custom method
-// is needed since 'arguments' is an LDAPOperation, which is not a concrete
+// is needed since 'arguments' is an ldap.Operation, which is not a concrete
 // type, but an interface
 func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 
@@ -97,12 +91,14 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	var op LDAPOperation
+	var op apldap.Operation
 
 	if arguments != nil {
 		switch l.operationName {
 		case "search":
 			op = apldap.NewSearchOperation(l.options)
+		case "bind":
+			op = new(apldap.BindOperation)
 		case "":
 		default:
 			return fmt.Errorf("Unsupported LDAP operation %s", l.operationName)

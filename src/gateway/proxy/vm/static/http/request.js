@@ -674,3 +674,14 @@ AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
   };
   this._execute(searchParams, "search", opts);
 }
+
+/**
+ * Execute a bind request.
+ */
+AP.LDAP.Request.prototype.bind = function(username, password) {
+  var bindParams = {
+    "username": username,
+    "password": password
+  };
+  this._execute(bindParams, "bind");
+}
