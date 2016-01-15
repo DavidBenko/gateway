@@ -7,9 +7,10 @@ import (
 
 // Response represents the result of an LDAP operation
 type Response struct {
-	SearchResult      *SearchResult `json:"searchResults,omitempty"`
-	StatusCode        uint8         `json:"statusCode"`
-	StatusDescription string        `json:"statusDescription,omitempty"`
+	SearchResult      *SearchResult  `json:"searchResults,omitempty"`
+	CompareResult     *CompareResult `json:"compareResult,omitempty"`
+	StatusCode        uint8          `json:"statusCode"`
+	StatusDescription string         `json:"statusDescription,omitempty"`
 }
 
 // JSON satisfies JSON method of request.Response

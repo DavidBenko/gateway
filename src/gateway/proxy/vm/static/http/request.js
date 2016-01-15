@@ -722,3 +722,16 @@ AP.LDAP.Request.prototype.modify = function(dinstinguishedName, addAttributes, d
 
   this._execute(modifyParams, "modify");
 }
+
+/**
+ * Execute a compare request
+ */
+AP.LDAP.Request.prototype.compare = function(distinguishedName, attribute, value) {
+  var compareParams = {
+    "distinguishedName": distinguishedName,
+    "attribute": attribute,
+    "value": value
+  }
+
+  this._execute(compareParams, "compare");
+}
