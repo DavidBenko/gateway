@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	aperrors "gateway/errors"
@@ -29,6 +30,19 @@ type LDAPRequest struct {
 	operationName string
 	arguments     LDAPOperation
 	options       map[string]interface{}
+
+	connection *LDAPConnectionAdapter
+}
+
+// LDAPConnectionAdapter is a wrapper for an ldap.Conn which implements the io.Closer interface
+type LDAPConnectionAdapter struct {
+	conn *ldap.Conn
+}
+
+// Close closes the ldap.Conn
+func (a *LDAPConnectionAdapter) Close() error {
+	a.conn.Close()
+	return nil
 }
 
 // UnmarshalJSON is a custom method to unmarshal LDAPRequest.  A custom method
@@ -171,16 +185,31 @@ func (l *LDAPRequest) Log(devMode bool) string {
 
 // Perform satisfies request.Request's Perform method
 func (l *LDAPRequest) Perform() Response {
-	conn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Host, l.Port))
-	if err != nil {
-		return NewErrorResponse(aperrors.NewWrapped("[ldap] Dialing ldap endpoint", err))
-	}
-
-	defer conn.Close()
-	resp, err := l.arguments.Invoke(conn)
+	resp, err := l.arguments.Invoke(l.connection.conn)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[ldap] Executing operation", err))
 	}
 
 	return resp
+}
+
+// CreateOrReuse satisfies Initialize method on request.ReusableConnection
+func (l *LDAPRequest) CreateOrReuse(conn io.Closer) (io.Closer, error) {
+	if conn == nil {
+		newConn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", l.Host, l.Port))
+		if err != nil {
+			return nil, aperrors.NewWrapped("[ldap] Dialing ldap endpoint", err)
+		}
+
+		l.connection = &LDAPConnectionAdapter{newConn}
+
+		return l.connection, nil
+	}
+
+	if ldapConn, ok := conn.(*LDAPConnectionAdapter); ok {
+		l.connection = ldapConn
+		return ldapConn, nil
+	}
+
+	return nil, fmt.Errorf("Expected conn to be of type *LDAPConnectionAdapter")
 }

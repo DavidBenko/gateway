@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
+	aperrors "gateway/errors"
 	"gateway/model"
 	"gateway/proxy/request"
 	"gateway/proxy/vm"
@@ -17,6 +19,7 @@ func (s *Server) getRequests(
 	vm *vm.ProxyVM,
 	callNames []string,
 	endpointCalls []*model.ProxyEndpointCall,
+	connections map[int64]io.Closer,
 ) ([]request.Request, error) {
 	rawRequests, err := vm.PrepareRawRequests(callNames)
 	if err != nil {
@@ -28,7 +31,7 @@ func (s *Server) getRequests(
 		if call.RemoteEndpoint == nil {
 			return nil, errors.New("Remote endpoint is not loaded")
 		}
-		request, err := s.prepareRequest(call.RemoteEndpoint, rawRequests[i])
+		request, err := s.prepareRequest(call.RemoteEndpoint, rawRequests[i], connections)
 		if err != nil {
 			return nil, err
 		}
@@ -41,30 +44,49 @@ func (s *Server) getRequests(
 func (s *Server) prepareRequest(
 	endpoint *model.RemoteEndpoint,
 	data *json.RawMessage,
+	connections map[int64]io.Closer,
 ) (request.Request, error) {
 	if !model.IsRemoteEndpointTypeEnabled(endpoint.Type) {
 		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
 	}
 
+	var r request.Request
+	var e error
+
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
-		return request.NewHTTPRequest(s.httpClient, endpoint, data)
+		r, e = request.NewHTTPRequest(s.httpClient, endpoint, data)
 	case model.RemoteEndpointTypeSQLServer:
-		return request.NewSQLServerRequest(s.dbPools, endpoint, data)
+		r, e = request.NewSQLServerRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypePostgres:
-		return request.NewPostgresRequest(s.dbPools, endpoint, data)
+		r, e = request.NewPostgresRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeMySQL:
-		return request.NewMySQLRequest(s.dbPools, endpoint, data)
+		r, e = request.NewMySQLRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeMongo:
-		return request.NewMongoRequest(s.dbPools, endpoint, data)
+		r, e = request.NewMongoRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeSoap:
-		return request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
+		r, e = request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
 	case model.RemoteEndpointTypeScript:
-		return request.NewScriptRequest(endpoint, data)
+		r, e = request.NewScriptRequest(endpoint, data)
 	case model.RemoteEndpointTypeLDAP:
-		return request.NewLDAPRequest(endpoint, data)
+		r, e = request.NewLDAPRequest(endpoint, data)
+	default:
+		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
-	return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
+
+	if e != nil {
+		return r, e
+	}
+
+	if sc, ok := r.(request.ReusableConnection); ok {
+		conn, err := sc.CreateOrReuse(connections[endpoint.ID])
+		if err != nil {
+			return nil, aperrors.NewWrapped("[requests.go] initializing sticky connection", err)
+		}
+		connections[endpoint.ID] = conn
+	}
+
+	return r, nil
 }
 
 type responsePayload struct {
