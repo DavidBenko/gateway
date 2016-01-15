@@ -31,18 +31,7 @@ type LDAPRequest struct {
 	arguments     LDAPOperation
 	options       map[string]interface{}
 
-	connection *LDAPConnectionAdapter
-}
-
-// LDAPConnectionAdapter is a wrapper for an ldap.Conn which implements the io.Closer interface
-type LDAPConnectionAdapter struct {
-	conn *ldap.Conn
-}
-
-// Close closes the ldap.Conn
-func (a *LDAPConnectionAdapter) Close() error {
-	a.conn.Close()
-	return nil
+	connection *apldap.ConnectionAdapter
 }
 
 // UnmarshalJSON is a custom method to unmarshal LDAPRequest.  A custom method
@@ -185,7 +174,7 @@ func (l *LDAPRequest) Log(devMode bool) string {
 
 // Perform satisfies request.Request's Perform method
 func (l *LDAPRequest) Perform() Response {
-	resp, err := l.arguments.Invoke(l.connection.conn)
+	resp, err := l.arguments.Invoke(l.connection.Conn)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[ldap] Executing operation", err))
 	}
@@ -201,15 +190,15 @@ func (l *LDAPRequest) CreateOrReuse(conn io.Closer) (io.Closer, error) {
 			return nil, aperrors.NewWrapped("[ldap] Dialing ldap endpoint", err)
 		}
 
-		l.connection = &LDAPConnectionAdapter{newConn}
+		l.connection = &apldap.ConnectionAdapter{newConn}
 
 		return l.connection, nil
 	}
 
-	if ldapConn, ok := conn.(*LDAPConnectionAdapter); ok {
+	if ldapConn, ok := conn.(*apldap.ConnectionAdapter); ok {
 		l.connection = ldapConn
 		return ldapConn, nil
 	}
 
-	return nil, fmt.Errorf("Expected conn to be of type *LDAPConnectionAdapter")
+	return nil, fmt.Errorf("Expected conn to be of type *ldap.ConnectionAdapter")
 }
