@@ -174,6 +174,12 @@ func (l *LDAPRequest) Log(devMode bool) string {
 
 // Perform satisfies request.Request's Perform method
 func (l *LDAPRequest) Perform() Response {
+	if l.Username != "" && l.Password != "" {
+		if err := l.connection.Conn.Bind(l.Username, l.Password); err != nil {
+			return NewErrorResponse(aperrors.NewWrapped("[ldap] Invalid credentials", err))
+		}
+	}
+
 	resp, err := l.arguments.Invoke(l.connection.Conn)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[ldap] Executing operation", err))
