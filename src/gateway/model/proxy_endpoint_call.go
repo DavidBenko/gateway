@@ -30,7 +30,7 @@ type ProxyEndpointCall struct {
 func (c *ProxyEndpointCall) Validate() aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.RemoteEndpointID == 0 {
-		errors.Add("remote_endpoint_id", "must be non-zero")
+		errors.Add("remote_endpoint_id", "must specify a remote endpoint")
 	}
 
 	return errors

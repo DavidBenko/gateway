@@ -16,7 +16,7 @@ func (s *ModelSuite) TestProxyEndpointCallValidate(c *gc.C) {
 	}{{
 		should: "validate missing RemoteEndpointID",
 		expectErrors: aperrors.Errors{
-			"remote_endpoint_id": []string{"must be non-zero"},
+			"remote_endpoint_id": []string{"must specify a remote endpoint"},
 		},
 	}, {
 		should:        "validate acceptable Call",
