@@ -697,3 +697,11 @@ AP.LDAP.Request.prototype.bind = function(username, password) {
 
    this._execute(addParams, "add");
  }
+
+ AP.LDAP.Request.prototype.delete = function(distinguishedName) {
+   var deleteParams = {
+     "distinguishedName": distinguishedName
+   };
+
+   this._execute(deleteParams, "delete");
+ }

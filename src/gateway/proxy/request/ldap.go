@@ -101,6 +101,8 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 			op = new(apldap.BindOperation)
 		case "add":
 			op = new(apldap.AddOperation)
+		case "delete":
+			op = new(apldap.DeleteOperation)
 		case "":
 		default:
 			return fmt.Errorf("Unsupported LDAP operation %s", l.operationName)
