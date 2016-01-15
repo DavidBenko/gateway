@@ -685,3 +685,15 @@ AP.LDAP.Request.prototype.bind = function(username, password) {
   };
   this._execute(bindParams, "bind");
 }
+
+/**
+ * Execute an add request
+ */
+ AP.LDAP.Request.prototype.add = function(distinguishedName, attributes) {
+   var addParams = {
+     "distinguishedName": distinguishedName,
+     "attributes": attributes
+   };
+
+   this._execute(addParams, "add");
+ }
