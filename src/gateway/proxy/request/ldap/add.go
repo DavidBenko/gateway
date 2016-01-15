@@ -21,12 +21,6 @@ func ConvertToLDAPAddRequest(addOp *AddOperation) *ldap.AddRequest {
 	return addReq
 }
 
-// Attribute represents an LDAP attribute
-type Attribute struct {
-	Type   string   `json:"type"`
-	Values []string `json:"values"`
-}
-
 // PrettyString returns a pretty string representation of the SearchOperation
 func (a *AddOperation) PrettyString() string {
 	var buf bytes.Buffer

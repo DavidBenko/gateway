@@ -689,19 +689,36 @@ AP.LDAP.Request.prototype.bind = function(username, password) {
 /**
  * Execute an add request
  */
- AP.LDAP.Request.prototype.add = function(distinguishedName, attributes) {
-   var addParams = {
-     "distinguishedName": distinguishedName,
-     "attributes": attributes
-   };
+AP.LDAP.Request.prototype.add = function(distinguishedName, attributes) {
+  var addParams = {
+    "distinguishedName": distinguishedName,
+    "attributes": attributes
+  };
 
-   this._execute(addParams, "add");
- }
+  this._execute(addParams, "add");
+}
 
- AP.LDAP.Request.prototype.delete = function(distinguishedName) {
-   var deleteParams = {
-     "distinguishedName": distinguishedName
-   };
+/**
+ * Execute a delete request
+ */
+AP.LDAP.Request.prototype.delete = function(distinguishedName) {
+  var deleteParams = {
+    "distinguishedName": distinguishedName
+  };
 
-   this._execute(deleteParams, "delete");
- }
+  this._execute(deleteParams, "delete");
+}
+
+/**
+ * Execute a modify request
+ */
+AP.LDAP.Request.prototype.modify = function(dinstinguishedName, addAttributes, deleteAttributes, replaceAttributes) {
+  var modifyParams = {
+    "distinguishedName": dinstinguishedName,
+    "addAttributes": addAttributes,
+    "deleteAttributes": deleteAttributes,
+    "replaceAttributes": replaceAttributes
+  };
+
+  this._execute(modifyParams, "modify");
+}
