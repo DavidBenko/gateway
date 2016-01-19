@@ -5,7 +5,8 @@ type JQL Peg {
 }
 
 e <- sp e1 ( order / limit / offset )* !.
-order <- "order" sp path ( asc / desc ) sp
+order <- "order" sp ( cast / path ) ( asc / desc ) sp
+cast <- 'numeric' sp open path close
 asc <- "asc"
 desc <- "desc"
 limit <- "limit" sp value1

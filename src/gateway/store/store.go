@@ -4,6 +4,8 @@ import (
 	"gateway/config"
 
 	"github.com/boltdb/bolt"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 const (
@@ -36,6 +38,20 @@ func Configure(conf config.Store) (Store, error) {
 		}
 
 		return &s, nil
+	} else if conf.Type == StoreTypePostgres {
+		p := PostgresStore{conf: conf}
+		var err error
+		p.db, err = sqlx.Open("postgres", conf.ConnectionString)
+		if err != nil {
+			return nil, err
+		}
+
+		err = p.Migrate()
+		if err != nil {
+			return nil, err
+		}
+
+		return &p, nil
 	}
 
 	return nil, nil
