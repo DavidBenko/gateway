@@ -46,6 +46,8 @@ func Configure(conf config.Store) (Store, error) {
 			return nil, err
 		}
 
+		p.db.SetMaxOpenConns(int(conf.MaxConnections))
+
 		err = p.Migrate()
 		if err != nil {
 			return nil, err
