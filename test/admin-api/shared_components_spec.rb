@@ -104,7 +104,7 @@ describe "shared_components" do
         @other_account_remote_endpoint_id,
         @other_account_id,
         :single,
-      )
+      ).merge({ name: 'special other name' })
     expect_status(200)
     @other_account_shared_component_id = json_body[:shared_component][:id]
     logout!
@@ -231,7 +231,6 @@ describe "shared_components" do
       context "with a wrong type" do
         before(:all) do
           clear_shared_components!
-          ordinary =
           post "/apis/#{@existent_api_id}/shared_components",
             shared_component: shared_component_for(
               @existent_api_id,
@@ -337,17 +336,16 @@ describe "shared_components" do
 
       context "with valid data" do
         before(:all) do
-          also_ordinary = @ordinary.dup
-          also_ordinary[:name] = 'Updated single'
-          put "/apis/#{@existent_api_id}/shared_components/#{also_ordinary[:id]}",
-            { shared_component: also_ordinary }
+          @also_ordinary = @ordinary.dup
+          @also_ordinary[:name] = 'Updated single'
+          put "/apis/#{@existent_api_id}/shared_components/#{@also_ordinary[:id]}",
+            shared_component: @also_ordinary
           expect_status(200)
-          @expect_sh = json_body[:shared_component]
-            .merge({ name: 'Updated single' })
+          get "/apis/#{@existent_api_id}/shared_components/#{@also_ordinary[:id]}"
         end
 
         it_behaves_like "a valid shared_component"
-        it { expect_json("shared_component", @expect_sh) }
+        it { expect_json("shared_component", @also_ordinary) }
       end
 
       context "with invalid json" do
@@ -362,7 +360,7 @@ describe "shared_components" do
       context "without a name" do
         before(:all) do
           put "/apis/#{@existent_api_id}/shared_components/#{@ordinary[:id]}",
-            { shared_component: @ordinary.without(:name) }
+            shared_component: @ordinary.without(:name)
         end
 
         it { expect_status(400) }
@@ -392,13 +390,9 @@ describe "shared_components" do
 
       context "with the same name as a shared_component on another account" do
         before(:all) do
-          post "/apis/#{@existent_api_id}/shared_components",
-            shared_component: shared_component_for(
-              @existent_api_id,
-              @existent_remote_endpoint_id,
-              @foo_account_id,
-              :single,
-            )
+          put "/apis/#{@existent_api_id}/shared_components/#{@ordinary[:id]}",
+            shared_component: @ordinary.merge({ name: 'special other name' })
+          expect_status(200)
         end
 
         it_behaves_like "a valid shared_component"
@@ -406,7 +400,8 @@ describe "shared_components" do
 
       context "non-existing" do
         before(:all) do
-          put "/apis/#{@existent_api_id}/shared_components/#{@ordinary[:id]+100}", shared_component: @ordinary
+          put "/apis/#{@existent_api_id}/shared_components/#{@ordinary[:id]+100}",
+            shared_component: @ordinary
         end
 
         it_behaves_like "a missing shared_component"
@@ -414,7 +409,8 @@ describe "shared_components" do
 
       context "mismatched account" do
         before(:all) do
-          put "/apis/#{@existent_api_id}/shared_components/#{@other_account_shared_component_id}", shared_component: @ordinary
+          put "/apis/#{@existent_api_id}/shared_components/#{@other_account_shared_component_id}",
+            shared_component: @ordinary
         end
 
         it_behaves_like "a missing shared_component"
