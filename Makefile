@@ -43,7 +43,7 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
 	go-bindata -o src/gateway/mail/bindata.go -pkg mail $(BINDATA_DEBUG) -prefix "src/gateway/mail/static/" src/gateway/mail/static/...
 
-generate: install_goimports
+generate: install_goimports install_peg
 	go generate gateway/...
 
 DeveloperVersionAccounts = 1
@@ -174,6 +174,9 @@ install_bindata:
 
 install_goimports:
 	if hash goimports 2>/dev/null; then : ; else go install code.google.com/p/go.tools/cmd/goimports/...; fi;
+
+install_peg:
+	if hash peg 2>/dev/null; then : ; else go install github.com/pointlander/peg; fi;
 
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet
