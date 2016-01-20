@@ -122,6 +122,10 @@ def fixtures
       },
     },
     transformations: {
+      empty: {
+        type: 'js',
+        data: '',
+      },
       basic: {
         type: 'js',
         data: 'some_basic_javascript();',
@@ -178,6 +182,17 @@ def fixtures
   }
 
   fixts[:calls] = {
+    basic_notrans: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:empty],
+      ],
+      after: [
+        fixts[:transformations][:empty],
+      ],
+    },
     basic: {
       endpoint_name_override: '',
       conditional: 'something conditional',
@@ -222,6 +237,21 @@ def fixtures
         fixts[:transformations][:normal],
       ],
       call: fixts[:calls][:basic],
+      data: {},
+    },
+    single_notrans: {
+      name: 'Single notrans',
+      description: 'A shared_component without transformations',
+      type: 'single',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:empty],
+      ],
+      after: [
+        fixts[:transformations][:empty],
+      ],
+      call: fixts[:calls][:basic_notrans],
       data: {},
     },
     multi: {
