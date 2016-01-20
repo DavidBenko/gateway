@@ -143,7 +143,7 @@ describe "proxy_endpoints" do
         @other_account_id,
         [{ shared_component_id: @other_account_shared_component_id }],
         :simple,
-      ).merge({ name: 'boop' })
+      ).merge({ name: 'a special other name' })
     expect_status(200)
     @other_account_proxy_endpoint_id = json_body[:proxy_endpoint][:id]
 
@@ -408,6 +408,7 @@ describe "proxy_endpoints" do
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
           expect_status(200)
+          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
         end
 
         it_behaves_like "a valid proxy_endpoint"
@@ -427,6 +428,8 @@ describe "proxy_endpoints" do
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
           expect_status(200)
+          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
+          expect_status(200)
         end
 
         it_behaves_like "a valid proxy_endpoint"
@@ -441,6 +444,8 @@ describe "proxy_endpoints" do
           })
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
+          expect_status(200)
+          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
           expect_status(200)
         end
 
@@ -463,6 +468,8 @@ describe "proxy_endpoints" do
                           @ordinary[:components][1],
                           json_body[:proxy_endpoint][:components][2] ],
           })
+          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
+          expect_status(200)
         end
 
         it_behaves_like "a valid proxy_endpoint"
@@ -484,6 +491,8 @@ describe "proxy_endpoints" do
                           json_body[:proxy_endpoint][:components][1],
                           @ordinary[:components][1] ]
           })
+          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
+          expect_status(200)
         end
 
         it_behaves_like "a valid proxy_endpoint"
@@ -534,15 +543,8 @@ describe "proxy_endpoints" do
 
       context "with the same name as a proxy_endpoint on another account" do
         before(:all) do
-          post "/apis/#{@existent_api_id}/proxy_endpoints",
-            proxy_endpoint: proxy_endpoint_for(
-              @existent_api_id,
-              @existent_env_id,
-              @existent_remote_endpoint_id,
-              @foo_account_id,
-              [{ shared_component_id: @existent_shared_component[:id] }],
-              :simple,
-            ).merge({ name: 'boop' })
+          put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
+            proxy_endpoint: @ordinary.merge({ name: 'a special other name' })
         end
 
         it_behaves_like "a valid proxy_endpoint"
