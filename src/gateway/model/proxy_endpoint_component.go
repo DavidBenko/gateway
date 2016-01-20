@@ -597,11 +597,11 @@ func (c *ProxyEndpointComponent) UpdateRelationships(
 	for position, transformation := range c.AfterTransformations {
 		if transformation.ID == 0 {
 			err = transformation.InsertForComponent(
-				tx, c.ID, true, position,
+				tx, c.ID, false, position,
 			)
 		} else {
 			err = transformation.UpdateForComponent(
-				tx, c.ID, true, position,
+				tx, c.ID, false, position,
 			)
 		}
 
