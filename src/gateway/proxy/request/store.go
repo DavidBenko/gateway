@@ -154,6 +154,11 @@ var storeOperations = map[string]storeOperation{
 func (r *StoreRequest) Perform() (_response Response) {
 	response := &StoreResponse{}
 	_response = response
+	defer func() {
+		if r := recover(); r != nil {
+			response.Error = fmt.Sprintf("%v", r)
+		}
+	}()
 
 	op := r.Arguments["0"]
 	if _, valid := op.(string); !valid {
