@@ -7,8 +7,7 @@ SELECT
   , pc.api_id as api_id
   , pc.name as name
   , pc.description as description
-FROM proxy_endpoint_components AS pc, apis
-WHERE pc.api_id = apis.id
-  AND pc.api_id = ?
+FROM proxy_endpoint_components pc
+WHERE pc.api_id = ?
   AND pc.type_discriminator = 'shared'
 ORDER BY pc.name ASC;
