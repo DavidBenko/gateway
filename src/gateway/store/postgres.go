@@ -104,8 +104,12 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.db.Queryx("UPDATE objects SET object = $1 WHERE id = $2 AND account_id = $3 AND collection = $4;",
+	rows, err := s.db.Queryx("UPDATE objects SET object = $1 WHERE id = $2 AND account_id = $3 AND collection = $4;",
 		string(value), id, accountID, collection)
+	if err != nil {
+		return nil, err
+	}
+	err = rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -114,23 +118,18 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 }
 
 func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64) (interface{}, error) {
-	rows, err := s.db.Queryx("DELETE FROM objects WHERE id = $1 AND account_id = $2 AND collection = $3 RETURNING *;", id, accountID, collection)
+	object := Object{}
+	err := s.db.Get(&object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 AND collection = $3 RETURNING *;", id, accountID, collection)
 	if err != nil {
 		return nil, err
 	}
+
 	var result interface{}
-	if rows.Next() {
-		var o Object
-		err = rows.StructScan(&o)
-		if err != nil {
-			return nil, err
-		}
-		err := json.Unmarshal([]byte(o.Object), &result)
-		if err != nil {
-			return nil, err
-		}
-		result.(map[string]interface{})["$id"] = o.ID
+	err = json.Unmarshal([]byte(object.Object), &result)
+	if err != nil {
+		return nil, err
 	}
+	result.(map[string]interface{})["$id"] = object.ID
 
 	return result, nil
 }
@@ -205,7 +204,11 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 	}
 	for _, object := range results {
 		id := object.(map[string]interface{})["$id"].(int64)
-		_, err := stmt.Queryx(id, accountID, collection)
+		rows, err := stmt.Queryx(id, accountID, collection)
+		if err != nil {
+			return nil, err
+		}
+		err = rows.Close()
 		if err != nil {
 			return nil, err
 		}
@@ -441,15 +444,15 @@ func pgProcessExpression(node *node32, context *Context) (q Query) {
 			q.errors = append(q.errors, errors.New("placholder to large"))
 			return
 		}
-		switch param := context.param[placeholder-1].(type) {
+		switch context.param[placeholder-1].(type) {
 		case string:
-			q.s = fmt.Sprintf("%v %v '%v'", q.s, op, param)
+			q.s = fmt.Sprintf("%v %v $%v", q.s, op, placeholder)
 		case float64:
-			q.s = fmt.Sprintf("CAST(%v as FLOAT) %v %v", q.s, op, param)
+			q.s = fmt.Sprintf("CAST(%v as FLOAT) %v $%v", q.s, op, placeholder)
 		case int:
-			q.s = fmt.Sprintf("CAST(%v as INTEGER) %v %v", q.s, op, param)
+			q.s = fmt.Sprintf("CAST(%v as INTEGER) %v $%v", q.s, op, placeholder)
 		case bool:
-			q.s = fmt.Sprintf("CAST(%v as BOOLEAN) %v %v", q.s, op, param)
+			q.s = fmt.Sprintf("CAST(%v as BOOLEAN) %v $%v", q.s, op, placeholder)
 		default:
 			switch op {
 			case "=":
