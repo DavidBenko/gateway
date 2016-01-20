@@ -224,13 +224,13 @@ func TestSelect(t *testing.T) {
 			t.Fatal("object $id should be set")
 		}
 	}
-	objects, err := s.Select(0, "people", "age >= 18 order age asc")
+	objects, err := s.Select(0, "people", "age >= 21 order numeric(age) asc")
 	t.Log(objects)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(objects) != 3 {
-		t.Fatal("there should be 3 objects")
+	if len(objects) != 2 {
+		t.Fatal("there should be 2 objects")
 	}
 	for _, object := range objects {
 		if object.(map[string]interface{})["$id"] == nil {

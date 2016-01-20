@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"strconv"
@@ -333,7 +334,7 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, accountID int64, collection string, q
 			key, value = cursor.Next()
 		}
 		var sorted sort.Interface
-		sorted = &Results{results, constraints.order.path}
+		sorted = &Results{results, constraints.order.path, constraints.order.numeric}
 		if constraints.order.dir == "desc" {
 			sorted = sort.Reverse(sorted)
 		}
@@ -421,8 +422,9 @@ type Value struct {
 type Constraints struct {
 	errors []error
 	order  struct {
-		path []string
-		dir  string
+		path    []string
+		dir     string
+		numeric bool
 	}
 	hasLimit  bool
 	limit     int
@@ -439,6 +441,7 @@ type Context struct {
 type Results struct {
 	results []interface{}
 	path    []string
+	numeric bool
 }
 
 var _ sort.Interface = (*Results)(nil)
@@ -447,44 +450,33 @@ func (r *Results) Len() int {
 	return len(r.results)
 }
 
-func (r *Results) walkPath(i int) interface{} {
+func (r *Results) walkPath(i int) (string, bool) {
 	_json, valid := r.results[i], false
 	for _, path := range r.path {
 		_json, valid = _json.(map[string]interface{})[path]
 		if !valid {
-			return nil
+			return "", false
 		}
 	}
-	return _json
+	return fmt.Sprintf("%v", _json), true
 }
 
 func (r *Results) Less(i, j int) bool {
-	ii, jj := r.walkPath(i), r.walkPath(j)
-	if ii == nil || jj == nil {
+	ii, ivalid := r.walkPath(i)
+	jj, jvalid := r.walkPath(j)
+	if !ivalid || !jvalid {
 		return false
 	}
-	switch ii := ii.(type) {
-	case string:
-		if jj, valid := jj.(string); valid {
+	if r.numeric {
+		iii, jjj := &big.Rat{}, &big.Rat{}
+		_, ivalid = iii.SetString(ii)
+		_, jvalid = jjj.SetString(jj)
+		if !ivalid || !jvalid {
 			return ii < jj
 		}
-	case json.Number:
-		if jj, valid := jj.(json.Number); valid {
-			iii, jjj := &big.Rat{}, &big.Rat{}
-			iii.SetString(ii.String())
-			jjj.SetString(jj.String())
-			return iii.Cmp(jjj) < 0
-		}
-	case float64:
-		if jj, valid := jj.(float64); valid {
-			return ii < jj
-		}
-	case bool:
-		if jj, valid := jj.(bool); valid {
-			return !ii && jj
-		}
+		return iii.Cmp(jjj) < 0
 	}
-	return false
+	return ii < jj
 }
 
 func (r *Results) Swap(i, j int) {
@@ -512,17 +504,32 @@ func (c *Constraints) processOrder(node *node32, context *Context) {
 	for node != nil {
 		switch node.pegRule {
 		case rulepath:
-			path := node.up
-			for path != nil {
-				if path.pegRule == ruleword {
-					c.order.path = append(c.order.path, string(context.buffer[path.begin:path.end]))
-				}
-				path = path.next
-			}
+			c.processPath(node.up, context)
+		case rulecast:
+			c.processCast(node.up, context)
 		case ruleasc:
 			c.order.dir = string(context.buffer[node.begin:node.end])
 		case ruledesc:
 			c.order.dir = string(context.buffer[node.begin:node.end])
+		}
+		node = node.next
+	}
+}
+
+func (c *Constraints) processCast(node *node32, context *Context) {
+	c.order.numeric = true
+	for node != nil {
+		if node.pegRule == rulepath {
+			c.processPath(node.up, context)
+		}
+		node = node.next
+	}
+}
+
+func (c *Constraints) processPath(node *node32, context *Context) {
+	for node != nil {
+		if node.pegRule == ruleword {
+			c.order.path = append(c.order.path, string(context.buffer[node.begin:node.end]))
 		}
 		node = node.next
 	}
@@ -708,6 +715,7 @@ func processExpression(node *node32, context *Context) (v Value) {
 	node = node.next
 	op := strings.TrimSpace(string(context.buffer[node.begin:node.end]))
 	node = node.next.up
+	_a := fmt.Sprintf("%v", _json)
 	switch node.pegRule {
 	case ruleplaceholder:
 		placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
@@ -722,49 +730,35 @@ func processExpression(node *node32, context *Context) (v Value) {
 		}
 		switch _b := context.param[placeholder-1].(type) {
 		case string:
-			if _a, valid := _json.(string); valid {
-				v.b = compareString(op, _a, _b)
-			}
+			v.b = compareString(op, _a, _b)
 		case float64:
-			if _a, valid := _json.(json.Number); valid {
-				a, b := &big.Rat{}, &big.Rat{}
-				a.SetString(_a.String())
-				b.SetFloat64(_b)
-				v.b = compareRat(op, a, b)
-			}
+			a, b := &big.Rat{}, &big.Rat{}
+			a.SetString(_a)
+			b.SetFloat64(_b)
+			v.b = compareRat(op, a, b)
 		case int:
-			if _a, valid := _json.(json.Number); valid {
-				a, b := &big.Rat{}, &big.Rat{}
-				a.SetString(_a.String())
-				b.SetInt64(int64(_b))
-				v.b = compareRat(op, a, b)
-			}
+			a, b := &big.Rat{}, &big.Rat{}
+			a.SetString(_a)
+			b.SetInt64(int64(_b))
+			v.b = compareRat(op, a, b)
 		case bool:
-			if a, valid := _json.(bool); valid {
-				v.b = compareBool(op, a, _b)
-			}
+			v.b = compareBool(op, _a == "true", _b)
 		default:
 			v.b = compareNull(op, _json, _b)
 		}
 	case rulestring:
 		b := string(context.buffer[node.begin+1 : node.end-1])
-		if a, valid := _json.(string); valid {
-			v.b = compareString(op, a, b)
-		}
+		v.b = compareString(op, _a, b)
 	case rulenumber:
 		_b := string(context.buffer[node.begin:node.end])
 		b := &big.Rat{}
 		b.SetString(_b)
-		if _a, valid := _json.(json.Number); valid {
-			a := &big.Rat{}
-			a.SetString(_a.String())
-			v.b = compareRat(op, a, b)
-		}
+		a := &big.Rat{}
+		a.SetString(_a)
+		v.b = compareRat(op, a, b)
 	case ruleboolean:
 		b := string(context.buffer[node.begin:node.end])
-		if a, valid := _json.(bool); valid {
-			v.b = compareBool(op, a, b == "true")
-		}
+		v.b = compareBool(op, _a == "true", b == "true")
 	case rulenull:
 		v.b = compareNull(op, _json, nil)
 	}
