@@ -239,6 +239,7 @@ func AllProxyEndpointComponentsForEnvironmentOnAPI(
 		&components,
 		db.SQL("proxy_endpoint_component_references/all_endpoint"),
 		endpointID,
+		endpointID,
 	)
 	if err != nil {
 		return nil, err
