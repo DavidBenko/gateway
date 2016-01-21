@@ -235,9 +235,18 @@ func AllProxyEndpointComponentsForEnvironmentOnAPI(
 	apiID, envID, endpointID int64,
 ) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
+
+	script := "proxy_endpoint_component_references/all_endpoint_"
+	switch db.Driver {
+	case apsql.Sqlite3:
+		script += "sqlite3"
+	case apsql.Postgres:
+		script += "postgres"
+	}
+
 	err := db.Select(
 		&components,
-		db.SQL("proxy_endpoint_component_references/all_endpoint"),
+		db.SQL(script),
 		endpointID,
 		endpointID,
 	)
