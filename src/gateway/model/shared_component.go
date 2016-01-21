@@ -77,7 +77,7 @@ func populateSharedComponents(db *apsql.DB, shared []*SharedComponent) error {
 }
 
 // AllSharedComponentsForAPI returns a map of all Shared Components for the
-// given API ID with all relationships populated, keyed by ID.
+// given API ID without relationships populated, keyed by ID.
 func AllSharedComponentsForAPI(db *apsql.DB, apiID int64) (
 	map[int64]*SharedComponent, error,
 ) {
@@ -88,12 +88,7 @@ func AllSharedComponentsForAPI(db *apsql.DB, apiID int64) (
 		db.SQL("proxy_endpoint_components/all_shared_api"),
 		apiID,
 	)
-
 	if err != nil {
-		return nil, err
-	}
-
-	if err = populateSharedComponents(db, sharedCs); err != nil {
 		return nil, err
 	}
 

@@ -44,6 +44,7 @@ type ProxyEndpointComponent struct {
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
 	Data                  types.JsonText                 `json:"data,omitempty"`
 	SharedComponentID     *int64                         `json:"shared_component_id,omitempty" db:"-"`
+	SharedComponentHandle *ProxyEndpointComponent        `json:"-" db:"-"`
 
 	// TypeDiscriminator can be "standard" or "shared" to indicate whether
 	// the component has a synthetic reference to a shared component.
@@ -192,11 +193,46 @@ func PopulateComponents(
 	return nil
 }
 
-// AllProxyEndpointComponentsForEndpointID returns all components of a
-// ProxyEndpoint given its ID.  Only standard (non-shared) Components will have
-// their relationships populated.
-func AllProxyEndpointComponentsForEndpointID(
-	db *apsql.DB, endpointID int64,
+// PopulateCalls populates the RemoteEndpoint handles of the calls of the given
+// ProxyEndpointComponents for a particular Environment ID.  This function
+// mutates the given map.
+func PopulateCalls(
+	db *apsql.DB,
+	envID int64,
+	componentsByID map[int64]*ProxyEndpointComponent,
+) error {
+	var remoteEndpointIDs []int64
+	callsByRemoteEndpointID := make(map[int64][]*ProxyEndpointCall)
+	for _, component := range componentsByID {
+		for _, call := range component.AllCalls() {
+			rID := call.RemoteEndpointID
+			remoteEndpointIDs = append(remoteEndpointIDs, rID)
+			callsByRemoteEndpointID[rID] = append(callsByRemoteEndpointID[rID], call)
+		}
+	}
+	remoteEndpoints, err := AllRemoteEndpointsForIDsInEnvironment(
+		db, remoteEndpointIDs, envID,
+	)
+	if err != nil {
+		return aperrors.NewWrapped("fetching remote endpoints", err)
+	}
+
+	for _, re := range remoteEndpoints {
+		for _, call := range callsByRemoteEndpointID[re.ID] {
+			call.RemoteEndpoint = re
+		}
+	}
+
+	return nil
+}
+
+// AllProxyEndpointComponentsForEnvironmentOnAPI returns all components of a
+// ProxyEndpoint given an API ID and its ID.  Components having a non-nil
+// SharedComponentID will have their SharedComponentHandle, and its
+// relationships, populated.
+func AllProxyEndpointComponentsForEnvironmentOnAPI(
+	db *apsql.DB,
+	apiID, envID, endpointID int64,
 ) ([]*ProxyEndpointComponent, error) {
 	components := []*ProxyEndpointComponent{}
 	err := db.Select(
@@ -204,6 +240,14 @@ func AllProxyEndpointComponentsForEndpointID(
 		db.SQL("proxy_endpoint_component_references/all_endpoint"),
 		endpointID,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	shared, err := AllSharedComponentsForAPI(db, apiID)
+	if err != nil {
+		return nil, err
+	}
 
 	var componentIDs []int64
 	componentsByID := make(map[int64]*ProxyEndpointComponent)
@@ -215,6 +259,18 @@ func AllProxyEndpointComponentsForEndpointID(
 			// ProxyEndpointComponent.ID is a reference into the
 			// proxy_endpoint_components table.
 			component.SharedComponentID = sharedID
+			// The ProxyEndpointComponent of the SharedComponent
+			// must also be populated.
+			if referencedSharedComp, ok := shared[component.ID]; ok {
+				referencedComp := &(referencedSharedComp.ProxyEndpointComponent)
+				componentIDs = append(componentIDs, component.ID)
+				componentsByID[component.ID] = referencedComp
+				// The SharedComponentHandle of the component will point
+				// to the referenced ProxyEndpointComponent.
+				component.SharedComponentHandle = referencedComp
+			} else {
+				return nil, fmt.Errorf("no SharedComponent with id %d found", *sharedID)
+			}
 		case TypeDiscStandard:
 			// Populate only components without a Shared reference.
 			componentIDs = append(componentIDs, component.ID)
@@ -222,9 +278,15 @@ func AllProxyEndpointComponentsForEndpointID(
 		}
 	}
 
-	err = PopulateComponents(db, componentIDs, componentsByID)
+	if err := PopulateComponents(db, componentIDs, componentsByID); err != nil {
+		return nil, err
+	}
 
-	return components, err
+	if err := PopulateCalls(db, envID, componentsByID); err != nil {
+		return nil, err
+	}
+
+	return components, nil
 }
 
 // DeleteProxyEndpointComponentsWithEndpointIDAndRefNotInSlice deletes

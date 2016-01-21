@@ -124,7 +124,9 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 		return nil, err
 	}
 
-	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
+		db, apiID, proxyEndpoint.EnvironmentID, id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +144,9 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 		return nil, aperrors.NewWrapped("Finding proxy endpoint", err)
 	}
 
-	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
+		db, proxyEndpoint.APIID, proxyEndpoint.EnvironmentID, id,
+	)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching components", err)
 	}
@@ -150,25 +154,6 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, id)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching tests", err)
-	}
-
-	var remoteEndpointIDs []int64
-	callsByRemoteEndpointID := make(map[int64][]*ProxyEndpointCall)
-	for _, component := range proxyEndpoint.Components {
-		for _, call := range component.AllCalls() {
-			remoteEndpointIDs = append(remoteEndpointIDs, call.RemoteEndpointID)
-			callsByRemoteEndpointID[call.RemoteEndpointID] = append(callsByRemoteEndpointID[call.RemoteEndpointID], call)
-		}
-	}
-	remoteEndpoints, err := AllRemoteEndpointsForIDsInEnvironment(db,
-		remoteEndpointIDs, proxyEndpoint.EnvironmentID)
-	if err != nil {
-		return nil, aperrors.NewWrapped("Fetching remote endpoints", err)
-	}
-	for _, remoteEndpoint := range remoteEndpoints {
-		for _, call := range callsByRemoteEndpointID[remoteEndpoint.ID] {
-			call.RemoteEndpoint = remoteEndpoint
-		}
 	}
 
 	proxyEndpoint.Environment, err = FindEnvironmentForProxy(db, proxyEndpoint.EnvironmentID)
