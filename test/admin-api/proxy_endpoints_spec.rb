@@ -349,20 +349,7 @@ describe "proxy_endpoints" do
             :simple,
           )
         expect_status(200)
-        @expect_pe = json_body[:proxy_endpoint].merge({
-          components: [
-            {
-              proxy_endpoint_component_reference_id:
-                json_body[:proxy_endpoint][:components][0][:proxy_endpoint_component_reference_id],
-              type: '',
-              conditional: '',
-              conditional_positive: false,
-              data: {},
-              proxy_endpoint_component_id: @existent_shared_component[:id],
-              shared_component_id: @existent_shared_component[:id],
-            },
-          ],
-        })
+        @expect_pe = json_body[:proxy_endpoint]
         @pe_id = @expect_pe[:id]
       end
 
@@ -414,17 +401,10 @@ describe "proxy_endpoints" do
           @new_pe = @ordinary.merge({ name: 'Updated proxy' })
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
-          expect_status(200)
-          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
         end
 
         it_behaves_like "a valid proxy_endpoint"
-        it { expect_json("proxy_endpoint", @new_pe.merge({
-          components: [
-            @new_pe[:components][0],
-            @new_pe[:components][1].merge({ data: {} }),
-          ],
-        })) }
+        it { expect_json("proxy_endpoint", @new_pe) }
       end
 
       context 'with an updated non-shared component' do
@@ -437,21 +417,13 @@ describe "proxy_endpoints" do
               @ordinary[:components][1],
             ],
           })
-          @expect = @new_pe.merge({
-            components: [
-              @new_pe[:components][0],
-              @new_pe[:components][1].merge({ data: {} }),
-            ],
-          })
 
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
-          expect_status(200)
-          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
         end
 
         it_behaves_like "a valid proxy_endpoint"
-        it { expect_json("proxy_endpoint", @expect) }
+        it { expect_json("proxy_endpoint", @new_pe) }
       end
 
       context "with rearranged components" do
@@ -460,36 +432,28 @@ describe "proxy_endpoints" do
             components: [ @ordinary[:components][1],
                           @ordinary[:components][0] ]
           })
-          @expect = @new_pe.merge({
-            components: [ @ordinary[:components][1].merge({ data: {} }),
-                          @ordinary[:components][0] ]
-          })
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
             proxy_endpoint: @new_pe
-          expect_status(200)
-          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
         end
 
         it_behaves_like "a valid proxy_endpoint"
-        it { expect_json("proxy_endpoint", @expect) }
+        it { expect_json("proxy_endpoint", @new_pe) }
       end
 
       context "with an added non-shared component" do
         before(:all) do
-          @new_pe = @ordinary.merge({
+          new_pe = @ordinary.merge({
             components: [ @ordinary[:components][0],
                           @ordinary[:components][1],
                           fixtures[:components][:simple] ]
           })
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
-            proxy_endpoint: @new_pe
-          expect_status(200)
-          @expect = @new_pe.merge({
-            components: [ @ordinary[:components][0],
-                          @ordinary[:components][1].merge({ data: {} }),
-                          json_body[:proxy_endpoint][:components][2] ],
-          })
-          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
+            proxy_endpoint: new_pe
+          @expect = new_pe.merge({ components: [
+            @ordinary[:components][0],
+            @ordinary[:components][1],
+            json_body[:proxy_endpoint][:components][2],
+          ] })
         end
 
         it_behaves_like "a valid proxy_endpoint"
@@ -498,20 +462,23 @@ describe "proxy_endpoints" do
 
       context "with an added shared component in the middle" do
         before(:all) do
-          @new_pe = @ordinary.merge({
+          new_pe = @ordinary.merge({
             components: [ @ordinary[:components][0],
 	                  { shared_component_id: @second_shared_component_id },
                           @ordinary[:components][1] ]
           })
+
           put "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}",
-            proxy_endpoint: @new_pe
-          expect_status(200)
-          @expect = @new_pe.merge({
-            components: [ @ordinary[:components][0],
-                          json_body[:proxy_endpoint][:components][1].merge({ data: {} }),
-                          @ordinary[:components][1].merge({ data: {} }) ]
-          })
-          get "/apis/#{@existent_api_id}/proxy_endpoints/#{@ordinary[:id]}"
+            proxy_endpoint: new_pe
+
+          @expect = new_pe.merge({ components: [
+            @ordinary[:components][0],
+      	    json_body[:proxy_endpoint][:components][1].merge({
+              shared_component_id: @second_shared_component_id,
+              proxy_endpoint_component_id: @second_shared_component_id,
+            }),
+            @ordinary[:components][1],
+          ] })
         end
 
         it_behaves_like "a valid proxy_endpoint"

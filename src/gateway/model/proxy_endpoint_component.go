@@ -370,6 +370,8 @@ VALUES (
 	*c.ProxyEndpointComponentReferenceID = crID
 	c.ID = *c.SharedComponentID
 
+	c.Data = types.JsonText("{}")
+
 	return nil
 }
 
