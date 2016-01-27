@@ -166,6 +166,7 @@ func (p *ProxyVM) serverSession(call otto.FunctionCall) *ServerSession {
 			runtimeError("Couldn't make UUID for server session store.")
 		}
 		p.w.Header().Set(p.serverStore.Header, uuid)
+		p.serverStore.UUID = uuid
 		session = ServerSession{
 			SessionName: sessionName,
 			SessionUUID: uuid,
