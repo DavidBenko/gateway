@@ -28,6 +28,7 @@ const DEFAULT_MAX_AGE = 30 * 24 * 60 * 60
 
 type ServerStore struct {
 	Header string
+	UUID   string
 }
 
 type ServerSession struct {
@@ -76,7 +77,11 @@ func (p *ProxyVM) setupSessionStore(env *model.Environment) error {
 		p.Set("__ap_session_delete", p.serverSessionDelete)
 		p.Set("__ap_session_set_options", p.serverSessionSetOptions)
 
-		p.serverStore = &ServerStore{env.SessionHeader}
+		p.serverStore = &ServerStore{Header: env.SessionHeader}
+		if headers := p.r.Header[p.serverStore.Header]; len(headers) > 0 {
+			p.serverStore.UUID = headers[0]
+			p.w.Header().Add(p.serverStore.Header, headers[0])
+		}
 	}
 	return nil
 }
@@ -145,8 +150,8 @@ func (p *ProxyVM) serverSession(call otto.FunctionCall) *ServerSession {
 	}
 
 	session := ServerSession{}
-	if headers := p.r.Header[p.serverStore.Header]; len(headers) > 0 {
-		err := p.db.Get(&session, p.db.SQL("sessions/find"), sessionName, headers[0])
+	if p.serverStore.UUID != "" {
+		err := p.db.Get(&session, p.db.SQL("sessions/find"), sessionName, p.serverStore.UUID)
 		if err == nil {
 			err = json.Unmarshal([]byte(session.SessionValues), &session.Values)
 			if err != nil {
@@ -160,7 +165,7 @@ func (p *ProxyVM) serverSession(call otto.FunctionCall) *ServerSession {
 		if err != nil {
 			runtimeError("Couldn't make UUID for server session store.")
 		}
-		p.w.Header().Add(p.serverStore.Header, uuid)
+		p.w.Header().Set(p.serverStore.Header, uuid)
 		session = ServerSession{
 			SessionName: sessionName,
 			SessionUUID: uuid,
