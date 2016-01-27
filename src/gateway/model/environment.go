@@ -9,6 +9,11 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
+const (
+	SessionTypeClient = "client"
+	SessionTypeServer = "server"
+)
+
 // Environment represents a environment the API is available on.
 type Environment struct {
 	AccountID int64 `json:"-"`
@@ -20,6 +25,8 @@ type Environment struct {
 	Description string         `json:"description"`
 	Data        types.JsonText `json:"data"`
 
+	SessionType                string `json:"session_type" db:"session_type"`
+	SessionHeader              string `json:"session_header" db:"session_header"`
 	SessionName                string `json:"session_name" db:"session_name"`
 	SessionAuthKey             string `json:"session_auth_key" db:"session_auth_key"`
 	SessionEncryptionKey       string `json:"session_encryption_key" db:"session_encryption_key"`
@@ -103,6 +110,7 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 	}
 	e.ID, err = tx.InsertOne(tx.SQL("environments/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, data,
+		e.SessionType, e.SessionHeader,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors)
 	if err != nil {
@@ -119,6 +127,7 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	}
 	err = tx.UpdateOne(tx.SQL("environments/update"),
 		e.Name, e.Description, data,
+		e.SessionType, e.SessionHeader,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
 		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors,
 		e.ID, e.APIID, e.AccountID)

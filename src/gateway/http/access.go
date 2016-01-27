@@ -19,7 +19,7 @@ func AccessLoggingHandler(prefix string, uuidHeader string, handler http.Handler
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 
-		uuid, err := newUUID()
+		uuid, err := NewUUID()
 		if err != nil {
 			logreport.Printf("%s Could not generate request UUID", prefix)
 			uuid = "x"
@@ -69,7 +69,7 @@ func NewAccessLoggingRouter(prefix, uuidHeader string, router *mux.Router) *Acce
 }
 
 // newUUID generates a random UUID according to RFC 4122
-func newUUID() (string, error) {
+func NewUUID() (string, error) {
 	uuid := make([]byte, 16)
 	n, err := io.ReadFull(rand.Reader, uuid)
 	if n != len(uuid) || err != nil {
