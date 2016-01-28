@@ -22,6 +22,7 @@ type Configuration struct {
 	License        string `flag:"license"`
 	LicenseContent string `flag:"license-content"`
 	Server         bool   `flag:"server" default:"false"`
+	Jobs           bool   `flag:"jobs" default:"true"`
 
 	Airbrake       Airbrake
 	Database       Database
