@@ -31,6 +31,7 @@ type API struct {
 	RemoteEndpoints      []*RemoteEndpoint      `json:"remote_endpoints,omitempty"`
 	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
 	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
+	ScratchPads          []*ScratchPad          `json:"scratch_pads,omitempty"`
 	ExportVersion        int64                  `json:"export_version,omitempty"`
 }
 

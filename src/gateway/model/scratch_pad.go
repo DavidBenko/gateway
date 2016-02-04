@@ -1,6 +1,8 @@
 package model
 
 import (
+	"errors"
+
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
@@ -18,6 +20,9 @@ type ScratchPad struct {
 	Name                            string         `json:"name"`
 	Code                            string         `json:"code"`
 	Data                            types.JsonText `json:"data" db:"data"`
+
+	// Export Indices
+	ExportRemoteEndpointEnvironmentDataIndex int `json:"remote_endpoint_environment_data_index,omitempty"`
 }
 
 func (s *ScratchPad) Validate(isInsert bool) aperrors.Errors {
@@ -32,8 +37,17 @@ func (s *ScratchPad) ValidateFromDatabaseError(err error) aperrors.Errors {
 
 func (s *ScratchPad) All(db *apsql.DB) ([]*ScratchPad, error) {
 	pads := []*ScratchPad{}
-	err := db.Select(&pads, db.SQL("scratch_pads/all"),
-		s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
+	var err error
+	if s.APIID > 0 && s.AccountID > 0 {
+		if s.RemoteEndpointEnvironmentDataID > 0 && s.RemoteEndpointID > 0 {
+			err = db.Select(&pads, db.SQL("scratch_pads/all"),
+				s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
+		} else {
+			err = db.Select(&pads, db.SQL("scratch_pads/all_api"), s.APIID, s.AccountID)
+		}
+	} else {
+		err = errors.New("APIID and AccountID required for All")
+	}
 	return pads, err
 }
 

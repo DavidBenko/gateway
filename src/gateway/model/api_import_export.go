@@ -65,6 +65,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		return nil, aperrors.NewWrapped("Fetching remote endpoints", err)
 	}
 	remoteEndpointsIndexMap := make(map[int64]int)
+	environmentDataIndexMap, environmentDataIndex := make(map[int64]int), 1
 	for index, endpoint := range api.RemoteEndpoints {
 		remoteEndpointsIndexMap[endpoint.ID] = index + 1
 		endpoint.APIID = 0
@@ -72,6 +73,9 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		for _, envData := range endpoint.EnvironmentData {
 			envData.ExportEnvironmentIndex = environmentsIndexMap[envData.EnvironmentID]
 			envData.EnvironmentID = 0
+			environmentDataIndexMap[envData.ID] = environmentDataIndex
+			environmentDataIndex++
+			envData.ID = 0
 		}
 		if endpoint.Soap != nil && endpoint.Soap.Wsdl != "" {
 			if err := endpoint.encodeWsdlForExport(); err != nil {
@@ -132,6 +136,17 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		schema.ID = 0
 	}
 
+	pad := ScratchPad{AccountID: accountID, APIID: id}
+	api.ScratchPads, err = pad.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching scratch pads", err)
+	}
+	for _, pad := range api.ScratchPads {
+		pad.ID = 0
+		pad.ExportRemoteEndpointEnvironmentDataIndex = environmentDataIndexMap[pad.RemoteEndpointEnvironmentDataID]
+		pad.RemoteEndpointEnvironmentDataID = 0
+	}
+
 	return api, nil
 }
 
@@ -186,6 +201,10 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	}
 
 	remoteEndpointsIDMap := make(map[int]int64)
+	type environmentDataIDs struct {
+		remoteEndpointID, remoteEndpointEnvironmentDataID int64
+	}
+	environmentDataIDMap, environmentDataIndex := make(map[int]environmentDataIDs), 1
 	for index, endpoint := range a.RemoteEndpoints {
 		for _, envData := range endpoint.EnvironmentData {
 			envData.EnvironmentID = environmentsIDMap[envData.ExportEnvironmentIndex]
@@ -203,6 +222,10 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 			return aperrors.NewWrapped("Inserting remote endpoint", err)
 		}
 		remoteEndpointsIDMap[index+1] = endpoint.ID
+		for _, envData := range endpoint.EnvironmentData {
+			environmentDataIDMap[environmentDataIndex] = environmentDataIDs{endpoint.ID, envData.ID}
+			environmentDataIndex++
+		}
 	}
 
 	proxyEndpointsIDMap := make(map[int]int64)
@@ -245,5 +268,20 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 	}
 
+	for _, pad := range a.ScratchPads {
+		pad.AccountID = a.AccountID
+		pad.UserID = a.UserID
+		pad.APIID = a.ID
+		ids := environmentDataIDMap[pad.ExportRemoteEndpointEnvironmentDataIndex]
+		pad.RemoteEndpointID = ids.remoteEndpointID
+		pad.RemoteEndpointEnvironmentDataID = ids.remoteEndpointEnvironmentDataID
+		if vErr := pad.Validate(true); !vErr.Empty() {
+			return fmt.Errorf("Unable to validate scratch pad: %v", vErr)
+		}
+		err = pad.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting scratch pad", err)
+		}
+	}
 	return nil
 }
