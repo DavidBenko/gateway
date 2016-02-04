@@ -39,17 +39,45 @@ func (s *ScratchPad) All(db *apsql.DB) ([]*ScratchPad, error) {
 
 func (s *ScratchPad) Find(db *apsql.DB) (*ScratchPad, error) {
 	pad := ScratchPad{}
-	return &pad, nil
+	err := db.Get(&pad, db.SQL("scratch_pads/find"), s.ID,
+		s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
+	return &pad, err
 }
 
 func (s *ScratchPad) Delete(tx *apsql.Tx) error {
-	return nil
+	err := tx.DeleteOne(tx.SQL("scratch_pads/delete"), s.ID,
+		s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("scratch_pads", s.AccountID, s.UserID, s.APIID, 0, s.ID, apsql.Delete)
 }
 
 func (s *ScratchPad) Insert(tx *apsql.Tx) error {
-	return nil
+	data, err := marshaledForStorage(s.Data)
+	if err != nil {
+		return err
+	}
+
+	s.ID, err = tx.InsertOne(tx.SQL("scratch_pads/insert"),
+		s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID,
+		s.Name, s.Code, data)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("scratch_pads", s.AccountID, s.UserID, s.APIID, 0, s.ID, apsql.Insert)
 }
 
 func (s *ScratchPad) Update(tx *apsql.Tx) error {
-	return nil
+	data, err := marshaledForStorage(s.Data)
+	if err != nil {
+		return err
+	}
+
+	err = tx.UpdateOne(tx.SQL("scratch_pads/update"), s.Name, s.Code, data, s.ID,
+		s.RemoteEndpointEnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("scratch_pads", s.AccountID, s.UserID, s.APIID, 0, s.ID, apsql.Update)
 }
