@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/core"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
@@ -53,7 +54,7 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		Otto:                    shared.Copy(),
+		Otto:                    core.VMCopy(),
 		conf:                    conf,
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
@@ -176,28 +177,3 @@ func osEnvironmentScript() string {
 		strings.Join(keypairs, ",\n"))
 	return script
 }
-
-var shared = func() *otto.Otto {
-	vm := otto.New()
-
-	var files = []string{
-		"gateway.js",
-		"sessions.js",
-		"call.js",
-		"http/request.js",
-		"http/response.js",
-	}
-	for _, filename := range files {
-		fileJS, err := Asset(filename)
-		if err != nil {
-			logreport.Fatal(err)
-		}
-
-		_, err = vm.Run(fileJS)
-		if err != nil {
-			logreport.Fatal(err)
-		}
-	}
-
-	return vm
-}()

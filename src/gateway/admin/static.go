@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/core"
 	"gateway/logreport"
 	"gateway/model"
-	"gateway/proxy/vm"
 	"gateway/version"
 
 	"github.com/gorilla/mux"
@@ -57,7 +57,7 @@ func adminStaticFileHandler(conf config.ProxyAdmin) func(http.ResponseWriter, *h
 		// Make JS request objects & functions available to the front-end so that
 		// the front-end can introspect on those functions for autocomplete purposes
 		if path == "ap-request.js" {
-			serveAsset(w, r, "http/request.js", vm.Asset)
+			serveAsset(w, r, "http/request.js", core.Asset)
 			return
 		}
 

@@ -1,13 +1,11 @@
 package proxy
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
+	"gateway/core/request"
 	"gateway/model"
-	"gateway/proxy/request"
 	"gateway/proxy/vm"
 )
 
@@ -28,7 +26,7 @@ func (s *Server) getRequests(
 		if call.RemoteEndpoint == nil {
 			return nil, errors.New("Remote endpoint is not loaded")
 		}
-		request, err := s.prepareRequest(call.RemoteEndpoint, rawRequests[i])
+		request, err := s.PrepareRequest(call.RemoteEndpoint, rawRequests[i])
 		if err != nil {
 			return nil, err
 		}
@@ -36,33 +34,6 @@ func (s *Server) getRequests(
 	}
 
 	return requests, nil
-}
-
-func (s *Server) prepareRequest(
-	endpoint *model.RemoteEndpoint,
-	data *json.RawMessage,
-) (request.Request, error) {
-	if !model.IsRemoteEndpointTypeEnabled(endpoint.Type) {
-		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
-	}
-
-	switch endpoint.Type {
-	case model.RemoteEndpointTypeHTTP:
-		return request.NewHTTPRequest(s.httpClient, endpoint, data)
-	case model.RemoteEndpointTypeSQLServer:
-		return request.NewSQLServerRequest(s.dbPools, endpoint, data)
-	case model.RemoteEndpointTypePostgres:
-		return request.NewPostgresRequest(s.dbPools, endpoint, data)
-	case model.RemoteEndpointTypeMySQL:
-		return request.NewMySQLRequest(s.dbPools, endpoint, data)
-	case model.RemoteEndpointTypeMongo:
-		return request.NewMongoRequest(s.dbPools, endpoint, data)
-	case model.RemoteEndpointTypeSoap:
-		return request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
-	case model.RemoteEndpointTypeScript:
-		return request.NewScriptRequest(endpoint, data)
-	}
-	return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 }
 
 type responsePayload struct {
