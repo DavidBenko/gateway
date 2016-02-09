@@ -48,6 +48,13 @@ func (c *PasswordResetController) Reset(w http.ResponseWriter, r *http.Request, 
 		return nil
 	}
 
+	if !user.Confirmed {
+		if user.HasConfirmToken() {
+			mail.SendConfirmEmail(c.SMTP, c.ProxyServer, c.conf, user, tx, true)
+		}
+		return nil
+	}
+
 	err = mail.SendResetEmail(c.SMTP, c.ProxyServer, c.conf, user, tx, true)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)

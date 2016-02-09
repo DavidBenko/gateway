@@ -147,6 +147,9 @@ func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *
 		}
 		for _, route := range routes {
 			path := map[string]interface{}{}
+			if _path, ok := paths[route.Path]; ok {
+				path = _path.(map[string]interface{})
+			}
 			for _, method := range route.Methods {
 				parameters := []interface{}{}
 				ok := map[string]interface{}{

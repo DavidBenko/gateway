@@ -226,23 +226,28 @@ type LogSearchResult struct {
 	Text string `json:"text"`
 }
 
+func convertStringToTime(t string) time.Time {
+	tt, _ := time.Parse("2006-01-02T15:04:05Z", t)
+	return tt
+}
+
+func convertTimeForElastic(t string) string {
+	tt := convertStringToTime(t)
+	return tt.Format("2006/01/02 15:04:05") + ".000000"
+}
+
 func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
 	e := elasti.NewConn()
 	e.SetFromUrl(c.Url)
 
 	queryMust := []interface{}{}
-	convert := func(t string) string {
-		tt, _ := time.Parse("2006-01-02T15:04:05Z", t)
-		return tt.Format("2006/01/02 15:04:05") + ".000000"
-	}
-
 	if len(r.Form["start"]) == 1 || len(r.Form["end"]) == 1 {
 		queryLogDate := map[string]interface{}{}
 		if len(r.Form["start"]) == 1 {
-			queryLogDate["gte"] = convert(r.Form["start"][0])
+			queryLogDate["gte"] = convertTimeForElastic(r.Form["start"][0])
 		}
 		if len(r.Form["end"]) == 1 {
-			queryLogDate["lte"] = convert(r.Form["end"][0])
+			queryLogDate["lte"] = convertTimeForElastic(r.Form["end"][0])
 		}
 		queryLogDate = map[string]interface{}{
 			"range": map[string]interface{}{
@@ -383,6 +388,13 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
 	var results []LogSearchResult
 	r.ParseForm()
+	if len(r.Form["start"]) == 1 && len(r.Form["end"]) == 1 {
+		start, end := convertStringToTime(r.Form["start"][0]), convertStringToTime(r.Form["end"][0])
+		if start.After(end) {
+			r.Form["start"][0], r.Form["end"][0] = r.Form["end"][0], r.Form["start"][0]
+		}
+	}
+
 	if c.Url == "" {
 		var httperr aphttp.Error
 		results, httperr = c.BleveSearch(r)

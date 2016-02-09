@@ -164,6 +164,8 @@ func main() {
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 
+	model.ConfigureDefaultAPIAccessScheme(conf.Admin.DefaultAPIAccessScheme)
+
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db)
