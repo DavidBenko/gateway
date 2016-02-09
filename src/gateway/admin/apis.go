@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/aymerick/raymond"
 	"github.com/gorilla/handlers"
 	"github.com/vincent-petithory/dataurl"
 )
@@ -115,8 +116,14 @@ func (c *APIsController) AfterInsert(api *model.API, tx *apsql.Tx) error {
 		api.Normalize()
 	}
 
-	if err := c.addDefaultHost(api, tx); err != nil {
+	var host *model.Host
+	var err error
+	if host, err = c.addDefaultHost(api, tx); err != nil {
 		return err
+	}
+
+	if host != nil {
+		api.Hosts = []*model.Host{host}
 	}
 
 	return nil
@@ -137,9 +144,9 @@ func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) err
 	return nil
 }
 
-func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) error {
+func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) (*model.Host, error) {
 	if !c.conf.CreateDefaultHost {
-		return nil
+		return nil, nil
 	}
 
 	generatedHostName := names.GenerateHostName()
@@ -150,8 +157,63 @@ func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) error {
 	host.APIID = api.ID
 
 	if err := host.Insert(tx); err != nil {
+		return nil, err
+	}
+
+	return host, nil
+}
+
+// AfterFind does some work after finding a record in the database
+func (c *APIsController) AfterFind(api *model.API, db *apsql.DB) error {
+	hosts, err := model.AllHostsForAPIIDAndAccountID(db, api.ID, api.AccountID)
+	if err != nil {
 		return err
 	}
 
+	api.Hosts = hosts
+
 	return nil
+}
+
+type enhancedAPI struct {
+	*model.API
+	BaseURL string `json:"base_url"`
+}
+
+func (c *APIsController) addBaseURL(api *model.API) *enhancedAPI {
+	hosts := make([]string, len(api.Hosts), len(api.Hosts))
+	for idx, host := range api.Hosts {
+		hosts[idx] = host.Hostname
+	}
+	interpolated, err := c.interpolateDefaultAPIAccessScheme(hosts)
+	if err != nil {
+		logreport.Printf("Encountered error attempting to interpolate hosts to produce API base URL: %v", err)
+	}
+	return &enhancedAPI{API: api, BaseURL: interpolated}
+}
+
+func (c *APIsController) interpolateDefaultAPIAccessScheme(hosts []string) (string, error) {
+	if hosts == nil || len(hosts) == 0 {
+		return "", nil
+	}
+
+	if !strings.Contains(c.conf.DefaultAPIAccessScheme, "{{") && !strings.Contains(c.conf.DefaultAPIAccessScheme, "}}") {
+		return c.conf.DefaultAPIAccessScheme, nil
+	}
+
+	return interpolate(c.conf.DefaultAPIAccessScheme, map[string]interface{}{"hosts": hosts})
+}
+
+func interpolate(expression string, ctx map[string]interface{}) (string, error) {
+	templ, err := raymond.Parse(expression)
+	if err != nil {
+		return "", err
+	}
+
+	result, err := templ.Exec(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
