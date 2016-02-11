@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"gateway/code"
@@ -542,7 +543,7 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 	}
 
 	err := DeleteJarFile(remoteEndpoint.Soap.ID)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		logreport.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
@@ -738,7 +739,7 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 	}
 
 	soapRemoteEndpoint.Wsdl = soap.Wsdl
-	soapRemoteEndpoint.GeneratedJarThumbprint = ""
+	soapRemoteEndpoint.GeneratedJarThumbprint = apsql.MakeNullStringNull()
 	soapRemoteEndpoint.RemoteEndpoint = e
 
 	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)

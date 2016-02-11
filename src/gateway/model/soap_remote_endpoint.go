@@ -32,7 +32,7 @@ type SoapRemoteEndpoint struct {
 	ID                     int64  `json:"-" db:"id"`
 	Wsdl                   string `json:"-"`
 	generatedJar           []byte
-	GeneratedJarThumbprint string `json:"-" db:"generated_jar_thumbprint"`
+	GeneratedJarThumbprint apsql.NullString `json:"-" db:"generated_jar_thumbprint"`
 
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
@@ -80,7 +80,7 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 
 		err := DeleteJarFile(remoteEndpointID)
 
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			logreport.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, err)
 		}
 	}
@@ -425,7 +425,7 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 	}
 	e.generatedJar = bytes
 	checksum := md5.Sum(bytes)
-	e.GeneratedJarThumbprint = hex.EncodeToString(checksum[:])
+	e.GeneratedJarThumbprint = apsql.MakeNullString(hex.EncodeToString(checksum[:]))
 
 	err = e.update(tx, false, true)
 	if err != nil {
