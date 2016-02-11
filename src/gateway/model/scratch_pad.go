@@ -19,7 +19,7 @@ type ScratchPad struct {
 	RemoteEndpointEnvironmentDataID int64          `json:"remote_endpoint_environment_data_id" db:"remote_endpoint_environment_data_id" path:"environmentDataID"`
 	Name                            string         `json:"name"`
 	Code                            string         `json:"code"`
-	Data                            types.JsonText `json:"data" db:"data"`
+	Data                            types.JsonText `json:"-" db:"data"`
 
 	// Export Indices
 	ExportRemoteEndpointEnvironmentDataIndex int `json:"remote_endpoint_environment_data_index,omitempty"`

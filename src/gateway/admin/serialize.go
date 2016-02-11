@@ -78,7 +78,8 @@ func testIDFromPath(r *http.Request) int64 {
 }
 
 func mapFromPath(r *http.Request, object interface{}) {
-	typ3, value := reflect.TypeOf(object), reflect.ValueOf(object)
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
 	for i := 0; i < typ3.NumField(); i++ {
 		if path := typ3.Field(i).Tag.Get("path"); path != "" {
 			value.Field(i).SetInt(parseID(mux.Vars(r)[path]))
@@ -87,14 +88,18 @@ func mapFromPath(r *http.Request, object interface{}) {
 }
 
 func mapAccountID(id int64, object interface{}) {
-	if _, has := reflect.TypeOf(object).FieldByName("AccountID"); has {
-		reflect.ValueOf(object).FieldByName("AccountID").SetInt(id)
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
+	if _, has := typ3.FieldByName("AccountID"); has {
+		value.FieldByName("AccountID").SetInt(id)
 	}
 }
 
 func mapUserID(id int64, object interface{}) {
-	if _, has := reflect.TypeOf(object).FieldByName("UserID"); has {
-		reflect.ValueOf(object).FieldByName("UserID").SetInt(id)
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
+	if _, has := typ3.FieldByName("UserID"); has {
+		value.FieldByName("UserID").SetInt(id)
 	}
 }
 
