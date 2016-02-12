@@ -2,7 +2,6 @@ package admin
 
 import (
 	"encoding/json"
-	"log"
 
 	aphttp "gateway/http"
 	"gateway/model"
@@ -165,7 +164,6 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 				return
 			}
 
-			log.Printf("Sending websocket notification! %v", string([]byte(json)))
 			_, err = ws.Write(json)
 			if err != nil {
 				return
