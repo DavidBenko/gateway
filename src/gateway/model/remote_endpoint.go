@@ -3,6 +3,7 @@ package model
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"net/url"
@@ -147,7 +148,34 @@ func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors, isInsert bool) {
 
 	if sc.WSDL == "" && isInsert {
 		errors.Add("wsdl", "WSDL is required for new SOAP endpoints")
+		return
 	}
+
+	e.Soap = NewSoapRemoteEndpoint(e)
+	if sc.WSDL != "" {
+		decoded, err := dataurl.DecodeString(sc.WSDL)
+		if err != nil {
+			errors.Add("wsdl", "Unable to decode WSDL.")
+			return
+		}
+
+		wsdlDoc := struct {
+			XMLName xml.Name `xml:"definitions"`
+		}{}
+		if err = xml.Unmarshal(decoded.Data, &wsdlDoc); err != nil {
+			errors.Add("wsdl", "Must be a valid WSDL file")
+			return
+		}
+
+		xmlName := xml.Name{Space: "http://schemas.xmlsoap.org/wsdl/", Local: "definitions"}
+		if wsdlDoc.XMLName != xmlName {
+			errors.Add("wsdl", "Must be a valid WSDL file")
+			return
+		}
+
+		e.Soap.Wsdl = string(decoded.Data)
+	}
+
 }
 
 func ValidateURL(rurl string) aperrors.Errors {
@@ -596,14 +624,9 @@ func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
 	}
 
 	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
-	soap, err := NewSoapRemoteEndpoint(e)
-	if err != nil {
-		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object: %v", err)
-	}
-
-	e.Soap = &soap
 
 	var newVal types.JsonText
+	var err error
 	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
 		return err
 	}
@@ -717,10 +740,7 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 		return nil
 	}
 
-	soap, err := NewSoapRemoteEndpoint(e)
-	if err != nil {
-		return fmt.Errorf("Unable to construct SoapRemoteEndpoint object for update: %v", err)
-	}
+	newWsdlValue := e.Soap.Wsdl
 
 	soapRemoteEndpoint, err := FindSoapRemoteEndpointByRemoteEndpointID(tx.DB, e.ID)
 	if err != nil {
@@ -732,13 +752,14 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 	if newVal, err = removeJSONField(e.Data, "wsdl"); err != nil {
 		return err
 	}
+
 	e.Data = newVal
 
-	if soap.Wsdl == "" {
+	if newWsdlValue == "" {
 		return nil
 	}
 
-	soapRemoteEndpoint.Wsdl = soap.Wsdl
+	soapRemoteEndpoint.Wsdl = newWsdlValue
 	soapRemoteEndpoint.GeneratedJarThumbprint = apsql.MakeNullStringNull()
 	soapRemoteEndpoint.RemoteEndpoint = e
 
@@ -766,15 +787,15 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		}
 	}
 
-	encodedData, err := marshaledForStorage(e.Data)
-	if err != nil {
-		return err
-	}
-
 	if fireLifecycleHooks {
 		if err := e.beforeUpdate(tx); err != nil {
 			return err
 		}
+	}
+
+	encodedData, err := marshaledForStorage(e.Data)
+	if err != nil {
+		return err
 	}
 
 	err = tx.UpdateOne(
