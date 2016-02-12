@@ -41,6 +41,10 @@ func (r *MySQLRequest) Log(devMode bool) string {
 	return s
 }
 
+func (r *MySQLRequest) JSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
 func NewMySQLRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	request := &MySQLRequest{}
 	if err := json.Unmarshal(*data, request); err != nil {

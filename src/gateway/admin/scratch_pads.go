@@ -68,9 +68,8 @@ func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	result.Request = obj.String()
 	var rawRequest json.RawMessage
-	err = json.Unmarshal([]byte(result.Request), &rawRequest)
+	err = json.Unmarshal([]byte(obj.String()), &rawRequest)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
@@ -79,6 +78,11 @@ func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
+	jsonRequest, err := request.JSON()
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+	result.Request = string(jsonRequest)
 	response := request.Perform()
 	jsonResponse, err := response.JSON()
 	if err != nil {

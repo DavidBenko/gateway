@@ -145,6 +145,10 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
+func (soapRequest *SoapRequest) JSON() ([]byte, error) {
+	return json.Marshal(soapRequest)
+}
+
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
 	if exists, err := soapRequest.remoteEndpoint.Soap.JarExists(); err != nil {

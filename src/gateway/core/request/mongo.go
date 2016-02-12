@@ -414,6 +414,10 @@ func (request *MongoRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
+func (request *MongoRequest) JSON() ([]byte, error) {
+	return json.Marshal(request)
+}
+
 type MongoResponse struct {
 	Type  string                   `json:"type"`
 	Data  []map[string]interface{} `json:"data"`

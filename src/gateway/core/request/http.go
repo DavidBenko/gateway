@@ -81,6 +81,10 @@ func (h *HTTPRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
+func (h *HTTPRequest) JSON() ([]byte, error) {
+	return json.Marshal(h)
+}
+
 // ParseResponse takes a raw http.Response and creates an HTTPResponse.
 func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 	r := &HTTPResponse{

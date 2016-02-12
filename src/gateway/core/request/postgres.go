@@ -24,6 +24,10 @@ func (r *PostgresRequest) Log(devMode bool) string {
 	return s
 }
 
+func (r *PostgresRequest) JSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
 func NewPostgresRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	request := &PostgresRequest{}
 	if err := json.Unmarshal(*data, request); err != nil {
