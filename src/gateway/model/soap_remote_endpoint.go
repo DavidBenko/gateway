@@ -13,11 +13,8 @@ import (
 	"gateway/config"
 	aperrors "gateway/errors"
 	"gateway/logreport"
-	"gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"
-
-	"github.com/vincent-petithory/dataurl"
 )
 
 const (
@@ -197,25 +194,8 @@ func StartSoapRemoteEndpointUpdateListener(db *apsql.DB) {
 }
 
 // NewSoapRemoteEndpoint creates a new SoapRemoteEndpoint struct
-func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) (SoapRemoteEndpoint, error) {
-	soap := SoapRemoteEndpoint{RemoteEndpointID: remoteEndpoint.ID, RemoteEndpoint: remoteEndpoint}
-
-	data := remoteEndpoint.Data
-	soapConfig, err := remote_endpoint.SoapConfig(data)
-	if err != nil {
-		return soap, fmt.Errorf("Encountered an error attempting to extract soap config: %v", err)
-	}
-
-	if soapConfig.WSDL != "" {
-		decoded, err := dataurl.DecodeString(soapConfig.WSDL)
-		if err != nil {
-			return soap, fmt.Errorf("Encountered an error attempting to decode WSDL: %v", err)
-		}
-
-		soap.Wsdl = string(decoded.Data)
-	}
-
-	return soap, nil
+func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) *SoapRemoteEndpoint {
+	return &SoapRemoteEndpoint{RemoteEndpointID: remoteEndpoint.ID, RemoteEndpoint: remoteEndpoint}
 }
 
 // GetGeneratedJarBytes returns the bytes of the generated_jar file for the soap_remote_endpoint with the specified ID,
