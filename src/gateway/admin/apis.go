@@ -163,8 +163,17 @@ func (c *APIsController) addDefaultHost(api *model.API, tx *apsql.Tx) (*model.Ho
 	return host, nil
 }
 
+// AfterUpdate does some work after updating a record in the database
+func (c *APIsController) AfterUpdate(api *model.API, tx *apsql.Tx) error {
+	return c.populateHosts(api, tx.DB)
+}
+
 // AfterFind does some work after finding a record in the database
 func (c *APIsController) AfterFind(api *model.API, db *apsql.DB) error {
+	return c.populateHosts(api, db)
+}
+
+func (c *APIsController) populateHosts(api *model.API, db *apsql.DB) error {
 	hosts, err := model.AllHostsForAPIIDAndAccountID(db, api.ID, api.AccountID)
 	if err != nil {
 		return err
