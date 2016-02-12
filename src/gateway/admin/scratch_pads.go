@@ -64,7 +64,7 @@ func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request,
 	}
 
 	result := ScratchPadResult{}
-	obj, err := vm.Run("JSON.stringify(test);")
+	obj, err := vm.Run("JSON.stringify(request);")
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
