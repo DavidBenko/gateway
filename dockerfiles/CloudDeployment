@@ -1,5 +1,5 @@
 # anypresence/gateway:deployment
-# version 4.1.0
+# version 4.1.1
 FROM debian:jessie
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
@@ -54,6 +54,7 @@ ENV EMAIL_HOST localhost
 ENV EMAIL_PORT 5000
 ENV PROXY_CODE_TIMEOUT 5
 ENV PROXY_HTTP_TIMEOUT 60
+ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts[0]}}:5000"
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
 ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$CACHE_APIS \
@@ -65,5 +66,6 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$
   -airbrake-api-key="$AIRBRAKE_API_KEY" -airbrake-environment="$AIRBRAKE_ENVIRONMENT" -airbrake-project-id="$AIRBRAKE_PROJECT_ID" \
   -smtp-user="$SMTP_USER" -smtp-password="$SMTP_PASSWORD" -smtp-sender="$SMTP_SENDER" -smtp-server="$SMTP_SERVER" -smtp-port=$SMTP_PORT -smtp-email-scheme=$EMAIL_SCHEME -smtp-email-host="$EMAIL_HOST" -smtp-email-port=$EMAIL_PORT \
   -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT \
+  -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
   -license-content="$LICENSE_CONTENT" \
   -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN"
