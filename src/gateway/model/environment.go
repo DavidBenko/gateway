@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	SessionTypeClient = "client"
-	SessionTypeServer = "server"
+	SessionTypeClient    = "client"
+	SessionTypeServer    = "server"
+	SessionHeaderDefault = "X-Session-Id"
 )
 
 // Environment represents a environment the API is available on.
