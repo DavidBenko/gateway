@@ -26,7 +26,7 @@ var brokerHostRegex = regexp.MustCompile(`BROKER_PLACEHOLDER`)
 var versionRegex = regexp.MustCompile(`VERSION`)
 var commitRegex = regexp.MustCompile(`COMMIT`)
 var devModeRegex = regexp.MustCompile(`DEV_MODE`)
-var goosRegex = regexp.MustCompile(`GOOS`)
+var goosRegex = regexp.MustCompile(`GO_OS`)
 var remoteEndpointTypesEnabledRegex = regexp.MustCompile(`REMOTE_ENDPOINT_TYPES_ENABLED`)
 var registrationEnabledRegex = regexp.MustCompile(`REGISTRATION_ENABLED`)
 

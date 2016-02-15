@@ -9,6 +9,14 @@ import (
 	apsql "gateway/sql"
 )
 
+var defaultAPIAccessScheme string
+
+// ConfigureDefaultAPIAccessScheme sets the value to be used as the BaseURL on
+// each API.
+func ConfigureDefaultAPIAccessScheme(value string) {
+	defaultAPIAccessScheme = value
+}
+
 // API represents a top level grouping of endpoints accessible at a host.
 type API struct {
 	AccountID int64 `json:"-" db:"account_id"`
@@ -25,6 +33,7 @@ type API struct {
 	EnableSwagger        bool   `json:"enable_swagger" db:"enable_swagger"`
 	Export               string `json:"export,omitempty" db:"-"`
 
+	Hosts                []*Host                `json:"-"`
 	Environments         []*Environment         `json:"environments,omitempty"`
 	EndpointGroups       []*EndpointGroup       `json:"endpoint_groups,omitempty"`
 	Libraries            []*Library             `json:"libraries,omitempty"`

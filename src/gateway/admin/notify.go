@@ -145,23 +145,30 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		if err == nil {
 			email = user.Email
 		}
-		n := &Notification{
-			Resource:        RESOURCE_MAP[notification.Table],
-			Action:          ACTION_MAP[notification.Event],
-			ResourceID:      int64(notification.ID),
-			ProxyEndpointID: int64(notification.ProxyEndpointID),
-			APIID:           int64(notification.APIID),
-			User:            email,
-			Tag:             notification.Tag,
-		}
 
-		json, err := json.Marshal(n)
-		if err != nil {
-			return
-		}
-		_, err = ws.Write(json)
-		if err != nil {
-			return
+		resource, found := RESOURCE_MAP[notification.Table]
+		// only send notifications that we're interested in, that have a corresponding
+		// resource found in the resource map
+		if found {
+			n := &Notification{
+				Resource:        resource,
+				Action:          ACTION_MAP[notification.Event],
+				ResourceID:      int64(notification.ID),
+				ProxyEndpointID: int64(notification.ProxyEndpointID),
+				APIID:           int64(notification.APIID),
+				User:            email,
+				Tag:             notification.Tag,
+			}
+
+			json, err := json.Marshal(n)
+			if err != nil {
+				return
+			}
+
+			_, err = ws.Write(json)
+			if err != nil {
+				return
+			}
 		}
 	}
 }

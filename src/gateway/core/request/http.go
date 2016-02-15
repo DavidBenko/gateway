@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	aphttp "gateway/http"
 	"gateway/model"
@@ -29,11 +30,17 @@ type HTTPResponse struct {
 
 // CompleteURL returns the full URL including query params
 func (h *HTTPRequest) CompleteURL() string {
-	params := url.Values{}
-	for k, v := range h.Query {
-		params.Add(k, v)
+	if len(h.Query) > 0 {
+		params := url.Values{}
+		for k, v := range h.Query {
+			params.Add(k, v)
+		}
+		if strings.Contains(h.URL, "?") {
+			return fmt.Sprintf("%s&%s", h.URL, params.Encode())
+		}
+		return fmt.Sprintf("%s?%s", h.URL, params.Encode())
 	}
-	return fmt.Sprintf("%s?%s", h.URL, params.Encode())
+	return h.URL
 }
 
 // Perform executes the HTTP request and returns its response.
@@ -66,7 +73,7 @@ func (h *HTTPRequest) Perform() Response {
 // TODO(binary132): No more "devMode", use a real logger
 func (h *HTTPRequest) Log(devMode bool) string {
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.URL))
+	buffer.WriteString(fmt.Sprintf("%s %s", h.Method, h.CompleteURL()))
 	if devMode {
 		buffer.WriteString(fmt.Sprintf("\nQuery Parameters:\n"))
 		for k, v := range h.Query {

@@ -18,6 +18,7 @@ after_insert = false
 after_update = false
 after_delete = false
 after_validate = false
+after_find = false
 before_insert = false
 before_update = false
 before_delete = false
@@ -73,7 +74,9 @@ OptionParser.new do |opts|
   opts.on("--after-validate-hook", "Does controller have a after validate hook?") do |value|
     after_validate = value
   end
-
+  opts.on("--after-find-hook", "Does controller have a find hook?") do |value|
+    after_find = value
+  end
 end.parse!
 
 plural = singular.pluralize
@@ -144,6 +147,15 @@ func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
     return aphttp.DefaultServerError()
   }
 
+  <% if after_find %>
+    for _, model := range <%= local_plural %> {
+      if err = c.AfterFind(model, db); err != nil {
+        logreport.Printf("%s Error after find: %v\\n%v", config.System, err, r)
+        return aphttp.DefaultServerError()
+      }
+    }
+  <% end %>
+
   return c.serializeCollection(<%= local_plural %>, w)
 }
 
@@ -178,6 +190,13 @@ func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
   if err != nil {
     return c.notFound()
   }
+
+  <% if after_find %>
+    if err = c.AfterFind(<%= local %>, db); err != nil {
+      logreport.Printf("%s Error after find: %v\\n%v", config.System, err, r)
+      return aphttp.DefaultServerError()
+    }
+  <% end %>
 
   return c.serializeInstance(<%= local %>, w)
 }
