@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/core"
@@ -36,6 +37,7 @@ func RouteScratchPads(controller ResourceController, path string,
 type ScratchPadResult struct {
 	Request  string `json:"request"`
 	Response string `json:"response"`
+	Time     int64  `json:"time"`
 }
 
 func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
@@ -83,7 +85,9 @@ func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request,
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	result.Request = string(jsonRequest)
+	start := time.Now()
 	response := request.Perform()
+	result.Time = (time.Since(start).Nanoseconds() + 5e5) / 1e6
 	jsonResponse, err := response.JSON()
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
