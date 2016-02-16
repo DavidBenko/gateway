@@ -16,23 +16,26 @@ const (
 )
 
 type Notification struct {
-	Resource   string `json:"resource"`
-	Action     string `json:"action"`
-	ResourceID int64  `json:"resource_id"`
-	APIID      int64  `json:"api_id"`
-	User       string `json:"user"`
-	Tag        string `json:"tag"`
+	Resource        string `json:"resource"`
+	Action          string `json:"action"`
+	ResourceID      int64  `json:"resource_id"`
+	ProxyEndpointID int64  `json:"proxy_endpoint_id"`
+	APIID           int64  `json:"api_id"`
+	User            string `json:"user"`
+	Tag             string `json:"tag"`
 }
 
 var RESOURCE_MAP = map[string]string{
-	"accounts":         "account",
-	"apis":             "api",
-	"endpoint_groups":  "endpoint-group",
-	"environments":     "environment",
-	"hosts":            "host",
-	"libraries":        "library",
-	"proxy_endpoints":  "proxy-endpoint",
-	"remote_endpoints": "remote-endpoint",
+	"accounts":               "account",
+	"apis":                   "api",
+	"endpoint_groups":        "endpoint-group",
+	"environments":           "environment",
+	"hosts":                  "host",
+	"libraries":              "library",
+	"proxy_endpoints":        "proxy-endpoint",
+	"proxy_endpoint_schemas": "proxy-endpoint-schema",
+	"remote_endpoints":       "remote-endpoint",
+	"users":                  "user",
 }
 
 var ACTION_MAP = [...]string{
@@ -142,12 +145,13 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 			email = user.Email
 		}
 		n := &Notification{
-			Resource:   RESOURCE_MAP[notification.Table],
-			Action:     ACTION_MAP[notification.Event],
-			ResourceID: int64(notification.ID),
-			APIID:      int64(notification.APIID),
-			User:       email,
-			Tag:        notification.Tag,
+			Resource:        RESOURCE_MAP[notification.Table],
+			Action:          ACTION_MAP[notification.Event],
+			ResourceID:      int64(notification.ID),
+			ProxyEndpointID: int64(notification.ProxyEndpointID),
+			APIID:           int64(notification.APIID),
+			User:            email,
+			Tag:             notification.Tag,
 		}
 
 		json, err := json.Marshal(n)

@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/soap"
+	"gateway/sql"
 	"io"
-	"log"
 	"net"
 	"strings"
 )
+
+const filePrefix = "file://"
 
 // SoapRequest encapsulates a request made via SOAP
 type SoapRequest struct {
@@ -25,7 +28,9 @@ type SoapRequest struct {
 	JarURL                  string                   `json:"jarUrl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
 
-	soapConf config.Soap
+	soapConf       config.Soap
+	remoteEndpoint *model.RemoteEndpoint
+	db             *sql.DB
 }
 
 // WssePasswordCredentials represents credentials for a SOAP request as specified
@@ -41,10 +46,17 @@ type SoapResponse struct {
 }
 
 // NewSoapRequest constructs a new SoapRequest
-func NewSoapRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, soapConf config.Soap) (Request, error) {
+func NewSoapRequest(
+	endpoint *model.RemoteEndpoint,
+	data *json.RawMessage,
+	soapConf config.Soap,
+	db *sql.DB,
+) (Request, error) {
 	request := new(SoapRequest)
 
 	request.soapConf = soapConf
+	request.remoteEndpoint = endpoint
+	request.db = db
 
 	if err := json.Unmarshal(*data, request); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
@@ -135,6 +147,15 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
+	if exists, err := soapRequest.remoteEndpoint.Soap.JarExists(); err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Checking for existence of jar file", err))
+	} else if err == nil && !exists {
+		err := model.CacheJarFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
+		if err != nil {
+			return NewErrorResponse(aperrors.NewWrapped("[soap] Getting generated Jar bytes for soap endpoint", err))
+		}
+	}
+
 	requestBytes, err := json.Marshal(&soapRequest)
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[soap] Unmarshaling request data", err))
@@ -163,7 +184,7 @@ func (soapRequest *SoapRequest) Perform() Response {
 		readlen, err := conn.Read(responseBytes)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("Error when reading from socket: %s", err)
+				logreport.Printf("Error when reading from socket: %s", err)
 				return NewErrorResponse(aperrors.NewWrapped("[soap] Reading data from soapclient", err))
 			}
 			done = true
@@ -187,10 +208,10 @@ func (soapRequest *SoapRequest) Perform() Response {
 
 // JSON marshals the SoapResponse to JSON
 func (soapResponse *SoapResponse) JSON() ([]byte, error) {
-	log.Printf("Attempting to marshal soap response")
+	logreport.Printf("Attempting to marshal soap response")
 	bytes, err := json.Marshal(&soapResponse)
 	if err != nil {
-		log.Printf("FOUND AN ERROR %s", err)
+		logreport.Printf("FOUND AN ERROR %s", err)
 	}
 	return bytes, err
 }

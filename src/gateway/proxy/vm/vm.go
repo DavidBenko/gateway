@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
 
@@ -30,7 +30,7 @@ var errCodeTimeout = errors.New("JavaScript took too long to execute")
 type ProxyVM struct {
 	*otto.Otto
 	conf                    config.ProxyServer
-	Logger                  *log.Logger
+	LogPrint                logreport.Logf
 	LogPrefix               string
 	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
@@ -42,7 +42,7 @@ type ProxyVM struct {
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
 func NewVM(
-	logger *log.Logger,
+	logPrint logreport.Logf,
 	logPrefix string,
 	w http.ResponseWriter,
 	r *http.Request,
@@ -55,7 +55,7 @@ func NewVM(
 	vm := &ProxyVM{
 		Otto:                    shared.Copy(),
 		conf:                    conf,
-		Logger:                  logger,
+		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
 		ProxiedRequestsDuration: 0,
 		w: w,
@@ -140,7 +140,7 @@ func (p *ProxyVM) RunAll(scripts []interface{}) (value otto.Value, err error) {
 
 func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
 	line := call.Argument(0).String()
-	p.Logger.Printf("%s [user] %v", p.LogPrefix, line)
+	p.LogPrint("%s [user] %v", p.LogPrefix, line)
 	p.Log.WriteString(line + "\n")
 	return otto.Value{}
 }
@@ -190,12 +190,12 @@ var shared = func() *otto.Otto {
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 
 		_, err = vm.Run(fileJS)
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 	}
 

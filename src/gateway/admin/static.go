@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"mime"
 	"net/http"
 	"regexp"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/logreport"
+	"gateway/model"
 	"gateway/proxy/vm"
 	"gateway/version"
 
@@ -21,6 +22,13 @@ import (
 
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
 var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
+var brokerHostRegex = regexp.MustCompile(`BROKER_PLACEHOLDER`)
+var versionRegex = regexp.MustCompile(`VERSION`)
+var commitRegex = regexp.MustCompile(`COMMIT`)
+var devModeRegex = regexp.MustCompile(`DEV_MODE`)
+var goosRegex = regexp.MustCompile(`GO_OS`)
+var remoteEndpointTypesEnabledRegex = regexp.MustCompile(`REMOTE_ENDPOINT_TYPES_ENABLED`)
+var registrationEnabledRegex = regexp.MustCompile(`REGISTRATION_ENABLED`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -32,7 +40,7 @@ type assetResolver func(path string) ([]byte, error)
 func init() {
 	for k, v := range additionalMimeTypes {
 		if err := mime.AddExtensionType(k, v); err != nil {
-			log.Fatalf("Could not set mime type for %s", k)
+			logreport.Fatalf("Could not set mime type for %s", k)
 		}
 	}
 }
@@ -79,7 +87,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 	}
 
 	funcs := template.FuncMap{
-		"replacePath": func(input string) string {
+		"interpolate": func(input string) string {
 			pathReplacer := func(path string) func(string) string {
 				return func(string) string {
 					if conf.PathPrefix == "" {
@@ -91,25 +99,25 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			rightless := strings.TrimRight(conf.PathPrefix, "/")
 			clean := strings.TrimLeft(rightless, "/")
 			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
-			return pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
-		},
-		"version": func() string {
-			if !conf.ShowVersion {
-				return ""
+			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+
+			interpolatedValues := map[*regexp.Regexp]string{}
+
+			if conf.ShowVersion {
+				interpolatedValues[versionRegex] = version.Name()
+				interpolatedValues[commitRegex] = version.Commit()
+			}
+			interpolatedValues[devModeRegex] = fmt.Sprintf("%t", conf.DevMode)
+			interpolatedValues[goosRegex] = runtime.GOOS
+			interpolatedValues[remoteEndpointTypesEnabledRegex] = remoteEndpointTypes()
+			interpolatedValues[registrationEnabledRegex] = fmt.Sprintf("%t", conf.EnableRegistration)
+			interpolatedValues[brokerHostRegex] = conf.BrokerWs
+
+			for k, v := range interpolatedValues {
+				input = k.ReplaceAllLiteralString(input, v)
 			}
 
-			return fmt.Sprintf("<meta name=\"version\" content=\"%s\">\n<meta name=\"commit\" content=\"%s\">",
-				version.Name(), version.Commit())
-		},
-		"devMode": func() string {
-			if !conf.DevMode {
-				return ""
-			}
-
-			return "<meta name=\"dev-mode\" content=\"true\">"
-		},
-		"goos": func() string {
-			return fmt.Sprintf("<meta name=\"goos\" content=\"%s\">", runtime.GOOS)
+			return input
 		},
 	}
 
@@ -124,4 +132,15 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 	if err != nil {
 		fmt.Fprintf(w, "\n\nError executing template: %v", err)
 	}
+}
+
+func remoteEndpointTypes() string {
+	tags := []string{}
+	remoteEndpointTypes, _ := model.AllRemoteEndpointTypes(nil)
+	for _, re := range remoteEndpointTypes {
+		if re.Enabled {
+			tags = append(tags, re.Value)
+		}
+	}
+	return strings.Join(tags, ",")
 }

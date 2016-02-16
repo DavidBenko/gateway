@@ -7,10 +7,7 @@ file = File.read(path)
 
 file.gsub!(meta) do |match|
 <<-HTML
-    {{version}}
-    {{devMode}}
-    {{goos}}
-    <meta name="#{$1}" content="{{replacePath #{$2.dump}}}" />
+    <meta name="#{$1}" content="{{interpolate #{$2.dump}}}" />
 HTML
 end
 

@@ -19,7 +19,7 @@ func TestLogInterceptor(t *testing.T) {
 		for i := 0; i < ITERATIONS; i++ {
 			done[i] = make(chan bool, 1)
 			go func(d chan bool) {
-				logs, unsubscribe := interceptor.Subscribe()
+				logs, unsubscribe := interceptor.Subscribe("test")
 				defer unsubscribe()
 				count := 0
 				for log := range logs {

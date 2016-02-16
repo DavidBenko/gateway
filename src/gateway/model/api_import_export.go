@@ -87,6 +87,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 	}
 
 	// Very much room for optimization
+	proxyEndpointsIndexMap := make(map[int64]int)
 	api.ProxyEndpoints, err = AllProxyEndpointsForAPIIDAndAccountID(db, id, accountID)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoints", err)
@@ -97,6 +98,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 			return nil, aperrors.NewWrapped("Fetching proxy endpoint", err)
 		}
 		endpoint = api.ProxyEndpoints[index]
+		proxyEndpointsIndexMap[endpoint.ID] = index + 1
 		endpoint.APIID = 0
 		endpoint.ID = 0
 		if endpoint.EndpointGroupID != nil {
@@ -117,6 +119,17 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 				call.RemoteEndpointID = 0
 			}
 		}
+	}
+
+	api.ProxyEndpointSchemas, err = AllProxyEndpointSchemasForAPIIDAndAccountID(db, id, accountID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching proxy endpoint schemas", err)
+	}
+	for _, schema := range api.ProxyEndpointSchemas {
+		schema.ExportProxyEndpointIndex = proxyEndpointsIndexMap[schema.ProxyEndpointID]
+		schema.APIID = 0
+		schema.ProxyEndpointID = 0
+		schema.ID = 0
 	}
 
 	return api, nil
@@ -141,6 +154,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	environmentsIDMap := make(map[int]int64)
 	for index, environment := range a.Environments {
 		environment.AccountID = a.AccountID
+		environment.UserID = a.UserID
 		environment.APIID = a.ID
 		err = environment.Insert(tx)
 		if err != nil {
@@ -152,6 +166,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 	endpointGroupsIDMap := make(map[int]int64)
 	for index, endpointGroup := range a.EndpointGroups {
 		endpointGroup.AccountID = a.AccountID
+		endpointGroup.UserID = a.UserID
 		endpointGroup.APIID = a.ID
 		err = endpointGroup.Insert(tx)
 		if err != nil {
@@ -162,6 +177,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 
 	for _, library := range a.Libraries {
 		library.AccountID = a.AccountID
+		library.UserID = a.UserID
 		library.APIID = a.ID
 		err = library.Insert(tx)
 		if err != nil {
@@ -177,8 +193,9 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 
 		endpoint.AccountID = a.AccountID
+		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
-		if vErr := endpoint.Validate(); !vErr.Empty() {
+		if vErr := endpoint.Validate(true); !vErr.Empty() {
 			return fmt.Errorf("Unable to validate remote endpoint: %v", vErr)
 		}
 		err = endpoint.Insert(tx)
@@ -188,7 +205,8 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		remoteEndpointsIDMap[index+1] = endpoint.ID
 	}
 
-	for _, endpoint := range a.ProxyEndpoints {
+	proxyEndpointsIDMap := make(map[int]int64)
+	for index, endpoint := range a.ProxyEndpoints {
 		for _, component := range endpoint.Components {
 			for _, call := range component.AllCalls() {
 				call.RemoteEndpointID = remoteEndpointsIDMap[call.ExportRemoteEndpointIndex]
@@ -206,10 +224,24 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 
 		endpoint.AccountID = a.AccountID
+		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
 		err = endpoint.Insert(tx)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting proxy endpoint", err)
+		}
+		proxyEndpointsIDMap[index+1] = endpoint.ID
+	}
+
+	for _, schema := range a.ProxyEndpointSchemas {
+		schema.AccountID = a.AccountID
+		schema.UserID = a.UserID
+		schema.APIID = a.ID
+		schema.ProxyEndpointID = proxyEndpointsIDMap[schema.ExportProxyEndpointIndex]
+		schema.ExportProxyEndpointIndex = 0
+		err = schema.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting proxy endpoint schema", err)
 		}
 	}
 

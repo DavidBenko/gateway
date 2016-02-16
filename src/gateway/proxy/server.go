@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"gateway/config"
 	"gateway/db/pools"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // Server encapsulates the proxy server.
@@ -87,8 +88,8 @@ func (s *Server) Run() {
 
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
-	log.Printf("%s Server listening at %s", config.Proxy, listen)
-	log.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
+	logreport.Printf("%s Server listening at %s", config.Proxy, listen)
+	logreport.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 
 func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
@@ -101,7 +102,7 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 }
 
 func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
-	response *proxyResponse, logs *bytes.Buffer, httpErr error) {
+	response *proxyResponse, logs *bytes.Buffer, httpErr aphttp.Error) {
 	start := time.Now()
 
 	var vm *apvm.ProxyVM
@@ -111,57 +112,77 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 
 	logs = &bytes.Buffer{}
-	logger := log.New(logs, "", log.Ldate|log.Lmicroseconds)
+	logPrint := logreport.PrintfCopier(logs)
 
 	defer func() {
 		if httpErr != nil {
-			s.logError(logger, logPrefix, s.httpError(httpErr))
+			s.logError(logPrint, logPrefix, httpErr, r)
 		}
-		s.logDuration(vm, logger, logPrefix, start)
-		log.Print(logs.String())
+		s.logDuration(vm, logPrint, logPrefix, start)
 	}()
 
 	proxyEndpointID, err := strconv.ParseInt(match.Route.GetName(), 10, 64)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	proxyEndpoint, err := s.proxyData.Endpoint(proxyEndpointID)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
-	logger.Printf("%s [route] %s", logPrefix, proxyEndpoint.Name)
+	logPrint("%s [route] %s", logPrefix, proxyEndpoint.Name)
 
 	if r.Method == "OPTIONS" {
 		route, err := s.matchingRouteForOptions(proxyEndpoint, r)
 		if err != nil {
-			httpErr = err
+			httpErr = s.httpError(err)
 			return
 		}
 		if !route.HandlesOptions() {
-			httpErr = s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			err := s.corsOptionsHandlerFunc(w, r, proxyEndpoint, route, requestID)
+			if err != nil {
+				httpErr = s.httpError(err)
+			}
 			return
 		}
 	}
 
-	vm, err = apvm.NewVM(logger, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
+	request, err := proxyRequestJSON(r, requestID, match.Vars)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
-	incomingJSON, err := proxyRequestJSON(r, requestID, match.Vars)
+	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
+		err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
+		if err != nil {
+			if err.Error() == "EOF" {
+				httpErr = aphttp.NewError(errors.New("a json document is required in the request"), 422)
+				return
+			}
+			httpErr = aphttp.NewError(err, 400)
+			return
+		}
+	}
+
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
+		return
+	}
+
+	incomingJSON, err := request.Marshal()
+	if err != nil {
+		httpErr = s.httpError(err)
 		return
 	}
 	vm.Set("__ap_proxyRequestJSON", incomingJSON)
@@ -174,28 +195,47 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 			strconv.Quote(proxyEndpoint.Environment.SessionName)))
 
 	if _, err := vm.RunAll(scripts); err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
-		httpErr = err
+		httpErr = s.httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}
 
 	responseObject, err := vm.Run("response;")
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
 	responseJSON, err := s.objectJSON(vm, responseObject)
 	if err != nil {
-		httpErr = err
+		httpErr = s.httpError(err)
 		return
 	}
-	response, httpErr = proxyResponseFromJSON(responseJSON)
-	if httpErr != nil {
+	response, err = proxyResponseFromJSON(responseJSON)
+	if err != nil {
+		httpErr = s.httpError(err)
 		return
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil &&
+		(schema.ResponseSchema != "" ||
+			(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
+		responseSchema := schema.ResponseSchema
+		if schema.ResponseSameAsRequest {
+			responseSchema = schema.RequestSchema
+		}
+		err := s.processSchema(responseSchema, response.Body)
+		if err != nil {
+			if err.Error() == "EOF" {
+				httpErr = aphttp.NewError(errors.New("a json document is required in the response"), 500)
+				return
+			}
+			httpErr = aphttp.NewError(err, 500)
+			return
+		}
 	}
 
 	if proxyEndpoint.CORSEnabled {
@@ -204,7 +244,6 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	response.Headers["Content-Length"] = len(response.Body)
 	aphttp.AddHeaders(w.Header(), response.Headers)
 
-	w.WriteHeader(response.StatusCode)
 	return
 }
 
@@ -212,39 +251,55 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
 	test, _ := context.Get(r, aphttp.ContextTest).(bool)
 
-	var httpErr aphttp.Error
-	response, logs, proxyError := s.proxyHandler(w, r)
-	if proxyError != nil {
-		httpErr = s.httpError(proxyError)
-	}
+	response, logs, httpErr := s.proxyHandler(w, r)
 
 	if test {
-		responseBody := ""
+		responseBody, status := "", ""
 		if httpErr != nil {
 			responseBody = fmt.Sprintf("%s\n", httpErr.String())
+			status = fmt.Sprintf("%v", httpErr.Code())
 		} else if response != nil {
 			responseBody = response.Body
+			status = fmt.Sprintf("%v", response.StatusCode)
 		}
 		response := aphttp.TestResponse{
-			Body: responseBody,
-			Log:  logs.String(),
+			Body:   responseBody,
+			Log:    logs.String(),
+			Status: status,
 		}
 
 		body, err := json.Marshal(&response)
 		if err != nil {
-			log.Printf("%s [error] %s", logPrefix, err)
+			logreport.Printf("%s [error] %s", logPrefix, err)
 			return s.httpError(err)
 		}
 
-		if httpErr != nil {
-			return s.httpError(errors.New(string(body)))
-		}
 		w.Write(body)
 	} else if httpErr != nil {
 		return httpErr
 	} else if response != nil {
+		w.WriteHeader(response.StatusCode)
 		w.Write([]byte(response.Body))
 	}
+	return nil
+}
+
+func (s *Server) processSchema(schema, body string) error {
+	schemaLoader := gojsonschema.NewStringLoader(schema)
+	bodyLoader := gojsonschema.NewStringLoader(body)
+	result, err := gojsonschema.Validate(schemaLoader, bodyLoader)
+	if err != nil {
+		return err
+	}
+
+	if !result.Valid() {
+		err := ""
+		for _, description := range result.Errors() {
+			err += fmt.Sprintf(" - %v", description)
+		}
+		return errors.New(err)
+	}
+
 	return nil
 }
 
@@ -254,6 +309,18 @@ func (s *Server) httpError(err error) aphttp.Error {
 	}
 
 	return aphttp.NewServerError(err)
+}
+
+func (s *Server) httpJavascriptError(err error, env *model.Environment) aphttp.Error {
+	if env == nil {
+		return s.httpError(err)
+	}
+
+	if env.ShowJavascriptErrors {
+		return aphttp.NewServerError(err)
+	}
+
+	return aphttp.DefaultServerError()
 }
 
 func (s *Server) objectJSON(vm *apvm.ProxyVM, object otto.Value) (string, error) {
@@ -335,16 +402,16 @@ func (s *Server) addCORSCommonHeaders(w http.ResponseWriter,
 	}
 }
 
-func (s *Server) logError(logger *log.Logger, logPrefix string, err aphttp.Error) {
+func (s *Server) logError(logPrint logreport.Logf, logPrefix string, err aphttp.Error, r *http.Request) {
 	errString := "Unknown Error"
 	lines := strings.Split(err.String(), "\n")
 	if len(lines) > 0 {
 		errString = lines[0]
 	}
-	logger.Printf("%s [error] %s", logPrefix, errString)
+	logPrint("%s [error] %s\n%v", logPrefix, errString, r)
 }
 
-func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix string, start time.Time) {
+func (s *Server) logDuration(vm *apvm.ProxyVM, logPrint logreport.Logf, logPrefix string, start time.Time) {
 	var proxiedRequestsDuration time.Duration
 	if vm != nil {
 		proxiedRequestsDuration = vm.ProxiedRequestsDuration
@@ -352,6 +419,6 @@ func (s *Server) logDuration(vm *apvm.ProxyVM, logger *log.Logger, logPrefix str
 
 	total := time.Since(start)
 	processing := total - proxiedRequestsDuration
-	logger.Printf("%s [time] %v (processing %v, requests %v)",
+	logPrint("%s [time] %v (processing %v, requests %v)",
 		logPrefix, total, processing, proxiedRequestsDuration)
 }

@@ -66,7 +66,8 @@ func (s *Script) UpdateWith(child *Script) {
 	}
 }
 
-func (s *Script) Validate(errors aperrors.Errors) {
+func (s *Script) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
 	if s.Config.Interpreter == "" {
 		errors.Add("interpreter", "must be set")
 	}
@@ -94,4 +95,8 @@ func (s *Script) Validate(errors aperrors.Errors) {
 			errors.Add("filepath", "must be a valid file")
 		}
 	}
+	if !errors.Empty() {
+		return errors
+	}
+	return nil
 }

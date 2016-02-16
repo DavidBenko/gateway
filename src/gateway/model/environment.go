@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	aperrors "gateway/errors"
+	aphttp "gateway/http"
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
@@ -24,10 +25,12 @@ type Environment struct {
 	SessionEncryptionKey       string `json:"session_encryption_key" db:"session_encryption_key"`
 	SessionAuthKeyRotate       string `json:"session_auth_key_rotate" db:"session_auth_key_rotate"`
 	SessionEncryptionKeyRotate string `json:"session_encryption_key_rotate" db:"session_encryption_key_rotate"`
+
+	ShowJavascriptErrors bool `json:"show_javascript_errors" db:"show_javascript_errors"`
 }
 
 // Validate validates the model.
-func (e *Environment) Validate() aperrors.Errors {
+func (e *Environment) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")
@@ -68,7 +71,7 @@ func FindEnvironmentForProxy(db *apsql.DB, id int64) (*Environment, error) {
 }
 
 // CanDeleteEnvironment checks whether deleting would violate any constraints
-func CanDeleteEnvironment(tx *apsql.Tx, id int64) error {
+func CanDeleteEnvironment(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoints
@@ -89,7 +92,7 @@ func DeleteEnvironmentForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, u
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("environments", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the environment into the database as a new row.
@@ -101,11 +104,11 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 	e.ID, err = tx.InsertOne(tx.SQL("environments/insert"),
 		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate)
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 // Update updates the environment in the database.
@@ -117,10 +120,10 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 	err = tx.UpdateOne(tx.SQL("environments/update"),
 		e.Name, e.Description, data,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate,
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors,
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
+	return tx.Notify("environments", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
 }

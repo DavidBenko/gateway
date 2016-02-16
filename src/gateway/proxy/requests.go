@@ -42,6 +42,10 @@ func (s *Server) prepareRequest(
 	endpoint *model.RemoteEndpoint,
 	data *json.RawMessage,
 ) (request.Request, error) {
+	if !model.IsRemoteEndpointTypeEnabled(endpoint.Type) {
+		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
+	}
+
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
 		return request.NewHTTPRequest(s.httpClient, endpoint, data)
@@ -54,7 +58,7 @@ func (s *Server) prepareRequest(
 	case model.RemoteEndpointTypeMongo:
 		return request.NewMongoRequest(s.dbPools, endpoint, data)
 	case model.RemoteEndpointTypeSoap:
-		return request.NewSoapRequest(endpoint, data, s.soapConf)
+		return request.NewSoapRequest(endpoint, data, s.soapConf, s.ownDb)
 	case model.RemoteEndpointTypeScript:
 		return request.NewScriptRequest(endpoint, data)
 	}
@@ -91,7 +95,7 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []request.Request) (
 	}
 
 	for i, req := range proxyRequests {
-		vm.Logger.Printf("%s [request] %s %s (%v)", vm.LogPrefix,
+		vm.LogPrint("%s [request] %s %s (%v)", vm.LogPrefix,
 			req.Log(s.devMode), responses[i].Log(), requestDurations[i])
 	}
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 
 	"gateway/config"
 	aphttp "gateway/http"
+	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
 	apsql "gateway/sql"
@@ -23,6 +23,8 @@ import (
 	elasti "github.com/mattbaird/elastigo/lib"
 	"golang.org/x/net/websocket"
 )
+
+const CHANNEL_SIZE = 1024
 
 var Interceptor = newInterceptor()
 
@@ -35,16 +37,22 @@ func RouteLogStream(c *LogStreamController, path string, router aphttp.Router) {
 	router.Handle(path, websocket.Handler(c.logHandler))
 }
 
+type Subscriber struct {
+	name  string
+	write chan []byte
+}
+
 type logPublisher struct {
-	subscribers            []chan []byte
-	subscribe, unsubscribe chan chan []byte
-	write                  chan []byte
+	subscribers []Subscriber
+	subscribe   chan Subscriber
+	unsubscribe chan chan []byte
+	write       chan []byte
 }
 
 func newPublisher(in chan []byte) *logPublisher {
 	l := &logPublisher{
-		subscribers: make([]chan []byte, 8),
-		subscribe:   make(chan chan []byte, 8),
+		subscribers: make([]Subscriber, 8),
+		subscribe:   make(chan Subscriber, 8),
 		unsubscribe: make(chan chan []byte, 8),
 		write:       in,
 	}
@@ -54,7 +62,7 @@ func newPublisher(in chan []byte) *logPublisher {
 			case s := <-l.subscribe:
 				found := false
 				for i, j := range l.subscribers {
-					if j == nil {
+					if j.write == nil {
 						l.subscribers[i] = s
 						found = true
 						break
@@ -65,16 +73,22 @@ func newPublisher(in chan []byte) *logPublisher {
 				}
 			case u := <-l.unsubscribe:
 				for i, j := range l.subscribers {
-					if j == u {
-						l.subscribers[i] = nil
+					if j.write == u {
+						l.subscribers[i] = Subscriber{"", nil}
 						close(u)
 						break
 					}
 				}
 			case buffer := <-l.write:
 				for _, j := range l.subscribers {
-					if j != nil {
-						j <- buffer
+					if j.write != nil {
+						select {
+						case j.write <- buffer:
+						default:
+							err := errors.New("dropped log message for: " + j.name)
+							fmt.Printf("[logging] %v\n", err)
+							logreport.Report(err)
+						}
 					}
 				}
 			}
@@ -90,9 +104,9 @@ func (l *logPublisher) Write(p []byte) (n int, err error) {
 	return os.Stdout.Write(p)
 }
 
-func (l *logPublisher) Subscribe() (logs <-chan []byte, unsubscribe func()) {
-	_logs := make(chan []byte, 8)
-	l.subscribe <- _logs
+func (l *logPublisher) Subscribe(name string) (logs <-chan []byte, unsubscribe func()) {
+	_logs := make(chan []byte, CHANNEL_SIZE)
+	l.subscribe <- Subscriber{name, _logs}
 	logs = _logs
 	unsubscribe = func() {
 		go func() {
@@ -106,7 +120,7 @@ func (l *logPublisher) Subscribe() (logs <-chan []byte, unsubscribe func()) {
 }
 
 func newInterceptor() *logPublisher {
-	return newPublisher(make(chan []byte, 8))
+	return newPublisher(make(chan []byte, CHANNEL_SIZE))
 }
 
 func newAggregator(conf config.ProxyAdmin) (*mangos.Broker, error) {
@@ -165,7 +179,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		mangos.SubTCP,
 	)
 	if err != nil {
-		log.Fatal(err)
+		logreport.Fatal(err)
 	}
 	logs, e := receive.Channels()
 	defer func() {
@@ -173,20 +187,11 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 	}()
 	go func() {
 		for err := range e {
-			log.Printf("[logging] %v", err)
+			logreport.Printf("[logging] %v", err)
 		}
 	}()
 
-	filter, newline := makeFilter(ws), false
-	for _, b := range <-logs {
-		if newline {
-			if filter(b) {
-				return
-			}
-		} else if b == '\n' {
-			newline = true
-		}
-	}
+	filter := makeFilter(ws)
 	for input := range logs {
 		for _, b := range input {
 			if filter(b) {
@@ -221,23 +226,28 @@ type LogSearchResult struct {
 	Text string `json:"text"`
 }
 
+func convertStringToTime(t string) time.Time {
+	tt, _ := time.Parse("2006-01-02T15:04:05Z", t)
+	return tt
+}
+
+func convertTimeForElastic(t string) string {
+	tt := convertStringToTime(t)
+	return tt.Format("2006/01/02 15:04:05") + ".000000"
+}
+
 func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
 	e := elasti.NewConn()
-	e.Domain = c.Domain
+	e.SetFromUrl(c.Url)
 
 	queryMust := []interface{}{}
-	convert := func(t string) string {
-		tt, _ := time.Parse("2006-01-02T15:04:05Z", t)
-		return tt.Format("2006/01/02 15:04:05") + ".000000"
-	}
-
 	if len(r.Form["start"]) == 1 || len(r.Form["end"]) == 1 {
 		queryLogDate := map[string]interface{}{}
 		if len(r.Form["start"]) == 1 {
-			queryLogDate["gte"] = convert(r.Form["start"][0])
+			queryLogDate["gte"] = convertTimeForElastic(r.Form["start"][0])
 		}
 		if len(r.Form["end"]) == 1 {
-			queryLogDate["lte"] = convert(r.Form["end"][0])
+			queryLogDate["lte"] = convertTimeForElastic(r.Form["end"][0])
 		}
 		queryLogDate = map[string]interface{}{
 			"range": map[string]interface{}{
@@ -280,7 +290,7 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 	size := 100
 	if len(r.Form["limit"]) == 1 {
 		sz, err := strconv.Atoi(r.Form["limit"][0])
-		if err != nil {
+		if err == nil {
 			size = sz
 		}
 	}
@@ -354,7 +364,7 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 	size := 100
 	if len(r.Form["limit"]) == 1 {
 		sz, err := strconv.Atoi(r.Form["limit"][0])
-		if err != nil {
+		if err == nil {
 			size = sz
 		}
 	}
@@ -378,7 +388,14 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
 	var results []LogSearchResult
 	r.ParseForm()
-	if c.Domain == "" {
+	if len(r.Form["start"]) == 1 && len(r.Form["end"]) == 1 {
+		start, end := convertStringToTime(r.Form["start"][0]), convertStringToTime(r.Form["end"][0])
+		if start.After(end) {
+			r.Form["start"][0], r.Form["end"][0] = r.Form["end"][0], r.Form["start"][0]
+		}
+	}
+
+	if c.Url == "" {
 		var httperr aphttp.Error
 		results, httperr = c.BleveSearch(r)
 		if httperr != nil {

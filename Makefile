@@ -40,6 +40,8 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/soap/bindata.go -pkg soap $(BINDATA_DEBUG) -prefix "soapclient/build/libs/" soapclient/build/libs/...
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
+	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
+	go-bindata -o src/gateway/mail/bindata.go -pkg mail $(BINDATA_DEBUG) -prefix "src/gateway/mail/static/" src/gateway/mail/static/...
 
 generate: install_goimports
 	go generate gateway/...
@@ -47,7 +49,7 @@ generate: install_goimports
 DeveloperVersionAccounts = 1
 DeveloperVersionUsers = 1
 DeveloperVersionAPIs = 1
-DeveloperVersionProxyEndpoints = 5
+DeveloperVersionProxyEndpoints = 20
 
 LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersionAccounts)\
  -X gateway/license.developerVersionUsers=$(DeveloperVersionUsers)\
@@ -96,20 +98,46 @@ runpg:
 test: build
 	go test ./src/...
 
-test_api_sqlite_fast:
+build_tail:
+	go build -o ./bin/tail ./src/tail/main.go
+
+test_api_sqlite_fast: build_tail
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-conn-string="./tmp/gateway_test.db" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 30
+	-rm ./tmp/gateway_log.txt
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+	  -db-conn-string="./tmp/gateway_test.db" \
+	  -proxy-domain="example.com" \
+	  -proxy-domain="example.com" \
+	  -server="true" > ./tmp/gateway_log.txt & \
+	  echo "$$!" > ./tmp/server.pid
+
+	# Sleep until we see "Server listening" or time out
+	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
+
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
 test_api_sqlite: build test_api_sqlite_fast
 
-test_api_postgres_fast:
+test_api_postgres_fast: build_tail
+	mkdir -p tmp
+	-rm ./tmp/gateway_log.txt
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
-	./bin/gateway -config=./test/gateway.conf -db-migrate -db-driver=postgres -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" -server="true" > /dev/null & echo "$$!" > ./tmp/server.pid
-	sleep 30
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+	  -db-driver=postgres \
+	  -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" \
+	  -proxy-domain="example.com" \
+	  -server="true" > ./tmp/gateway_log.txt & \
+	  echo "$$!" > ./tmp/server.pid
+
+	# Sleep until we see "Server listening" or time out
+	# ./bin/tail --verbose -timeout=5 -filename="./foo/bar" "Server listening|Error"
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || kill `cat ./tmp/server.pid`
+
 	rspec test/admin-api; status=$$?; kill `cat ./tmp/server.pid`; exit $$status
 
 test_api_postgres: build test_api_postgres_fast
@@ -156,7 +184,11 @@ vendor_get: vendor_clean
 	github.com/go-sql-driver/mysql \
 	golang.org/x/net/websocket \
 	github.com/vincent-petithory/dataurl \
-	github.com/gdamore/mangos
+	github.com/gdamore/mangos \
+	github.com/xeipuuv/gojsonschema \
+	gopkg.in/airbrake/gobrake.v2 \
+	gopkg.in/tomb.v1 \
+	github.com/hpcloud/tail
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

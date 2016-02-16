@@ -3,27 +3,42 @@ package config
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
 
+	"gateway/logreport"
+
 	"github.com/BurntSushi/toml"
 )
 
+var defaultDomain = "lvh.me"
+
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
-	Version bool   `flag:"version" default:"false"`
-	File    string `flag:"config" default:"gateway.conf"`
-	License string `flag:"license"`
-	Server  bool   `flag:"server" default:"false"`
+	Version        bool   `flag:"version" default:"false"`
+	File           string `flag:"config" default:"gateway.conf"`
+	License        string `flag:"license"`
+	LicenseContent string `flag:"license-content"`
+	Server         bool   `flag:"server" default:"false"`
 
-	Database Database
-	Proxy    ProxyServer
-	Admin    ProxyAdmin
-	Elastic  ElasticLogging
-	Bleve    BleveLogging
-	Soap     Soap
+	Airbrake       Airbrake
+	Database       Database
+	Proxy          ProxyServer
+	Admin          ProxyAdmin
+	Elastic        ElasticLogging
+	Bleve          BleveLogging
+	Soap           Soap
+	RemoteEndpoint RemoteEndpoint
+	SMTP           SMTP
+}
+
+// Airbrake specifies configuration for error reporting with Airbrake
+type Airbrake struct {
+	APIKey      string `flag:"airbrake-api-key" default:""`
+	ProjectID   int64  `flag:"airbrake-project-id" default:"0"`
+	Environment string `flag:"airbrake-environment" default:""`
 }
 
 // Database specifies configuration options for your database
@@ -45,8 +60,9 @@ type Soap struct {
 
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
-	Host string `flag:"proxy-host" default:"localhost"`
-	Port int64  `flag:"proxy-port" default:"5000"`
+	Domain string `flag:"proxy-domain" default:"lvh.me"`
+	Host   string `flag:"proxy-host" default:"localhost"`
+	Port   int64  `flag:"proxy-port" default:"5000"`
 
 	RequestIDHeader string `flag:"proxy-request-id-header" default:""`
 	EnableOSEnv     bool   `flag:"proxy-enable-os-env" default:"false"`
@@ -56,6 +72,17 @@ type ProxyServer struct {
 	HTTPTimeout   int64 `flag:"proxy-http-timeout" default:"60"`
 	CodeTimeout   int64 `flag:"proxy-code-timeout" default:"5"`
 	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
+}
+
+// RemoteEndpoint specifies which types of remote endpionts are available
+type RemoteEndpoint struct {
+	HTTPEnabled       bool `flag:"remote-endpoint-http-enabled" default:"true"`
+	SQLServerEnabled  bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
+	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
+	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
+	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
+	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
+	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
@@ -71,6 +98,7 @@ type ProxyAdmin struct {
 	EncryptionKey  string `flag:"admin-session-encryption-key" default:""`
 	AuthKey2       string `flag:"admin-session-auth-key-rotate" default:""`
 	EncryptionKey2 string `flag:"admin-session-encryption-key-rotate" default:""`
+	CookieDomain   string `flag:"admin-session-cookie-domain" default:""`
 
 	RequestIDHeader string `flag:"admin-request-id-header" default:"X-Gateway-Admin-Request"`
 
@@ -85,24 +113,37 @@ type ProxyAdmin struct {
 
 	AddDefaultEnvironment  bool   `flag:"admin-add-default-env" default:"true"`
 	DefaultEnvironmentName string `flag:"admin-default-env-name" default:"Development"`
-	AddLocalhost           bool   `flag:"admin-add-localhost" default:"true"`
+
+	CreateDefaultHost bool `flag:"admin-create-default-host" default:"true"`
 
 	EnableBroker    bool   `flag:"enable-broker" default:"true"`
 	Broker          string `flag:"broker" default:"localhost"`
 	BrokerPubPort   string `flag:"broker-pub-port" default:"5555"`
 	BrokerSubPort   string `flag:"broker-sub-port" default:"5556"`
 	BrokerTransport string `flag:"broker-transport" default:"tcp"`
+	BrokerWs        string `flag:"broker-ws" default:"localhost:5000"`
+
+	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
 }
 
 type ElasticLogging struct {
-	Domain   string `flag:"elastic-logging-domain" default:""`
-	Username string `flag:"elastic-logging-username" default:""`
-	Password string `flag:"elastic-logging-password" default:""`
+	Url string `flag:"elastic-logging-url" default:""`
 }
 
 type BleveLogging struct {
 	File        string `flag:"bleve-logging-file" default:"logs.bleve"`
 	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
+}
+
+type SMTP struct {
+	Server      string `flag:"smtp-server"`
+	Port        int64  `flag:"smtp-port" default:"25"`
+	User        string `flag:"smtp-user"`
+	Password    string `flag:"smtp-password"`
+	Sender      string `flag:"smtp-sender"`
+	EmailScheme string `flag:"smtp-email-scheme" default:"http"`
+	EmailHost   string `flag:"smtp-email-host"`
+	EmailPort   int64  `flag:"smtp-email-port" default:"0"`
 }
 
 const envPrefix = "APGATEWAY_"
@@ -134,14 +175,36 @@ func Parse(args []string) (Configuration, error) {
 	// Set final convenience flags
 	config.Admin.DevMode = config.DevMode()
 
+	// Verify that the configuration is valid before proceeding
+	if err := verify(config); err != nil {
+		return config, err
+	}
+
 	return config, nil
+}
+
+func Commands() []string {
+	return flag.Args()
+}
+
+// verify the configuration
+func verify(config Configuration) error {
+	if config.DevMode() {
+		return nil
+	}
+	// Verify that a domain is set (other than the default)
+	if config.Proxy.Domain == defaultDomain {
+		return fmt.Errorf("proxy-domain not provided.  proxy-domain must be set when running in server mode")
+	}
+
+	return nil
 }
 
 func parseConfigFile(config *Configuration) error {
 	configFile := flag.Lookup("config").Value.String()
 	_, err := toml.DecodeFile(configFile, config)
 	if os.IsNotExist(err) {
-		log.Printf(
+		logreport.Printf(
 			"%s Config file '%s' does not exist and will not be used.\n",
 			System, configFile)
 		return nil

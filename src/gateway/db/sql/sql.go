@@ -4,13 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 
 	"gateway/db"
+	"gateway/logreport"
 )
 
 type driver string
@@ -126,14 +126,14 @@ func MaxOpenIdle(maxOpen, maxIdle int) db.Configurator {
 // cause a panic if we try to compare a SQL database to a non-SQL database.
 func (s *spec) NeedsUpdate(dbSpec db.Specifier) bool {
 	if dbSpec == nil {
-		log.Panicf("tried to compare to nil db.Specifier!")
+		logreport.Panicf("tried to compare to nil db.Specifier!")
 	}
 	if tSpec, ok := dbSpec.(sqlSpec); ok {
 		maxOpen, maxIdle := tSpec.getMaxOpenIdle()
 		return s.maxIdle != maxIdle || s.maxOpen != maxOpen
 	}
 	// If this happened, we're in deep trouble!  Abandon ship!
-	log.Panicf("tried to compare wrong database kinds: SQL and %T", dbSpec)
+	logreport.Panicf("tried to compare wrong database kinds: SQL and %T", dbSpec)
 	return false
 }
 

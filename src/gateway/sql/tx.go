@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
+
+	"gateway/logreport"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -51,7 +52,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 // InsertOne inserts a row into the DB and returns the ID of the new row.
 func (tx *Tx) InsertOne(baseQuery string, args ...interface{}) (id int64, err error) {
 	if strings.HasSuffix(baseQuery, ";") {
-		log.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
+		logreport.Fatalf("InsertOne query must not end in ;: %s", baseQuery)
 	}
 	if tx.DB.Driver == Postgres {
 		query := tx.q(baseQuery + ` RETURNING "id";`)
@@ -110,16 +111,18 @@ func (tx *Tx) TopTag() string {
 // (in memory on a single single box, to be used for development only), whereas
 //  Postgres uses its NOTIFY command and triggers on commit for database-based
 // listeners.
-func (tx *Tx) Notify(table string, accountID, userID, apiID, id int64, event NotificationEventType, messages ...interface{}) error {
+func (tx *Tx) Notify(table string, accountID, userID, apiID, proxyEndpointID, id int64,
+	event NotificationEventType, messages ...interface{}) error {
 	n := Notification{
-		Table:     table,
-		AccountID: accountID,
-		UserID:    userID,
-		APIID:     apiID,
-		ID:        id,
-		Event:     event,
-		Tag:       tx.tags[len(tx.tags)-1],
-		Messages:  messages,
+		Table:           table,
+		AccountID:       accountID,
+		UserID:          userID,
+		APIID:           apiID,
+		ProxyEndpointID: proxyEndpointID,
+		ID:              id,
+		Event:           event,
+		Tag:             tx.tags[len(tx.tags)-1],
+		Messages:        messages,
 	}
 
 	if tx.DB.Driver == Sqlite3 {

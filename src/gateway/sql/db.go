@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"gateway/config"
-	"log"
 	"sync"
 	"time"
 
@@ -15,9 +14,11 @@ import (
 
 	// Add postgres driver
 	"github.com/lib/pq"
+
+	"gateway/logreport"
 )
 
-const currentVersion = 3
+const currentVersion = 9
 
 type driverType string
 
@@ -80,6 +81,42 @@ func (db *DB) Migrate() error {
 	if version < 3 {
 		if err = migrateToV3(db); err != nil {
 			return fmt.Errorf("Could not migrate to schema v3: %v", err)
+		}
+	}
+
+	if version < 4 {
+		if err = migrateToV4(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v4: %v", err)
+		}
+	}
+
+	if version < 5 {
+		if err = migrateToV5(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v5: %v", err)
+		}
+	}
+
+	if version < 6 {
+		if err = migrateToV6(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v6: %v", err)
+		}
+	}
+
+	if version < 7 {
+		if err = migrateToV7(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v7: %v", err)
+		}
+	}
+
+	if version < 8 {
+		if err = migrateToV8(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v8: %v", err)
+		}
+	}
+
+	if version < 9 {
+		if err = migrateToV9(db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v9: %v", err)
 		}
 	}
 
@@ -160,7 +197,7 @@ func (db *DB) waitForNotification(l *pq.Listener) {
 				var notification Notification
 				err := json.Unmarshal([]byte(pgNotification.Extra), &notification)
 				if err != nil {
-					log.Printf("%s Error parsing notification '%s': %v",
+					logreport.Printf("%s Error parsing notification '%s': %v",
 						config.System, pgNotification.Extra, err)
 					continue
 				}
@@ -178,7 +215,7 @@ func (db *DB) waitForNotification(l *pq.Listener) {
 
 func (db *DB) listenerConnectionEvent(ev pq.ListenerEventType, err error) {
 	if err != nil {
-		log.Printf("%s Database listener connection problem: %v", config.System, err)
+		logreport.Printf("%s Database listener connection problem: %v", config.System, err)
 	}
 }
 
@@ -190,7 +227,7 @@ func (db *DB) SQL(name string) string {
 		asset = fmt.Sprintf("%s/%s.sql", db.Driver, name)
 		bytes, err = Asset(asset)
 		if err != nil {
-			log.Fatalf("%s could not find %s", config.System, asset)
+			logreport.Fatalf("%s could not find %s", config.System, asset)
 		}
 	}
 	return string(bytes)

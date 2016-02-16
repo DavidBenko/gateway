@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	aperrors "gateway/errors"
 	"gateway/license"
 	apsql "gateway/sql"
@@ -33,14 +35,15 @@ type ProxyEndpoint struct {
 	ExportEnvironmentIndex   int `json:"environment_index,omitempty"`
 
 	// Proxy Data Cache
-	Environment *Environment `json:"-"`
-	API         *API         `json:"-"`
+	Environment *Environment         `json:"-"`
+	API         *API                 `json:"-"`
+	Schema      *ProxyEndpointSchema `json:"-"`
 }
 
 // Validate validates the model.
-func (e *ProxyEndpoint) Validate() aperrors.Errors {
+func (e *ProxyEndpoint) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if e.Name == "" {
+	if e.Name == "" || strings.TrimSpace(e.Name) == "" {
 		errors.Add("name", "must not be blank")
 	}
 	routes, err := e.GetRoutes()
@@ -173,6 +176,14 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 		return nil, aperrors.NewWrapped("Fetching API", err)
 	}
 
+	schemas, err := FindProxyEndpointSchemasForProxy(db, proxyEndpoint.ID, proxyEndpoint.APIID)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching Schema", err)
+	}
+	if len(schemas) > 0 {
+		proxyEndpoint.Schema = schemas[0]
+	}
+
 	return &proxyEndpoint, nil
 }
 
@@ -182,7 +193,7 @@ func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID,
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoints", accountID, userID, apiID, id, apsql.Delete)
+	return tx.Notify("proxy_endpoints", accountID, userID, apiID, 0, id, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -221,7 +232,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Insert)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 // Update updates the proxyEndpoint in the database.
@@ -298,5 +309,5 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, e.ID, apsql.Update)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
 }
