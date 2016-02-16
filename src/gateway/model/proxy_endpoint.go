@@ -85,6 +85,9 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	if apsql.IsNotNullConstraint(err, "proxy_endpoint_calls", "remote_endpoint_id") {
 		errors.Add("components", "all calls must reference a valid remote endpoint in this API")
 	}
+	if apsql.IsUniqueConstraint(err, "proxy_endpoint_tests", "endpoint_id", "name") {
+		errors.Add("tests", "name is already taken")
+	}
 	return errors
 }
 
