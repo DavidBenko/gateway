@@ -3,6 +3,7 @@ package sql
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gateway/db"
@@ -45,9 +46,19 @@ func (m *MySQLSpec) ConnectionString() string {
 	// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
 	// Example: user:password@tcp([de:ad:be:ef::ca:fe]:80)/dbname?timeout=90s&collation=utf8mb4_unicode_ci
 	conn := m.UniqueServer()
+	paramMap := map[string]string{}
 	if m.Timeout != "" {
-		conn += fmt.Sprintf("?timeout=%s", m.Timeout)
+		paramMap["timeout"] = m.Timeout
 	}
+
+	paramMap["parseTime"] = "true"
+	paramStrings := []string{}
+
+	for k, v := range paramMap {
+		paramStrings = append(paramStrings, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	conn += fmt.Sprintf("?%s", strings.Join(paramStrings, "&"))
 
 	return conn
 }
