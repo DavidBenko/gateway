@@ -649,7 +649,7 @@ AP.LDAP.DereferenceAliases = {
 AP.LDAP.Request.prototype._execute = function(arguments, operationName, opts) {
   this.arguments = arguments;
   this.operationName = operationName;
-  this.opts = opts;
+  this.options = opts;
 }
 
 /**
@@ -669,8 +669,7 @@ AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
     "typesOnly": typesOnly,
     "filter": filter,
     "attributes": attributes,
-    "controls": controls,
-    "options": opts
+    "controls": controls
   };
   this._execute(searchParams, "search", opts);
 }

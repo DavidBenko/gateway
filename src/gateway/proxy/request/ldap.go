@@ -2,7 +2,10 @@ package request
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"strings"
@@ -21,6 +24,9 @@ type LDAPRequest struct {
 	Username string
 	Password string
 
+	UseTLS    bool
+	TLSConfig TLS
+
 	operationName string
 	arguments     apldap.Operation
 	options       map[string]interface{}
@@ -28,72 +34,47 @@ type LDAPRequest struct {
 	connection *apldap.ConnectionAdapter
 }
 
+// TLS configuration for a request
+type TLS struct {
+	PrivateKeyPassword string `json:"private_key_password"`
+	ServerName         string `json:"server_name"`
+	PrivateKey         string `json:"private_key"`
+	Certificate        string `json:"certificate"`
+}
+
 // UnmarshalJSON is a custom method to unmarshal LDAPRequest.  A custom method
 // is needed since 'arguments' is an ldap.Operation, which is not a concrete
 // type, but an interface
 func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 
-	if l == nil {
-		return nil
+	var helper struct {
+		Host          string                 `json:"host"`
+		Port          int                    `json:"port"`
+		Username      string                 `json:"username"`
+		Password      string                 `json:"password"`
+		UseTLS        bool                   `json:"use_tls"`
+		TLSConfig     TLS                    `json:"tls"`
+		OperationName string                 `json:"operationName"`
+		Options       map[string]interface{} `json:"options"`
+		Arguments     *json.RawMessage       `json:"arguments"`
 	}
 
-	var fields map[string]*json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
+	if err := json.Unmarshal(data, &helper); err != nil {
 		return err
 	}
-	var arguments json.RawMessage
-	for k, v := range fields {
-		if v == nil {
-			continue
-		}
 
-		switch k {
-		case "host":
-			var host string
-			if err := json.Unmarshal([]byte(*v), &host); err != nil {
-				return err
-			}
-			l.Host = host
-		case "port":
-			var port int
-			if err := json.Unmarshal([]byte(*v), &port); err != nil {
-				return err
-			}
-			l.Port = port
-		case "username":
-			var username string
-			if err := json.Unmarshal([]byte(*v), &username); err != nil {
-				return err
-			}
-			l.Username = username
-		case "password":
-			var password string
-			if err := json.Unmarshal([]byte(*v), &password); err != nil {
-				return err
-			}
-			l.Password = password
-		case "operationName":
-			var opName string
-			if err := json.Unmarshal([]byte(*v), &opName); err != nil {
-				return err
-			}
-			l.operationName = opName
-		case "arguments":
-			if err := json.Unmarshal([]byte(*v), &arguments); err != nil {
-				return err
-			}
-		case "options":
-			var options map[string]interface{}
-			if err := json.Unmarshal([]byte(*v), &options); err != nil {
-				return err
-			}
-			l.options = options
-		}
-	}
+	l.Host = helper.Host
+	l.Port = helper.Port
+	l.Username = helper.Username
+	l.Password = helper.Password
+	l.UseTLS = helper.UseTLS
+	l.TLSConfig = helper.TLSConfig
+	l.operationName = helper.OperationName
+	l.options = helper.Options
 
 	var op apldap.Operation
 
-	if arguments != nil {
+	if helper.Arguments != nil {
 		switch l.operationName {
 		case "search":
 			op = apldap.NewSearchOperation(l.options)
@@ -113,7 +94,7 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 		}
 
 		if op != nil {
-			if err := json.Unmarshal([]byte(arguments), op); err != nil {
+			if err := json.Unmarshal([]byte(*helper.Arguments), op); err != nil {
 				return err
 			}
 			l.arguments = op
@@ -163,6 +144,26 @@ func (l *LDAPRequest) updateWith(other *LDAPRequest) {
 	if other.Port > 0 {
 		l.Port = other.Port
 	}
+
+	if other.UseTLS && !l.UseTLS {
+		l.UseTLS = true
+	}
+
+	if other.TLSConfig.Certificate != "" {
+		l.TLSConfig.Certificate = other.TLSConfig.Certificate
+	}
+
+	if other.TLSConfig.PrivateKey != "" {
+		l.TLSConfig.PrivateKey = other.TLSConfig.PrivateKey
+	}
+
+	if len(other.TLSConfig.PrivateKeyPassword) > 0 {
+		l.TLSConfig.PrivateKeyPassword = other.TLSConfig.PrivateKeyPassword
+	}
+
+	if other.TLSConfig.ServerName != "" {
+		l.TLSConfig.ServerName = other.TLSConfig.ServerName
+	}
 }
 
 // Log satisfies request.Request's Log method
@@ -201,14 +202,64 @@ func (l *LDAPRequest) CreateOrReuse(conn io.Closer) (io.Closer, error) {
 		}
 
 		l.connection = &apldap.ConnectionAdapter{newConn}
-
-		return l.connection, nil
+	} else {
+		var ldapConn *apldap.ConnectionAdapter
+		var ok bool
+		if ldapConn, ok = conn.(*apldap.ConnectionAdapter); ok {
+			l.connection = ldapConn
+		} else {
+			return nil, fmt.Errorf("Expected conn to be of type *ldap.ConnectionAdapter")
+		}
 	}
 
-	if ldapConn, ok := conn.(*apldap.ConnectionAdapter); ok {
-		l.connection = ldapConn
-		return ldapConn, nil
+	if l.UseTLS {
+		conf, err := l.getTLSConf()
+		if err != nil {
+			return nil, aperrors.NewWrapped("[ldap] Getting TLS Configuration", err)
+		}
+		err = l.connection.Conn.StartTLS(conf)
+		if err != nil {
+			return nil, aperrors.NewWrapped("[ldap] Starting TLS", err)
+		}
 	}
 
-	return nil, fmt.Errorf("Expected conn to be of type *ldap.ConnectionAdapter")
+	return l.connection, nil
+}
+
+func (l *LDAPRequest) getTLSConf() (*tls.Config, error) {
+	conf := &tls.Config{InsecureSkipVerify: true}
+	if l.TLSConfig.ServerName != "" {
+		conf.ServerName = l.TLSConfig.ServerName
+		conf.InsecureSkipVerify = false
+	}
+	if l.TLSConfig.Certificate != "" && l.TLSConfig.PrivateKey != "" {
+		conf.InsecureSkipVerify = false
+
+		var pkBytes []byte
+		if len(l.TLSConfig.PrivateKeyPassword) > 0 {
+			pkBlock, _ := pem.Decode([]byte(l.TLSConfig.PrivateKey))
+			if pkBlock == nil {
+				return nil, fmt.Errorf("No PEM data found in private key")
+			}
+
+			decryptedBytes, err := x509.DecryptPEMBlock(pkBlock, []byte(l.TLSConfig.PrivateKeyPassword))
+			if err != nil {
+				return nil, aperrors.NewWrapped("[ldap] Decrypting private key", err)
+			}
+
+			encodedBytes := pem.EncodeToMemory(&pem.Block{Type: pkBlock.Type, Bytes: decryptedBytes})
+
+			pkBytes = encodedBytes
+		} else {
+			pkBytes = []byte(l.TLSConfig.PrivateKey)
+		}
+
+		cert, err := tls.X509KeyPair([]byte(l.TLSConfig.Certificate), pkBytes)
+		if err != nil {
+			return nil, aperrors.NewWrapped("[ldap] Creating TLS keypair", err)
+		}
+
+		conf.Certificates = []tls.Certificate{cert}
+	}
+	return conf, nil
 }

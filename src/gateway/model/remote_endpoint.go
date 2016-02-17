@@ -253,8 +253,24 @@ func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
 	}
 }
 
+// Validate LDAP endpoint configuration
 func (e *RemoteEndpoint) ValidateLDAP(errors aperrors.Errors) {
-	// TODO
+	ldap := re.LDAP{}
+	if err := json.Unmarshal(e.Data, &ldap); err != nil {
+		errors.Add("base", "error in ldap config")
+		return
+	}
+
+	if errs := ldap.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
+	}
+
+	data, err := json.Marshal(ldap)
+	if err == nil {
+		errors.Add("base", "error re-encoding data")
+		e.Data = data
+	}
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
