@@ -121,6 +121,9 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 
 			return input
 		},
+		"analytics": func() string {
+			return conf.GoogleAnalyticsTrackingId
+		},
 	}
 
 	tmpl := template.New("index")
