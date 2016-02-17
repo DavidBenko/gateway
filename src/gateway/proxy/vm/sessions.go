@@ -77,7 +77,12 @@ func (p *ProxyVM) setupSessionStore(env *model.Environment) error {
 		p.Set("__ap_session_delete", p.serverSessionDelete)
 		p.Set("__ap_session_set_options", p.serverSessionSetOptions)
 
-		p.serverStore = &ServerStore{Header: env.SessionHeader}
+		header := env.SessionHeader
+		if header == "" {
+			header = model.SessionHeaderDefault
+		}
+
+		p.serverStore = &ServerStore{Header: header}
 		if headers := p.r.Header[p.serverStore.Header]; len(headers) > 0 {
 			p.serverStore.UUID = headers[0]
 			p.w.Header().Add(p.serverStore.Header, headers[0])

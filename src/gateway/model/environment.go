@@ -43,6 +43,12 @@ func (e *Environment) Validate(isInsert bool) aperrors.Errors {
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")
 	}
+	switch e.SessionType {
+	case SessionTypeClient:
+	case SessionTypeServer:
+	default:
+		errors.Add("session_type", "invalid session type")
+	}
 	return errors
 }
 
