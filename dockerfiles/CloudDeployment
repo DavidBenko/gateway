@@ -55,6 +55,7 @@ ENV EMAIL_PORT 5000
 ENV PROXY_CODE_TIMEOUT 5
 ENV PROXY_HTTP_TIMEOUT 60
 ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts[0]}}:5000"
+ENV GOOGLE_ANALYTICS_TRACKING_ID ""
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
 ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$CACHE_APIS \
@@ -68,4 +69,5 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -proxy-cache-apis=$
   -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT \
   -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
   -license-content="$LICENSE_CONTENT" \
+  -admin-google-analytics-tracking-id="$GOOGLE_ANALYTICS_TRACKING_ID" \
   -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN"
