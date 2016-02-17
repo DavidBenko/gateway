@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"strings"
 
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
@@ -27,11 +28,17 @@ type ScratchPad struct {
 
 func (s *ScratchPad) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
+	if s.Name == "" || strings.TrimSpace(s.Name) == "" {
+		errors.Add("name", "must not be blank")
+	}
 	return errors
 }
 
 func (s *ScratchPad) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
+	if apsql.IsUniqueConstraint(err, "scratch_pads", "remote_endpoint_environment_data_id", "name") {
+		errors.Add("name", "is already taken")
+	}
 	return errors
 }
 
