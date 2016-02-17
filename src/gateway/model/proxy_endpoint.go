@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	aperrors "gateway/errors"
 	"gateway/license"
 	apsql "gateway/sql"
@@ -41,7 +43,7 @@ type ProxyEndpoint struct {
 // Validate validates the model.
 func (e *ProxyEndpoint) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if e.Name == "" {
+	if e.Name == "" || strings.TrimSpace(e.Name) == "" {
 		errors.Add("name", "must not be blank")
 	}
 	routes, err := e.GetRoutes()
@@ -82,6 +84,9 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	}
 	if apsql.IsNotNullConstraint(err, "proxy_endpoint_calls", "remote_endpoint_id") {
 		errors.Add("components", "all calls must reference a valid remote endpoint in this API")
+	}
+	if apsql.IsUniqueConstraint(err, "proxy_endpoint_tests", "endpoint_id", "name") {
+		errors.Add("tests", "name is already taken")
 	}
 	return errors
 }

@@ -171,6 +171,8 @@ func main() {
 		logreport.Fatalf("Unable to configure the object store: %v", err)
 	}
 
+	model.ConfigureDefaultAPIAccessScheme(conf.Admin.DefaultAPIAccessScheme)
+
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
 	proxy := proxy.NewServer(conf, db, objectStore)
