@@ -189,7 +189,8 @@ vendor_get: vendor_clean
 	gopkg.in/airbrake/gobrake.v2 \
 	github.com/boltdb/bolt \
 	gopkg.in/tomb.v1 \
-	github.com/hpcloud/tail
+	github.com/hpcloud/tail \
+	github.com/ory-am/dockertest
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

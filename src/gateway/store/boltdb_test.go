@@ -26,11 +26,11 @@ func TestMain(m *testing.M) {
 	conf := config.Store{
 		Type: "postgres",
 	}
+	dockertest.BindDockerToLocalhost = "true"
 	c, err := dockertest.ConnectToPostgreSQL(60, time.Second, func(url string) bool {
 		conf.ConnectionString = url
-		var err error
-		postgresStore, err = store.Configure(conf)
-		return err == nil
+		postgresStore, _ = store.Configure(conf)
+		return postgresStore.(*store.PostgresStore).Ping() == nil
 	})
 	if err != nil {
 		log.Fatalf("Could not connect to database: %s", err)

@@ -30,6 +30,10 @@ type Object struct {
 	Object     string
 }
 
+func (s *PostgresStore) Ping() error {
+	return s.db.Ping()
+}
+
 func (s *PostgresStore) Migrate() error {
 	var currentVersion int64
 	err := s.db.Get(&currentVersion, `SELECT version FROM schema LIMIT 1`)
