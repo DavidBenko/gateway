@@ -318,6 +318,24 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 	return nil
 }
 
+func findCollection(collections *bolt.Bucket, collection *Collection) (bool, error) {
+	cursor := collections.Cursor()
+	key, value := cursor.First()
+	for key != nil {
+		var c Collection
+		err := json.Unmarshal(value, &c)
+		if err != nil {
+			return false, err
+		}
+		if c.Name == collection.Name {
+			*collection = c
+			return true, nil
+		}
+		key, value = cursor.Next()
+	}
+	return false, nil
+}
+
 func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket, error) {
 	meta := tx.Bucket([]byte(metaBucket))
 	if meta == nil {
@@ -340,19 +358,9 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 			return nil, nil, err
 		}
 
-		cursor, found := collections.Cursor(), false
-		key, value := cursor.First()
-		for key != nil {
-			var c Collection
-			err := json.Unmarshal(value, &c)
-			if err != nil {
-				return nil, nil, err
-			}
-			if c.Name == collection.Name {
-				found = true
-				break
-			}
-			key, value = cursor.Next()
+		found, err := findCollection(collections, collection)
+		if err != nil {
+			return nil, nil, err
 		}
 
 		if !found {
@@ -378,7 +386,7 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 			}
 		}
 
-		bucket, err := account.CreateBucketIfNotExists([]byte(collection.Name))
+		bucket, err := account.CreateBucketIfNotExists(itob(uint64(collection.ID)))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -391,7 +399,20 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 		return nil, nil, errors.New("bucket for account doesn't exist")
 	}
 
-	bucket := account.Bucket([]byte(collection.Name))
+	collections := account.Bucket([]byte("$collections"))
+	if collections == nil {
+		return nil, nil, errors.New("bucket for $collections doesn't exist")
+	}
+
+	found, err := findCollection(collections, collection)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !found {
+		return nil, nil, errors.New("collection doesn't exist")
+	}
+
+	bucket := account.Bucket(itob(uint64(collection.ID)))
 	if bucket == nil {
 		return nil, nil, errors.New("collection doesn't exist")
 	}
