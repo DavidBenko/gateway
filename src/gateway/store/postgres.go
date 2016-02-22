@@ -11,6 +11,7 @@ import (
 	"gateway/config"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/types"
 	_ "github.com/lib/pq"
 )
 
@@ -24,11 +25,11 @@ type PostgresStore struct {
 }
 
 type Object struct {
-	ID           int64
-	AccountID    int64 `db:"account_id"`
-	CollectionID int64 `db:"collection_id"`
-	Collection   string
-	Object       string
+	ID           int64          `json:"id"`
+	AccountID    int64          `json:"account_id" db:"account_id"`
+	CollectionID int64          `json:"collection_id" db:"collection_id"`
+	Collection   string         `json:"collection"`
+	Data         types.JsonText `json:"data"`
 }
 
 func (s *PostgresStore) Ping() error {
@@ -84,7 +85,7 @@ func (s *PostgresStore) Migrate() error {
         "account_id" INTEGER NOT NULL,
 				"collection_id" INTEGER NOT NULL,
         "collection" TEXT NOT NULL,
-        "object" JSON NOT NULL,
+        "data" JSON NOT NULL,
 				FOREIGN KEY("collection_id") REFERENCES "collections"("id") ON DELETE CASCADE
       );
     `)
@@ -243,13 +244,13 @@ func (s *PostgresStore) addCollection(collection *Collection) (err error) {
 
 func (s *PostgresStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
 	object := Object{}
-	err := s.db.Get(&object, "SELECT id, account_id, collection_id, collection, object FROM objects WHERE id = $1 AND account_id = $2 AND collection = $3;",
+	err := s.db.Get(&object, "SELECT id, account_id, collection_id, collection, data FROM objects WHERE id = $1 AND account_id = $2 AND collection = $3;",
 		id, accountID, collection)
 	if err != nil {
 		return nil, err
 	}
 	var result interface{}
-	err = json.Unmarshal([]byte(object.Object), &result)
+	err = object.Data.Unmarshal(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +269,7 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Queryx("UPDATE objects SET object = $1 WHERE id = $2 AND account_id = $3 AND collection = $4;",
+	rows, err := s.db.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3 AND collection = $4;",
 		string(value), id, accountID, collection)
 	if err != nil {
 		return nil, err
@@ -294,7 +295,7 @@ func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64
 	}
 
 	var result interface{}
-	err = json.Unmarshal([]byte(object.Object), &result)
+	err = object.Data.Unmarshal(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +322,7 @@ func (s *PostgresStore) Insert(accountID int64, collection string, object interf
 		}
 		err = tx.Commit()
 	}()
-	stmt, err := tx.Preparex(`INSERT into objects (account_id, collection_id, collection, object) VALUES ($1, $2, $3, $4) RETURNING "id";`)
+	stmt, err := tx.Preparex(`INSERT into objects (account_id, collection_id, collection, data) VALUES ($1, $2, $3, $4) RETURNING "id";`)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collection string,
 	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
 	query, length := pgProcess(ast, &Context{buffer, nil, params}).s, len(params)
 	params = append(params, accountID, collection)
-	query = fmt.Sprintf("SELECT id, account_id, collection_id, collection, object FROM objects WHERE account_id = $%v AND collection = $%v AND %v;",
+	query = fmt.Sprintf("SELECT id, account_id, collection_id, collection, data FROM objects WHERE account_id = $%v AND collection = $%v AND %v;",
 		length+1, length+2, query)
 
 	rows, err := tx.Queryx(query, params...)
@@ -421,7 +422,7 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collection string,
 			return nil, err
 		}
 		var _json interface{}
-		err = json.Unmarshal([]byte(o.Object), &_json)
+		err = o.Data.Unmarshal(&_json)
 		if err != nil {
 			return nil, err
 		}
@@ -523,7 +524,7 @@ func pgProcessPath(node *node32, context *Context) (q Query) {
 		node = node.next
 	}
 	last := len(segments) - 1
-	q.s = "object"
+	q.s = "data"
 	for _, segment := range segments[:last] {
 		q.s += "->'" + segment + "'"
 	}
@@ -602,7 +603,7 @@ func pgProcessExpression(node *node32, context *Context) (q Query) {
 		}
 		path = path.next
 	}
-	q.s = "object"
+	q.s = "data"
 	last := len(segments) - 1
 	for _, segment := range segments[:last] {
 		q.s += "->'" + segment + "'"
