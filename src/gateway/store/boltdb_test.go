@@ -19,9 +19,7 @@ import (
 
 var testStore store.Store
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
+func testPostgres(m *testing.M) int {
 	var postgresStore store.Store
 	conf := config.Store{
 		Type: "postgres",
@@ -40,17 +38,19 @@ func TestMain(m *testing.M) {
 		c.KillRemove()
 	}()
 	testStore = postgresStore
-	status := m.Run()
+	return m.Run()
+}
 
+func testBolt(m *testing.M) int {
 	var boltStore store.Store
 	file := make([]byte, 8)
 	binary.BigEndian.PutUint64(file, uint64(rand.Int63()))
 	name := os.TempDir() + string(os.PathSeparator) + hex.EncodeToString(file) + ".db"
-	conf = config.Store{
+	conf := config.Store{
 		Type:             "boltdb",
 		ConnectionString: name,
 	}
-	boltStore, err = store.Configure(conf)
+	boltStore, err := store.Configure(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -62,8 +62,18 @@ func TestMain(m *testing.M) {
 		}
 	}()
 	testStore = boltStore
-	status = m.Run()
+	return m.Run()
+}
 
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	status := testPostgres(m)
+	if status != 0 {
+		os.Exit(status)
+	}
+
+	status = testBolt(m)
 	os.Exit(status)
 }
 
@@ -91,16 +101,16 @@ var testJson = []string{
 	}`,
 }
 
-func setup(t *testing.T) (string, store.Store) {
+func setup(t *testing.T) store.Store {
 	err := testStore.Migrate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return "", testStore
+	return testStore
 }
 
-func teardown(t *testing.T, name string, s store.Store) {
-	err := testStore.Clear()
+func teardown(t *testing.T, s store.Store) {
+	err := s.Clear()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,13 +130,13 @@ func parse(t *testing.T) []interface{} {
 }
 
 func TestConfigure(t *testing.T) {
-	name, s := setup(t)
-	teardown(t, name, s)
+	s := setup(t)
+	teardown(t, s)
 }
 
 func TestCreateCollection(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	collection := &store.Collection{AccountID: 0, Name: "acollection"}
 	err := s.CreateCollection(collection)
@@ -139,8 +149,8 @@ func TestCreateCollection(t *testing.T) {
 }
 
 func TestListCollection(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	collection := &store.Collection{AccountID: 0, Name: "acollection"}
 	err := s.CreateCollection(collection)
@@ -161,8 +171,8 @@ func TestListCollection(t *testing.T) {
 }
 
 func TestShowCollection(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	collection := &store.Collection{AccountID: 0, Name: "acollection"}
 	err := s.CreateCollection(collection)
@@ -183,8 +193,8 @@ func TestShowCollection(t *testing.T) {
 }
 
 func TestUpdateCollection(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	collection := &store.Collection{AccountID: 0, Name: "acollection"}
 	err := s.CreateCollection(collection)
@@ -203,8 +213,8 @@ func TestUpdateCollection(t *testing.T) {
 }
 
 func TestDeleteCollection(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	collection := &store.Collection{AccountID: 0, Name: "acollection"}
 	err := s.CreateCollection(collection)
@@ -222,8 +232,8 @@ func TestDeleteCollection(t *testing.T) {
 }
 
 func TestInsert(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objects, err := s.Insert(0, "people", objects[0])
@@ -238,8 +248,8 @@ func TestInsert(t *testing.T) {
 }
 
 func TestInsertArray(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objs, err := s.Insert(0, "people", objects)
@@ -254,8 +264,8 @@ func TestInsertArray(t *testing.T) {
 }
 
 func TestSelectByID(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objects, err := s.Insert(0, "people", objects[0])
@@ -277,8 +287,8 @@ func TestSelectByID(t *testing.T) {
 }
 
 func TestUpdateByID(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objects, err := s.Insert(0, "people", objects[0])
@@ -302,8 +312,8 @@ func TestUpdateByID(t *testing.T) {
 }
 
 func TestDeleteByID(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objects, err := s.Insert(0, "people", objects[0])
@@ -325,8 +335,8 @@ func TestDeleteByID(t *testing.T) {
 }
 
 func TestDeleteBulk(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	objs, err := s.Insert(0, "people", objects)
@@ -354,8 +364,8 @@ func TestDeleteBulk(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	name, s := setup(t)
-	defer teardown(t, name, s)
+	s := setup(t)
+	defer teardown(t, s)
 
 	objects := parse(t)
 	for _, obj := range objects {
