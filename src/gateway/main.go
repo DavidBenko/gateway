@@ -170,6 +170,10 @@ func main() {
 	if err != nil {
 		logreport.Fatalf("Unable to configure the object store: %v", err)
 	}
+	err = objectStore.Migrate()
+	if err != nil {
+		logreport.Fatalf("Unable to migrate the object store: %v", err)
+	}
 
 	model.ConfigureDefaultAPIAccessScheme(conf.Admin.DefaultAPIAccessScheme)
 

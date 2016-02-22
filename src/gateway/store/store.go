@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"gateway/config"
 
 	"github.com/boltdb/bolt"
@@ -13,7 +15,25 @@ const (
 	StoreTypePostgres = "postgres"
 )
 
+var (
+	ErrCollectionExists      = errors.New("collection already exists")
+	ErrCollectionDoesntExist = errors.New("collection doesn't exist")
+)
+
+type Collection struct {
+	ID        int64  `json:"id"`
+	AccountID int64  `json:"account_id" db:"account_id"`
+	Name      string `json:"name"`
+}
+
 type Store interface {
+	Migrate() error
+	Clear() error
+	ListCollection(collection *Collection, collections *[]*Collection) error
+	CreateCollection(collection *Collection) error
+	ShowCollection(collection *Collection) error
+	UpdateCollection(collection *Collection) error
+	DeleteCollection(collection *Collection) error
 	SelectByID(accountID int64, collection string, id uint64) (interface{}, error)
 	UpdateByID(accountID int64, collection string, id uint64, object interface{}) (interface{}, error)
 	DeleteByID(accountID int64, collection string, id uint64) (interface{}, error)
@@ -32,11 +52,6 @@ func Configure(conf config.Store) (Store, error) {
 			return nil, err
 		}
 
-		err = s.Migrate()
-		if err != nil {
-			return nil, err
-		}
-
 		return &s, nil
 	} else if conf.Type == StoreTypePostgres {
 		p := PostgresStore{conf: conf}
@@ -47,11 +62,6 @@ func Configure(conf config.Store) (Store, error) {
 		}
 
 		p.db.SetMaxOpenConns(int(conf.MaxConnections))
-
-		err = p.Migrate()
-		if err != nil {
-			return nil, err
-		}
 
 		return &p, nil
 	}

@@ -4,13 +4,68 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
+	"log"
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"gateway/config"
 	"gateway/store"
+
+	"github.com/ory-am/dockertest"
 )
+
+var testStore store.Store
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	var postgresStore store.Store
+	conf := config.Store{
+		Type: "postgres",
+	}
+	c, err := dockertest.ConnectToPostgreSQL(60, time.Second, func(url string) bool {
+		conf.ConnectionString = url
+		var err error
+		postgresStore, err = store.Configure(conf)
+		return err == nil
+	})
+	if err != nil {
+		log.Fatalf("Could not connect to database: %s", err)
+	}
+	defer func() {
+		postgresStore.Shutdown()
+		c.KillRemove()
+	}()
+	testStore = postgresStore
+	status := m.Run()
+
+	var boltStore store.Store
+	file := make([]byte, 8)
+	binary.BigEndian.PutUint64(file, uint64(rand.Int63()))
+	name := os.TempDir() + string(os.PathSeparator) + hex.EncodeToString(file) + ".db"
+	conf = config.Store{
+		Type:             "boltdb",
+		ConnectionString: name,
+	}
+	boltStore, err = store.Configure(conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		boltStore.Shutdown()
+		err := os.Remove(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	testStore = boltStore
+	status = m.Run()
+
+	os.Exit(status)
+}
 
 var testJson = []string{
 	`{
@@ -37,23 +92,15 @@ var testJson = []string{
 }
 
 func setup(t *testing.T) (string, store.Store) {
-	file := make([]byte, 8)
-	binary.BigEndian.PutUint64(file, uint64(rand.Int63()))
-	name := os.TempDir() + string(os.PathSeparator) + hex.EncodeToString(file) + ".db"
-	conf := config.Store{
-		Type:             "boltdb",
-		ConnectionString: name,
-	}
-	s, err := store.Configure(conf)
+	err := testStore.Migrate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return name, s
+	return "", testStore
 }
 
 func teardown(t *testing.T, name string, s store.Store) {
-	s.Shutdown()
-	err := os.Remove(name)
+	err := testStore.Clear()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +122,103 @@ func parse(t *testing.T) []interface{} {
 func TestConfigure(t *testing.T) {
 	name, s := setup(t)
 	teardown(t, name, s)
+}
+
+func TestCreateCollection(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+}
+
+func TestListCollection(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+	collections := []*store.Collection{}
+	err = s.ListCollection(&store.Collection{AccountID: 0}, &collections)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(collections) != 1 {
+		t.Fatal("there should be 1 collection")
+	}
+}
+
+func TestShowCollection(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	err = s.ShowCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.Name == "" {
+		t.Fatal("collection name should be set")
+	}
+}
+
+func TestUpdateCollection(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	collection.Name = "anewname"
+	err = s.UpdateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteCollection(t *testing.T) {
+	name, s := setup(t)
+	defer teardown(t, name, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	err = s.DeleteCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestInsert(t *testing.T) {
