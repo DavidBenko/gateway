@@ -127,6 +127,8 @@ type ProxyAdmin struct {
 	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
 
 	DefaultAPIAccessScheme string `flag:"admin-default-api-access-scheme" default:"http://{{hosts[0]}}:5000"`
+
+	GoogleAnalyticsTrackingId string `flag:"admin-google-analytics-tracking-id" default:""`
 }
 
 type ElasticLogging struct {
