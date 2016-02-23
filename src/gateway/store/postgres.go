@@ -11,7 +11,6 @@ import (
 	"gateway/config"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/jmoiron/sqlx/types"
 	_ "github.com/lib/pq"
 )
 
@@ -22,13 +21,6 @@ const (
 type PostgresStore struct {
 	conf config.Store
 	db   *sqlx.DB
-}
-
-type Object struct {
-	ID           int64          `json:"id"`
-	AccountID    int64          `json:"account_id" db:"account_id"`
-	CollectionID int64          `json:"collection_id" db:"collection_id"`
-	Data         types.JsonText `json:"data"`
 }
 
 func (s *PostgresStore) Ping() error {
@@ -207,24 +199,18 @@ func (s *PostgresStore) DeleteCollection(collection *Collection) error {
 }
 
 func (s *PostgresStore) getCollection(tx *sqlx.Tx, collection *Collection) error {
-	row := tx.QueryRowx("SELECT id, account_id, name FROM collections WHERE account_id = $1 AND name = $2;",
-		collection.AccountID, collection.Name)
+	var row *sqlx.Row
+	if collection.ID != 0 {
+		row = tx.QueryRowx("SELECT id, account_id, name FROM collections WHERE account_id = $1 AND id = $2;",
+			collection.AccountID, collection.ID)
+	} else {
+		row = tx.QueryRowx("SELECT id, account_id, name FROM collections WHERE account_id = $1 AND name = $2;",
+			collection.AccountID, collection.Name)
+	}
 	return row.StructScan(collection)
 }
 
-func (s *PostgresStore) addCollection(collection *Collection) (err error) {
-	tx, err := s.db.Beginx()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			return
-		}
-		err = tx.Commit()
-	}()
-
+func (s *PostgresStore) addCollection(tx *sqlx.Tx, collection *Collection) (err error) {
 	err = s.getCollection(tx, collection)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -239,6 +225,91 @@ func (s *PostgresStore) addCollection(collection *Collection) (err error) {
 	}
 
 	return nil
+}
+
+func (s *PostgresStore) ListObject(object *Object, objects *[]*Object) (err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	collection := &Collection{ID: object.CollectionID, AccountID: object.AccountID}
+	err = s.getCollection(tx, collection)
+	if err != nil {
+		return err
+	}
+	objs, err := s._Select(tx, collection.AccountID, collection.ID, "true")
+	if err != nil {
+		return err
+	}
+	*objects = objs
+
+	return nil
+}
+
+func (s *PostgresStore) CreateObject(object *Object) (err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	collection := &Collection{ID: object.CollectionID, AccountID: object.AccountID}
+	err = s.getCollection(tx, collection)
+	if err != nil {
+		return err
+	}
+
+	return tx.Get(&object.ID, `INSERT into objects (account_id, collection_id, data) VALUES ($1, $2, $3) RETURNING "id";`,
+		object.AccountID, object.CollectionID, object.Data)
+}
+
+func (s *PostgresStore) ShowObject(object *Object) error {
+	return s.db.Get(object, "SELECT id, account_id, collection_id, data FROM objects WHERE id = $1 AND account_id = $2;",
+		object.ID, object.AccountID)
+}
+
+func (s *PostgresStore) UpdateObject(object *Object) (err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	err = s.getCollection(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	if err != nil {
+		return err
+	}
+
+	rows, err := tx.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
+		object.Data, object.ID, object.AccountID)
+	if err != nil {
+		return err
+	}
+	return rows.Close()
+}
+
+func (s *PostgresStore) DeleteObject(object *Object) error {
+	return s.db.Get(object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", object.ID, object.AccountID)
 }
 
 func (s *PostgresStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
@@ -257,8 +328,20 @@ func (s *PostgresStore) SelectByID(accountID int64, collection string, id uint64
 	return result, nil
 }
 
-func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64, object interface{}) (interface{}, error) {
-	err := s.addCollection(&Collection{AccountID: accountID, Name: collection})
+func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64, object interface{}) (result interface{}, err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	err = s.addCollection(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +351,7 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
+	rows, err := tx.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
 		string(value), id, accountID)
 	if err != nil {
 		return nil, err
@@ -281,35 +364,7 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	return object, nil
 }
 
-func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64) (interface{}, error) {
-	err := s.addCollection(&Collection{AccountID: accountID, Name: collection})
-	if err != nil {
-		return nil, err
-	}
-
-	object := Object{}
-	err = s.db.Get(&object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", id, accountID)
-	if err != nil {
-		return nil, err
-	}
-
-	var result interface{}
-	err = object.Data.Unmarshal(&result)
-	if err != nil {
-		return nil, err
-	}
-	result.(map[string]interface{})["$id"] = id
-
-	return result, nil
-}
-
-func (s *PostgresStore) Insert(accountID int64, collection string, object interface{}) (results []interface{}, err error) {
-	collect := &Collection{AccountID: accountID, Name: collection}
-	err = s.addCollection(collect)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64) (result interface{}, err error) {
 	tx, err := s.db.Beginx()
 	if err != nil {
 		return nil, err
@@ -321,6 +376,46 @@ func (s *PostgresStore) Insert(accountID int64, collection string, object interf
 		}
 		err = tx.Commit()
 	}()
+
+	err = s.addCollection(tx, &Collection{AccountID: accountID, Name: collection})
+	if err != nil {
+		return nil, err
+	}
+
+	object := Object{}
+	err = tx.Get(&object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", id, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = object.Data.Unmarshal(&result)
+	if err != nil {
+		return nil, err
+	}
+	result.(map[string]interface{})["$id"] = id
+
+	return result, nil
+}
+
+func (s *PostgresStore) Insert(accountID int64, collection string, object interface{}) (results []interface{}, err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	collect := &Collection{AccountID: accountID, Name: collection}
+	err = s.addCollection(tx, collect)
+	if err != nil {
+		return nil, err
+	}
+
 	stmt, err := tx.Preparex(`INSERT into objects (account_id, collection_id, data) VALUES ($1, $2, $3) RETURNING "id";`)
 	if err != nil {
 		return nil, err
@@ -358,12 +453,6 @@ func (s *PostgresStore) Insert(accountID int64, collection string, object interf
 }
 
 func (s *PostgresStore) Delete(accountID int64, collection string, query string, params ...interface{}) (results []interface{}, err error) {
-	collect := &Collection{AccountID: accountID, Name: collection}
-	err = s.addCollection(collect)
-	if err != nil {
-		return nil, err
-	}
-
 	tx, err := s.db.Beginx()
 	if err != nil {
 		return nil, err
@@ -375,7 +464,14 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 		}
 		err = tx.Commit()
 	}()
-	results, err = s._Select(tx, accountID, collect.ID, query, params...)
+
+	collect := &Collection{AccountID: accountID, Name: collection}
+	err = s.addCollection(tx, collect)
+	if err != nil {
+		return nil, err
+	}
+
+	objects, err := s._Select(tx, accountID, collect.ID, query, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -383,9 +479,8 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 	if err != nil {
 		return nil, err
 	}
-	for _, object := range results {
-		id := object.(map[string]interface{})["$id"].(uint64)
-		rows, err := stmt.Queryx(id, accountID)
+	for _, object := range objects {
+		rows, err := stmt.Queryx(object.ID, accountID)
 		if err != nil {
 			return nil, err
 		}
@@ -393,11 +488,18 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 		if err != nil {
 			return nil, err
 		}
+		var result map[string]interface{}
+		err = object.Data.Unmarshal(&result)
+		if err != nil {
+			return nil, err
+		}
+		result["$id"] = uint64(object.ID)
+		results = append(results, result)
 	}
 	return results, nil
 }
 
-func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64, query string, params ...interface{}) ([]interface{}, error) {
+func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64, query string, params ...interface{}) ([]*Object, error) {
 	jql := &JQL{Buffer: query}
 	jql.Init()
 	if err := jql.Parse(); err != nil {
@@ -414,23 +516,17 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64
 		return nil, err
 	}
 
-	var results []interface{}
+	var objects []*Object
 	for rows.Next() {
-		var o Object
-		err = rows.StructScan(&o)
+		object := &Object{}
+		err = rows.StructScan(object)
 		if err != nil {
 			return nil, err
 		}
-		var _json interface{}
-		err = o.Data.Unmarshal(&_json)
-		if err != nil {
-			return nil, err
-		}
-		_json.(map[string]interface{})["$id"] = uint64(o.ID)
-		results = append(results, _json)
+		objects = append(objects, object)
 	}
 
-	return results, nil
+	return objects, nil
 }
 
 func (s *PostgresStore) Select(accountID int64, collection string, query string, params ...interface{}) (results []interface{}, err error) {
@@ -451,10 +547,20 @@ func (s *PostgresStore) Select(accountID int64, collection string, query string,
 	if err != nil {
 		return nil, err
 	}
-	results, err = s._Select(tx, accountID, collect.ID, query, params...)
+	objects, err := s._Select(tx, accountID, collect.ID, query, params...)
 	if err != nil {
 		return nil, err
 	}
+	for _, object := range objects {
+		var result map[string]interface{}
+		err = object.Data.Unmarshal(&result)
+		if err != nil {
+			return nil, err
+		}
+		result["$id"] = uint64(object.ID)
+		results = append(results, result)
+	}
+
 	return results, nil
 }
 

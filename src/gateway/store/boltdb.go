@@ -321,17 +321,32 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 func findCollection(collections *bolt.Bucket, collection *Collection) (bool, error) {
 	cursor := collections.Cursor()
 	key, value := cursor.First()
-	for key != nil {
-		var c Collection
-		err := json.Unmarshal(value, &c)
-		if err != nil {
-			return false, err
+	if collection.ID != 0 {
+		for key != nil {
+			var c Collection
+			err := json.Unmarshal(value, &c)
+			if err != nil {
+				return false, err
+			}
+			if c.ID == collection.ID {
+				*collection = c
+				return true, nil
+			}
+			key, value = cursor.Next()
 		}
-		if c.Name == collection.Name {
-			*collection = c
-			return true, nil
+	} else {
+		for key != nil {
+			var c Collection
+			err := json.Unmarshal(value, &c)
+			if err != nil {
+				return false, err
+			}
+			if c.Name == collection.Name {
+				*collection = c
+				return true, nil
+			}
+			key, value = cursor.Next()
 		}
-		key, value = cursor.Next()
 	}
 	return false, nil
 }
@@ -364,6 +379,10 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 		}
 
 		if !found {
+			if collection.Name == "" {
+				return nil, nil, errors.New("collection doesn't have a name")
+			}
+
 			sequence := meta.Bucket([]byte(collectionSequence))
 			if sequence == nil {
 				return nil, nil, errors.New("bucket for collection sequence doesn't exist")
@@ -418,6 +437,129 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 	}
 
 	return bucket, sequence, nil
+}
+
+func (s *BoltDBStore) ListObject(object *Object, objects *[]*Object) error {
+	tx, err := s.boltdb.Begin(false)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	collect := &Collection{ID: object.CollectionID, AccountID: object.AccountID}
+	bucket, _, err := getBucket(tx, collect)
+	if err != nil {
+		return err
+	}
+
+	objs, err := s._Select(tx, bucket, collect, "true")
+	if err != nil {
+		return err
+	}
+	*objects = objs
+
+	return nil
+}
+
+func (s *BoltDBStore) CreateObject(object *Object) error {
+	tx, err := s.boltdb.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	bucket, sequence, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	if err != nil {
+		return err
+	}
+
+	key, err := sequence.NextSequence()
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Put(itob(key), object.Data)
+	if err != nil {
+		return err
+	}
+	object.ID = int64(key)
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *BoltDBStore) ShowObject(object *Object) error {
+	tx, err := s.boltdb.Begin(false)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	if err != nil {
+		return err
+	}
+
+	object.Data = bucket.Get(itob(uint64(object.ID)))
+	if object.Data == nil {
+		return errors.New("id doesn't exist")
+	}
+
+	return nil
+}
+
+func (s *BoltDBStore) UpdateObject(object *Object) error {
+	tx, err := s.boltdb.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Put(itob(uint64(object.ID)), object.Data)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *BoltDBStore) DeleteObject(object *Object) error {
+	tx, err := s.boltdb.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Delete(itob(uint64(object.ID)))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) ([]interface{}, error) {
@@ -584,21 +726,29 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	collect := &Collection{AccountID: accountID, Name: collection}
+	bucket, _, err := getBucket(tx, collect)
 	if err != nil {
 		return nil, err
 	}
 
-	objects, err := s._Select(tx, accountID, collection, query, params...)
+	objects, err := s._Select(tx, bucket, collect, query, params...)
 	if err != nil {
 		return nil, err
 	}
+	var results []interface{}
 	for _, object := range objects {
-		id := object.(map[string]interface{})["$id"].(uint64)
-		err = bucket.Delete(itob(id))
+		err = bucket.Delete(itob(uint64(object.ID)))
 		if err != nil {
 			return nil, err
 		}
+		var result map[string]interface{}
+		err = object.Data.Unmarshal(&result)
+		if err != nil {
+			return nil, err
+		}
+		result["$id"] = uint64(object.ID)
+		results = append(results, result)
 	}
 
 	err = tx.Commit()
@@ -606,25 +756,20 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 		return nil, err
 	}
 
-	return objects, nil
+	return results, nil
 }
 
-func (s *BoltDBStore) _Select(tx *bolt.Tx, accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
-	bucket, _, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
-	if err != nil {
-		return nil, err
-	}
-
+func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Collection, query string, params ...interface{}) ([]*Object, error) {
 	jql := &JQL{Buffer: query}
 	jql.Init()
-	err = jql.Parse()
+	err := jql.Parse()
 	if err != nil {
 		return nil, err
 	}
 
 	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
 	constraints := getConstraints(ast, &Context{buffer, nil, params})
-	var results []interface{}
+	var results []*Object
 	if len(constraints.order.path) > 0 {
 		cursor := bucket.Cursor()
 		key, value := cursor.First()
@@ -637,15 +782,15 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, accountID int64, collection string, q
 				return nil, err
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
-				var _json interface{}
 				_value := make([]byte, len(value))
 				copy(_value, value)
-				err = json.Unmarshal(_value, &_json)
-				if err != nil {
-					return nil, err
+				object := &Object{
+					ID:           int64(btoi(key)),
+					AccountID:    collection.AccountID,
+					CollectionID: collection.ID,
+					Data:         _value,
 				}
-				_json.(map[string]interface{})["$id"] = btoi(key)
-				results = append(results, _json)
+				results = append(results, object)
 			}
 			key, value = cursor.Next()
 		}
@@ -679,15 +824,15 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, accountID int64, collection string, q
 				return nil, err
 			}
 			if process(ast, &Context{buffer, _json, params}).b {
-				var _json interface{}
 				_value := make([]byte, len(value))
 				copy(_value, value)
-				err = json.Unmarshal(_value, &_json)
-				if err != nil {
-					return nil, err
+				object := &Object{
+					ID:           int64(btoi(key)),
+					AccountID:    collection.AccountID,
+					CollectionID: collection.ID,
+					Data:         _value,
 				}
-				_json.(map[string]interface{})["$id"] = btoi(key)
-				results = append(results, _json)
+				results = append(results, object)
 				if constraints.hasLimit && len(results) == constraints.limit {
 					break
 				}
@@ -706,9 +851,26 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 	}
 	defer tx.Rollback()
 
-	results, err := s._Select(tx, accountID, collection, query, params...)
+	collect := &Collection{AccountID: accountID, Name: collection}
+	bucket, _, err := getBucket(tx, collect)
 	if err != nil {
 		return nil, err
+	}
+
+	objects, err := s._Select(tx, bucket, collect, query, params...)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []interface{}
+	for _, object := range objects {
+		var result map[string]interface{}
+		err = object.Data.Unmarshal(&result)
+		if err != nil {
+			return nil, err
+		}
+		result["$id"] = uint64(object.ID)
+		results = append(results, result)
 	}
 
 	return results, nil
@@ -755,7 +917,7 @@ type Context struct {
 }
 
 type Results struct {
-	results []interface{}
+	results []*Object
 	path    []string
 	numeric bool
 }
@@ -767,14 +929,19 @@ func (r *Results) Len() int {
 }
 
 func (r *Results) walkPath(i int) (string, bool) {
-	_json, valid := r.results[i], false
+	var result interface{}
+	err := r.results[i].Data.Unmarshal(&result)
+	if err != nil {
+		return "", false
+	}
+	valid := false
 	for _, path := range r.path {
-		_json, valid = _json.(map[string]interface{})[path]
+		result, valid = result.(map[string]interface{})[path]
 		if !valid {
 			return "", false
 		}
 	}
-	return fmt.Sprintf("%v", _json), true
+	return fmt.Sprintf("%v", result), true
 }
 
 func (r *Results) Less(i, j int) bool {

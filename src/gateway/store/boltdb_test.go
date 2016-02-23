@@ -231,6 +231,169 @@ func TestDeleteCollection(t *testing.T) {
 	}
 }
 
+func TestCreateObject(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	object := &store.Object{
+		AccountID:    0,
+		CollectionID: collection.ID,
+		Data:         []byte(`{"test": "object"}`),
+	}
+	err = s.CreateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.ID == 0 {
+		t.Fatal("failed to create object")
+	}
+}
+
+func TestListObject(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	object := &store.Object{
+		AccountID:    0,
+		CollectionID: collection.ID,
+		Data:         []byte(`{"test": "object"}`),
+	}
+	err = s.CreateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.ID == 0 {
+		t.Fatal("failed to create object")
+	}
+
+	var objects []*store.Object
+	err = s.ListObject(object, &objects)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(objects) != 1 {
+		t.Fatal("there should be 1 objects")
+	}
+}
+
+func TestShowObject(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	object := &store.Object{
+		AccountID:    0,
+		CollectionID: collection.ID,
+		Data:         []byte(`{"test": "object"}`),
+	}
+	err = s.CreateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.ID == 0 {
+		t.Fatal("failed to create object")
+	}
+
+	err = s.ShowObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.Data == nil {
+		t.Fatal("object should have data")
+	}
+}
+
+func TestUpdateObject(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	object := &store.Object{
+		AccountID:    0,
+		CollectionID: collection.ID,
+		Data:         []byte(`{"test": "object"}`),
+	}
+	err = s.CreateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.ID == 0 {
+		t.Fatal("failed to create object")
+	}
+
+	object.Data = []byte(`{"test": "another object"}`)
+	err = s.UpdateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestDeleteObject(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	collection := &store.Collection{AccountID: 0, Name: "acollection"}
+	err := s.CreateCollection(collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.ID == 0 {
+		t.Fatal("failed to create collection")
+	}
+
+	object := &store.Object{
+		AccountID:    0,
+		CollectionID: collection.ID,
+		Data:         []byte(`{"test": "object"}`),
+	}
+	err = s.CreateObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if object.ID == 0 {
+		t.Fatal("failed to create object")
+	}
+
+	err = s.DeleteObject(object)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func TestInsert(t *testing.T) {
 	s := setup(t)
 	defer teardown(t, s)
