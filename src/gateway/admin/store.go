@@ -74,6 +74,12 @@ func (c *StoreCollectionsController) Create(w http.ResponseWriter, r *http.Reque
 	}
 
 	collection.AccountID = c.accountID(r)
+
+	validationErrors := collection.Validate()
+	if !validationErrors.Empty() {
+		return SerializableValidationErrors{validationErrors}
+	}
+
 	err := c.store.CreateCollection(collection)
 	if err != nil {
 		if err == apsql.ErrZeroRowsAffected {
@@ -104,6 +110,12 @@ func (c *StoreCollectionsController) Update(w http.ResponseWriter, r *http.Reque
 
 	collection.ID = instanceID(r)
 	collection.AccountID = c.accountID(r)
+
+	validationErrors := collection.Validate()
+	if !validationErrors.Empty() {
+		return SerializableValidationErrors{validationErrors}
+	}
+
 	err := c.store.UpdateCollection(collection)
 	if err != nil {
 		if err == apsql.ErrZeroRowsAffected {
@@ -196,6 +208,12 @@ func (c *StoreObjectsController) Create(w http.ResponseWriter, r *http.Request) 
 
 	object.AccountID = c.accountID(r)
 	object.CollectionID = c.collectionID(r)
+
+	validationErrors := object.Validate()
+	if !validationErrors.Empty() {
+		return SerializableValidationErrors{validationErrors}
+	}
+
 	err := c.store.CreateObject(object)
 	if err != nil {
 		if err == apsql.ErrZeroRowsAffected {
@@ -231,6 +249,12 @@ func (c *StoreObjectsController) Update(w http.ResponseWriter, r *http.Request) 
 	object.ID = instanceID(r)
 	object.AccountID = c.accountID(r)
 	object.CollectionID = c.collectionID(r)
+
+	validationErrors := object.Validate()
+	if !validationErrors.Empty() {
+		return SerializableValidationErrors{validationErrors}
+	}
+
 	err := c.store.UpdateObject(object)
 	if err != nil {
 		if err == apsql.ErrZeroRowsAffected {

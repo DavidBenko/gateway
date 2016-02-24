@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gateway/config"
+	aperrors "gateway/errors"
 
 	"github.com/boltdb/bolt"
 	"github.com/jmoiron/sqlx"
@@ -62,6 +63,23 @@ type Store interface {
 	Shutdown()
 	StoreAdmin
 	StoreEndpoint
+}
+
+func (c *Collection) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
+	if c.Name == "" {
+		errors.Add("name", "must not be blank")
+	}
+	return errors
+}
+
+func (o *Object) Validate() aperrors.Errors {
+	errors := make(aperrors.Errors)
+	var data interface{}
+	if err := o.Data.Unmarshal(&data); err != nil {
+		errors.Add("data", "must be valid json")
+	}
+	return errors
 }
 
 func Configure(conf config.Store) (Store, error) {
