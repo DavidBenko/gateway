@@ -46,3 +46,7 @@ func (c *BaseController) apiID(r *http.Request) int64 {
 func (c *BaseController) proxyEndpointID(r *http.Request) int64 {
 	return endpointIDFromPath(r)
 }
+
+func (c *BaseController) collectionID(r *http.Request) int64 {
+	return collectionIDFromPath(r)
+}

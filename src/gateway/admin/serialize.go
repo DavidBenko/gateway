@@ -76,6 +76,10 @@ func testIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["testID"])
 }
 
+func collectionIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["collectionID"])
+}
+
 func parseID(id string) int64 {
 	i, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {

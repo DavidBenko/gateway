@@ -10,6 +10,7 @@ import (
 	"gateway/logreport"
 	//"gateway/model"
 	sql "gateway/sql"
+	"gateway/store"
 
 	"github.com/gorilla/mux"
 )
@@ -19,7 +20,7 @@ var (
 )
 
 // Setup sets up the session and adds admin routes.
-func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
+func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.Configuration) {
 	conf, psconf := configuration.Admin, configuration.Proxy
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
@@ -100,6 +101,9 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration) {
 	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
+
+	RouteStoreResource(&StoreCollectionsController{base, s}, "/collections", authAdmin, conf)
+	RouteStoreResource(&StoreObjectsController{base, s}, "/collections/{collectionID}/objects", authAdmin, conf)
 
 	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
 

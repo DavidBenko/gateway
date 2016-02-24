@@ -77,7 +77,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.Setup(s.router, s.ownDb, s.conf)
+	admin.Setup(s.router, s.ownDb, s.store, s.conf)
 
 	// Set up proxy
 	s.proxyRouter = newProxyRouter(s.ownDb)
