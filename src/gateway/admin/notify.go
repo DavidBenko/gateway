@@ -29,10 +29,12 @@ type Notification struct {
 var RESOURCE_MAP = map[string]string{
 	"accounts":               "account",
 	"apis":                   "api",
+	"collections":            "collection",
 	"endpoint_groups":        "endpoint-group",
 	"environments":           "environment",
 	"hosts":                  "host",
 	"libraries":              "library",
+	"objects":                "object",
 	"proxy_endpoints":        "proxy-endpoint",
 	"proxy_endpoint_schemas": "proxy-endpoint-schema",
 	"remote_endpoints":       "remote-endpoint",
