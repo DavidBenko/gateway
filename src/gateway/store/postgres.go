@@ -7,20 +7,26 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"gateway/config"
+	"gateway/logreport"
+	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 const (
 	postgresCurrentVersion = 1
+	postgresNotifyChannel  = "store"
 )
 
 type PostgresStore struct {
-	conf config.Store
-	db   *sqlx.DB
+	conf           config.Store
+	db             *sqlx.DB
+	listeners      []apsql.Listener
+	listenersMutex sync.RWMutex
 }
 
 func (s *PostgresStore) Ping() error {
@@ -106,6 +112,58 @@ func (s *PostgresStore) Clear() error {
 	return nil
 }
 
+func (s *PostgresStore) notifyListeners(n *apsql.Notification) {
+	defer s.listenersMutex.RUnlock()
+	s.listenersMutex.RLock()
+
+	for _, listener := range s.listeners {
+		listener.Notify(n)
+	}
+}
+
+func (s *PostgresStore) notifyListenersOfReconnection() {
+	defer s.listenersMutex.RUnlock()
+	s.listenersMutex.RLock()
+
+	for _, listener := range s.listeners {
+		listener.Reconnect()
+	}
+}
+
+func (s *PostgresStore) RegisterListener(l apsql.Listener) {
+	defer s.listenersMutex.Unlock()
+	s.listenersMutex.Lock()
+	s.listeners = append(s.listeners, l)
+}
+
+func (s *PostgresStore) listenerConnectionEvent(ev pq.ListenerEventType, err error) {
+	if err != nil {
+		logreport.Printf("%s Store listener connection problem: %v", config.System, err)
+	}
+}
+
+func notify(tx *sqlx.Tx, table string, accountID, userID, apiID, proxyEndpointID, id int64,
+	event apsql.NotificationEventType, messages ...interface{}) error {
+	n := apsql.Notification{
+		Table:           table,
+		AccountID:       accountID,
+		UserID:          userID,
+		APIID:           apiID,
+		ProxyEndpointID: proxyEndpointID,
+		ID:              id,
+		Event:           event,
+		Tag:             apsql.NotificationTagDefault,
+		Messages:        messages,
+	}
+
+	json, err := json.Marshal(&n)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(fmt.Sprintf("Notify \"%s\", '%s'", postgresNotifyChannel, string(json)))
+	return err
+}
+
 func (s *PostgresStore) ListCollection(collection *Collection, collections *[]*Collection) error {
 	rows, err := s.db.Queryx("SELECT id, account_id, name FROM collections WHERE account_id = $1",
 		collection.AccountID)
@@ -161,7 +219,7 @@ func (s *PostgresStore) CreateCollection(collection *Collection) (err error) {
 		return ErrCollectionExists
 	}
 
-	return nil
+	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 }
 
 func (s *PostgresStore) ShowCollection(collection *Collection) error {
@@ -175,7 +233,19 @@ func (s *PostgresStore) ShowCollection(collection *Collection) error {
 }
 
 func (s *PostgresStore) UpdateCollection(collection *Collection) (err error) {
-	rows, err := s.db.Queryx("UPDATE collections SET name = $1 WHERE id = $2 AND account_id = $3;",
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	rows, err := tx.Queryx("UPDATE collections SET name = $1 WHERE id = $2 AND account_id = $3;",
 		collection.Name, collection.ID, collection.AccountID)
 	if err != nil {
 		return err
@@ -185,17 +255,29 @@ func (s *PostgresStore) UpdateCollection(collection *Collection) (err error) {
 		return err
 	}
 
-	return nil
+	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Update)
 }
 
-func (s *PostgresStore) DeleteCollection(collection *Collection) error {
-	err := s.db.Get(collection, "DELETE FROM collections WHERE id = $1 AND account_id = $2 RETURNING *;",
+func (s *PostgresStore) DeleteCollection(collection *Collection) (err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	err = tx.Get(collection, "DELETE FROM collections WHERE id = $1 AND account_id = $2 RETURNING *;",
 		collection.ID, collection.AccountID)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Delete)
 }
 
 func (s *PostgresStore) getCollection(tx *sqlx.Tx, collection *Collection) error {
@@ -219,6 +301,7 @@ func (s *PostgresStore) addCollection(tx *sqlx.Tx, collection *Collection) (err 
 			if err != nil {
 				return err
 			}
+			return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 		} else {
 			return err
 		}
@@ -273,8 +356,13 @@ func (s *PostgresStore) CreateObject(object *Object) (err error) {
 		return err
 	}
 
-	return tx.Get(&object.ID, `INSERT into objects (account_id, collection_id, data) VALUES ($1, $2, $3) RETURNING "id";`,
+	err = tx.Get(&object.ID, `INSERT into objects (account_id, collection_id, data) VALUES ($1, $2, $3) RETURNING "id";`,
 		object.AccountID, object.CollectionID, object.Data)
+	if err != nil {
+		return err
+	}
+
+	return notify(tx, "objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Insert)
 }
 
 func (s *PostgresStore) ShowObject(object *Object) error {
@@ -305,11 +393,33 @@ func (s *PostgresStore) UpdateObject(object *Object) (err error) {
 	if err != nil {
 		return err
 	}
-	return rows.Close()
+	err = rows.Close()
+	if err != nil {
+		return err
+	}
+
+	return notify(tx, "objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Update)
 }
 
-func (s *PostgresStore) DeleteObject(object *Object) error {
-	return s.db.Get(object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", object.ID, object.AccountID)
+func (s *PostgresStore) DeleteObject(object *Object) (err error) {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	err = tx.Get(object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", object.ID, object.AccountID)
+	if err != nil {
+		return err
+	}
+
+	return notify(tx, "objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Delete)
 }
 
 func (s *PostgresStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
@@ -361,6 +471,12 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 		return nil, err
 	}
 	object.(map[string]interface{})["$id"] = id
+
+	err = notify(tx, "objects", accountID, 0, 0, 0, int64(id), apsql.Update)
+	if err != nil {
+		return nil, err
+	}
+
 	return object, nil
 }
 
@@ -393,6 +509,11 @@ func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64
 		return nil, err
 	}
 	result.(map[string]interface{})["$id"] = id
+
+	err = notify(tx, "objects", accountID, 0, 0, 0, int64(id), apsql.Delete)
+	if err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }
@@ -432,7 +553,8 @@ func (s *PostgresStore) Insert(accountID int64, collection string, object interf
 			return err
 		}
 		object.(map[string]interface{})["$id"] = uint64(id)
-		return nil
+
+		return notify(tx, "objects", accountID, 0, 0, 0, id, apsql.Insert)
 	}
 	if objects, valid := object.([]interface{}); valid {
 		for _, object := range objects {
@@ -449,6 +571,7 @@ func (s *PostgresStore) Insert(accountID int64, collection string, object interf
 		}
 		results = []interface{}{object}
 	}
+
 	return results, nil
 }
 
@@ -495,6 +618,11 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 		}
 		result["$id"] = uint64(object.ID)
 		results = append(results, result)
+
+		err = notify(tx, "objects", accountID, 0, 0, 0, object.ID, apsql.Delete)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return results, nil
 }

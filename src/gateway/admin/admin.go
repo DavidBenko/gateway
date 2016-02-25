@@ -60,7 +60,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	base := BaseController{conf: conf, accountID: accountID, userID: userID,
 		SMTP: configuration.SMTP, ProxyServer: psconf}
 
-	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
+	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db, s)
 
 	if conf.EnableBroker {
 		broker, err := newAggregator(conf)

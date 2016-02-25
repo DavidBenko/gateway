@@ -6,6 +6,7 @@ import (
 	aphttp "gateway/http"
 	"gateway/model"
 	apsql "gateway/sql"
+	"gateway/store"
 
 	"golang.org/x/net/websocket"
 )
@@ -57,12 +58,13 @@ type NotifyController struct {
 	db            *apsql.DB
 }
 
-func RouteNotify(notify *NotifyController, path string, router aphttp.Router, db *apsql.DB) {
-	notify.notifications = make(chan *apsql.Notification, 8)
+func RouteNotify(notify *NotifyController, path string, router aphttp.Router, db *apsql.DB, s store.Store) {
+	notify.notifications = make(chan *apsql.Notification, 1024)
 	notify.command = make(chan *NotifyCommand, 8)
 	notify.db = db
 	router.Handle(path, websocket.Handler(notify.NotifyHandler))
 	db.RegisterListener(notify)
+	s.RegisterListener(notify)
 	go notify.Queue()
 }
 

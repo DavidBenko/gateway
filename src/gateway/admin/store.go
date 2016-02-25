@@ -55,7 +55,7 @@ type StoreCollectionsController struct {
 }
 
 func (c *StoreCollectionsController) List(w http.ResponseWriter, r *http.Request) aphttp.Error {
-	collection := &store.Collection{AccountID: c.accountID(r)}
+	collection := &store.Collection{UserID: c.userID(r), AccountID: c.accountID(r)}
 	var collections []*store.Collection
 	err := c.store.ListCollection(collection, &collections)
 
@@ -73,6 +73,7 @@ func (c *StoreCollectionsController) Create(w http.ResponseWriter, r *http.Reque
 		return httpErr
 	}
 
+	collection.UserID = c.userID(r)
 	collection.AccountID = c.accountID(r)
 
 	validationErrors := collection.Validate()
@@ -93,7 +94,7 @@ func (c *StoreCollectionsController) Create(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *StoreCollectionsController) Show(w http.ResponseWriter, r *http.Request) aphttp.Error {
-	collection := &store.Collection{ID: instanceID(r), AccountID: c.accountID(r)}
+	collection := &store.Collection{UserID: c.userID(r), ID: instanceID(r), AccountID: c.accountID(r)}
 	err := c.store.ShowCollection(collection)
 	if err != nil {
 		return c.notFound()
@@ -108,6 +109,7 @@ func (c *StoreCollectionsController) Update(w http.ResponseWriter, r *http.Reque
 		return httpErr
 	}
 
+	collection.UserID = c.userID(r)
 	collection.ID = instanceID(r)
 	collection.AccountID = c.accountID(r)
 
@@ -129,7 +131,7 @@ func (c *StoreCollectionsController) Update(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *StoreCollectionsController) Delete(w http.ResponseWriter, r *http.Request) aphttp.Error {
-	collection := &store.Collection{ID: instanceID(r), AccountID: c.accountID(r)}
+	collection := &store.Collection{UserID: c.userID(r), ID: instanceID(r), AccountID: c.accountID(r)}
 	err := c.store.DeleteCollection(collection)
 
 	if err != nil {
@@ -188,7 +190,7 @@ type StoreObjectsController struct {
 }
 
 func (c *StoreObjectsController) List(w http.ResponseWriter, r *http.Request) aphttp.Error {
-	object := &store.Object{AccountID: c.accountID(r), CollectionID: c.collectionID(r)}
+	object := &store.Object{UserID: c.userID(r), AccountID: c.accountID(r), CollectionID: c.collectionID(r)}
 	var objects []*store.Object
 	err := c.store.ListObject(object, &objects)
 
@@ -206,6 +208,7 @@ func (c *StoreObjectsController) Create(w http.ResponseWriter, r *http.Request) 
 		return httpErr
 	}
 
+	object.UserID = c.userID(r)
 	object.AccountID = c.accountID(r)
 	object.CollectionID = c.collectionID(r)
 
@@ -228,6 +231,7 @@ func (c *StoreObjectsController) Create(w http.ResponseWriter, r *http.Request) 
 
 func (c *StoreObjectsController) Show(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	object := &store.Object{
+		UserID:       c.userID(r),
 		ID:           instanceID(r),
 		AccountID:    c.accountID(r),
 		CollectionID: c.collectionID(r),
@@ -246,6 +250,7 @@ func (c *StoreObjectsController) Update(w http.ResponseWriter, r *http.Request) 
 		return httpErr
 	}
 
+	object.UserID = c.userID(r)
 	object.ID = instanceID(r)
 	object.AccountID = c.accountID(r)
 	object.CollectionID = c.collectionID(r)
@@ -269,6 +274,7 @@ func (c *StoreObjectsController) Update(w http.ResponseWriter, r *http.Request) 
 
 func (c *StoreObjectsController) Delete(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	object := &store.Object{
+		UserID:       c.userID(r),
 		ID:           instanceID(r),
 		AccountID:    c.accountID(r),
 		CollectionID: c.collectionID(r),

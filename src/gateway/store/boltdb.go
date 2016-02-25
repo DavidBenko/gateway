@@ -10,8 +10,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"gateway/config"
+	apsql "gateway/sql"
 
 	"github.com/boltdb/bolt"
 )
@@ -25,8 +27,10 @@ const (
 )
 
 type BoltDBStore struct {
-	conf   config.Store
-	boltdb *bolt.DB
+	conf           config.Store
+	boltdb         *bolt.DB
+	listeners      []apsql.Listener
+	listenersMutex sync.RWMutex
 }
 
 func (s *BoltDBStore) Migrate() error {
@@ -104,6 +108,36 @@ func (s *BoltDBStore) Clear() error {
 	err = tx.Commit()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *BoltDBStore) RegisterListener(l apsql.Listener) {
+	defer s.listenersMutex.Unlock()
+	s.listenersMutex.Lock()
+	s.listeners = append(s.listeners, l)
+}
+
+func (s *BoltDBStore) notify(table string, accountID, userID, apiID, proxyEndpointID, id int64,
+	event apsql.NotificationEventType, messages ...interface{}) error {
+	n := apsql.Notification{
+		Table:           table,
+		AccountID:       accountID,
+		UserID:          userID,
+		APIID:           apiID,
+		ProxyEndpointID: proxyEndpointID,
+		ID:              id,
+		Event:           event,
+		Tag:             apsql.NotificationTagDefault,
+		Messages:        messages,
+	}
+
+	defer s.listenersMutex.Unlock()
+	s.listenersMutex.Lock()
+
+	for _, listener := range s.listeners {
+		listener.Notify(&n)
 	}
 
 	return nil
@@ -205,7 +239,7 @@ func (s *BoltDBStore) CreateCollection(collection *Collection) error {
 		return err
 	}
 
-	return nil
+	return s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 }
 
 func (s *BoltDBStore) ShowCollection(collection *Collection) error {
@@ -275,7 +309,7 @@ func (s *BoltDBStore) UpdateCollection(collection *Collection) error {
 		return err
 	}
 
-	return nil
+	return s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Update)
 }
 
 func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
@@ -315,7 +349,7 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 		return err
 	}
 
-	return nil
+	return s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Delete)
 }
 
 func findCollection(collections *bolt.Bucket, collection *Collection) (bool, error) {
@@ -351,7 +385,7 @@ func findCollection(collections *bolt.Bucket, collection *Collection) (bool, err
 	return false, nil
 }
 
-func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket, error) {
+func (s *BoltDBStore) getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket, error) {
 	meta := tx.Bucket([]byte(metaBucket))
 	if meta == nil {
 		return nil, nil, errors.New("bucket for meta doesn't exist")
@@ -403,6 +437,11 @@ func getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket,
 			if err != nil {
 				return nil, nil, err
 			}
+
+			err = s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		bucket, err := account.CreateBucketIfNotExists(itob(uint64(collection.ID)))
@@ -447,7 +486,7 @@ func (s *BoltDBStore) ListObject(object *Object, objects *[]*Object) error {
 	defer tx.Rollback()
 
 	collect := &Collection{ID: object.CollectionID, AccountID: object.AccountID}
-	bucket, _, err := getBucket(tx, collect)
+	bucket, _, err := s.getBucket(tx, collect)
 	if err != nil {
 		return err
 	}
@@ -468,7 +507,7 @@ func (s *BoltDBStore) CreateObject(object *Object) error {
 	}
 	defer tx.Rollback()
 
-	bucket, sequence, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	bucket, sequence, err := s.getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
 	if err != nil {
 		return err
 	}
@@ -489,7 +528,7 @@ func (s *BoltDBStore) CreateObject(object *Object) error {
 		return err
 	}
 
-	return nil
+	return s.notify("objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Insert)
 }
 
 func (s *BoltDBStore) ShowObject(object *Object) error {
@@ -499,7 +538,7 @@ func (s *BoltDBStore) ShowObject(object *Object) error {
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	bucket, _, err := s.getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
 	if err != nil {
 		return err
 	}
@@ -519,7 +558,7 @@ func (s *BoltDBStore) UpdateObject(object *Object) error {
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	bucket, _, err := s.getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
 	if err != nil {
 		return err
 	}
@@ -534,7 +573,7 @@ func (s *BoltDBStore) UpdateObject(object *Object) error {
 		return err
 	}
 
-	return nil
+	return s.notify("objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Update)
 }
 
 func (s *BoltDBStore) DeleteObject(object *Object) error {
@@ -544,7 +583,7 @@ func (s *BoltDBStore) DeleteObject(object *Object) error {
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
+	bucket, _, err := s.getBucket(tx, &Collection{ID: object.CollectionID, AccountID: object.AccountID})
 	if err != nil {
 		return err
 	}
@@ -559,7 +598,7 @@ func (s *BoltDBStore) DeleteObject(object *Object) error {
 		return err
 	}
 
-	return nil
+	return s.notify("objects", object.AccountID, object.UserID, 0, 0, object.ID, apsql.Delete)
 }
 
 func (s *BoltDBStore) Insert(accountID int64, collection string, object interface{}) ([]interface{}, error) {
@@ -569,7 +608,7 @@ func (s *BoltDBStore) Insert(accountID int64, collection string, object interfac
 	}
 	defer tx.Rollback()
 
-	bucket, sequence, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, sequence, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -617,6 +656,17 @@ func (s *BoltDBStore) Insert(accountID int64, collection string, object interfac
 		return nil, err
 	}
 
+	if objects, valid := object.([]interface{}); valid {
+		for _, object := range objects {
+			id := object.(map[string]interface{})["$id"].(uint64)
+			s.notify("objects", accountID, 0, 0, 0, int64(id), apsql.Insert)
+		}
+		results = objects
+	} else {
+		id := object.(map[string]interface{})["$id"].(uint64)
+		s.notify("objects", accountID, 0, 0, 0, int64(id), apsql.Insert)
+	}
+
 	return results, nil
 }
 
@@ -627,7 +677,7 @@ func (s *BoltDBStore) SelectByID(accountID int64, collection string, id uint64) 
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, _, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +711,7 @@ func (s *BoltDBStore) UpdateByID(accountID int64, collection string, id uint64, 
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, _, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -678,6 +728,11 @@ func (s *BoltDBStore) UpdateByID(accountID int64, collection string, id uint64, 
 
 	object.(map[string]interface{})["$id"] = id
 
+	err = s.notify("objects", accountID, 0, 0, 0, int64(id), apsql.Update)
+	if err != nil {
+		return nil, err
+	}
+
 	return object, nil
 }
 
@@ -688,7 +743,7 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, _, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -716,6 +771,11 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 
 	_json.(map[string]interface{})["$id"] = id
 
+	err = s.notify("objects", accountID, 0, 0, 0, int64(id), apsql.Delete)
+	if err != nil {
+		return nil, err
+	}
+
 	return _json, nil
 }
 
@@ -727,7 +787,7 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 	defer tx.Rollback()
 
 	collect := &Collection{AccountID: accountID, Name: collection}
-	bucket, _, err := getBucket(tx, collect)
+	bucket, _, err := s.getBucket(tx, collect)
 	if err != nil {
 		return nil, err
 	}
@@ -754,6 +814,13 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
+	}
+
+	for _, object := range objects {
+		err = s.notify("objects", object.AccountID, 0, 0, 0, object.ID, apsql.Delete)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return results, nil
@@ -852,7 +919,7 @@ func (s *BoltDBStore) Select(accountID int64, collection string, query string, p
 	defer tx.Rollback()
 
 	collect := &Collection{AccountID: accountID, Name: collection}
-	bucket, _, err := getBucket(tx, collect)
+	bucket, _, err := s.getBucket(tx, collect)
 	if err != nil {
 		return nil, err
 	}

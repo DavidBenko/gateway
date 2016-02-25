@@ -1,15 +1,19 @@
 package store
 
 import (
+	"encoding/json"
 	"errors"
+	"time"
 
 	"gateway/config"
 	aperrors "gateway/errors"
+	"gateway/logreport"
+	apsql "gateway/sql"
 
 	"github.com/boltdb/bolt"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 const (
@@ -23,12 +27,16 @@ var (
 )
 
 type Collection struct {
+	UserID int64 `json:"-"`
+
 	ID        int64  `json:"id"`
 	AccountID int64  `json:"account_id" db:"account_id"`
 	Name      string `json:"name"`
 }
 
 type Object struct {
+	UserID int64 `json:"-"`
+
 	ID           int64          `json:"id"`
 	AccountID    int64          `json:"account_id" db:"account_id"`
 	CollectionID int64          `json:"collection_id" db:"collection_id"`
@@ -60,6 +68,7 @@ type StoreEndpoint interface {
 type Store interface {
 	Migrate() error
 	Clear() error
+	RegisterListener(l apsql.Listener)
 	Shutdown()
 	StoreAdmin
 	StoreEndpoint
@@ -101,6 +110,38 @@ func Configure(conf config.Store) (Store, error) {
 		}
 
 		p.db.SetMaxOpenConns(int(conf.MaxConnections))
+
+		listener := pq.NewListener(conf.ConnectionString,
+			2*time.Second,
+			time.Minute,
+			p.listenerConnectionEvent)
+		err = listener.Listen(postgresNotifyChannel)
+		if err != nil {
+			return nil, err
+		}
+		go func() {
+			for {
+				select {
+				case pgNotification := <-listener.Notify:
+					if pgNotification.Channel == postgresNotifyChannel {
+						var notification apsql.Notification
+						err := json.Unmarshal([]byte(pgNotification.Extra), &notification)
+						if err != nil {
+							logreport.Printf("%s Error parsing notification '%s': %v",
+								config.System, pgNotification.Extra, err)
+							continue
+						}
+						p.notifyListeners(&notification)
+					} else {
+						p.notifyListenersOfReconnection()
+					}
+				case <-time.After(90 * time.Second):
+					go func() {
+						listener.Ping()
+					}()
+				}
+			}
+		}()
 
 		return &p, nil
 	}
