@@ -84,6 +84,7 @@ func (s SearchOperation) Invoke(conn *ldap.Conn) (*Response, error) {
 			return nil, err
 		}
 		return &Response{
+			SearchResult:      NewSearchResult(result, s.IncludeByteValue),
 			StatusCode:        e.ResultCode,
 			StatusDescription: ldap.LDAPResultCodeMap[e.ResultCode],
 		}, nil

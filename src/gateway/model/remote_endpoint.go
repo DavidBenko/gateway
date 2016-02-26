@@ -267,10 +267,11 @@ func (e *RemoteEndpoint) ValidateLDAP(errors aperrors.Errors) {
 	}
 
 	data, err := json.Marshal(ldap)
-	if err == nil {
+	if err != nil {
 		errors.Add("base", "error re-encoding data")
-		e.Data = data
+		return
 	}
+	e.Data = data
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors

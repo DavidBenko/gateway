@@ -1,0 +1,141 @@
+{
+    "api": {
+        "name": "LDAP Test API",
+        "description": "An API for testing LDAP remote endpoints.",
+        "cors_allow_origin": "*",
+        "cors_allow_headers": "content-type, accept",
+        "cors_allow_credentials": true,
+        "cors_request_headers": "*",
+        "cors_max_age": 600,
+        "enable_swagger": true,
+        "environments": [
+            {
+                "name": "Development",
+                "description": "",
+                "data": {},
+                "session_name": "",
+                "session_auth_key": "",
+                "session_encryption_key": "",
+                "session_auth_key_rotate": "",
+                "session_encryption_key_rotate": "",
+                "show_javascript_errors": true
+            }
+        ],
+        "remote_endpoints": [
+            {
+                "name": "LDAP Test Server",
+                "codename": "ldap",
+                "description": "An OpenLDAP test server.",
+                "type": "ldap",
+                "status": null,
+                "status_message": null,
+                "data": {
+                    "host": "192.168.99.100",
+                    "port": 389,
+                    "username": "cn=anypresence.com, dc=anypresence, dc=com",
+                    "password": "password",
+                    "use_tls": false
+                },
+                "environment_data": null
+            }
+        ],
+        "proxy_endpoints": [
+            {
+                "name": "Add Test",
+                "description": "An endpoint to test the LDAP add functionality.",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "15adab55-4dfd-472a-b22a-5544f53c0d56",
+                        "path": "/ldap_add",
+                        "get_method": false,
+                        "post_method": true,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 152,
+                        "methods": [
+                            "POST"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\nobj = JSON.parse(request.body)\nldap.request.add(obj.distinguishedName, obj.attributes);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Search Test",
+                "description": "Tests basic LDAP search functionality.",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "a116c6a9-6dea-47ba-bc54-709dc3bd9f19",
+                        "path": "/ldap_search",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 148,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar includeByteValues = request.params.includeByteValues === 'true';\nvar baseDistinguishedName = request.params.baseDistinguishedName || 'dc=anypresence,dc=com';\nvar scope = request.params.scope || AP.LDAP.Scope.subtree;\nvar dereference = request.params.dereferenceAliases || AP.LDAP.DereferenceAliases.always;\nvar sizeLimit = (typeof request.params.sizeLimit === 'undefined' || request.params.sizeLimit === null) ? 0: parseInt(request.params.sizeLimit);\nvar timeLimit = (typeof request.params.timeLimit === 'undefined' || request.params.timeLimit === null) ? 0: parseInt(request.params.timeLimit);\nvar typesOnly = request.params.typesOnly === 'true';\nvar filter = request.params.filter || \"(objectclass=*)\";\nvar attributes = (typeof request.params.attributes === 'undefined' || request.params.attributes === null) ? []: request.params.attributes.split(\",\");\nvar controls = null;\n\nldap.request.search(\n  baseDistinguishedName, \n  scope, \n  dereference,\n  sizeLimit, \n  timeLimit, \n  typesOnly, \n  filter, \n  attributes, \n  controls,\n  {\"includeByteValues\": includeByteValues}\n);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            }
+        ],
+        "export_version": 1,
+        "base_url": ""
+    }
+}

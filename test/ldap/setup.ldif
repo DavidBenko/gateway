@@ -1,0 +1,72 @@
+dn: dc=anypresence,dc=com
+dc: anypresence
+description: "ZOMG"
+objectClass: dcObject
+objectClass: organization
+o: AnyPresence
+
+dn: ou=people,dc=anypresence,dc=com
+ou: people
+description: People at AnyPresence
+objectclass: organizationalunit
+
+dn: ou=formerEmployees,dc=anypresence,dc=com
+ou: formerEmployees
+description: People that no longer work at AnyPresence
+objectclass: organizationalUnit
+
+dn: dc=us,dc=anypresence,dc=com
+objectClass: referral
+objectClass: extensibleObject
+dc: us
+ref: ldap://root.openldap.org/dc=us,dc=anypresence,dc=com
+
+dn: cn=Rick Snyder,ou=people,dc=anypresence,dc=com
+objectclass: inetOrgPerson
+cn: Rick Snyder
+cn: Uncle Rockford
+sn: Snyder
+uid: rsnyder
+userpassword: p4s5w0rD
+mail: rsnyder@anypresence.com
+description: That guy over there
+ou: Platform Engineering
+
+dn: cn=Jeff Bozek,ou=people,dc=anypresence,dc=com
+objectclass: inetOrgPerson
+cn: Jeff Bozek
+cn: Geff
+sn: Bozek
+uid: gefftron
+userpassword: iSm311
+mail: jbozek@anypresence.com
+description: I'm Jeff Bozek
+ou: Platform Engineering
+
+dn: cn=Matt Cumello,ou=people,dc=anypresence,dc=com
+objectclass: inetOrgPerson
+cn: Matt Cumello
+cn: Mutt
+sn: Cumello
+uid: mattford
+userpassword: abc123
+mail: mcumello@anypresence
+description: Working on his shapes and colors
+ou: Marketing
+
+dn: cn=Heather Stein,ou=people,dc=anypresence,dc=com
+objectclass: inetOrgPerson
+cn: Heather Stein
+sn: Stein
+uid: hstein
+userpassword: 1234567
+mail: hstein@anypresence.com
+description: Quit
+ou: Sales
+displayName: Heather Stein
+
+dn: cn=Heather Stein,ou=formerEmployees,dc=anypresence,dc=com
+objectclass: alias
+objectclass: extensibleObject
+cn: Heather Stein
+aliasedobjectname: cn=Heather Stein,ou=people,dc=anypresence,dc=com

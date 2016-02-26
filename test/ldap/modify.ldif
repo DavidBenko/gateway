@@ -1,0 +1,4 @@
+dn: cn=Jonny Butt,ou=people,dc=anypresence,dc=com
+changetype: Modify
+replace: mail
+mail: jonnyb@anypresence.com
