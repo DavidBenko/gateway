@@ -1,10 +1,12 @@
-package integration
+package ldap
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"gateway/proxy/request/ldap"
+	"gateway/test/integration"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -17,7 +19,7 @@ var (
 	once          sync.Once
 	host          string
 
-	h = newHTTPHelper()
+	h = integration.NewHTTPHelper()
 )
 
 var searchTests = []struct {
@@ -173,7 +175,7 @@ var searchTests = []struct {
 func ldapSetup(t *testing.T) error {
 	var apiSetupErr error
 	once.Do(func() {
-		host, apiSetupErr = importAPI("ldap_test_api", h)
+		host, apiSetupErr = integration.ImportAPI("ldap_test_api", h)
 	})
 
 	if apiSetupErr != nil {
@@ -257,7 +259,7 @@ func TestLDAPSearch(t *testing.T) {
 			StatusCode int `json:"statusCode"`
 		}{}
 
-		status, _, body, err := h.get(fmt.Sprintf("%s%s", host, searchTest.url))
+		status, _, body, err := h.Get(fmt.Sprintf("%s%s", host, searchTest.url))
 		if err != nil {
 			t.Error(err)
 			continue
@@ -372,7 +374,7 @@ func TestLDAPAdd(t *testing.T) {
 		return
 	}
 
-	status, _, body, err := h.post(fmt.Sprintf("%s%s", host, "/ldap_add"), string(addJSON))
+	status, _, body, err := h.Post(fmt.Sprintf("%s%s", host, "/ldap_add"), string(addJSON))
 	if err != nil {
 		t.Error(err)
 	}
@@ -392,7 +394,7 @@ func TestLDAPAdd(t *testing.T) {
 		}
 	}
 
-	status, _, body, err = h.get(fmt.Sprintf("%s%s", host, "/ldap_search"))
+	status, _, body, err = h.Get(fmt.Sprintf("%s%s", host, "/ldap_search"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -444,7 +446,7 @@ func TestModify(t *testing.T) {
 		return
 	}
 
-	status, _, body, err := h.post(fmt.Sprintf("%s%s", host, "/ldap_modify"), string(modJSON))
+	status, _, body, err := h.Post(fmt.Sprintf("%s%s", host, "/ldap_modify"), string(modJSON))
 	if err != nil {
 		t.Error(err)
 	}
@@ -467,7 +469,7 @@ func TestModify(t *testing.T) {
 		}
 	}
 
-	status, _, body, err = h.get(fmt.Sprintf("%s%s?baseDistinguishedName=%s", host, "/ldap_search", url.QueryEscape("cn=Rick Snyder,ou=people,dc=anypresence,dc=com")))
+	status, _, body, err = h.Get(fmt.Sprintf("%s%s?baseDistinguishedName=%s", host, "/ldap_search", url.QueryEscape("cn=Rick Snyder,ou=people,dc=anypresence,dc=com")))
 	if err != nil {
 		t.Error(err)
 		return
@@ -550,7 +552,7 @@ func TestDelete(t *testing.T) {
 		return
 	}
 
-	status, _, body, err := h.get(fmt.Sprintf("%s%s?distinguishedName=%s", host, "/ldap_delete", url.QueryEscape("cn=Matt Cumello,ou=people,dc=anypresence,dc=com")))
+	status, _, body, err := h.Get(fmt.Sprintf("%s%s?distinguishedName=%s", host, "/ldap_delete", url.QueryEscape("cn=Matt Cumello,ou=people,dc=anypresence,dc=com")))
 
 	if err != nil {
 		t.Error(err)
@@ -560,7 +562,7 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Expected status to be 0, but was %d", status)
 	}
 
-	status, _, body, err = h.get(fmt.Sprintf("%s%s", host, "/ldap_search"))
+	status, _, body, err = h.Get(fmt.Sprintf("%s%s", host, "/ldap_search"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -610,7 +612,7 @@ func TestBind(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		status, _, body, err := h.get(
+		status, _, body, err := h.Get(
 			fmt.Sprintf(
 				"%s%s?username=%s&password=%s",
 				host,
@@ -657,7 +659,7 @@ func TestCompare(t *testing.T) {
 		return
 	}
 
-	status, _, body, err := h.get(
+	status, _, body, err := h.Get(
 		fmt.Sprintf(
 			"%s%s?distinguishedName=%s&attribute=%s&value=%s",
 			host,
@@ -701,3 +703,13 @@ func TestCompare(t *testing.T) {
 }*/
 
 // TODO - add additional tests
+func TestMain(m *testing.M) {
+	fmt.Println("\n\n\n***isIntegrationTest ", integration.IsIntegrationTest)
+	if !integration.IsIntegrationTest {
+		log.Println("Integration flag not set.  Skipping integration tests.")
+		os.Exit(0)
+		//return
+	}
+
+	os.Exit(m.Run())
+}

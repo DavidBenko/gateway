@@ -165,7 +165,7 @@ test_integration_fast: build_tail
 
 	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || (kill `cat ./tmp/server.pid`; docker kill `cat ./tmp/.containerid`)
 
-	go test -v -ldflags "-X gateway/test/integration.integrationTest=true -X gateway/test/integration.ldapSetupFile=`pwd`/test/ldap/setup.ldif -X gateway/test/integration.apiImportDirectory=`pwd`/test/integration" ./src/gateway/test/integration/...; \
+	go test -v -ldflags "-X gateway/test/integration.IntegrationTest=true -X gateway/test/integration/ldap.ldapSetupFile=`pwd`/test/ldap/setup.ldif -X gateway/test/integration.ApiImportDirectory=`pwd`/test/integration" ./src/gateway/test/integration/...; \
 		status=$$?; \
 		docker kill `cat ./tmp/.containerid`; \
 		kill `cat ./tmp/server.pid`; \

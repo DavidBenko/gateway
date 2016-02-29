@@ -4,19 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"testing"
 
 	"github.com/vincent-petithory/dataurl"
 )
 
-var integrationTest string
-var isIntegrationTest = false
-var apiImportDirectory string
+var IntegrationTest string
+var IsIntegrationTest = false
+var ApiImportDirectory string
 
 const createAPIJSON = `{
   "api": {
@@ -32,19 +29,19 @@ const createAPIJSON = `{
 }`
 
 func init() {
-	if value, err := strconv.ParseBool(integrationTest); err == nil {
-		isIntegrationTest = value
+	if value, err := strconv.ParseBool(IntegrationTest); err == nil {
+		IsIntegrationTest = value
 	}
 }
 
-func importAPI(apiName string, h *httpHelper) (string, error) {
+func ImportAPI(apiName string, h *HttpHelper) (string, error) {
 	var (
 		status int
 		body   string
 		err    error
 	)
 
-	filename := filepath.Join(apiImportDirectory, fmt.Sprintf("%s.json", apiName))
+	filename := filepath.Join(ApiImportDirectory, fmt.Sprintf("%s.json", apiName))
 	importBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return "", fmt.Errorf("Unable to read API file %s: %v", filename, err)
@@ -54,7 +51,7 @@ func importAPI(apiName string, h *httpHelper) (string, error) {
 
 	createAPI := strings.Replace(createAPIJSON, "@EXPORT@", string(encoded), -1)
 
-	status, _, body, err = h.post("http://127.0.0.1:5000/admin/apis", createAPI)
+	status, _, body, err = h.Post("http://127.0.0.1:5000/admin/apis", createAPI)
 	if err != nil {
 		return "", fmt.Errorf("Failed due to : %v", err)
 	}
@@ -79,12 +76,13 @@ func importAPI(apiName string, h *httpHelper) (string, error) {
 }
 
 // TestMain serves as the main testing entry point for the integration package
-func TestMain(m *testing.M) {
-	fmt.Println("isIntegrationTest ", isIntegrationTest)
+/*func TestMain(m *testing.M) {
+	fmt.Println("\n\n\n***isIntegrationTest ", isIntegrationTest)
 	if !isIntegrationTest {
 		log.Println("Integration flag not set.  Skipping integration tests.")
-		return
+		os.Exit(0)
+		//return
 	}
 
 	os.Exit(m.Run())
-}
+}*/

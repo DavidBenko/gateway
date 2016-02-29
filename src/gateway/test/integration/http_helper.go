@@ -7,35 +7,35 @@ import (
 	"strings"
 )
 
-type httpHelper struct {
+type HttpHelper struct {
 	httpClient *http.Client
 	cookies    map[string]*http.Cookie
 }
 
-func newHTTPHelper() *httpHelper {
-	helper := new(httpHelper)
+func NewHTTPHelper() *HttpHelper {
+	helper := new(HttpHelper)
 	helper.httpClient = &http.Client{}
 	helper.cookies = map[string]*http.Cookie{}
 	return helper
 }
 
-func (h *httpHelper) get(url string) (int, map[string][]string, string, error) {
+func (h *HttpHelper) Get(url string) (int, map[string][]string, string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return 0, nil, "", err
 	}
-	return h.do(req)
+	return h.Do(req)
 }
 
-func (h *httpHelper) post(url, body string) (int, map[string][]string, string, error) {
+func (h *HttpHelper) Post(url, body string) (int, map[string][]string, string, error) {
 	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 	if err != nil {
 		return 0, nil, "", err
 	}
-	return h.do(req)
+	return h.Do(req)
 }
 
-func (h *httpHelper) do(req *http.Request) (int, map[string][]string, string, error) {
+func (h *HttpHelper) Do(req *http.Request) (int, map[string][]string, string, error) {
 	for _, c := range h.cookies {
 		req.AddCookie(c)
 	}
