@@ -232,6 +232,11 @@ func (s *BoltDBStore) CreateCollection(collection *Collection) error {
 		if err != nil {
 			return err
 		}
+
+		_, err = account.CreateBucketIfNotExists(itob(key))
+		if err != nil {
+			return err
+		}
 	}
 
 	err = tx.Commit()
@@ -396,62 +401,6 @@ func (s *BoltDBStore) getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Buck
 		return nil, nil, errors.New("bucket for object sequence doesn't exist")
 	}
 
-	if tx.Writable() {
-		account, err := tx.CreateBucketIfNotExists(itob(uint64(collection.AccountID)))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		collections, err := account.CreateBucketIfNotExists([]byte("$collections"))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		found, err := findCollection(collections, collection)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if !found {
-			if collection.Name == "" {
-				return nil, nil, errors.New("collection doesn't have a name")
-			}
-
-			sequence := meta.Bucket([]byte(collectionSequence))
-			if sequence == nil {
-				return nil, nil, errors.New("bucket for collection sequence doesn't exist")
-			}
-
-			key, err := sequence.NextSequence()
-			if err != nil {
-				return nil, nil, err
-			}
-			collection.ID = int64(key)
-
-			value, err := json.Marshal(collection)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			err = collections.Put(itob(key), value)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			err = s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-
-		bucket, err := account.CreateBucketIfNotExists(itob(uint64(collection.ID)))
-		if err != nil {
-			return nil, nil, err
-		}
-
-		return bucket, sequence, nil
-	}
-
 	account := tx.Bucket(itob(uint64(collection.AccountID)))
 	if account == nil {
 		return nil, nil, errors.New("bucket for account doesn't exist")
@@ -473,6 +422,76 @@ func (s *BoltDBStore) getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Buck
 	bucket := account.Bucket(itob(uint64(collection.ID)))
 	if bucket == nil {
 		return nil, nil, errors.New("collection doesn't exist")
+	}
+
+	return bucket, sequence, nil
+}
+
+func (s *BoltDBStore) createBucket(tx *bolt.Tx, collection *Collection) (*bolt.Bucket, *bolt.Bucket, error) {
+	if !tx.Writable() {
+		return nil, nil, errors.New("transaction isn't writable")
+	}
+
+	meta := tx.Bucket([]byte(metaBucket))
+	if meta == nil {
+		return nil, nil, errors.New("bucket for meta doesn't exist")
+	}
+
+	sequence := meta.Bucket([]byte(objectSequence))
+	if sequence == nil {
+		return nil, nil, errors.New("bucket for object sequence doesn't exist")
+	}
+
+	account, err := tx.CreateBucketIfNotExists(itob(uint64(collection.AccountID)))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	collections, err := account.CreateBucketIfNotExists([]byte("$collections"))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	found, err := findCollection(collections, collection)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !found {
+		if collection.Name == "" {
+			return nil, nil, errors.New("collection doesn't have a name")
+		}
+
+		sequence := meta.Bucket([]byte(collectionSequence))
+		if sequence == nil {
+			return nil, nil, errors.New("bucket for collection sequence doesn't exist")
+		}
+
+		key, err := sequence.NextSequence()
+		if err != nil {
+			return nil, nil, err
+		}
+		collection.ID = int64(key)
+
+		value, err := json.Marshal(collection)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = collections.Put(itob(key), value)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	bucket, err := account.CreateBucketIfNotExists(itob(uint64(collection.ID)))
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return bucket, sequence, nil
@@ -608,7 +627,7 @@ func (s *BoltDBStore) Insert(accountID int64, collection string, object interfac
 	}
 	defer tx.Rollback()
 
-	bucket, sequence, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, sequence, err := s.createBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -711,7 +730,7 @@ func (s *BoltDBStore) UpdateByID(accountID int64, collection string, id uint64, 
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, _, err := s.createBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -743,7 +762,7 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 	}
 	defer tx.Rollback()
 
-	bucket, _, err := s.getBucket(tx, &Collection{AccountID: accountID, Name: collection})
+	bucket, _, err := s.createBucket(tx, &Collection{AccountID: accountID, Name: collection})
 	if err != nil {
 		return nil, err
 	}
@@ -787,7 +806,7 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 	defer tx.Rollback()
 
 	collect := &Collection{AccountID: accountID, Name: collection}
-	bucket, _, err := s.getBucket(tx, collect)
+	bucket, _, err := s.createBucket(tx, collect)
 	if err != nil {
 		return nil, err
 	}

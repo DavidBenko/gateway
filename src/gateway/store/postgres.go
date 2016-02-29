@@ -199,24 +199,10 @@ func (s *PostgresStore) CreateCollection(collection *Collection) (err error) {
 		err = tx.Commit()
 	}()
 
-	row := tx.QueryRowx("SELECT id, account_id, name FROM collections WHERE account_id = $1 AND name = $2;",
+	err = tx.Get(&collection.ID, `INSERT into collections (account_id, name) VALUES ($1, $2) RETURNING "id";`,
 		collection.AccountID, collection.Name)
 	if err != nil {
 		return err
-	}
-	err = row.StructScan(collection)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			err = tx.Get(&collection.ID, `INSERT into collections (account_id, name) VALUES ($1, $2) RETURNING "id";`,
-				collection.AccountID, collection.Name)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	} else {
-		return ErrCollectionExists
 	}
 
 	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
@@ -245,12 +231,8 @@ func (s *PostgresStore) UpdateCollection(collection *Collection) (err error) {
 		err = tx.Commit()
 	}()
 
-	rows, err := tx.Queryx("UPDATE collections SET name = $1 WHERE id = $2 AND account_id = $3;",
+	_, err = tx.Exec("UPDATE collections SET name = $1 WHERE id = $2 AND account_id = $3;",
 		collection.Name, collection.ID, collection.AccountID)
-	if err != nil {
-		return err
-	}
-	err = rows.Close()
 	if err != nil {
 		return err
 	}
@@ -292,22 +274,18 @@ func (s *PostgresStore) getCollection(tx *sqlx.Tx, collection *Collection) error
 	return row.StructScan(collection)
 }
 
-func (s *PostgresStore) addCollection(tx *sqlx.Tx, collection *Collection) (err error) {
-	err = s.getCollection(tx, collection)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			err = tx.Get(&collection.ID, `INSERT into collections (account_id, name) VALUES ($1, $2) RETURNING "id";`,
-				collection.AccountID, collection.Name)
-			if err != nil {
-				return err
-			}
-			return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
-		} else {
+func (s *PostgresStore) addCollection(tx *sqlx.Tx, collection *Collection) error {
+	err := s.getCollection(tx, collection)
+	if err == sql.ErrNoRows {
+		err = tx.Get(&collection.ID, `INSERT into collections (account_id, name) VALUES ($1, $2) RETURNING "id";`,
+			collection.AccountID, collection.Name)
+		if err != nil {
 			return err
 		}
+		return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 	}
 
-	return nil
+	return err
 }
 
 func (s *PostgresStore) ListObject(object *Object, objects *[]*Object) (err error) {
@@ -388,12 +366,8 @@ func (s *PostgresStore) UpdateObject(object *Object) (err error) {
 		return err
 	}
 
-	rows, err := tx.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
+	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
 		object.Data, object.ID, object.AccountID)
-	if err != nil {
-		return err
-	}
-	err = rows.Close()
 	if err != nil {
 		return err
 	}
@@ -461,12 +435,8 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	if err != nil {
 		return nil, err
 	}
-	rows, err := tx.Queryx("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
+	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
 		string(value), id, accountID)
-	if err != nil {
-		return nil, err
-	}
-	err = rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -603,11 +573,7 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 		return nil, err
 	}
 	for _, object := range objects {
-		rows, err := stmt.Queryx(object.ID, accountID)
-		if err != nil {
-			return nil, err
-		}
-		err = rows.Close()
+		_, err := stmt.Exec(object.ID, accountID)
 		if err != nil {
 			return nil, err
 		}
