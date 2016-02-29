@@ -17,7 +17,7 @@ type ScratchPad struct {
 	RemoteEndpointID int64 `json:"-" path:"endpointID"`
 
 	ID                              int64          `json:"id,omitempty" path:"id"`
-	RemoteEndpointEnvironmentDataID int64          `json:"remote_endpoint_environment_data_id" db:"remote_endpoint_environment_data_id" path:"environmentDataID"`
+	RemoteEndpointEnvironmentDataID int64          `json:"environment_datum_id" db:"remote_endpoint_environment_data_id" path:"environmentDataID"`
 	Name                            string         `json:"name"`
 	Code                            string         `json:"code"`
 	Data                            types.JsonText `json:"-" db:"data"`
