@@ -88,6 +88,194 @@
                 "environment_index": 1
             },
             {
+                "name": "Bind Test",
+                "description": "Tests basic LDAP bind functionality.",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "fbb39ee1-27d9-4632-85a2-0728f2fb4874",
+                        "path": "/ldap_bind",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 156,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar username = request.params.username;\nvar password = request.params.password;\n\nldap.request.bind(username, password);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Compare Test",
+                "description": "",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "f3832791-8439-472f-9526-4bdfb1391210",
+                        "path": "/ldap_compare",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 154,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar distinguishedName = request.params.distinguishedName;\nvar attribute = request.params.attribute;\nvar value = request.params.value;\n\nldap.request.compare(distinguishedName, attribute, value);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Delete Test",
+                "description": "An endpoint to test the LDAP delete functionality.",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "7cf8e9dc-31c3-4927-b86c-1c3600f70e79",
+                        "path": "/ldap_delete",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 153,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\nldap.request.delete(request.params.distinguishedName);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Modify Test",
+                "description": "An endpoint to test the LDAP modify functionality.",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "cb874a73-d3de-4354-ae9b-ed74a2677426",
+                        "path": "/ldap_modify",
+                        "get_method": false,
+                        "post_method": true,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 155,
+                        "methods": [
+                            "POST"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\nobj = JSON.parse(request.body)\nldap.request.modify(obj.distinguishedName, obj.addAttributes, obj.deleteAttributes, obj.replaceAttributes);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
                 "name": "Search Test",
                 "description": "Tests basic LDAP search functionality.",
                 "active": true,

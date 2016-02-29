@@ -413,23 +413,290 @@ func TestLDAPAdd(t *testing.T) {
 	}
 }
 
-/*func TestModify(t *testing.T) {
-	t.Error("Not implemented yet")
+func TestModify(t *testing.T) {
+	defer ldapTeardown(t)
+	err := ldapSetup(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	modPayload := ldap.ModifyOperation{
+		DistinguishedName: "cn=Rick Snyder,ou=people,dc=anypresence,dc=com",
+		AddAttributes: []ldap.Attribute{
+			ldap.Attribute{Type: "displayName", Values: []string{"Rick Snyder"}},
+			ldap.Attribute{Type: "departmentNumber", Values: []string{"38849"}},
+		},
+		DeleteAttributes: []ldap.Attribute{
+			ldap.Attribute{Type: "mail", Values: []string{"rsnyder@anypresence.com"}},
+			ldap.Attribute{Type: "description", Values: []string{"That guy over there"}},
+			ldap.Attribute{Type: "cn", Values: []string{"Uncle Rockford"}},
+		},
+		ReplaceAttributes: []ldap.Attribute{
+			ldap.Attribute{Type: "ou", Values: []string{"Product Development"}},
+			ldap.Attribute{Type: "uid", Values: []string{"rickford"}},
+		},
+	}
+
+	modJSON, err := json.Marshal(modPayload)
+	if err != nil {
+		t.Errorf("Unable to construct modify operation request %v", err)
+		return
+	}
+
+	status, _, body, err := h.post(fmt.Sprintf("%s%s", host, "/ldap_modify"), string(modJSON))
+	if err != nil {
+		t.Error(err)
+	}
+
+	if status != 200 {
+		t.Errorf("Expected status to be 200, but was %d", status)
+		return
+	}
+
+	results := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(body), &results); err != nil {
+		t.Error(err)
+		return
+	}
+
+	if sc, ok := results["statusCode"].(int); ok {
+		if sc != 0 {
+			t.Error(err)
+			return
+		}
+	}
+
+	status, _, body, err = h.get(fmt.Sprintf("%s%s?baseDistinguishedName=%s", host, "/ldap_search", url.QueryEscape("cn=Rick Snyder,ou=people,dc=anypresence,dc=com")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if status != 200 {
+		t.Errorf("Expected status to be 200, but was %d", status)
+		return
+	}
+
+	result := struct {
+		SearchResults struct {
+			Entries []struct {
+				DistinguishedName string `json:"distinguishedName"`
+				Attributes        []struct {
+					Name   string   `json:"name"`
+					Values []string `json:"values"`
+				} `json:"attributes"`
+			} `json:"entries"`
+		} `json:"searchResults"`
+		StatusCode int `json:"statusCode"`
+	}{}
+
+	if err := json.Unmarshal([]byte(body), &result); err != nil {
+		t.Error(err)
+		return
+	}
+
+	if result.StatusCode != 0 {
+		t.Errorf("Expected status code to be 0, but was instead %d", result.StatusCode)
+		return
+	}
+
+	if len(result.SearchResults.Entries) != 1 {
+		t.Errorf("Expected only one search result but instead found %d", len(result.SearchResults.Entries))
+	}
+
+	expectedAttributes := map[string]string{
+		"objectClass":      "inetOrgPerson",
+		"cn":               "Rick Snyder",
+		"sn":               "Snyder",
+		"userPassword":     "p4s5w0rD",
+		"displayName":      "Rick Snyder",
+		"departmentNumber": "38849",
+		"ou":               "Product Development",
+		"uid":              "rickford",
+	}
+
+	entry := result.SearchResults.Entries[0]
+
+	for _, a := range entry.Attributes {
+		if _, ok := expectedAttributes[a.Name]; !ok {
+			t.Errorf("Attribute found with unexpected name: %s", a.Name)
+			continue
+		}
+
+		if len(a.Values) > 1 {
+			t.Errorf("All attributes are expected to have only one value, but found one with %d", len(a.Values))
+			continue
+		}
+
+		if a.Values[0] != expectedAttributes[a.Name] {
+			t.Errorf("Expected attribute with name %s to have value %s, but instead found %s", a.Name, expectedAttributes[a.Name], a.Values[0])
+			continue
+		}
+
+		delete(expectedAttributes, a.Name)
+	}
+
+	if len(expectedAttributes) > 0 {
+		t.Errorf("Not all expected attributes were present! Expected but not present: %v", expectedAttributes)
+	}
 }
 
 func TestDelete(t *testing.T) {
-	t.Error("Not implemented yet")
+	defer ldapTeardown(t)
+	err := ldapSetup(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	status, _, body, err := h.get(fmt.Sprintf("%s%s?distinguishedName=%s", host, "/ldap_delete", url.QueryEscape("cn=Matt Cumello,ou=people,dc=anypresence,dc=com")))
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if status != 200 {
+		t.Errorf("Expected status to be 0, but was %d", status)
+	}
+
+	status, _, body, err = h.get(fmt.Sprintf("%s%s", host, "/ldap_search"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	result := struct {
+		SearchResults struct {
+			Entries []json.RawMessage `json:"entries"`
+		} `json:"searchResults"`
+		StatusCode int `json:"statusCode"`
+	}{}
+
+	if err := json.Unmarshal([]byte(body), &result); err != nil {
+		t.Error(err)
+	}
+
+	if len(result.SearchResults.Entries) != 6 {
+		t.Errorf("Entry was not added successfully. Expected 6 entries but found %d", len(result.SearchResults.Entries))
+	}
 }
 
 func TestBind(t *testing.T) {
-	t.Error("Not implemented yet")
+	defer ldapTeardown(t)
+	err := ldapSetup(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	testCases := []struct {
+		Description        string
+		Username           string
+		Password           string
+		ExpectedStatusCode int
+	}{
+		{
+			Description:        "Valid Password",
+			Username:           "cn=Rick Snyder,ou=people,dc=anypresence,dc=com",
+			Password:           "p4s5w0rD",
+			ExpectedStatusCode: 0,
+		},
+		{
+			Description:        "Invalid Password",
+			Username:           "cn=Rick Snyder,ou=people,dc=anypresence,dc=com",
+			Password:           "p4s5w0RD",
+			ExpectedStatusCode: 49,
+		},
+	}
+
+	for _, tc := range testCases {
+		status, _, body, err := h.get(
+			fmt.Sprintf(
+				"%s%s?username=%s&password=%s",
+				host,
+				"/ldap_bind",
+				url.QueryEscape(tc.Username),
+				tc.Password,
+			),
+		)
+
+		if err != nil {
+			t.Errorf("[%s] Encountered unexpected error: %v", tc.Description, err)
+			continue
+		}
+
+		if status != 200 {
+			t.Errorf("[%s] Expected status to be 0, but was %d", tc.Description, status)
+			continue
+		}
+
+		result := map[string]interface{}{}
+
+		err = json.Unmarshal([]byte(body), &result)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		if sc, ok := result["statusCode"].(float64); ok {
+			if int(sc) != tc.ExpectedStatusCode {
+				t.Errorf("[%s] Expected statusCode to be 0, but was instead %d", tc.Description, int(sc))
+				continue
+			}
+		} else {
+			t.Errorf("[%s] Expected statusCode to be an integer value, but was %T", tc.Description, result["statusCode"])
+		}
+	}
 }
 
 func TestCompare(t *testing.T) {
-	t.Error("Not implemented yet")
+	defer ldapTeardown(t)
+	err := ldapSetup(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	status, _, body, err := h.get(
+		fmt.Sprintf(
+			"%s%s?distinguishedName=%s&attribute=%s&value=%s",
+			host,
+			"/ldap_compare",
+			url.QueryEscape("cn=Matt Cumello,ou=people,dc=anypresence,dc=com"),
+			"objectclass",
+			"inetOrgPerson",
+		),
+	)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if status != 200 {
+		t.Errorf("Expected status to be 200 but was instead %d", status)
+	}
+
+	result := struct {
+		CompareResult struct {
+			Matches bool `json:"matches"`
+		} `json:"compareResult"`
+		StatusCode int `json:"statusCode"`
+	}{}
+
+	if err := json.Unmarshal([]byte(body), &result); err != nil {
+		t.Error(err)
+	}
+
+	if result.StatusCode != 0 {
+		t.Errorf("Expected statusCode to be 0 but was instead %d", result.StatusCode)
+	}
+
+	if !result.CompareResult.Matches {
+		t.Errorf("Expected matches to equal true but was intead %v", result.CompareResult.Matches)
+	}
 }
 
-func TestTLS(t *testing.T) {
+/*func TestTLS(t *testing.T) {
 	t.Error("Not implemented yet")
 }*/
 
