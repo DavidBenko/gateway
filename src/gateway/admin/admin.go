@@ -102,8 +102,8 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
 
-	RouteStoreResource(&StoreCollectionsController{base, s}, "/collections", authAdmin, conf)
-	RouteStoreResource(&StoreObjectsController{base, s}, "/collections/{collectionID}/objects", authAdmin, conf)
+	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
+	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)
 
 	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
 

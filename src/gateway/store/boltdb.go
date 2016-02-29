@@ -214,7 +214,7 @@ func (s *BoltDBStore) CreateCollection(collection *Collection) error {
 	{
 		sequence := meta.Bucket([]byte(collectionSequence))
 		if sequence == nil {
-			return errors.New("bucket for collection sequence doesn't exist")
+			return errors.New("bucket for store collection sequence doesn't exist")
 		}
 
 		key, err := sequence.NextSequence()
@@ -256,17 +256,17 @@ func (s *BoltDBStore) ShowCollection(collection *Collection) error {
 
 	account := tx.Bucket(itob(uint64(collection.AccountID)))
 	if account == nil {
-		return errors.New("collection doesn't exist")
+		return ErrCollectionDoesntExist
 	}
 
 	collections := account.Bucket([]byte("$collections"))
 	if collections == nil {
-		return errors.New("collection doesn't exist")
+		return ErrCollectionDoesntExist
 	}
 
 	value := collections.Get(itob(uint64(collection.ID)))
 	if value == nil {
-		return errors.New("collection doesn't exist")
+		return ErrCollectionDoesntExist
 	}
 
 	err = json.Unmarshal(value, collection)
@@ -336,7 +336,7 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 
 	value := collections.Get(itob(uint64(collection.ID)))
 	if value == nil {
-		return errors.New("collection doesn't exist")
+		return ErrCollectionDoesntExist
 	}
 
 	err = collections.Delete(itob(uint64(collection.ID)))
@@ -398,7 +398,7 @@ func (s *BoltDBStore) getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Buck
 
 	sequence := meta.Bucket([]byte(objectSequence))
 	if sequence == nil {
-		return nil, nil, errors.New("bucket for object sequence doesn't exist")
+		return nil, nil, errors.New("bucket for store object sequence doesn't exist")
 	}
 
 	account := tx.Bucket(itob(uint64(collection.AccountID)))
@@ -416,12 +416,12 @@ func (s *BoltDBStore) getBucket(tx *bolt.Tx, collection *Collection) (*bolt.Buck
 		return nil, nil, err
 	}
 	if !found {
-		return nil, nil, errors.New("collection doesn't exist")
+		return nil, nil, ErrCollectionDoesntExist
 	}
 
 	bucket := account.Bucket(itob(uint64(collection.ID)))
 	if bucket == nil {
-		return nil, nil, errors.New("collection doesn't exist")
+		return nil, nil, ErrCollectionDoesntExist
 	}
 
 	return bucket, sequence, nil
@@ -439,7 +439,7 @@ func (s *BoltDBStore) createBucket(tx *bolt.Tx, collection *Collection) (*bolt.B
 
 	sequence := meta.Bucket([]byte(objectSequence))
 	if sequence == nil {
-		return nil, nil, errors.New("bucket for object sequence doesn't exist")
+		return nil, nil, errors.New("bucket for store object sequence doesn't exist")
 	}
 
 	account, err := tx.CreateBucketIfNotExists(itob(uint64(collection.AccountID)))
@@ -459,12 +459,12 @@ func (s *BoltDBStore) createBucket(tx *bolt.Tx, collection *Collection) (*bolt.B
 
 	if !found {
 		if collection.Name == "" {
-			return nil, nil, errors.New("collection doesn't have a name")
+			return nil, nil, errors.New("store collection doesn't have a name")
 		}
 
 		sequence := meta.Bucket([]byte(collectionSequence))
 		if sequence == nil {
-			return nil, nil, errors.New("bucket for collection sequence doesn't exist")
+			return nil, nil, errors.New("bucket for store collection sequence doesn't exist")
 		}
 
 		key, err := sequence.NextSequence()

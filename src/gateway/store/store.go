@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	ErrCollectionExists      = errors.New("collection already exists")
-	ErrCollectionDoesntExist = errors.New("collection doesn't exist")
+	ErrCollectionExists      = errors.New("store collection already exists")
+	ErrCollectionDoesntExist = errors.New("store collection doesn't exist")
 )
 
 type Collection struct {
@@ -39,7 +39,7 @@ type Object struct {
 
 	ID           int64          `json:"id"`
 	AccountID    int64          `json:"account_id" db:"account_id"`
-	CollectionID int64          `json:"collection_id" db:"collection_id"`
+	CollectionID int64          `json:"store_collection_id" db:"collection_id"`
 	Data         types.JsonText `json:"data"`
 }
 

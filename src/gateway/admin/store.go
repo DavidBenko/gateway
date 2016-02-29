@@ -60,7 +60,7 @@ func (c *StoreCollectionsController) List(w http.ResponseWriter, r *http.Request
 	err := c.store.ListCollection(collection, &collections)
 
 	if err != nil {
-		logreport.Printf("%s Error listing collection: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error listing store collection: %v\n%v", config.System, err, r)
 		return aphttp.DefaultServerError()
 	}
 
@@ -86,7 +86,7 @@ func (c *StoreCollectionsController) Create(w http.ResponseWriter, r *http.Reque
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error inserting collection: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error inserting store collection: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -123,7 +123,7 @@ func (c *StoreCollectionsController) Update(w http.ResponseWriter, r *http.Reque
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error updating collection: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error updating store collection: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -138,7 +138,7 @@ func (c *StoreCollectionsController) Delete(w http.ResponseWriter, r *http.Reque
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error deleting collection: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error deleting store collection: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -147,20 +147,20 @@ func (c *StoreCollectionsController) Delete(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *StoreCollectionsController) notFound() aphttp.Error {
-	return aphttp.NewError(errors.New("No collection matches"), 404)
+	return aphttp.NewError(errors.New("No store collection matches"), 404)
 }
 
 func (c *StoreCollectionsController) deserializeInstance(file io.Reader) (*store.Collection,
 	aphttp.Error) {
 
 	var wrapped struct {
-		Collection *store.Collection `json:"collection"`
+		Collection *store.Collection `json:"store_collection"`
 	}
 	if err := deserialize(&wrapped, file); err != nil {
 		return nil, err
 	}
 	if wrapped.Collection == nil {
-		return nil, aphttp.NewError(errors.New("Could not deserialize Collection from JSON."),
+		return nil, aphttp.NewError(errors.New("Could not deserialize store collection from JSON."),
 			http.StatusBadRequest)
 	}
 	return wrapped.Collection, nil
@@ -170,7 +170,7 @@ func (c *StoreCollectionsController) serializeInstance(instance *store.Collectio
 	w http.ResponseWriter) aphttp.Error {
 
 	wrapped := struct {
-		Collection *store.Collection `json:"collection"`
+		Collection *store.Collection `json:"store_collection"`
 	}{instance}
 	return serialize(wrapped, w)
 }
@@ -179,7 +179,7 @@ func (c *StoreCollectionsController) serializeCollection(collection []*store.Col
 	w http.ResponseWriter) aphttp.Error {
 
 	wrapped := struct {
-		Collections []*store.Collection `json:"collections"`
+		Collections []*store.Collection `json:"store_collections"`
 	}{collection}
 	return serialize(wrapped, w)
 }
@@ -195,7 +195,7 @@ func (c *StoreObjectsController) List(w http.ResponseWriter, r *http.Request) ap
 	err := c.store.ListObject(object, &objects)
 
 	if err != nil {
-		logreport.Printf("%s Error listing object: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error listing store object: %v\n%v", config.System, err, r)
 		return aphttp.DefaultServerError()
 	}
 
@@ -222,7 +222,7 @@ func (c *StoreObjectsController) Create(w http.ResponseWriter, r *http.Request) 
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error inserting object: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error inserting store object: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -265,7 +265,7 @@ func (c *StoreObjectsController) Update(w http.ResponseWriter, r *http.Request) 
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error updating object: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error updating store object: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -285,7 +285,7 @@ func (c *StoreObjectsController) Delete(w http.ResponseWriter, r *http.Request) 
 		if err == apsql.ErrZeroRowsAffected {
 			return c.notFound()
 		}
-		logreport.Printf("%s Error deleting object: %v\n%v", config.System, err, r)
+		logreport.Printf("%s Error deleting store object: %v\n%v", config.System, err, r)
 		return aphttp.NewServerError(err)
 	}
 
@@ -294,20 +294,20 @@ func (c *StoreObjectsController) Delete(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *StoreObjectsController) notFound() aphttp.Error {
-	return aphttp.NewError(errors.New("No object matches"), 404)
+	return aphttp.NewError(errors.New("No store object matches"), 404)
 }
 
 func (c *StoreObjectsController) deserializeInstance(file io.Reader) (*store.Object,
 	aphttp.Error) {
 
 	var wrapped struct {
-		Object *store.Object `json:"object"`
+		Object *store.Object `json:"store_object"`
 	}
 	if err := deserialize(&wrapped, file); err != nil {
 		return nil, err
 	}
 	if wrapped.Object == nil {
-		return nil, aphttp.NewError(errors.New("Could not deserialize Object from JSON."),
+		return nil, aphttp.NewError(errors.New("Could not deserialize store object from JSON."),
 			http.StatusBadRequest)
 	}
 	return wrapped.Object, nil
@@ -317,7 +317,7 @@ func (c *StoreObjectsController) serializeInstance(instance *store.Object,
 	w http.ResponseWriter) aphttp.Error {
 
 	wrapped := struct {
-		Object *store.Object `json:"object"`
+		Object *store.Object `json:"store_object"`
 	}{instance}
 	return serialize(wrapped, w)
 }
@@ -326,7 +326,7 @@ func (c *StoreObjectsController) serializeCollection(collection []*store.Object,
 	w http.ResponseWriter) aphttp.Error {
 
 	wrapped := struct {
-		Objects []*store.Object `json:"objects"`
+		Objects []*store.Object `json:"store_objects"`
 	}{collection}
 	return serialize(wrapped, w)
 }
