@@ -25,13 +25,13 @@ func RouteScratchPads(controller ResourceController, path string,
 	RouteResource(controller, path, router, db, conf)
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.(*MetaScratchPadsController).Test),
+		"GET": read(db, controller.(*MetaScratchPadsController).Execute),
 	}
 	if conf.CORSEnabled {
 		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
 	}
 
-	router.Handle(path+"/{id}/test", handlers.MethodHandler(routes))
+	router.Handle(path+"/{id}/execute", handlers.MethodHandler(routes))
 }
 
 type ScratchPadResult struct {
@@ -40,7 +40,7 @@ type ScratchPadResult struct {
 	Time     int64  `json:"time"`
 }
 
-func (c *MetaScratchPadsController) Test(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
+func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
 	object := model.ScratchPad{}
 	c.mapFields(r, &object)
 	pad, err := object.Find(db)
