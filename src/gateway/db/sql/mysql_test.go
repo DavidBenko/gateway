@@ -70,12 +70,12 @@ func (s *SQLSuite) TestMySQLConfig(c *gc.C) {
 	}{{
 		should:       "work with a simple config",
 		given:        mysqlSpecs()["simple"],
-		expectString: "username:pass@tcp(some.url.net:1234)/db",
+		expectString: "username:pass@tcp(some.url.net:1234)/db?parseTime=true",
 		expectUnique: "username:pass@tcp(some.url.net:1234)/db",
 	}, {
 		should:       "work with a complicated config",
 		given:        mysqlSpecs()["complicated"],
-		expectString: `user name:pass's@tcp(some.url.net:1234)/db?timeout=30s`,
+		expectString: `user name:pass's@tcp(some.url.net:1234)/db?timeout=30s&parseTime=true`,
 		expectUnique: `user name:pass's@tcp(some.url.net:1234)/db`,
 	}, {
 		should:      "not work with a bad config",

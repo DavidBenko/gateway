@@ -102,7 +102,10 @@ var usageStrings = map[string]string{
 
 	"admin-enable-registration": "Enable account registration API",
 
-	"admin-create-default-host": "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
+	"admin-create-default-host":       "Whether or not to create a deafult host when an API is created, based off of the configured proxy-domain",
+	"admin-default-api-access-scheme": "The Base URL to use for accessing the API that will be displayed to the user in the front-end admin app after an API is created.  This value can be interpolated based on the hosts configured for an API.  Default is 'http://{{hosts[0]}}:5000' where '{{hosts[0]}}' the first value in the array of interpolated hosts for that API.",
+
+	"admin-google-analytics-tracking-id": "A Google Analytics Tracking ID to be used by the rendered Admin UI.",
 
 	"elastic-logging-url": "The url of the elastic server",
 
