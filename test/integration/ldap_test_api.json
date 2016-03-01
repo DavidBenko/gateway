@@ -37,6 +37,83 @@
                     "use_tls": false
                 },
                 "environment_data": null
+            },
+            {
+                "name": "LDAP Test Server - Invalid Cert/Key Combination",
+                "codename": "ldap",
+                "description": "An OpenLDAP test server with TLS.",
+                "type": "ldap",
+                "status": null,
+                "status_message": null,
+                "data": {
+                    "host": "192.168.99.100",
+                    "port": 389,
+                    "username": "cn=anypresence.com, dc=anypresence, dc=com",
+                    "password": "password",
+                    "use_tls": true,
+                    "tls": {
+                        "server_name": "anypresence.com",
+                        "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA24K0BV3stNvnqhrFmhcSwazAPBkbEVs/AquEJLhTcjfe5T19\nqs96wZr6j4jt3zIOzWaDuHKRWJ8k+VugumWt+aGAR0qNMDTxoCG/NU5DE7cF2wil\nvd9WLCZMCfqjA2Cx4kPPO4At5EeBqGw3NHQRgpqjjGWQCQzCyvC4qhqSHxO2RUpK\n7Y+JYwReoCJVGedIfBM6Wq9S9F4urTeCOiT+/erYc5T99lsevOgqhD89JHdS7B+0\neunCRGpN0OOfK909lOdh/WhHpilMsQR8Dqx9Iqz2WpUdAGwg1CfzHP7Mb/SxTNPN\notoD9NIcZZtVPaPc5cSUlyD2Uuw85RQ2tqZlTwIDAQABAoIBAAp5PwuugpfSkkgs\nhNcoWK3DB10WuZLnbqc69dAmt1yQy+LWP0PCKJJKScBFgUwQAGLOjGRlmwfGeCYp\nuA6MwXNSwGMmbHwrWogQdCYf+NVc+zuLOxVHLb5niWNEgTitCW/JWn71S7tDqi0W\nFMA89YTsyfbt9aRo5nZ2a+k54VT4LidfphXXudKQEX19vIN9hBDMC1bXbRQS+BJG\nVGDoh4ipslTFDdPvHooVEDTBZBDQWry+O5qbKS1PfnLrUze8anuj5QZyiHIW55UR\njkDT61uvzt5xU6DjO85e2ps782AFOHrbL8ima4JZKHa5EDbbcAt0XOljC4Ceo+IV\nQZUtGbECgYEA+mdf9Cgu/EJRzFpvIyuBcXG/N4CFKolSsIpfCQPxYQ6KhckoPT6l\nJCqtxmCDOotA+2PF7maSJ++thAUjX91ZWXSlYKxiia5Mi9iQrDwLXLbfnqfJhf8p\nqDG8tG3KAs+6jRlGHiGTmlMiWiAz5bPNjDtVpG4RA7uocSBoPdVczYcCgYEA4GqU\ngQ5rI72Ql4xAVZths3vzj1irWf0suBQTnDtI8rvxzVjaaA5Uw2A9UJaLuRCKdOpE\nS8hOc5GshCyzYgN4/BvOWoYw0Cx5eYqAzWrOoTsovkIMLXXEv2aFCPjXaJ16Cf9Z\nZtHl4K+hnHVA4ZYlU0taCCsH2g7cmgPxqzvw2/kCgYEApp8NCXGHulIDDiELHPMB\nIlTXMX5ynhhcjp60mFIoVzYO1PFCtmYuCz/e/EcSa21oIx+EAJv+G1bwNg4ZONwY\nbV8iAI8UzprN0qybsBAQW3RQnsj1XxWoSYQ3FjSMHIzPjL5Jmxkql6FEFYaiIfIg\nD3UYCt82sS446nXvB14nb5cCgYEA0ur41e7SPY4dxoF3ub3G7qTxvektau9rRzr/\nT1fc8N45nbED3MaTXekm14YWngHwz3+aXstNCIuCY9uLYPQ4kmIj6Kq0WANkzBmj\nguz+dUSfv2ld/p/wIZ/eKxeNhPJ0z86hnORrtGf9cYo2R48RV567aG/g+k37gflw\n+mnkrykCgYBKS742k6F0XTfdhSP3qnECQ5+DyBnQ11o2Sol7Cdv4oRzVRGmQxuCP\nbcowa31uJjOI+Ktwx/cOeuZo8xhByGNtR7XoFMeiz7frl+t0SML/VDiIfiYAK1V7\nbk+5ZjGoNFfMecRCyWK79z9fIF1DyWryKWGlGa3253TKRLY/PKxVvA==\n-----END RSA PRIVATE KEY-----\n",
+                        "certificate": "Certificate:\r\n    Data:\r\n        Version: 3 (0x2)\r\n        Serial Number:\r\n            93:bc:21:d2:cf:39:46:11\r\n        Signature Algorithm: sha1WithRSAEncryption\r\n        Issuer: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=widgets.com\r\n        Validity\r\n            Not Before: Feb 10 21:47:49 2016 GMT\r\n            Not After : Feb  9 21:47:49 2017 GMT\r\n        Subject: CN=anypresence.com\r\n        Subject Public Key Info:\r\n            Public Key Algorithm: rsaEncryption\r\n            RSA Public Key: (1024 bit)\r\n                Modulus (1024 bit):\r\n                    00:b2:70:1e:02:d2:ae:26:80:e0:3f:09:03:ec:ec:\r\n                    3b:03:f4:94:7b:cc:62:9c:b6:84:e2:1f:0c:56:ee:\r\n                    86:86:77:fd:76:6f:12:ed:bd:83:56:81:b2:37:ae:\r\n                    8f:e7:40:7b:00:f0:7b:6b:63:e9:33:48:5d:43:63:\r\n                    61:ee:20:61:6e:2e:00:d1:82:a2:9c:b5:45:f8:73:\r\n                    c3:69:14:80:5a:d2:26:12:e7:07:6b:5e:6c:16:dc:\r\n                    88:f2:26:2e:7d:d5:aa:63:cd:20:cb:9b:ce:41:f8:\r\n                    74:79:10:60:75:cf:3c:f5:8d:38:35:7a:61:a5:c9:\r\n                    c4:56:b3:38:28:49:47:39:2b\r\n                Exponent: 65537 (0x10001)\r\n        X509v3 extensions:\r\n            X509v3 Basic Constraints: \r\n                CA:FALSE\r\n            Netscape Comment: \r\n                OpenSSL Generated Certificate\r\n            X509v3 Subject Key Identifier: \r\n                EE:58:0D:68:FC:F7:7E:68:4B:A9:70:99:95:F3:81:08:AB:67:34:77\r\n            X509v3 Authority Key Identifier: \r\n                keyid:CF:8A:9F:12:C1:E3:4C:E8:4E:57:92:75:7E:65:7C:AD:0B:8B:AA:F2\r\n\r\n    Signature Algorithm: sha1WithRSAEncryption\r\n        be:d2:69:9c:d3:31:b6:d7:6a:63:a2:0b:df:ec:1b:d6:0e:ae:\r\n        18:2f:9e:9d:3d:ed:d3:c7:8b:f5:72:c1:a2:a1:d1:e9:1f:93:\r\n        8b:17:b1:ac:21:38:ed:66:07:2e:dc:15:3c:21:b6:96:72:7f:\r\n        c6:0c:71:6e:11:e6:7a:6e:05:ee:00:94:27:c9:f1:60:a2:15:\r\n        86:72:ec:c6:6d:3f:fc:c0:4d:aa:e4:6a:f6:ce:38:10:95:1d:\r\n        d2:4a:f1:e3:19:8e:a4:d2:a0:24:fe:ee:9a:0b:03:03:93:63:\r\n        bb:df:8d:f5:fe:f4:01:62:b0:21:aa:47:46:85:6a:46:63:d7:\r\n        34:65\r\n-----BEGIN CERTIFICATE-----\r\nMIICbjCCAdegAwIBAgIJAJO8IdLPOUYRMA0GCSqGSIb3DQEBBQUAMFsxCzAJBgNV\r\nBAYTAkFVMRMwEQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBX\r\naWRnaXRzIFB0eSBMdGQxFDASBgNVBAMTC3dpZGdldHMuY29tMB4XDTE2MDIxMDIx\r\nNDc0OVoXDTE3MDIwOTIxNDc0OVowGjEYMBYGA1UEAxMPYW55cHJlc2VuY2UuY29t\r\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCycB4C0q4mgOA/CQPs7DsD9JR7\r\nzGKctoTiHwxW7oaGd/12bxLtvYNWgbI3ro/nQHsA8HtrY+kzSF1DY2HuIGFuLgDR\r\ngqKctUX4c8NpFIBa0iYS5wdrXmwW3IjyJi591apjzSDLm85B+HR5EGB1zzz1jTg1\r\nemGlycRWszgoSUc5KwIDAQABo3sweTAJBgNVHRMEAjAAMCwGCWCGSAGG+EIBDQQf\r\nFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQU7lgNaPz3\r\nfmhLqXCZlfOBCKtnNHcwHwYDVR0jBBgwFoAUz4qfEsHjTOhOV5J1fmV8rQuLqvIw\r\nDQYJKoZIhvcNAQEFBQADgYEAvtJpnNMxttdqY6IL3+wb1g6uGC+enT3t08eL9XLB\r\noqHR6R+TixexrCE47WYHLtwVPCG2lnJ/xgxxbhHmem4F7gCUJ8nxYKIVhnLsxm0/\r\n/MBNquRq9s44EJUd0krx4xmOpNKgJP7umgsDA5Nju9+N9f70AWKwIapHRoVqRmPX\r\nNGU=\r\n-----END CERTIFICATE-----"
+                    }
+                },
+                "environment_data": null
+            },
+            {
+                "name": "LDAP Test Server - TLS",
+                "codename": "ldap",
+                "description": "An OpenLDAP test server with TLS.",
+                "type": "ldap",
+                "status": null,
+                "status_message": null,
+                "data": {
+                    "host": "192.168.99.100",
+                    "port": 389,
+                    "username": "cn=anypresence.com, dc=anypresence, dc=com",
+                    "password": "password",
+                    "use_tls": true,
+                    "tls": {
+                        "server_name": "anypresence.com",
+                        "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA24K0BV3stNvnqhrFmhcSwazAPBkbEVs/AquEJLhTcjfe5T19\nqs96wZr6j4jt3zIOzWaDuHKRWJ8k+VugumWt+aGAR0qNMDTxoCG/NU5DE7cF2wil\nvd9WLCZMCfqjA2Cx4kPPO4At5EeBqGw3NHQRgpqjjGWQCQzCyvC4qhqSHxO2RUpK\n7Y+JYwReoCJVGedIfBM6Wq9S9F4urTeCOiT+/erYc5T99lsevOgqhD89JHdS7B+0\neunCRGpN0OOfK909lOdh/WhHpilMsQR8Dqx9Iqz2WpUdAGwg1CfzHP7Mb/SxTNPN\notoD9NIcZZtVPaPc5cSUlyD2Uuw85RQ2tqZlTwIDAQABAoIBAAp5PwuugpfSkkgs\nhNcoWK3DB10WuZLnbqc69dAmt1yQy+LWP0PCKJJKScBFgUwQAGLOjGRlmwfGeCYp\nuA6MwXNSwGMmbHwrWogQdCYf+NVc+zuLOxVHLb5niWNEgTitCW/JWn71S7tDqi0W\nFMA89YTsyfbt9aRo5nZ2a+k54VT4LidfphXXudKQEX19vIN9hBDMC1bXbRQS+BJG\nVGDoh4ipslTFDdPvHooVEDTBZBDQWry+O5qbKS1PfnLrUze8anuj5QZyiHIW55UR\njkDT61uvzt5xU6DjO85e2ps782AFOHrbL8ima4JZKHa5EDbbcAt0XOljC4Ceo+IV\nQZUtGbECgYEA+mdf9Cgu/EJRzFpvIyuBcXG/N4CFKolSsIpfCQPxYQ6KhckoPT6l\nJCqtxmCDOotA+2PF7maSJ++thAUjX91ZWXSlYKxiia5Mi9iQrDwLXLbfnqfJhf8p\nqDG8tG3KAs+6jRlGHiGTmlMiWiAz5bPNjDtVpG4RA7uocSBoPdVczYcCgYEA4GqU\ngQ5rI72Ql4xAVZths3vzj1irWf0suBQTnDtI8rvxzVjaaA5Uw2A9UJaLuRCKdOpE\nS8hOc5GshCyzYgN4/BvOWoYw0Cx5eYqAzWrOoTsovkIMLXXEv2aFCPjXaJ16Cf9Z\nZtHl4K+hnHVA4ZYlU0taCCsH2g7cmgPxqzvw2/kCgYEApp8NCXGHulIDDiELHPMB\nIlTXMX5ynhhcjp60mFIoVzYO1PFCtmYuCz/e/EcSa21oIx+EAJv+G1bwNg4ZONwY\nbV8iAI8UzprN0qybsBAQW3RQnsj1XxWoSYQ3FjSMHIzPjL5Jmxkql6FEFYaiIfIg\nD3UYCt82sS446nXvB14nb5cCgYEA0ur41e7SPY4dxoF3ub3G7qTxvektau9rRzr/\nT1fc8N45nbED3MaTXekm14YWngHwz3+aXstNCIuCY9uLYPQ4kmIj6Kq0WANkzBmj\nguz+dUSfv2ld/p/wIZ/eKxeNhPJ0z86hnORrtGf9cYo2R48RV567aG/g+k37gflw\n+mnkrykCgYBKS742k6F0XTfdhSP3qnECQ5+DyBnQ11o2Sol7Cdv4oRzVRGmQxuCP\nbcowa31uJjOI+Ktwx/cOeuZo8xhByGNtR7XoFMeiz7frl+t0SML/VDiIfiYAK1V7\nbk+5ZjGoNFfMecRCyWK79z9fIF1DyWryKWGlGa3253TKRLY/PKxVvA==\n-----END RSA PRIVATE KEY-----\n",
+                        "certificate": "Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number:\n            93:bc:21:d2:cf:39:46:12\n        Signature Algorithm: sha1WithRSAEncryption\n        Issuer: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=widgets.com\n        Validity\n            Not Before: Feb 12 22:05:47 2016 GMT\n            Not After : Feb 11 22:05:47 2017 GMT\n        Subject: C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=mydomain.com\n        Subject Public Key Info:\n            Public Key Algorithm: rsaEncryption\n            RSA Public Key: (2048 bit)\n                Modulus (2048 bit):\n                    00:db:82:b4:05:5d:ec:b4:db:e7:aa:1a:c5:9a:17:\n                    12:c1:ac:c0:3c:19:1b:11:5b:3f:02:ab:84:24:b8:\n                    53:72:37:de:e5:3d:7d:aa:cf:7a:c1:9a:fa:8f:88:\n                    ed:df:32:0e:cd:66:83:b8:72:91:58:9f:24:f9:5b:\n                    a0:ba:65:ad:f9:a1:80:47:4a:8d:30:34:f1:a0:21:\n                    bf:35:4e:43:13:b7:05:db:08:a5:bd:df:56:2c:26:\n                    4c:09:fa:a3:03:60:b1:e2:43:cf:3b:80:2d:e4:47:\n                    81:a8:6c:37:34:74:11:82:9a:a3:8c:65:90:09:0c:\n                    c2:ca:f0:b8:aa:1a:92:1f:13:b6:45:4a:4a:ed:8f:\n                    89:63:04:5e:a0:22:55:19:e7:48:7c:13:3a:5a:af:\n                    52:f4:5e:2e:ad:37:82:3a:24:fe:fd:ea:d8:73:94:\n                    fd:f6:5b:1e:bc:e8:2a:84:3f:3d:24:77:52:ec:1f:\n                    b4:7a:e9:c2:44:6a:4d:d0:e3:9f:2b:dd:3d:94:e7:\n                    61:fd:68:47:a6:29:4c:b1:04:7c:0e:ac:7d:22:ac:\n                    f6:5a:95:1d:00:6c:20:d4:27:f3:1c:fe:cc:6f:f4:\n                    b1:4c:d3:cd:a2:da:03:f4:d2:1c:65:9b:55:3d:a3:\n                    dc:e5:c4:94:97:20:f6:52:ec:3c:e5:14:36:b6:a6:\n                    65:4f\n                Exponent: 65537 (0x10001)\n        X509v3 extensions:\n            X509v3 Basic Constraints: \n                CA:FALSE\n            Netscape Comment: \n                OpenSSL Generated Certificate\n            X509v3 Subject Key Identifier: \n                4B:9C:D8:ED:31:B9:43:0F:3C:DD:FC:97:0D:B5:89:36:7E:2C:52:EF\n            X509v3 Authority Key Identifier: \n                keyid:CF:8A:9F:12:C1:E3:4C:E8:4E:57:92:75:7E:65:7C:AD:0B:8B:AA:F2\n\n    Signature Algorithm: sha1WithRSAEncryption\n        79:3d:a2:28:d4:83:59:2d:65:77:aa:4c:4d:1e:93:c4:c9:ef:\n        eb:14:3f:54:7c:fe:b4:f8:74:90:37:3e:cb:bd:3b:48:9a:f6:\n        90:35:bc:a5:d3:4d:e2:dd:fc:94:18:60:d3:5a:f8:35:db:4c:\n        44:7f:bb:14:1a:24:d6:ef:4d:94:d8:5b:ab:19:eb:bf:65:ee:\n        de:e5:e2:21:fd:a0:25:72:2a:30:bd:3b:38:1f:b9:1e:c5:21:\n        50:9a:8d:74:21:8c:4e:96:8d:fd:1b:97:d2:fc:9b:14:d8:3f:\n        4e:c4:27:d3:7a:37:ee:92:fb:2b:af:29:07:b8:63:d0:ef:2d:\n        02:fb\n-----BEGIN CERTIFICATE-----\nMIIDNDCCAp2gAwIBAgIJAJO8IdLPOUYSMA0GCSqGSIb3DQEBBQUAMFsxCzAJBgNV\nBAYTAkFVMRMwEQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBX\naWRnaXRzIFB0eSBMdGQxFDASBgNVBAMTC3dpZGdldHMuY29tMB4XDTE2MDIxMjIy\nMDU0N1oXDTE3MDIxMTIyMDU0N1owXDELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNv\nbWUtU3RhdGUxITAfBgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEVMBMG\nA1UEAxMMbXlkb21haW4uY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC\nAQEA24K0BV3stNvnqhrFmhcSwazAPBkbEVs/AquEJLhTcjfe5T19qs96wZr6j4jt\n3zIOzWaDuHKRWJ8k+VugumWt+aGAR0qNMDTxoCG/NU5DE7cF2wilvd9WLCZMCfqj\nA2Cx4kPPO4At5EeBqGw3NHQRgpqjjGWQCQzCyvC4qhqSHxO2RUpK7Y+JYwReoCJV\nGedIfBM6Wq9S9F4urTeCOiT+/erYc5T99lsevOgqhD89JHdS7B+0eunCRGpN0OOf\nK909lOdh/WhHpilMsQR8Dqx9Iqz2WpUdAGwg1CfzHP7Mb/SxTNPNotoD9NIcZZtV\nPaPc5cSUlyD2Uuw85RQ2tqZlTwIDAQABo3sweTAJBgNVHRMEAjAAMCwGCWCGSAGG\n+EIBDQQfFh1PcGVuU1NMIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQU\nS5zY7TG5Qw883fyXDbWJNn4sUu8wHwYDVR0jBBgwFoAUz4qfEsHjTOhOV5J1fmV8\nrQuLqvIwDQYJKoZIhvcNAQEFBQADgYEAeT2iKNSDWS1ld6pMTR6TxMnv6xQ/VHz+\ntPh0kDc+y707SJr2kDW8pdNN4t38lBhg01r4NdtMRH+7FBok1u9NlNhbqxnrv2Xu\n3uXiIf2gJXIqML07OB+5HsUhUJqNdCGMTpaN/RuX0vybFNg/TsQn03o37pL7K68p\nB7hj0O8tAvs=\n-----END CERTIFICATE-----\n"
+                    }
+                },
+                "environment_data": null
+            },
+            {
+                "name": "LDAP Test Server - TLS (Server Name Only)",
+                "codename": "ldap",
+                "description": "An OpenLDAP test server.",
+                "type": "ldap",
+                "status": null,
+                "status_message": null,
+                "data": {
+                    "host": "192.168.99.100",
+                    "port": 389,
+                    "username": "cn=anypresence.com, dc=anypresence, dc=com",
+                    "password": "password",
+                    "use_tls": true,
+                    "tls": {
+                        "server_name": "anypresence.com"
+                    }
+                },
+                "environment_data": null
+            },
+            {
+                "name": "LDAP Test Server - TLS Insecure Skip Verify",
+                "codename": "ldap",
+                "description": "An OpenLDAP test server.",
+                "type": "ldap",
+                "status": null,
+                "status_message": null,
+                "data": {
+                    "host": "192.168.99.100",
+                    "port": 389,
+                    "username": "cn=anypresence.com, dc=anypresence, dc=com",
+                    "password": "password",
+                    "use_tls": true
+                },
+                "environment_data": null
             }
         ],
         "proxy_endpoints": [
@@ -316,6 +393,194 @@
                             "conditional": "",
                             "conditional_positive": true,
                             "remote_endpoint_index": 1
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Search Test - TLS - Bad Configuration",
+                "description": "",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "91ae957f-f648-43ab-ab2d-9f5fffa9a9f1",
+                        "path": "/ldap_search_tls_bad_config",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 159,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar includeByteValues = request.params.includeByteValues === 'true';\nvar baseDistinguishedName = request.params.baseDistinguishedName || 'dc=anypresence,dc=com';\nvar scope = request.params.scope || AP.LDAP.Scope.subtree;\nvar dereference = request.params.dereferenceAliases || AP.LDAP.DereferenceAliases.always;\nvar sizeLimit = (typeof request.params.sizeLimit === 'undefined' || request.params.sizeLimit === null) ? 0: parseInt(request.params.sizeLimit);\nvar timeLimit = (typeof request.params.timeLimit === 'undefined' || request.params.timeLimit === null) ? 0: parseInt(request.params.timeLimit);\nvar typesOnly = request.params.typesOnly === 'true';\nvar filter = request.params.filter || \"(objectclass=*)\";\nvar attributes = (typeof request.params.attributes === 'undefined' || request.params.attributes === null) ? []: request.params.attributes.split(\",\");\nvar controls = null;\n\nldap.request.search(\n  baseDistinguishedName, \n  scope, \n  dereference,\n  sizeLimit, \n  timeLimit, \n  typesOnly, \n  filter, \n  attributes, \n  controls,\n  {\"includeByteValues\": includeByteValues}\n);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 2
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Search Test - TLS - Complete",
+                "description": "",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "d7602a34-39ce-4193-abd2-5e58602e934c",
+                        "path": "/ldap_search_tls_complete",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 160,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar includeByteValues = request.params.includeByteValues === 'true';\nvar baseDistinguishedName = request.params.baseDistinguishedName || 'dc=anypresence,dc=com';\nvar scope = request.params.scope || AP.LDAP.Scope.subtree;\nvar dereference = request.params.dereferenceAliases || AP.LDAP.DereferenceAliases.always;\nvar sizeLimit = (typeof request.params.sizeLimit === 'undefined' || request.params.sizeLimit === null) ? 0: parseInt(request.params.sizeLimit);\nvar timeLimit = (typeof request.params.timeLimit === 'undefined' || request.params.timeLimit === null) ? 0: parseInt(request.params.timeLimit);\nvar typesOnly = request.params.typesOnly === 'true';\nvar filter = request.params.filter || \"(objectclass=*)\";\nvar attributes = (typeof request.params.attributes === 'undefined' || request.params.attributes === null) ? []: request.params.attributes.split(\",\");\nvar controls = null;\n\nldap.request.search(\n  baseDistinguishedName, \n  scope, \n  dereference,\n  sizeLimit, \n  timeLimit, \n  typesOnly, \n  filter, \n  attributes, \n  controls,\n  {\"includeByteValues\": includeByteValues}\n);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 3
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Search Test - TLS - Insecure Skip Verify",
+                "description": "",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "c61e4363-38ef-4ff8-988f-61d29a6f19e9",
+                        "path": "/ldap_search_tls_skip_verify",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 158,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar includeByteValues = request.params.includeByteValues === 'true';\nvar baseDistinguishedName = request.params.baseDistinguishedName || 'dc=anypresence,dc=com';\nvar scope = request.params.scope || AP.LDAP.Scope.subtree;\nvar dereference = request.params.dereferenceAliases || AP.LDAP.DereferenceAliases.always;\nvar sizeLimit = (typeof request.params.sizeLimit === 'undefined' || request.params.sizeLimit === null) ? 0: parseInt(request.params.sizeLimit);\nvar timeLimit = (typeof request.params.timeLimit === 'undefined' || request.params.timeLimit === null) ? 0: parseInt(request.params.timeLimit);\nvar typesOnly = request.params.typesOnly === 'true';\nvar filter = request.params.filter || \"(objectclass=*)\";\nvar attributes = (typeof request.params.attributes === 'undefined' || request.params.attributes === null) ? []: request.params.attributes.split(\",\");\nvar controls = null;\n\nldap.request.search(\n  baseDistinguishedName, \n  scope, \n  dereference,\n  sizeLimit, \n  timeLimit, \n  typesOnly, \n  filter, \n  attributes, \n  controls,\n  {\"includeByteValues\": includeByteValues}\n);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 5
+                        },
+                        "data": ""
+                    }
+                ],
+                "environment_index": 1
+            },
+            {
+                "name": "Search Test - TLS - Server Name Only",
+                "description": "",
+                "active": true,
+                "cors_enabled": true,
+                "routes": [
+                    {
+                        "id": "356b1640-3130-4485-9399-b43d12004312",
+                        "path": "/ldap_search_tls_server_only",
+                        "get_method": true,
+                        "post_method": false,
+                        "put_method": false,
+                        "delete_method": false,
+                        "proxy_endpoint_id": 157,
+                        "methods": [
+                            "GET"
+                        ]
+                    }
+                ],
+                "components": [
+                    {
+                        "conditional": "",
+                        "conditional_positive": true,
+                        "type": "single",
+                        "before": [
+                            {
+                                "type": "js",
+                                "data": "ldap.request = new AP.LDAP.Request();\n\nvar includeByteValues = request.params.includeByteValues === 'true';\nvar baseDistinguishedName = request.params.baseDistinguishedName || 'dc=anypresence,dc=com';\nvar scope = request.params.scope || AP.LDAP.Scope.subtree;\nvar dereference = request.params.dereferenceAliases || AP.LDAP.DereferenceAliases.always;\nvar sizeLimit = (typeof request.params.sizeLimit === 'undefined' || request.params.sizeLimit === null) ? 0: parseInt(request.params.sizeLimit);\nvar timeLimit = (typeof request.params.timeLimit === 'undefined' || request.params.timeLimit === null) ? 0: parseInt(request.params.timeLimit);\nvar typesOnly = request.params.typesOnly === 'true';\nvar filter = request.params.filter || \"(objectclass=*)\";\nvar attributes = (typeof request.params.attributes === 'undefined' || request.params.attributes === null) ? []: request.params.attributes.split(\",\");\nvar controls = null;\n\nldap.request.search(\n  baseDistinguishedName, \n  scope, \n  dereference,\n  sizeLimit, \n  timeLimit, \n  typesOnly, \n  filter, \n  attributes, \n  controls,\n  {\"includeByteValues\": includeByteValues}\n);"
+                            }
+                        ],
+                        "after": [
+                            {
+                                "type": "js",
+                                "data": "response.headers = {};\nresponse.headers['Content-Type'] = \"application/json\";\nresponse.body = JSON.stringify(ldap.response, null, 4);\nresponse.statusCode = 200;"
+                            }
+                        ],
+                        "call": {
+                            "endpoint_name_override": "",
+                            "conditional": "",
+                            "conditional_positive": true,
+                            "remote_endpoint_index": 4
                         },
                         "data": ""
                     }

@@ -698,17 +698,64 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-/*func TestTLS(t *testing.T) {
-	t.Error("Not implemented yet")
-}*/
+func TestTLS(t *testing.T) {
+	// TODO - TLS test
+	defer ldapTeardown(t)
+	err := ldapSetup(t)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
-// TODO - add additional tests
+	testCases := []struct {
+		url                    string
+		description            string
+		expectedHTTPStatusCode int
+		expectedLDAPStatusCode int
+	}{
+		{"/ldap_search_tls_skip_verify", "TLS configuration with skip verify", 200, 0},
+		{"/ldap_search_tls_server_only", "TLS configuration with server name verification only", 200, 0},
+		{"/ldap_search_tls_complete", "TLS configuration with client key and certificate", 200, 0},
+		{"/ldap_search_tls_bad_config", "TLS configuration with bad client key and certificate", 500, 0},
+	}
+
+	for _, testCase := range testCases {
+		status, _, body, err := h.Get(fmt.Sprintf("%s%s", host, testCase.url))
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
+		if status != testCase.expectedHTTPStatusCode {
+			t.Errorf("[%s] Expected status to be %d, but was instead %d", testCase.description, testCase.expectedHTTPStatusCode, status)
+			continue
+		}
+
+		if status == 500 {
+			continue
+		}
+
+		result := struct {
+			StatusCode int `json:"statusCode"`
+		}{}
+
+		if err := json.Unmarshal([]byte(body), &result); err != nil {
+			fmt.Println("body: ", body)
+			t.Errorf("[%s] Expected to be able to unmarshal JSON but encountered error: %v", testCase.description, err)
+			continue
+		}
+
+		if testCase.expectedLDAPStatusCode != result.StatusCode {
+			t.Errorf("[%s] Expected statusCode of %d but instead got %d", testCase.description, testCase.expectedLDAPStatusCode, result.StatusCode)
+			continue
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
-	fmt.Println("\n\n\n***isIntegrationTest ", integration.IsIntegrationTest)
 	if !integration.IsIntegrationTest {
 		log.Println("Integration flag not set.  Skipping integration tests.")
-		os.Exit(0)
-		//return
+		return
 	}
 
 	os.Exit(m.Run())
