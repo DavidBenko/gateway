@@ -71,11 +71,14 @@ type RemoteEndpoint struct {
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
 	// TODO: add type to remote_endpoint_environment_data table
-	ID               string         `json:"id,omitempty"`
+	ID               int64          `json:"id,omitempty"`
 	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
+	Links            struct {
+		Pads string `json:"pads"`
+	} `json:"links"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
@@ -449,6 +452,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 	environmentData := []*RemoteEndpointEnvironmentData{}
 	err = db.Select(&environmentData,
 		`SELECT
+			remote_endpoint_environment_data.id as id,
 			remote_endpoint_environment_data.remote_endpoint_id as remote_endpoint_id,
 			remote_endpoint_environment_data.environment_id as environment_id,
 			remote_endpoint_environment_data.data as data
@@ -471,6 +475,8 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
+		envData.Links.Pads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
+			apiID, envData.RemoteEndpointID, envData.ID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
@@ -695,7 +701,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
+		envData.ID, err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
 			e.APIID, encodedData)
 		if err != nil {
 			return err
@@ -845,7 +851,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 				return err
 			}
 		} else {
-			err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
+			envData.ID, err = _insertRemoteEndpointEnvironmentData(tx, e.ID, envData.EnvironmentID,
 				e.APIID, encodedData)
 			if err != nil {
 				return err
@@ -896,13 +902,12 @@ func (e *RemoteEndpoint) afterUpdate(tx *apsql.Tx) error {
 }
 
 func _insertRemoteEndpointEnvironmentData(tx *apsql.Tx, rID, eID, apiID int64,
-	data string) error {
-	_, err := tx.Exec(
+	data string) (int64, error) {
+	return tx.InsertOne(
 		`INSERT INTO remote_endpoint_environment_data
 			(remote_endpoint_id, environment_id, data)
-			VALUES (?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?);`,
+			VALUES (?, (SELECT id FROM environments WHERE id = ? AND api_id = ?), ?)`,
 		rID, eID, apiID, data)
-	return err
 }
 
 func (e *RemoteEndpoint) encodeWsdlForExport() error {

@@ -13,6 +13,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/core"
 	"gateway/db/pools"
 	aphttp "gateway/http"
 	"gateway/logreport"
@@ -29,17 +30,14 @@ import (
 
 // Server encapsulates the proxy server.
 type Server struct {
+	*core.Core
 	devMode     bool
 	proxyConf   config.ProxyServer
 	adminConf   config.ProxyAdmin
 	conf        config.Configuration
-	soapConf    config.Soap
 	router      *mux.Router
 	proxyRouter *proxyRouter
 	proxyData   proxyDataSource
-	ownDb       *sql.DB // in-application datastore
-	dbPools     *pools.Pools
-	httpClient  *http.Client
 }
 
 // NewServer builds a new proxy server.
@@ -57,16 +55,18 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 	ownDb.RegisterListener(pools)
 
 	return &Server{
-		devMode:    conf.DevMode(),
-		proxyConf:  conf.Proxy,
-		adminConf:  conf.Admin,
-		conf:       conf,
-		soapConf:   conf.Soap,
-		router:     mux.NewRouter(),
-		proxyData:  source,
-		ownDb:      ownDb,
-		dbPools:    pools,
-		httpClient: &http.Client{Timeout: httpTimeout},
+		Core: &core.Core{
+			HTTPClient: &http.Client{Timeout: httpTimeout},
+			DBPools:    pools,
+			OwnDb:      ownDb,
+			SoapConf:   conf.Soap,
+		},
+		devMode:   conf.DevMode(),
+		proxyConf: conf.Proxy,
+		adminConf: conf.Admin,
+		conf:      conf,
+		router:    mux.NewRouter(),
+		proxyData: source,
 	}
 }
 
@@ -74,10 +74,10 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.Setup(s.router, s.ownDb, s.conf)
+	admin.Setup(s.router, s.OwnDb, s.conf, s.Core)
 
 	// Set up proxy
-	s.proxyRouter = newProxyRouter(s.ownDb)
+	s.proxyRouter = newProxyRouter(s.OwnDb)
 
 	s.router.Handle("/{path:.*}",
 		aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
@@ -174,7 +174,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.ownDb, proxyEndpoint, libraries)
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return

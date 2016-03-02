@@ -81,6 +81,10 @@ func (s *ScriptRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
+func (s *ScriptRequest) JSON() ([]byte, error) {
+	return json.Marshal(s)
+}
+
 func (s *ScriptResponse) JSON() ([]byte, error) {
 	return json.Marshal(&s)
 }
