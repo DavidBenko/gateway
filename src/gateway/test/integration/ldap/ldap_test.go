@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"gateway/proxy/request/ldap"
+	"gateway/core/request/ldap"
 	"gateway/test/integration"
 	"log"
 	"net/url"

@@ -39,6 +39,7 @@ var usageStrings = map[string]string{
 	"license":         "The path to a valid Gateway license key",
 	"license-content": "The license contents as a base64 encoded string.  If present, license option is ignored",
 	"server":          "Whether or not to run in server mode",
+	"jobs":            "Run background jobs",
 
 	"airbrake-api-key":     "The API key to use for Airbrake notifications",
 	"airbrake-project-id":  "The ID assigned to your Airbrake project",

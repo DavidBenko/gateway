@@ -10,9 +10,9 @@ import (
 	"io"
 	"strings"
 
+	apldap "gateway/core/request/ldap"
 	aperrors "gateway/errors"
 	"gateway/model"
-	apldap "gateway/proxy/request/ldap"
 
 	"github.com/go-ldap/ldap"
 )
@@ -191,6 +191,11 @@ func (l *LDAPRequest) Perform() Response {
 	}
 
 	return resp
+}
+
+// JSON satisfies request.Request's JSON method
+func (l *LDAPRequest) JSON() ([]byte, error) {
+	return json.Marshal(l)
 }
 
 // CreateOrReuse satisfies Initialize method on request.ReusableConnection

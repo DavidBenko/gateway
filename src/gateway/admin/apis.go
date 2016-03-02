@@ -135,6 +135,8 @@ func (c *APIsController) addDefaultEnvironment(api *model.API, tx *apsql.Tx) err
 		env.AccountID = api.AccountID
 		env.UserID = api.UserID
 		env.APIID = api.ID
+		env.SessionType = model.SessionTypeClient
+		env.SessionHeader = model.SessionHeaderDefault
 
 		if err := env.Insert(tx); err != nil {
 			return err

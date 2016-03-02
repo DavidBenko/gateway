@@ -6,6 +6,7 @@ import "io"
 type Request interface {
 	Perform() Response
 	Log(bool) string
+	JSON() ([]byte, error)
 }
 
 // Response defines the interface for the results of Requests.
