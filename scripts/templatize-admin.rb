@@ -11,4 +11,6 @@ file.gsub!(meta) do |match|
 HTML
 end
 
+file.gsub!("ga('create', 'GOOGLE_ANALYTICS_TRACKING_ID', 'auto');", "ga('create', '{{analytics}}', 'auto');")
+
 File.write("#{path}.template", file)
