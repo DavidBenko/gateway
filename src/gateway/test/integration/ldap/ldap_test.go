@@ -1,7 +1,6 @@
 package ldap
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"gateway/core/request/ldap"
@@ -245,19 +244,7 @@ func TestLDAPSearch(t *testing.T) {
 	}
 
 	for _, searchTest := range searchTests {
-		result := struct {
-			SearchResults struct {
-				Entries []struct {
-					DistinguishedName string `json:"distinguishedName"`
-					Attributes        []struct {
-						ByteValues []string `json:"byteValues"`
-						Name       string   `json:"name"`
-						Values     []string `json:"values"`
-					} `json:"attributes"`
-				} `json:"entries"`
-			} `json:"searchResults"`
-			StatusCode int `json:"statusCode"`
-		}{}
+		result := ldap.Response{}
 
 		status, _, body, err := h.Get(fmt.Sprintf("%s%s", host, searchTest.url))
 		if err != nil {
@@ -275,13 +262,13 @@ func TestLDAPSearch(t *testing.T) {
 			continue
 		}
 
-		if searchTest.expectedLDAPStatusCode != result.StatusCode {
+		if searchTest.expectedLDAPStatusCode != int(result.StatusCode) {
 			t.Errorf("[%s] Expected statusCode of %d but instead got %d", searchTest.description, searchTest.expectedLDAPStatusCode, result.StatusCode)
 			continue
 		}
 
-		if len(result.SearchResults.Entries) != searchTest.expectedResultCount {
-			t.Errorf("[%s] Expected to have length %d but was instead %d", searchTest.description, searchTest.expectedResultCount, len(result.SearchResults.Entries))
+		if len(result.SearchResult.Entries) != searchTest.expectedResultCount {
+			t.Errorf("[%s] Expected to have length %d but was instead %d", searchTest.description, searchTest.expectedResultCount, len(result.SearchResult.Entries))
 			continue
 		}
 
@@ -291,20 +278,19 @@ func TestLDAPSearch(t *testing.T) {
 		}
 
 	outer:
-		for _, entry := range result.SearchResults.Entries {
+		for _, entry := range result.SearchResult.Entries {
 			for _, attr := range entry.Attributes {
 				if len(searchTest.expectOnlyAttributes) > 0 && !arrayContains(searchTest.expectOnlyAttributes, attr.Name) {
 					t.Errorf("[%s] Didn't expect to receive attribute %s", searchTest.description, attr.Name)
 					break outer
 				}
 				if searchTest.expectedIncludeByteValues {
-					// TODO
 					if len(attr.ByteValues) != len(attr.Values) {
 						t.Errorf("[%s] Expected ByteValues and Values to have the same number of entries", searchTest.description)
 						break outer
 					}
 					for idx, byteValue := range attr.ByteValues {
-						if byteValue != base64.StdEncoding.EncodeToString([]byte(attr.Values[idx])) {
+						if string(byteValue) != attr.Values[idx] {
 							t.Errorf("[%s] Expected byteValue to be the base64 encoding of value %s", searchTest.description, attr.Values[idx])
 							break outer
 						}
