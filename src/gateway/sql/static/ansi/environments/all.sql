@@ -4,6 +4,8 @@ SELECT
   environments.name as name,
   environments.description as description,
   environments.data as data,
+  environments.session_type as session_type,
+  environments.session_header as session_header,
   environments.session_name as session_name,
   environments.session_auth_key as session_auth_key,
   environments.session_encryption_key as session_encryption_key,

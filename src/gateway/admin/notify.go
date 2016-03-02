@@ -38,6 +38,7 @@ var RESOURCE_MAP = map[string]string{
 	"proxy_endpoints":        "proxy-endpoint",
 	"proxy_endpoint_schemas": "proxy-endpoint-schema",
 	"remote_endpoints":       "remote-endpoint",
+	"scratch_pads":           "scratch-pad",
 	"users":                  "user",
 }
 

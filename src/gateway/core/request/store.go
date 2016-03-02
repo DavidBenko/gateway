@@ -187,6 +187,10 @@ func (request *StoreRequest) Log(devMode bool) string {
 	return buffer.String()
 }
 
+func (request *StoreRequest) JSON() ([]byte, error) {
+	return json.Marshal(request)
+}
+
 type StoreResponse struct {
 	Data  []map[string]interface{} `json:"data"`
 	Error string                   `json:"error,omitempty"`

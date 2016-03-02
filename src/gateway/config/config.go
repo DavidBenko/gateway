@@ -22,6 +22,7 @@ type Configuration struct {
 	License        string `flag:"license"`
 	LicenseContent string `flag:"license-content"`
 	Server         bool   `flag:"server" default:"false"`
+	Jobs           bool   `flag:"jobs" default:"true"`
 
 	Airbrake       Airbrake
 	Database       Database
@@ -135,7 +136,7 @@ type ProxyAdmin struct {
 
 	EnableRegistration bool `flag:"admin-enable-registration" default:"true"`
 
-	DefaultAPIAccessScheme string `flag:"admin-default-api-access-scheme" default:"http://{{hosts[0]}}:5000"`
+	DefaultAPIAccessScheme string `flag:"admin-default-api-access-scheme" default:"http://{{hosts.[0]}}:5000"`
 
 	GoogleAnalyticsTrackingId string `flag:"admin-google-analytics-tracking-id" default:""`
 }

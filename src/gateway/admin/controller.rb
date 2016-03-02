@@ -11,6 +11,7 @@ transform_type = nil
 account = false
 api = false
 proxy_endpoint = false
+reflect = false
 custom_struct = false
 check_delete = false
 after_insert = false
@@ -36,6 +37,9 @@ OptionParser.new do |opts|
   end
   opts.on("--proxy-endpoint", "Is model linked to Proxy Endpoint?") do |value|
     proxy_endpoint = value
+  end
+  opts.on("--reflect", "Is reflection used to find model links?") do |value|
+    reflect = value
   end
   opts.on("--check-delete", "Check if delete is possible first?") do |value|
     check_delete = value
@@ -130,6 +134,10 @@ func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
       c.apiID(r), c.accountID(r))
   <% elsif account %>
     <%= local_plural %>, err := model.All<%= plural %>ForAccountID(db, c.accountID(r))
+  <% elsif reflect %>
+    object := model.<%= singular %>{}
+    c.mapFields(r, &object)
+    <%= local_plural %>, err := object.All(db)
   <% else %>
     <%= local_plural %>, err := model.All<%= plural %>(db)
   <% end %>
@@ -161,17 +169,23 @@ func (c *<%= controller %>) Create(w http.ResponseWriter, r *http.Request,
 func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
 
-  id := instanceID(r)
-  <% if account && api && proxy_endpoint %>
-    <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
-      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
-  <% elsif account && api %>
-    <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
-      id, c.apiID(r), c.accountID(r))
-  <% elsif account %>
-    <%= local %>, err := model.Find<%= singular %>ForAccountID(db, id, c.accountID(r))
+  <% if reflect %>
+    object := model.<%= singular %>{}
+    c.mapFields(r, &object)
+    <%= local %>, err := object.Find(db)
   <% else %>
-    <%= local %>, err := model.Find<%= singular %>(db, id)
+    id := instanceID(r)
+    <% if account && api && proxy_endpoint %>
+      <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
+      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
+    <% elsif account && api %>
+      <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
+        id, c.apiID(r), c.accountID(r))
+    <% elsif account %>
+      <%= local %>, err := model.Find<%= singular %>ForAccountID(db, id, c.accountID(r))
+    <% else %>
+      <%= local %>, err := model.Find<%= singular %>(db, id)
+    <% end %>
   <% end %>
   if err != nil {
     return c.notFound()
@@ -244,10 +258,14 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
       id, c.apiID(r), c.accountID(r), c.userID(r))
   <% elsif account %>
     err = model.Delete<%= singular %>ForAccountID(tx, id, c.accountID(r), c.userID(r))
+  <% elsif reflect %>
+    _ = id
+    object := model.<%= singular %>{}
+    c.mapFields(r, &object)
+    err = object.Delete(tx)
   <% else %>
     err = model.Delete<%= singular %>(tx, id)
   <% end %>
-
   if err != nil {
     if err == apsql.ErrZeroRowsAffected {
       return c.notFound()
@@ -274,15 +292,19 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   if httpErr != nil {
     return httpErr
   }
-  <% if api %>
-    <%= local %>.APIID = c.apiID(r)
-  <% end %>
-  <% if account %>
-    <%= local %>.AccountID = c.accountID(r)
-    <%= local %>.UserID = c.userID(r)
-  <% end %>
-  <% if proxy_endpoint %>
-    <%= local %>.ProxyEndpointID = c.proxyEndpointID(r)
+  <% if reflect %>
+    c.mapFields(r, <%= local %>)
+  <% else %>
+    <% if api %>
+      <%= local %>.APIID = c.apiID(r)
+    <% end %>
+    <% if account %>
+      <%= local %>.AccountID = c.accountID(r)
+      <%= local %>.UserID = c.userID(r)
+    <% end %>
+    <% if proxy_endpoint %>
+      <%= local %>.ProxyEndpointID = c.proxyEndpointID(r)
+    <% end %>
   <% end %>
 
   var method func(*apsql.Tx) error
@@ -362,6 +384,16 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
   <% end %>
 
   return c.serializeInstance(<%= local %>, w)
+}
+
+func (c *<%= controller %>) mapFields(r *http.Request, object *model.<%= singular %>) {
+  if c.accountID != nil {
+    mapAccountID(c.accountID(r), object)
+  }
+  if c.userID != nil {
+    mapUserID(c.userID(r), object)
+  }
+  mapFromPath(r, object)
 }
 
 func (c *<%= controller %>) notFound() aphttp.Error {

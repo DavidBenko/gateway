@@ -24,6 +24,10 @@ func (r *SQLServerRequest) Log(devMode bool) string {
 	return s
 }
 
+func (r *SQLServerRequest) JSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
 func NewSQLServerRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	request := &SQLServerRequest{}
 	if err := json.Unmarshal(*data, request); err != nil {

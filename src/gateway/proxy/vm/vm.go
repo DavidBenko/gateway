@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/core"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
@@ -38,6 +39,8 @@ type ProxyVM struct {
 	w            http.ResponseWriter
 	r            *http.Request
 	sessionStore *sessions.CookieStore
+	serverStore  *ServerStore
+	db           *sql.DB
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
@@ -53,13 +56,14 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		Otto:                    shared.Copy(),
+		Otto:                    core.VMCopy(),
 		conf:                    conf,
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
 		ProxiedRequestsDuration: 0,
-		w: w,
-		r: r,
+		w:  w,
+		r:  r,
+		db: db,
 	}
 
 	var scripts = make([]interface{}, 0)
@@ -85,11 +89,6 @@ func NewVM(
 	}
 
 	vm.Set("log", vm.log)
-	vm.Set("__ap_session_get", vm.sessionGet)
-	vm.Set("__ap_session_set", vm.sessionSet)
-	vm.Set("__ap_session_is_set", vm.sessionIsSet)
-	vm.Set("__ap_session_delete", vm.sessionDelete)
-	vm.Set("__ap_session_set_options", vm.sessionSetOptions)
 
 	if _, err := vm.RunAll(scripts); err != nil {
 		return nil, err
@@ -176,28 +175,3 @@ func osEnvironmentScript() string {
 		strings.Join(keypairs, ",\n"))
 	return script
 }
-
-var shared = func() *otto.Otto {
-	vm := otto.New()
-
-	var files = []string{
-		"gateway.js",
-		"sessions.js",
-		"call.js",
-		"http/request.js",
-		"http/response.js",
-	}
-	for _, filename := range files {
-		fileJS, err := Asset(filename)
-		if err != nil {
-			logreport.Fatal(err)
-		}
-
-		_, err = vm.Run(fileJS)
-		if err != nil {
-			logreport.Fatal(err)
-		}
-	}
-
-	return vm
-}()

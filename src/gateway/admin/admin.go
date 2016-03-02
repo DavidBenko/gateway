@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gateway/config"
+	"gateway/core"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	//"gateway/model"
@@ -20,7 +21,7 @@ var (
 )
 
 // Setup sets up the session and adds admin routes.
-func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.Configuration) {
+func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.Configuration, c *core.Core) {
 	conf, psconf := configuration.Admin, configuration.Proxy
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
@@ -101,6 +102,8 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
+	scratchPadController := &MetaScratchPadsController{ScratchPadsController{base}, c}
+	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"gateway/config"
@@ -78,6 +79,32 @@ func testIDFromPath(r *http.Request) int64 {
 
 func collectionIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["collectionID"])
+}
+
+func mapFromPath(r *http.Request, object interface{}) {
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
+	for i := 0; i < typ3.NumField(); i++ {
+		if path := typ3.Field(i).Tag.Get("path"); path != "" {
+			value.Field(i).SetInt(parseID(mux.Vars(r)[path]))
+		}
+	}
+}
+
+func mapAccountID(id int64, object interface{}) {
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
+	if _, has := typ3.FieldByName("AccountID"); has {
+		value.FieldByName("AccountID").SetInt(id)
+	}
+}
+
+func mapUserID(id int64, object interface{}) {
+	value := reflect.Indirect(reflect.ValueOf(object))
+	typ3 := value.Type()
+	if _, has := typ3.FieldByName("UserID"); has {
+		value.FieldByName("UserID").SetInt(id)
+	}
 }
 
 func parseID(id string) int64 {

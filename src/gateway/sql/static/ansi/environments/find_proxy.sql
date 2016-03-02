@@ -4,6 +4,8 @@ SELECT
   name,
   description,
   data,
+  session_type,
+  session_header,
   session_name,
   session_auth_key,
   session_encryption_key,

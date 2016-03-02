@@ -142,6 +142,7 @@ func main() {
 	service.ElasticLoggingService(conf.Elastic)
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
+	service.SessionDeletionService(conf, db)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 
