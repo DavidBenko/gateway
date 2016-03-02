@@ -38,6 +38,8 @@ type ProxyVM struct {
 	w            http.ResponseWriter
 	r            *http.Request
 	sessionStore *sessions.CookieStore
+	serverStore  *ServerStore
+	db           *sql.DB
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
@@ -58,8 +60,9 @@ func NewVM(
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
 		ProxiedRequestsDuration: 0,
-		w: w,
-		r: r,
+		w:  w,
+		r:  r,
+		db: db,
 	}
 
 	var scripts = make([]interface{}, 0)
@@ -85,11 +88,6 @@ func NewVM(
 	}
 
 	vm.Set("log", vm.log)
-	vm.Set("__ap_session_get", vm.sessionGet)
-	vm.Set("__ap_session_set", vm.sessionSet)
-	vm.Set("__ap_session_is_set", vm.sessionIsSet)
-	vm.Set("__ap_session_delete", vm.sessionDelete)
-	vm.Set("__ap_session_set_options", vm.sessionSetOptions)
 
 	if _, err := vm.RunAll(scripts); err != nil {
 		return nil, err
