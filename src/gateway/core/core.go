@@ -55,21 +55,20 @@ func (s *Core) PrepareRequest(
 	case model.RemoteEndpointTypeScript:
 		r, e = request.NewScriptRequest(endpoint, data)
 	case model.RemoteEndpointTypeLDAP:
-		r, e = request.NewLDAPRequest(endpoint, data)
+		l, lErr := request.NewLDAPRequest(endpoint, data)
+		// cache connections in the connections map for later use within the same proxy endpoint workflow
+		conn, err := l.CreateOrReuse(connections[endpoint.ID])
+		if err != nil {
+			return nil, aperrors.NewWrapped("[requests.go] initializing sticky connection", err)
+		}
+		connections[endpoint.ID] = conn
+		r, e = l, lErr
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
 
 	if e != nil {
 		return r, e
-	}
-
-	if sc, ok := r.(request.ReusableConnection); ok {
-		conn, err := sc.CreateOrReuse(connections[endpoint.ID])
-		if err != nil {
-			return nil, aperrors.NewWrapped("[requests.go] initializing sticky connection", err)
-		}
-		connections[endpoint.ID] = conn
 	}
 
 	return r, nil

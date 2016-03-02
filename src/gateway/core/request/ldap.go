@@ -105,7 +105,7 @@ func (l *LDAPRequest) UnmarshalJSON(data []byte) error {
 }
 
 // NewLDAPRequest creates a new LDAP request
-func NewLDAPRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+func NewLDAPRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (*LDAPRequest, error) {
 	request := new(LDAPRequest)
 
 	if err := json.Unmarshal(*data, request); err != nil {
