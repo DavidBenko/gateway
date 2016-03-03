@@ -36,42 +36,33 @@ func (s *Core) PrepareRequest(
 		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
 	}
 
-	var r request.Request
-	var e error
-
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
-		r, e = request.NewHTTPRequest(s.HTTPClient, endpoint, data)
+		return request.NewHTTPRequest(s.HTTPClient, endpoint, data)
 	case model.RemoteEndpointTypeSQLServer:
-		r, e = request.NewSQLServerRequest(s.DBPools, endpoint, data)
+		return request.NewSQLServerRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypePostgres:
-		r, e = request.NewPostgresRequest(s.DBPools, endpoint, data)
+		return request.NewPostgresRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeMySQL:
-		r, e = request.NewMySQLRequest(s.DBPools, endpoint, data)
+		return request.NewMySQLRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeMongo:
-		r, e = request.NewMongoRequest(s.DBPools, endpoint, data)
+		return request.NewMongoRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeSoap:
-		r, e = request.NewSoapRequest(endpoint, data, s.SoapConf, s.OwnDb)
+		return request.NewSoapRequest(endpoint, data, s.SoapConf, s.OwnDb)
 	case model.RemoteEndpointTypeScript:
-		r, e = request.NewScriptRequest(endpoint, data)
+		return request.NewScriptRequest(endpoint, data)
 	case model.RemoteEndpointTypeLDAP:
-		l, lErr := request.NewLDAPRequest(endpoint, data)
+		r, e := request.NewLDAPRequest(endpoint, data)
 		// cache connections in the connections map for later use within the same proxy endpoint workflow
-		conn, err := l.CreateOrReuse(connections[endpoint.ID])
+		conn, err := r.CreateOrReuse(connections[endpoint.ID])
 		if err != nil {
 			return nil, aperrors.NewWrapped("[requests.go] initializing sticky connection", err)
 		}
 		connections[endpoint.ID] = conn
-		r, e = l, lErr
+		return r, e
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
-
-	if e != nil {
-		return r, e
-	}
-
-	return r, nil
 }
 
 func VMCopy() *otto.Otto {
