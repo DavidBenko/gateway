@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"errors"
+	"io"
 	"time"
 
 	"gateway/core/request"
@@ -15,6 +16,7 @@ func (s *Server) getRequests(
 	vm *vm.ProxyVM,
 	callNames []string,
 	endpointCalls []*model.ProxyEndpointCall,
+	connections map[int64]io.Closer,
 ) ([]request.Request, error) {
 	rawRequests, err := vm.PrepareRawRequests(callNames)
 	if err != nil {
@@ -26,7 +28,7 @@ func (s *Server) getRequests(
 		if call.RemoteEndpoint == nil {
 			return nil, errors.New("Remote endpoint is not loaded")
 		}
-		request, err := s.PrepareRequest(call.RemoteEndpoint, rawRequests[i])
+		request, err := s.PrepareRequest(call.RemoteEndpoint, rawRequests[i], connections)
 		if err != nil {
 			return nil, err
 		}

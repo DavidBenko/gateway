@@ -84,6 +84,7 @@ type RemoteEndpoint struct {
 	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
+	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

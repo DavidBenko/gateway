@@ -3,11 +3,13 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"gateway/config"
 	"gateway/core/request"
 	"gateway/db/pools"
+	aperrors "gateway/errors"
 	"gateway/logreport"
 	"gateway/model"
 	sql "gateway/sql"
@@ -28,6 +30,7 @@ type Core struct {
 func (s *Core) PrepareRequest(
 	endpoint *model.RemoteEndpoint,
 	data *json.RawMessage,
+	connections map[int64]io.Closer,
 ) (request.Request, error) {
 	if !model.IsRemoteEndpointTypeEnabled(endpoint.Type) {
 		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
@@ -48,8 +51,18 @@ func (s *Core) PrepareRequest(
 		return request.NewSoapRequest(endpoint, data, s.SoapConf, s.OwnDb)
 	case model.RemoteEndpointTypeScript:
 		return request.NewScriptRequest(endpoint, data)
+	case model.RemoteEndpointTypeLDAP:
+		r, e := request.NewLDAPRequest(endpoint, data)
+		// cache connections in the connections map for later use within the same proxy endpoint workflow
+		conn, err := r.CreateOrReuse(connections[endpoint.ID])
+		if err != nil {
+			return nil, aperrors.NewWrapped("[requests.go] initializing sticky connection", err)
+		}
+		connections[endpoint.ID] = conn
+		return r, e
+	default:
+		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
-	return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 }
 
 func VMCopy() *otto.Otto {

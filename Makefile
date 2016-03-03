@@ -59,8 +59,14 @@ LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersi
 build: vet assets generate
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
+build_integration_images:
+	docker build -t justapis-ldap test/ldap
+
 build_race: vet assets generate
 	go build $(LDFLAGS) -race -o ./bin/gateway ./src/gateway/main.go
+
+build_tail:
+	go build -o ./bin/tail ./src/tail/main.go
 
 debug: vet assets generate
 	go build $(DEBUG_LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
@@ -97,9 +103,6 @@ runpg:
 
 test: build
 	go test ./src/...
-
-build_tail:
-	go build -o ./bin/tail ./src/tail/main.go
 
 test_api_sqlite_fast: build_tail
 	mkdir -p tmp
@@ -146,7 +149,27 @@ test_api: test_api_sqlite test_api_postgres
 
 test_api_fast: test_api_sqlite_fast test_api_postgres_fast
 
-test_all: admin assets test test_api
+test_all: admin assets test test_api test_integration
+
+test_integration: build test_integration_fast
+
+test_integration_fast: build_tail
+	docker run -p 389:389 -d justapis-ldap > ./tmp/.containerid
+	mkdir -p tmp
+	-rm ./tmp/gateway_log.txt
+	-rm ./tmp/gateway_test.db
+	./bin/gateway -config=./test/gateway.conf \
+	  -db-migrate \
+		-db-conn-string="./tmp/gateway_test.db" > ./tmp/gateway_log.txt & \
+		echo "$$!" > ./tmp/server.pid
+
+	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || (kill `cat ./tmp/server.pid`; docker kill `cat ./tmp/.containerid`)
+
+	go test -v -ldflags "-X gateway/test/integration.IntegrationTest=true -X gateway/test/integration/ldap.ldapSetupFile=`pwd`/test/ldap/setup.ldif -X gateway/test/integration.ApiImportDirectory=`pwd`/test/integration" ./src/gateway/test/integration/...; \
+		status=$$?; \
+		docker kill `cat ./tmp/.containerid`; \
+		kill `cat ./tmp/server.pid`; \
+		exit $$status
 
 vendor_clean:
 	rm -dRf ./_vendor/src
@@ -188,7 +211,8 @@ vendor_get: vendor_clean
 	github.com/xeipuuv/gojsonschema \
 	gopkg.in/airbrake/gobrake.v2 \
 	gopkg.in/tomb.v1 \
-	github.com/hpcloud/tail
+	github.com/hpcloud/tail \
+	github.com/go-ldap/ldap
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
