@@ -21,7 +21,7 @@ var (
 	h = integration.NewHTTPHelper()
 )
 
-var searchTests = []struct {
+type searchTest struct {
 	description               string
 	url                       string
 	expectedLDAPStatusCode    int
@@ -30,7 +30,9 @@ var searchTests = []struct {
 	hasDistinguishedNames     []string
 	expectTypesOnly           bool
 	expectOnlyAttributes      []string
-}{
+}
+
+var searchTests = []searchTest{
 	{
 		description: "Plain search",
 		url:         "/ldap_search",
@@ -235,6 +237,59 @@ func ldapTeardown(t *testing.T) error {
 	return nil
 }
 
+func testSearchResult(st searchTest) (*ldap.Response, error) {
+	result := ldap.Response{}
+
+	status, _, body, err := h.Get(fmt.Sprintf("%s%s", host, st.url))
+	if err != nil {
+		return nil, err
+	}
+
+	if status != 200 {
+		return nil, fmt.Errorf("[%s] Expected status to be 200, but was instead %d", st.description, status)
+	}
+
+	if err := json.Unmarshal([]byte(body), &result); err != nil {
+		return nil, fmt.Errorf("[%s] Expected to be able to unmarshal JSON but encountered error: %v", st.description, err)
+	}
+
+	if st.expectedLDAPStatusCode != int(result.StatusCode) {
+		return nil, fmt.Errorf("[%s] Expected statusCode of %d but instead got %d", st.description, st.expectedLDAPStatusCode, result.StatusCode)
+	}
+
+	if len(result.SearchResult.Entries) != st.expectedResultCount {
+		return nil, fmt.Errorf("[%s] Expected to have length %d but was instead %d", st.description, st.expectedResultCount, len(result.SearchResult.Entries))
+	}
+
+	return &result, nil
+}
+
+func testSearchResultEntry(st searchTest, entry *ldap.Entry, attr *ldap.EntryAttribute) error {
+	if len(st.expectOnlyAttributes) > 0 && !arrayContains(st.expectOnlyAttributes, attr.Name) {
+		return fmt.Errorf("[%s] Didn't expect to receive attribute %s", st.description, attr.Name)
+	}
+	if st.expectedIncludeByteValues {
+		if len(attr.ByteValues) != len(attr.Values) {
+			return fmt.Errorf("[%s] Expected ByteValues and Values to have the same number of entries", st.description)
+		}
+		for idx, byteValue := range attr.ByteValues {
+			if string(byteValue) != attr.Values[idx] {
+				return fmt.Errorf("[%s] Expected byteValue to be the base64 encoding of value %s", st.description, attr.Values[idx])
+			}
+		}
+	} else {
+		if len(attr.ByteValues) > 0 {
+			return fmt.Errorf("[%s] Received byte values in attribute, but expected byte values not to be there", st.description)
+		}
+	}
+
+	if st.expectTypesOnly && len(attr.Values) > 0 {
+		return fmt.Errorf("[%s] Expected no values to be present in typesOnly search", st.description)
+	}
+
+	return nil
+}
+
 func TestLDAPSearch(t *testing.T) {
 	defer ldapTeardown(t)
 	err := ldapSetup(t)
@@ -244,83 +299,41 @@ func TestLDAPSearch(t *testing.T) {
 	}
 
 	for _, searchTest := range searchTests {
-		result := ldap.Response{}
-
-		status, _, body, err := h.Get(fmt.Sprintf("%s%s", host, searchTest.url))
+		result, err := testSearchResult(searchTest)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		if status != 200 {
-			t.Errorf("[%s] Expected status to be 200, but was instead %d", searchTest.description, status)
-			continue
-		}
-
-		if err := json.Unmarshal([]byte(body), &result); err != nil {
-			t.Errorf("[%s] Expected to be able to unmarshal JSON but encountered error: %v", searchTest.description, err)
-			continue
-		}
-
-		if searchTest.expectedLDAPStatusCode != int(result.StatusCode) {
-			t.Errorf("[%s] Expected statusCode of %d but instead got %d", searchTest.description, searchTest.expectedLDAPStatusCode, result.StatusCode)
-			continue
-		}
-
-		if len(result.SearchResult.Entries) != searchTest.expectedResultCount {
-			t.Errorf("[%s] Expected to have length %d but was instead %d", searchTest.description, searchTest.expectedResultCount, len(result.SearchResult.Entries))
-			continue
-		}
-
-		distinguishedNames := map[string]bool{}
-		for _, dn := range searchTest.hasDistinguishedNames {
-			distinguishedNames[dn] = true
-		}
+		distinguishedNames := []string{}
 
 	outer:
 		for _, entry := range result.SearchResult.Entries {
 			for _, attr := range entry.Attributes {
-				if len(searchTest.expectOnlyAttributes) > 0 && !arrayContains(searchTest.expectOnlyAttributes, attr.Name) {
-					t.Errorf("[%s] Didn't expect to receive attribute %s", searchTest.description, attr.Name)
-					break outer
-				}
-				if searchTest.expectedIncludeByteValues {
-					if len(attr.ByteValues) != len(attr.Values) {
-						t.Errorf("[%s] Expected ByteValues and Values to have the same number of entries", searchTest.description)
-						break outer
-					}
-					for idx, byteValue := range attr.ByteValues {
-						if string(byteValue) != attr.Values[idx] {
-							t.Errorf("[%s] Expected byteValue to be the base64 encoding of value %s", searchTest.description, attr.Values[idx])
-							break outer
-						}
-					}
-				} else {
-					if len(attr.ByteValues) > 0 {
-						t.Errorf("[%s] Received byte values in attribute, but expected byte values not to be there", searchTest.description)
-						break outer
-					}
-				}
-
-				if searchTest.expectTypesOnly && len(attr.Values) > 0 {
-					t.Errorf("[%s] Expected no values to be present in typesOnly search", searchTest.description)
+				if err := testSearchResultEntry(searchTest, entry, attr); err != nil {
+					t.Error(err)
 					break outer
 				}
 			}
-			delete(distinguishedNames, entry.DistinguishedName)
+			distinguishedNames = append(distinguishedNames, entry.DistinguishedName)
 		}
 
-		keys := []string{}
-		for k := range distinguishedNames {
-			keys = append(keys, k)
+		if len(searchTest.hasDistinguishedNames) > 0 {
+			if !arrayIncludes(searchTest.hasDistinguishedNames, distinguishedNames) {
+				t.Errorf("Expected distinguishedNames %v to include %v", distinguishedNames, searchTest.hasDistinguishedNames)
+			}
 		}
-
-		if len(keys) > 0 {
-			t.Errorf("[%s] Expected results to contain distinguished names: %v", searchTest.description, keys)
-		}
-
 	}
 
+}
+
+func arrayIncludes(expectedValues, actualValues []string) bool {
+	for _, expectedValue := range expectedValues {
+		if !arrayContains(actualValues, expectedValue) {
+			return false
+		}
+	}
+	return true
 }
 
 func arrayContains(ary []string, value string) bool {
