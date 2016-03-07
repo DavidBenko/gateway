@@ -1,5 +1,5 @@
 INSERT INTO scratch_pads (
-  remote_endpoint_environment_data_id,
+  environment_data_id,
   name,
   code,
   data

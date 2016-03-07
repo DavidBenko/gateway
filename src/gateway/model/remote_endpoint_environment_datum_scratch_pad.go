@@ -17,7 +17,7 @@ type RemoteEndpointEnvironmentDatumScratchPad struct {
 	RemoteEndpointID int64 `json:"-" path:"endpointID"`
 
 	ID                int64          `json:"id,omitempty" path:"id"`
-	EnvironmentDataID int64          `json:"environment_datum_id" db:"remote_endpoint_environment_data_id" path:"environmentDataID"`
+	EnvironmentDataID int64          `json:"environment_datum_id" db:"environment_data_id" path:"environmentDataID"`
 	Name              string         `json:"name"`
 	Code              string         `json:"code"`
 	Data              types.JsonText `json:"-" db:"data"`
@@ -36,7 +36,7 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) Validate(isInsert bool) aperr
 
 func (s *RemoteEndpointEnvironmentDatumScratchPad) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "scratch_pads", "remote_endpoint_environment_data_id", "name") {
+	if apsql.IsUniqueConstraint(err, "scratch_pads", "environment_data_id", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
