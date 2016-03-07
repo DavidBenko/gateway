@@ -19,7 +19,7 @@ import (
 //go:generate ./controller.rb --model RemoteEndpointType
 //go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
 //go:generate ./controller.rb --model ProxyEndpointSchema --account --api --proxy-endpoint
-//go:generate ./controller.rb --model ScratchPad --reflect
+//go:generate ./controller.rb --model RemoteEndpointEnvironmentDatumScratchPad --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource

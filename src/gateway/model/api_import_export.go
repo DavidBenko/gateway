@@ -136,15 +136,15 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		schema.ID = 0
 	}
 
-	pad := ScratchPad{AccountID: accountID, APIID: id}
+	pad := RemoteEndpointEnvironmentDatumScratchPad{AccountID: accountID, APIID: id}
 	api.ScratchPads, err = pad.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching scratch pads", err)
 	}
 	for _, pad := range api.ScratchPads {
 		pad.ID = 0
-		pad.ExportRemoteEndpointEnvironmentDataIndex = environmentDataIndexMap[pad.RemoteEndpointEnvironmentDataID]
-		pad.RemoteEndpointEnvironmentDataID = 0
+		pad.ExportEnvironmentDataIndex = environmentDataIndexMap[pad.EnvironmentDataID]
+		pad.EnvironmentDataID = 0
 	}
 
 	return api, nil
@@ -272,9 +272,9 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		pad.AccountID = a.AccountID
 		pad.UserID = a.UserID
 		pad.APIID = a.ID
-		ids := environmentDataIDMap[pad.ExportRemoteEndpointEnvironmentDataIndex]
+		ids := environmentDataIDMap[pad.ExportEnvironmentDataIndex]
 		pad.RemoteEndpointID = ids.remoteEndpointID
-		pad.RemoteEndpointEnvironmentDataID = ids.remoteEndpointEnvironmentDataID
+		pad.EnvironmentDataID = ids.remoteEndpointEnvironmentDataID
 		if vErr := pad.Validate(true); !vErr.Empty() {
 			return fmt.Errorf("Unable to validate scratch pad: %v", vErr)
 		}

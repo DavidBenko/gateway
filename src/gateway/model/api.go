@@ -33,15 +33,15 @@ type API struct {
 	EnableSwagger        bool   `json:"enable_swagger" db:"enable_swagger"`
 	Export               string `json:"export,omitempty" db:"-"`
 
-	Hosts                []*Host                `json:"-"`
-	Environments         []*Environment         `json:"environments,omitempty"`
-	EndpointGroups       []*EndpointGroup       `json:"endpoint_groups,omitempty"`
-	Libraries            []*Library             `json:"libraries,omitempty"`
-	RemoteEndpoints      []*RemoteEndpoint      `json:"remote_endpoints,omitempty"`
-	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
-	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
-	ScratchPads          []*ScratchPad          `json:"scratch_pads,omitempty"`
-	ExportVersion        int64                  `json:"export_version,omitempty"`
+	Hosts                []*Host                                     `json:"-"`
+	Environments         []*Environment                              `json:"environments,omitempty"`
+	EndpointGroups       []*EndpointGroup                            `json:"endpoint_groups,omitempty"`
+	Libraries            []*Library                                  `json:"libraries,omitempty"`
+	RemoteEndpoints      []*RemoteEndpoint                           `json:"remote_endpoints,omitempty"`
+	ProxyEndpoints       []*ProxyEndpoint                            `json:"proxy_endpoints,omitempty"`
+	ProxyEndpointSchemas []*ProxyEndpointSchema                      `json:"proxy_endpoint_schemas,omitempty"`
+	ScratchPads          []*RemoteEndpointEnvironmentDatumScratchPad `json:"scratch_pads,omitempty"`
+	ExportVersion        int64                                       `json:"export_version,omitempty"`
 }
 
 // CopyFrom copies all attributes except for AccountID, ID, and Name from other

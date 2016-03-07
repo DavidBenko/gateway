@@ -15,18 +15,18 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-type MetaScratchPadsController struct {
-	ScratchPadsController
+type MetaRemoteEndpointEnvironmentDatumScratchPadsController struct {
+	RemoteEndpointEnvironmentDatumScratchPadsController
 	*core.Core
 }
 
-func RouteScratchPads(controller ResourceController, path string,
+func RouteRemoteEndpointEnvironmentDatumScratchPads(controller ResourceController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	RouteResource(controller, path, router, db, conf)
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.(*MetaScratchPadsController).Execute),
+		"GET": read(db, controller.(*MetaRemoteEndpointEnvironmentDatumScratchPadsController).Execute),
 	}
 	if conf.CORSEnabled {
 		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
@@ -35,14 +35,14 @@ func RouteScratchPads(controller ResourceController, path string,
 	router.Handle(path+"/{id}/execute", handlers.MethodHandler(routes))
 }
 
-type ScratchPadResult struct {
+type RemoteEndpointEnvironmentDatumScratchPadResult struct {
 	Request  string `json:"request"`
 	Response string `json:"response"`
 	Time     int64  `json:"time"`
 }
 
-func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
-	object := model.ScratchPad{}
+func (c *MetaRemoteEndpointEnvironmentDatumScratchPadsController) Execute(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
+	object := model.RemoteEndpointEnvironmentDatumScratchPad{}
 	c.mapFields(r, &object)
 	pad, err := object.Find(db)
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	for _, data := range endpoint.EnvironmentData {
-		if data.ID == pad.RemoteEndpointEnvironmentDataID {
+		if data.ID == pad.EnvironmentDataID {
 			endpoint.SelectedEnvironmentData = &data.Data
 			break
 		}
@@ -66,7 +66,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	result := ScratchPadResult{}
+	result := RemoteEndpointEnvironmentDatumScratchPadResult{}
 	obj, err := vm.Run("JSON.stringify(request);")
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
