@@ -136,7 +136,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		schema.ID = 0
 	}
 
-	pad := RemoteEndpointEnvironmentDatumScratchPad{AccountID: accountID, APIID: id}
+	pad := ScratchPad{AccountID: accountID, APIID: id}
 	api.ScratchPads, err = pad.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching scratch pads", err)

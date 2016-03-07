@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
-type RemoteEndpointEnvironmentDatumScratchPad struct {
+type ScratchPad struct {
 	AccountID        int64 `json:"-"`
 	UserID           int64 `json:"-"`
 	APIID            int64 `json:"-" path:"apiID"`
@@ -26,7 +26,7 @@ type RemoteEndpointEnvironmentDatumScratchPad struct {
 	ExportEnvironmentDataIndex int `json:"environment_data_index,omitempty"`
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) Validate(isInsert bool) aperrors.Errors {
+func (s *ScratchPad) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if s.Name == "" || strings.TrimSpace(s.Name) == "" {
 		errors.Add("name", "must not be blank")
@@ -34,7 +34,7 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) Validate(isInsert bool) aperr
 	return errors
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) ValidateFromDatabaseError(err error) aperrors.Errors {
+func (s *ScratchPad) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "scratch_pads", "environment_data_id", "name") {
 		errors.Add("name", "is already taken")
@@ -42,8 +42,8 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) ValidateFromDatabaseError(err
 	return errors
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) All(db *apsql.DB) ([]*RemoteEndpointEnvironmentDatumScratchPad, error) {
-	pads := []*RemoteEndpointEnvironmentDatumScratchPad{}
+func (s *ScratchPad) All(db *apsql.DB) ([]*ScratchPad, error) {
+	pads := []*ScratchPad{}
 	var err error
 	if s.APIID > 0 && s.AccountID > 0 {
 		if s.EnvironmentDataID > 0 && s.RemoteEndpointID > 0 {
@@ -58,14 +58,14 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) All(db *apsql.DB) ([]*RemoteE
 	return pads, err
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) Find(db *apsql.DB) (*RemoteEndpointEnvironmentDatumScratchPad, error) {
-	pad := RemoteEndpointEnvironmentDatumScratchPad{}
+func (s *ScratchPad) Find(db *apsql.DB) (*ScratchPad, error) {
+	pad := ScratchPad{}
 	err := db.Get(&pad, db.SQL("scratch_pads/find"), s.ID,
 		s.EnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
 	return &pad, err
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) Delete(tx *apsql.Tx) error {
+func (s *ScratchPad) Delete(tx *apsql.Tx) error {
 	err := tx.DeleteOne(tx.SQL("scratch_pads/delete"), s.ID,
 		s.EnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) Delete(tx *apsql.Tx) error {
 	return tx.Notify("scratch_pads", s.AccountID, s.UserID, s.APIID, 0, s.ID, apsql.Delete)
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) Insert(tx *apsql.Tx) error {
+func (s *ScratchPad) Insert(tx *apsql.Tx) error {
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (s *RemoteEndpointEnvironmentDatumScratchPad) Insert(tx *apsql.Tx) error {
 	return tx.Notify("scratch_pads", s.AccountID, s.UserID, s.APIID, 0, s.ID, apsql.Insert)
 }
 
-func (s *RemoteEndpointEnvironmentDatumScratchPad) Update(tx *apsql.Tx) error {
+func (s *ScratchPad) Update(tx *apsql.Tx) error {
 	data, err := marshaledForStorage(s.Data)
 	if err != nil {
 		return err

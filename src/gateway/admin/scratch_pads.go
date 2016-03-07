@@ -15,18 +15,18 @@ import (
 	"github.com/gorilla/handlers"
 )
 
-type MetaRemoteEndpointEnvironmentDatumScratchPadsController struct {
-	RemoteEndpointEnvironmentDatumScratchPadsController
+type MetaScratchPadsController struct {
+	ScratchPadsController
 	*core.Core
 }
 
-func RouteRemoteEndpointEnvironmentDatumScratchPads(controller ResourceController, path string,
+func RouteScratchPads(controller ResourceController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	RouteResource(controller, path, router, db, conf)
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.(*MetaRemoteEndpointEnvironmentDatumScratchPadsController).Execute),
+		"GET": read(db, controller.(*MetaScratchPadsController).Execute),
 	}
 	if conf.CORSEnabled {
 		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
@@ -35,14 +35,14 @@ func RouteRemoteEndpointEnvironmentDatumScratchPads(controller ResourceControlle
 	router.Handle(path+"/{id}/execute", handlers.MethodHandler(routes))
 }
 
-type RemoteEndpointEnvironmentDatumScratchPadResult struct {
+type ScratchPadResult struct {
 	Request  string `json:"request"`
 	Response string `json:"response"`
 	Time     int64  `json:"time"`
 }
 
-func (c *MetaRemoteEndpointEnvironmentDatumScratchPadsController) Execute(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
-	object := model.RemoteEndpointEnvironmentDatumScratchPad{}
+func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
+	object := model.ScratchPad{}
 	c.mapFields(r, &object)
 	pad, err := object.Find(db)
 	if err != nil {
@@ -66,7 +66,7 @@ func (c *MetaRemoteEndpointEnvironmentDatumScratchPadsController) Execute(w http
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	result := RemoteEndpointEnvironmentDatumScratchPadResult{}
+	result := ScratchPadResult{}
 	obj, err := vm.Run("JSON.stringify(request);")
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)

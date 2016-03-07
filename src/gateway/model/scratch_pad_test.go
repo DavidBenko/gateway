@@ -9,7 +9,7 @@ import (
 	apsql "gateway/sql"
 )
 
-func TestRemoteEndpointEnvironmentDatumScratchPad(t *testing.T) {
+func TestScratchPad(t *testing.T) {
 	//https://groups.google.com/forum/#!topic/golang-nuts/AYZl1lNxCfA
 	conf := config.Database{Driver: "sqlite3", ConnectionString: "file:dummy.db?mode=memory&cache=shared"}
 	db, err := apsql.Connect(conf)
@@ -107,7 +107,7 @@ func TestRemoteEndpointEnvironmentDatumScratchPad(t *testing.T) {
 		return remoteEndpoint.Update(tx)
 	})
 
-	pad := &model.RemoteEndpointEnvironmentDatumScratchPad{
+	pad := &model.ScratchPad{
 		AccountID:         account.ID,
 		UserID:            user.ID,
 		APIID:             api.ID,
