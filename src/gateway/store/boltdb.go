@@ -342,6 +342,15 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 	if value == nil {
 		return ErrCollectionDoesntExist
 	}
+	err = json.Unmarshal(value, collection)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.DeleteTx(tx, collection.AccountID, collection.Name, "true")
+	if err != nil {
+		return err
+	}
 
 	err = collections.Delete(itob(uint64(collection.ID)))
 	if err != nil {
@@ -349,11 +358,6 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 	}
 
 	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	_, err = s.Delete(collection.AccountID, collection.Name, "true")
 	if err != nil {
 		return err
 	}
@@ -802,13 +806,7 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 	return _json, nil
 }
 
-func (s *BoltDBStore) Delete(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
-	tx, err := s.boltdb.Begin(true)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
+func (s *BoltDBStore) DeleteTx(tx *bolt.Tx, accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
 	collect := &Collection{AccountID: accountID, Name: collection}
 	bucket, _, err := s.createBucket(tx, collect)
 	if err != nil {
@@ -834,16 +832,31 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 		results = append(results, result)
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
 	for _, object := range objects {
 		err = s.notify("objects", object.AccountID, 0, 0, 0, object.ID, apsql.Delete)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	return results, nil
+}
+
+func (s *BoltDBStore) Delete(accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
+	tx, err := s.boltdb.Begin(true)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	results, err := s.DeleteTx(tx, accountID, collection, query, params...)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
 	}
 
 	return results, nil
