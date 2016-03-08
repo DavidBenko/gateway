@@ -56,7 +56,7 @@ type StoreCollectionsController struct {
 
 func (c *StoreCollectionsController) List(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	collection := &store.Collection{UserID: c.userID(r), AccountID: c.accountID(r)}
-	var collections []*store.Collection
+	collections := []*store.Collection{}
 	err := c.store.ListCollection(collection, &collections)
 
 	if err != nil {
@@ -177,7 +177,9 @@ func (c *StoreCollectionsController) serializeInstance(instance *store.Collectio
 
 func (c *StoreCollectionsController) serializeCollection(collection []*store.Collection,
 	w http.ResponseWriter) aphttp.Error {
-
+	if len(collection) == 0 {
+		collection = []*store.Collection{}
+	}
 	wrapped := struct {
 		Collections []*store.Collection `json:"store_collections"`
 	}{collection}
@@ -191,7 +193,7 @@ type StoreObjectsController struct {
 
 func (c *StoreObjectsController) List(w http.ResponseWriter, r *http.Request) aphttp.Error {
 	object := &store.Object{UserID: c.userID(r), AccountID: c.accountID(r), CollectionID: c.collectionID(r)}
-	var objects []*store.Object
+	objects := []*store.Object{}
 	err := c.store.ListObject(object, &objects)
 
 	if err != nil {
@@ -324,7 +326,9 @@ func (c *StoreObjectsController) serializeInstance(instance *store.Object,
 
 func (c *StoreObjectsController) serializeCollection(collection []*store.Object,
 	w http.ResponseWriter) aphttp.Error {
-
+	if len(collection) == 0 {
+		collection = []*store.Object{}
+	}
 	wrapped := struct {
 		Objects []*store.Object `json:"store_objects"`
 	}{collection}
