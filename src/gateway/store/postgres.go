@@ -180,6 +180,7 @@ func (s *PostgresStore) ListCollection(collection *Collection, collections *[]*C
 		if err != nil {
 			return err
 		}
+		_collection.Links.StoreObjects = "store_objects"
 		*collections = append(*collections, _collection)
 	}
 
@@ -204,7 +205,7 @@ func (s *PostgresStore) CreateCollection(collection *Collection) (err error) {
 	if err != nil {
 		return err
 	}
-
+	collection.Links.StoreObjects = "store_objects"
 	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 }
 
@@ -214,7 +215,7 @@ func (s *PostgresStore) ShowCollection(collection *Collection) error {
 	if err != nil {
 		return err
 	}
-
+	collection.Links.StoreObjects = "store_objects"
 	return nil
 }
 
@@ -236,7 +237,7 @@ func (s *PostgresStore) UpdateCollection(collection *Collection) (err error) {
 	if err != nil {
 		return err
 	}
-
+	collection.Links.StoreObjects = "store_objects"
 	return notify(tx, "collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Update)
 }
 
