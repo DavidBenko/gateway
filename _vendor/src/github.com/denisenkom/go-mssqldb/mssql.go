@@ -132,7 +132,7 @@ func parseConnectionString(dsn string) (res map[string]string) {
 func (d *MssqlDriver) Open(dsn string) (driver.Conn, error) {
 	params := parseConnectionString(dsn)
 
-	conn, err := open(dsn, params)
+	conn, err := openConnection(dsn, params)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +141,8 @@ func (d *MssqlDriver) Open(dsn string) (driver.Conn, error) {
 	return conn, nil
 }
 
-func open(dsn string, params map[string]string) (*MssqlConn, error) {
-	buf, err := connect(params)
+func openConnection(dsn string, params map[string]string) (*MssqlConn, error) {
+	sess, err := connect(params)
 	if err != nil {
 		partner := partnersCache.Get(dsn)
 		if partner == "" {
@@ -156,13 +156,13 @@ func open(dsn string, params map[string]string) (*MssqlConn, error) {
 
 		if partner != "" {
 			params["server"] = partner
-			return open(dsn, params)
+			return openConnection(dsn, params)
 		}
 
 		return nil, err
 	}
 
-	if partner := buf.partner; partner != "" {
+	if partner := sess.partner; partner != "" {
 		// append an instance so the port will be ignored when this value is used;
 		// tds does not provide the port number.
 		if !strings.Contains(partner, `\`) {
@@ -171,7 +171,7 @@ func open(dsn string, params map[string]string) (*MssqlConn, error) {
 		partnersCache.Set(dsn, partner)
 	}
 
-	return &MssqlConn{buf}, nil
+	return &MssqlConn{sess}, nil
 }
 
 func (c *MssqlConn) Close() error {
@@ -453,7 +453,7 @@ type partners struct {
 	v  map[string]string
 }
 
-func (p partners) Set(key, value string) error {
+func (p *partners) Set(key, value string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if _, ok := p.v[key]; ok {
@@ -464,7 +464,7 @@ func (p partners) Set(key, value string) error {
 	return nil
 }
 
-func (p partners) Get(key string) (value string) {
+func (p *partners) Get(key string) (value string) {
 	p.mu.RLock()
 	value = p.v[key]
 	p.mu.RUnlock()

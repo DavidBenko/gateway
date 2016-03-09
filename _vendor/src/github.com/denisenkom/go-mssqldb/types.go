@@ -226,9 +226,9 @@ func readFixedType(ti *typeInfo, r *tdsBuffer) (res interface{}) {
 	case typeFlt4:
 		return math.Float32frombits(binary.LittleEndian.Uint32(buf))
 	case typeMoney4:
-		return decodeMoney4(buf)
+		return string(decodeMoney4(buf))
 	case typeMoney:
-		return decodeMoney(buf)
+		return string(decodeMoney(buf))
 	case typeDateTime:
 		return decodeDateTime(buf)
 	case typeFlt8:
@@ -281,7 +281,7 @@ func readByteLenType(ti *typeInfo, r *tdsBuffer) (res interface{}) {
 			badStreamPanicf("Invalid size for INTNTYPE")
 		}
 	case typeDecimal, typeNumeric, typeDecimalN, typeNumericN:
-		return decodeDecimal(ti.Prec, ti.Scale, buf)
+		return string(decodeDecimal(ti.Prec, ti.Scale, buf))
 	case typeBitN:
 		if len(buf) != 1 {
 			badStreamPanicf("Invalid size for BITNTYPE")
@@ -299,9 +299,9 @@ func readByteLenType(ti *typeInfo, r *tdsBuffer) (res interface{}) {
 	case typeMoneyN:
 		switch len(buf) {
 		case 4:
-			return decodeMoney4(buf)
+			return string(decodeMoney4(buf))
 		case 8:
-			return decodeMoney(buf)
+			return string(decodeMoney(buf))
 		default:
 			badStreamPanicf("Invalid size for MONEYNTYPE")
 		}
