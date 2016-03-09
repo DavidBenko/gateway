@@ -347,7 +347,7 @@ func (s *BoltDBStore) DeleteCollection(collection *Collection) error {
 		return err
 	}
 
-	_, err = s.DeleteTx(tx, collection.AccountID, collection.Name, "true")
+	_, err = s.DeleteTx(tx, false, collection.AccountID, collection.Name, "true")
 	if err != nil {
 		return err
 	}
@@ -806,7 +806,7 @@ func (s *BoltDBStore) DeleteByID(accountID int64, collection string, id uint64) 
 	return _json, nil
 }
 
-func (s *BoltDBStore) DeleteTx(tx *bolt.Tx, accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
+func (s *BoltDBStore) DeleteTx(tx *bolt.Tx, notify bool, accountID int64, collection string, query string, params ...interface{}) ([]interface{}, error) {
 	collect := &Collection{AccountID: accountID, Name: collection}
 	bucket, _, err := s.createBucket(tx, collect)
 	if err != nil {
@@ -832,10 +832,12 @@ func (s *BoltDBStore) DeleteTx(tx *bolt.Tx, accountID int64, collection string, 
 		results = append(results, result)
 	}
 
-	for _, object := range objects {
-		err = s.notify("objects", object.AccountID, 0, 0, 0, object.ID, apsql.Delete)
-		if err != nil {
-			return nil, err
+	if notify {
+		for _, object := range objects {
+			err = s.notify("objects", object.AccountID, 0, 0, 0, object.ID, apsql.Delete)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -849,7 +851,7 @@ func (s *BoltDBStore) Delete(accountID int64, collection string, query string, p
 	}
 	defer tx.Rollback()
 
-	results, err := s.DeleteTx(tx, accountID, collection, query, params...)
+	results, err := s.DeleteTx(tx, true, accountID, collection, query, params...)
 	if err != nil {
 		return nil, err
 	}
