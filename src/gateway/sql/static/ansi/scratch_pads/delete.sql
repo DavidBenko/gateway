@@ -1,6 +1,6 @@
 DELETE FROM scratch_pads
 WHERE scratch_pads.id = ?
-  AND scratch_pads.remote_endpoint_environment_data_id IN
+  AND scratch_pads.environment_data_id IN
     (SELECT remote_endpoint_environment_data.id
       FROM remote_endpoint_environment_data, remote_endpoints, apis
       WHERE remote_endpoint_environment_data.id = ?

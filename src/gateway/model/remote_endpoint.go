@@ -77,7 +77,7 @@ type RemoteEndpointEnvironmentData struct {
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
 	Links            struct {
-		Pads string `json:"pads"`
+		ScratchPads string `json:"scratch_pads"`
 	} `json:"links"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
@@ -498,7 +498,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.Links.Pads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
+		envData.Links.ScratchPads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
 			apiID, envData.RemoteEndpointID, envData.ID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
