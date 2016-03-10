@@ -83,8 +83,8 @@ func processLogs(logs <-chan []byte, add func(message string)) {
 	}
 }
 
-func ElasticLoggingService(conf config.ElasticLogging) {
-	if conf.Url == "" {
+func ElasticLoggingService(conf config.Configuration) {
+	if conf.Elastic.Url == "" {
 		return
 	}
 
@@ -95,7 +95,7 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 		defer unsubscribe()
 
 		c := elasti.NewConn()
-		c.SetFromUrl(conf.Url)
+		c.SetFromUrl(conf.Elastic.Url)
 
 		_, err := c.CreateIndex("gateway")
 		if err == nil {
@@ -115,6 +115,38 @@ func ElasticLoggingService(conf config.ElasticLogging) {
 			}
 		}
 		processLogs(logs, add)
+	}()
+
+	if !conf.Jobs {
+		return
+	}
+
+	deleteTicker := time.NewTicker(24 * time.Hour)
+	go func() {
+		for _ = range deleteTicker.C {
+			days := time.Duration(conf.Elastic.DeleteAfter)
+			end := time.Now().Add(-days*24*time.Hour).Format("2006/01/02 15:04:05") + ".000000"
+			c := elasti.NewConn()
+			c.SetFromUrl(conf.Elastic.Url)
+			query := map[string]interface{}{
+				"query": map[string]interface{}{
+					"range": map[string]interface{}{
+						"logDate": map[string]interface{}{
+							"lte": end,
+						},
+					},
+				},
+			}
+			jsonQuery, err := json.Marshal(query)
+			if err != nil {
+				logreport.Printf("[elastic-delete] %v", err)
+				continue
+			}
+			_, err = c.DeleteByQuery([]string{"gateway"}, []string{"log"}, nil, jsonQuery)
+			if err != nil {
+				logreport.Printf("[elastic-delete] %v", err)
+			}
+		}
 	}()
 }
 

@@ -133,7 +133,8 @@ type ProxyAdmin struct {
 }
 
 type ElasticLogging struct {
-	Url string `flag:"elastic-logging-url" default:""`
+	Url         string `flag:"elastic-logging-url" default:""`
+	DeleteAfter int64  `flag:"elastic-logging-delete-after" default:"30"`
 }
 
 type BleveLogging struct {
