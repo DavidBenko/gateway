@@ -98,7 +98,7 @@ func FindProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
 
 func DeleteProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(tx *apsql.Tx,
 	id, proxyEndpointID, apiID, accountID, userID int64) error {
-	err := tx.DeleteOne(tx.SQL("proxy_endpoint_schemas/delete"), id, proxyEndpointID, apiID)
+	err := tx.DeleteOne(tx.SQL("proxy_endpoint_schemas/delete"), id, proxyEndpointID, apiID, accountID)
 	if err != nil {
 		return err
 	}
@@ -112,14 +112,14 @@ func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
 	}
 
 	var count int
-	tx.Get(&count, tx.SQL("proxy_endpoint_schemas/count"), s.ProxyEndpointID, s.APIID)
+	tx.Get(&count, tx.SQL("proxy_endpoint_schemas/count"), s.ProxyEndpointID, s.APIID, s.AccountID)
 	if count >= 1 {
 		return errors.New("Only 1 schema is allowed per proxy endpoint")
 	}
 
 	s.ID, err = tx.InsertOne(tx.SQL("proxy_endpoint_schemas/insert"), s.ProxyEndpointID,
-		s.APIID, s.Name, s.RequestSchemaID, s.APIID, s.RequestType, s.RequestSchema,
-		s.ResponseSameAsRequest, s.ResponseSchemaID, s.APIID, s.ResponseType,
+		s.APIID, s.AccountID, s.Name, s.RequestSchemaID, s.APIID, s.AccountID, s.RequestType, s.RequestSchema,
+		s.ResponseSameAsRequest, s.ResponseSchemaID, s.APIID, s.AccountID, s.ResponseType,
 		s.ResponseSchema, data)
 	if err != nil {
 		return err
@@ -134,8 +134,8 @@ func (s *ProxyEndpointSchema) Update(tx *apsql.Tx) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("proxy_endpoint_schemas/update"), s.Name, s.RequestSchemaID,
-		s.APIID, s.RequestType, s.RequestSchema, s.ResponseSameAsRequest, s.ResponseSchemaID,
-		s.APIID, s.ResponseType, s.ResponseSchema, data, s.ID, s.ProxyEndpointID, s.APIID)
+		s.APIID, s.AccountID, s.RequestType, s.RequestSchema, s.ResponseSameAsRequest, s.ResponseSchemaID,
+		s.APIID, s.AccountID, s.ResponseType, s.ResponseSchema, data, s.ID, s.ProxyEndpointID, s.APIID, s.AccountID)
 	if err != nil {
 		return err
 	}
