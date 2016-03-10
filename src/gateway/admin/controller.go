@@ -18,7 +18,7 @@ import (
 //go:generate ./controller.rb --model User --account --after-insert-hook --check-delete --transform-method c.sanitize --transform-type sanitizedUser
 //go:generate ./controller.rb --model RemoteEndpointType
 //go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
-//go:generate ./controller.rb --model ProxyEndpointSchema --account --api --proxy-endpoint
+//go:generate ./controller.rb --model ProxyEndpointSchema --reflect
 //go:generate ./controller.rb --model ScratchPad --reflect
 
 // ResourceController defines what we expect a controller to do to route

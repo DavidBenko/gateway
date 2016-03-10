@@ -10,7 +10,6 @@ transform_method = nil
 transform_type = nil
 account = false
 api = false
-proxy_endpoint = false
 reflect = false
 custom_struct = false
 check_delete = false
@@ -34,9 +33,6 @@ OptionParser.new do |opts|
   end
   opts.on("--api", "Is model linked to API?") do |value|
     api = value
-  end
-  opts.on("--proxy-endpoint", "Is model linked to Proxy Endpoint?") do |value|
-    proxy_endpoint = value
   end
   opts.on("--reflect", "Is reflection used to find model links?") do |value|
     reflect = value
@@ -126,10 +122,7 @@ type <%= controller %> struct {
 func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
 
-  <% if account && api && proxy_endpoint %>
-    <%= local_plural %>, err := model.All<%= plural %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
-      c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
-  <% elsif account && api %>
+  <% if account && api %>
     <%= local_plural %>, err := model.All<%= plural %>ForAPIIDAndAccountID(db,
       c.apiID(r), c.accountID(r))
   <% elsif account %>
@@ -175,10 +168,7 @@ func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
     <%= local %>, err := object.Find(db)
   <% else %>
     id := instanceID(r)
-    <% if account && api && proxy_endpoint %>
-      <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(db,
-      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
-    <% elsif account && api %>
+    <% if account && api %>
       <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
         id, c.apiID(r), c.accountID(r))
     <% elsif account %>
@@ -218,9 +208,10 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   <% if after_delete || before_delete %>
     db := tx.DB
 
-    <% if account && api && proxy_endpoint %>
-      <%= local %>, err := model.Find<%= singular %>ForProxyEndpointIDAPIIDAndAccountID(db,
-        id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r))
+    <% if reflect %>
+      object := model.<%= singular %>{}
+      c.mapFields(r, &object)
+      <%= local %>, err := object.Find(db)
     <% elsif account && api %>
       <%= local %>, err := model.Find<%= singular %>ForAPIIDAndAccountID(db,
         id, c.apiID(r), c.accountID(r))
@@ -250,10 +241,7 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     }
   <% end %>
 
-  <% if account && api && proxy_endpoint %>
-    err = model.Delete<%= singular %>ForProxyEndpointIDAndAPIIDAndAccountID(tx,
-      id, c.proxyEndpointID(r), c.apiID(r), c.accountID(r), c.userID(r))
-  <% elsif account && api %>
+  <% if account && api %>
     err = model.Delete<%= singular %>ForAPIIDAndAccountID(tx,
       id, c.apiID(r), c.accountID(r), c.userID(r))
   <% elsif account %>
@@ -301,9 +289,6 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
     <% if account %>
       <%= local %>.AccountID = c.accountID(r)
       <%= local %>.UserID = c.userID(r)
-    <% end %>
-    <% if proxy_endpoint %>
-      <%= local %>.ProxyEndpointID = c.proxyEndpointID(r)
     <% end %>
   <% end %>
 

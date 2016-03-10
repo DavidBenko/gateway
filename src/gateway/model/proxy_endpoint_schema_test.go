@@ -113,8 +113,7 @@ func TestProxyEndpointSchema(t *testing.T) {
 		return schema.Insert(tx)
 	})
 
-	schemas, err := model.AllProxyEndpointSchemasForProxyEndpointIDAndAPIIDAndAccountID(
-		db, schema.ProxyEndpointID, schema.APIID, schema.AccountID)
+	schemas, err := schema.All(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,14 +121,15 @@ func TestProxyEndpointSchema(t *testing.T) {
 		t.Fatal("there should be one schema")
 	}
 
-	schemas, err = model.AllProxyEndpointSchemasForAPIIDAndAccountID(
-		db, schema.APIID, schema.AccountID)
+	schema.ProxyEndpointID = 0
+	schemas, err = schema.All(db)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(schemas) != 1 {
 		t.Fatal("there should be one schema")
 	}
+	schema.ProxyEndpointID = proxy_endpoint.ID
 
 	schemas, err = model.FindProxyEndpointSchemasForProxy(
 		db, schema.ProxyEndpointID, schema.APIID)
@@ -140,8 +140,7 @@ func TestProxyEndpointSchema(t *testing.T) {
 		t.Fatal("there should be one schema")
 	}
 
-	_, err = model.FindProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(
-		db, schema.ID, schema.ProxyEndpointID, schema.APIID, schema.AccountID)
+	_, err = schema.Find(db)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +150,6 @@ func TestProxyEndpointSchema(t *testing.T) {
 	})
 
 	transaction("delete schema", func(tx *apsql.Tx) error {
-		return model.DeleteProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(
-			tx, schema.ID, schema.ProxyEndpointID, schema.APIID, schema.AccountID, schema.UserID)
+		return schema.Delete(tx)
 	})
 }
