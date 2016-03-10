@@ -109,7 +109,8 @@ var usageStrings = map[string]string{
 
 	"admin-google-analytics-tracking-id": "A Google Analytics Tracking ID to be used by the rendered Admin UI.",
 
-	"elastic-logging-url": "The url of the elastic server",
+	"elastic-logging-url":          "The url of the elastic server",
+	"elastic-logging-delete-after": "How long in days to keep logs",
 
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",
