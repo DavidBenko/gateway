@@ -168,7 +168,6 @@ func (s *BoltDBStore) ListCollection(collection *Collection, collections *[]*Col
 		if err != nil {
 			return err
 		}
-		_collection.Links.StoreObjects = "store_objects"
 		*collections = append(*collections, _collection)
 		key, value = cursor.Next()
 	}
@@ -245,7 +244,6 @@ func (s *BoltDBStore) CreateCollection(collection *Collection) error {
 		return err
 	}
 
-	collection.Links.StoreObjects = "store_objects"
 	return s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Insert)
 }
 
@@ -276,7 +274,6 @@ func (s *BoltDBStore) ShowCollection(collection *Collection) error {
 		return err
 	}
 
-	collection.Links.StoreObjects = "store_objects"
 	return nil
 }
 
@@ -317,7 +314,6 @@ func (s *BoltDBStore) UpdateCollection(collection *Collection) error {
 		return err
 	}
 
-	collection.Links.StoreObjects = "store_objects"
 	return s.notify("collections", collection.AccountID, collection.UserID, 0, 0, collection.ID, apsql.Update)
 }
 

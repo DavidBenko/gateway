@@ -32,10 +32,6 @@ type Collection struct {
 	ID        int64  `json:"id"`
 	AccountID int64  `json:"account_id" db:"account_id"`
 	Name      string `json:"name"`
-
-	Links struct {
-		StoreObjects string `json:"store_objects"`
-	} `json:"links"`
 }
 
 type Object struct {
