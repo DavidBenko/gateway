@@ -94,6 +94,7 @@ type RemoteEndpoint struct {
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
 	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"false"`
+	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
@@ -142,7 +143,8 @@ type ProxyAdmin struct {
 }
 
 type ElasticLogging struct {
-	Url string `flag:"elastic-logging-url" default:""`
+	Url         string `flag:"elastic-logging-url" default:""`
+	DeleteAfter int64  `flag:"elastic-logging-delete-after" default:"30"`
 }
 
 type BleveLogging struct {

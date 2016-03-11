@@ -125,7 +125,8 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		}
 	}
 
-	api.ProxyEndpointSchemas, err = AllProxyEndpointSchemasForAPIIDAndAccountID(db, id, accountID)
+	schema := ProxyEndpointSchema{AccountID: accountID, APIID: id}
+	api.ProxyEndpointSchemas, err = schema.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoint schemas", err)
 	}
@@ -143,8 +144,8 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 	}
 	for _, pad := range api.ScratchPads {
 		pad.ID = 0
-		pad.ExportRemoteEndpointEnvironmentDataIndex = environmentDataIndexMap[pad.RemoteEndpointEnvironmentDataID]
-		pad.RemoteEndpointEnvironmentDataID = 0
+		pad.ExportEnvironmentDataIndex = environmentDataIndexMap[pad.EnvironmentDataID]
+		pad.EnvironmentDataID = 0
 	}
 
 	return api, nil
@@ -272,9 +273,9 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		pad.AccountID = a.AccountID
 		pad.UserID = a.UserID
 		pad.APIID = a.ID
-		ids := environmentDataIDMap[pad.ExportRemoteEndpointEnvironmentDataIndex]
+		ids := environmentDataIDMap[pad.ExportEnvironmentDataIndex]
 		pad.RemoteEndpointID = ids.remoteEndpointID
-		pad.RemoteEndpointEnvironmentDataID = ids.remoteEndpointEnvironmentDataID
+		pad.EnvironmentDataID = ids.remoteEndpointEnvironmentDataID
 		if vErr := pad.Validate(true); !vErr.Empty() {
 			return fmt.Errorf("Unable to validate scratch pad: %v", vErr)
 		}

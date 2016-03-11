@@ -82,6 +82,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-postgresql-enabled": "Whether or not PostgreSQL remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-mongodb-enabled":    "Whether or not MongoDB remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-store-enabled":      "Whether or not Store remote endpoints are enabled. Defaults to false.",
+	"remote-endpoint-ldap-enabled":       "Whether or not LDAP remote endpoints are enabled. Defaults to true.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
@@ -114,7 +115,8 @@ var usageStrings = map[string]string{
 
 	"admin-google-analytics-tracking-id": "A Google Analytics Tracking ID to be used by the rendered Admin UI.",
 
-	"elastic-logging-url": "The url of the elastic server",
+	"elastic-logging-url":          "The url of the elastic server",
+	"elastic-logging-delete-after": "How long in days to keep logs",
 
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",

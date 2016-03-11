@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -53,7 +54,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	for _, data := range endpoint.EnvironmentData {
-		if data.ID == pad.RemoteEndpointEnvironmentDataID {
+		if data.ID == pad.EnvironmentDataID {
 			endpoint.SelectedEnvironmentData = &data.Data
 			break
 		}
@@ -76,7 +77,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	request, err := c.PrepareRequest(endpoint, &rawRequest)
+	request, err := c.PrepareRequest(endpoint, &rawRequest, map[int64]io.Closer{})
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

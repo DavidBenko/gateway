@@ -622,3 +622,187 @@ AP.Store.Request.prototype.delete = function(collection, query) {
   args.unshift("delete");
   this.query.apply(this, args);
 }
+
+/**
+* LDAP holds helper classes for LDAP related tasks.
+*
+* @namespace
+*/
+AP.LDAP = AP.LDAP || {};
+
+/**
+* Creates a new LDAP request
+*
+* @class
+* @constructor
+* @param [request] - An incoming request to copy the parameters
+*/
+AP.LDAP.Request = function() {
+
+  /**
+   * The host where the target LDAP service is hosted
+   * @type {string}
+   */
+  this.host = null;
+
+  /**
+   * The port on which the LDAP service is listening.  Defaults to 389
+   * @type {Number}
+   */
+  this.port = 389;
+
+  /**
+   * The username to use for authentication to the LDAP service
+   * @type {string}
+   */
+  this.username = null;
+
+  /**
+   * The password to use for authentication to the LDAP service
+   * @type {string}
+   */
+  this.password = null;
+
+  /**
+   * The operation name of the LDAP function to invoke
+   * @type {string}
+   */
+   this.operationName = null;
+
+  /**
+   * The arguments that will be passed to the LDAP function call
+   * @type {Object}
+   */
+  this.arguments = {};
+
+  /**
+   * The additional options that are applied to the LDAP operation
+   * @type {Object}
+   */
+  this.options = null;
+
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.host = _.clone(request.host);
+    this.port = _.clone(request.port);
+    this.username = _.clone(request.username);
+    this.password = _.clone(request.password);
+    this.operationName = _.clone(request.operationName);
+    this.arguments = _.clone(request.arguments);
+    this.options = _.clone(request.options);
+  }
+}
+
+
+/**
+ * An enumeration containing possible values for search scope
+ */
+AP.LDAP.Scope = {
+  base:    "base",
+  single:  "single",
+  subtree: "subtree"
+}
+
+/**
+ * An enumeration containing possible values for dereferencing aliases
+ * during a search
+ */
+AP.LDAP.DereferenceAliases = {
+  never:  "never",
+  search: "search",
+  find:   "find",
+  always: "always"
+}
+
+/**
+ * Execute an LDAP request.
+ */
+AP.LDAP.Request.prototype._execute = function(arguments, operationName, opts) {
+  this.arguments = arguments;
+  this.operationName = operationName;
+  this.options = opts;
+}
+
+/**
+ * Execute a search request.
+ */
+AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
+  dereferenceAliases, sizeLimit, timeLimit,
+  typesOnly, filter, attributes, controls,
+  opts
+) {
+  var searchParams = {
+    "baseDistinguishedName": baseDistinguishedName,
+    "scope": scope,
+    "dereferenceAliases": dereferenceAliases,
+    "sizeLimit": sizeLimit,
+    "timeLimit": timeLimit,
+    "typesOnly": typesOnly,
+    "filter": filter,
+    "attributes": attributes,
+    "controls": controls
+  };
+  this._execute(searchParams, "search", opts);
+}
+
+/**
+ * Execute a bind request.
+ */
+AP.LDAP.Request.prototype.bind = function(username, password) {
+  var bindParams = {
+    "username": username,
+    "password": password
+  };
+  this._execute(bindParams, "bind");
+}
+
+/**
+ * Execute an add request
+ */
+AP.LDAP.Request.prototype.add = function(distinguishedName, attributes) {
+  var addParams = {
+    "distinguishedName": distinguishedName,
+    "attributes": attributes
+  };
+
+  this._execute(addParams, "add");
+}
+
+/**
+ * Execute a delete request
+ */
+AP.LDAP.Request.prototype.delete = function(distinguishedName) {
+  var deleteParams = {
+    "distinguishedName": distinguishedName
+  };
+
+  this._execute(deleteParams, "delete");
+}
+
+/**
+ * Execute a modify request
+ */
+AP.LDAP.Request.prototype.modify = function(dinstinguishedName, addAttributes, deleteAttributes, replaceAttributes) {
+  var modifyParams = {
+    "distinguishedName": dinstinguishedName,
+    "addAttributes": addAttributes,
+    "deleteAttributes": deleteAttributes,
+    "replaceAttributes": replaceAttributes
+  };
+
+  this._execute(modifyParams, "modify");
+}
+
+/**
+ * Execute a compare request
+ */
+AP.LDAP.Request.prototype.compare = function(distinguishedName, attribute, value) {
+  var compareParams = {
+    "distinguishedName": distinguishedName,
+    "attribute": attribute,
+    "value": value
+  }
+
+  this._execute(compareParams, "compare");
+}

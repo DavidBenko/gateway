@@ -108,13 +108,13 @@ func TestScratchPad(t *testing.T) {
 	})
 
 	pad := &model.ScratchPad{
-		AccountID:                       account.ID,
-		UserID:                          user.ID,
-		APIID:                           api.ID,
-		RemoteEndpointID:                remoteEndpoint.ID,
-		RemoteEndpointEnvironmentDataID: remoteEndpointEnvironment.ID,
-		Name: "test",
-		Code: "console.log('test');",
+		AccountID:         account.ID,
+		UserID:            user.ID,
+		APIID:             api.ID,
+		RemoteEndpointID:  remoteEndpoint.ID,
+		EnvironmentDataID: remoteEndpointEnvironment.ID,
+		Name:              "test",
+		Code:              "console.log('test');",
 	}
 	transaction("insert scratch pad", func(tx *apsql.Tx) error {
 		return pad.Insert(tx)

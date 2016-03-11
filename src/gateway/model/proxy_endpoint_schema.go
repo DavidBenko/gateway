@@ -14,10 +14,10 @@ import (
 type ProxyEndpointSchema struct {
 	AccountID       int64 `json:"-"`
 	UserID          int64 `json:"-"`
-	APIID           int64 `json:"-" db:"api_id"`
-	ProxyEndpointID int64 `json:"proxy_endpoint_id,omitempty" db:"endpoint_id"`
+	APIID           int64 `json:"-" db:"api_id" path:"apiID"`
+	ProxyEndpointID int64 `json:"proxy_endpoint_id,omitempty" db:"endpoint_id" path:"endpointID"`
 
-	ID                    int64  `json:"id,omitempty"`
+	ID                    int64  `json:"id,omitempty" path:"id"`
 	Name                  string `json:"name"`
 	RequestSchemaID       *int64 `json:"request_schema_id,omitempty" db:"request_schema_id"`
 	RequestType           string `json:"request_schema_type" db:"request_type"`
@@ -69,17 +69,18 @@ func (s *ProxyEndpointSchema) ValidateFromDatabaseError(err error) aperrors.Erro
 	return errors
 }
 
-func AllProxyEndpointSchemasForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
-	proxyEndpointID, apiID, accountID int64) ([]*ProxyEndpointSchema, error) {
+func (s *ProxyEndpointSchema) All(db *apsql.DB) ([]*ProxyEndpointSchema, error) {
 	schemas := []*ProxyEndpointSchema{}
-	err := db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all"), proxyEndpointID, apiID, accountID)
-	return schemas, err
-}
-
-func AllProxyEndpointSchemasForAPIIDAndAccountID(db *apsql.DB,
-	apiID, accountID int64) ([]*ProxyEndpointSchema, error) {
-	schemas := []*ProxyEndpointSchema{}
-	err := db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all_api"), apiID, accountID)
+	var err error
+	if s.APIID > 0 && s.AccountID > 0 {
+		if s.ProxyEndpointID > 0 {
+			err = db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all"), s.ProxyEndpointID, s.APIID, s.AccountID)
+		} else {
+			err = db.Select(&schemas, db.SQL("proxy_endpoint_schemas/all_api"), s.APIID, s.AccountID)
+		}
+	} else {
+		err = errors.New("APIID and AccountID required for All")
+	}
 	return schemas, err
 }
 
@@ -89,20 +90,18 @@ func FindProxyEndpointSchemasForProxy(db *apsql.DB, proxyEndpointID, apiID int64
 	return schemas, err
 }
 
-func FindProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(db *apsql.DB,
-	id, proxyEndpointID, apiID, accountID int64) (*ProxyEndpointSchema, error) {
+func (s *ProxyEndpointSchema) Find(db *apsql.DB) (*ProxyEndpointSchema, error) {
 	schema := ProxyEndpointSchema{}
-	err := db.Get(&schema, db.SQL("proxy_endpoint_schemas/find"), id, proxyEndpointID, apiID, accountID)
+	err := db.Get(&schema, db.SQL("proxy_endpoint_schemas/find"), s.ID, s.ProxyEndpointID, s.APIID, s.AccountID)
 	return &schema, err
 }
 
-func DeleteProxyEndpointSchemaForProxyEndpointIDAndAPIIDAndAccountID(tx *apsql.Tx,
-	id, proxyEndpointID, apiID, accountID, userID int64) error {
-	err := tx.DeleteOne(tx.SQL("proxy_endpoint_schemas/delete"), id, proxyEndpointID, apiID)
+func (s *ProxyEndpointSchema) Delete(tx *apsql.Tx) error {
+	err := tx.DeleteOne(tx.SQL("proxy_endpoint_schemas/delete"), s.ID, s.ProxyEndpointID, s.APIID, s.AccountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoint_schemas", accountID, userID, apiID, proxyEndpointID, id, apsql.Delete)
+	return tx.Notify("proxy_endpoint_schemas", s.AccountID, s.UserID, s.APIID, s.ProxyEndpointID, s.ID, apsql.Delete)
 }
 
 func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
@@ -112,14 +111,14 @@ func (s *ProxyEndpointSchema) Insert(tx *apsql.Tx) error {
 	}
 
 	var count int
-	tx.Get(&count, tx.SQL("proxy_endpoint_schemas/count"), s.ProxyEndpointID, s.APIID)
+	tx.Get(&count, tx.SQL("proxy_endpoint_schemas/count"), s.ProxyEndpointID, s.APIID, s.AccountID)
 	if count >= 1 {
 		return errors.New("Only 1 schema is allowed per proxy endpoint")
 	}
 
 	s.ID, err = tx.InsertOne(tx.SQL("proxy_endpoint_schemas/insert"), s.ProxyEndpointID,
-		s.APIID, s.Name, s.RequestSchemaID, s.APIID, s.RequestType, s.RequestSchema,
-		s.ResponseSameAsRequest, s.ResponseSchemaID, s.APIID, s.ResponseType,
+		s.APIID, s.AccountID, s.Name, s.RequestSchemaID, s.APIID, s.AccountID, s.RequestType, s.RequestSchema,
+		s.ResponseSameAsRequest, s.ResponseSchemaID, s.APIID, s.AccountID, s.ResponseType,
 		s.ResponseSchema, data)
 	if err != nil {
 		return err
@@ -134,8 +133,8 @@ func (s *ProxyEndpointSchema) Update(tx *apsql.Tx) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("proxy_endpoint_schemas/update"), s.Name, s.RequestSchemaID,
-		s.APIID, s.RequestType, s.RequestSchema, s.ResponseSameAsRequest, s.ResponseSchemaID,
-		s.APIID, s.ResponseType, s.ResponseSchema, data, s.ID, s.ProxyEndpointID, s.APIID)
+		s.APIID, s.AccountID, s.RequestType, s.RequestSchema, s.ResponseSameAsRequest, s.ResponseSchemaID,
+		s.APIID, s.AccountID, s.ResponseType, s.ResponseSchema, data, s.ID, s.ProxyEndpointID, s.APIID, s.AccountID)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -25,15 +26,24 @@ import (
  */
 
 func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpointComponent) error {
+	connections := make(map[int64]io.Closer)
+
 	for _, c := range components {
-		if err := s.runComponent(vm, c); err != nil {
+		if err := s.runComponent(vm, c, connections); err != nil {
 			return err
 		}
 	}
+
+	for _, conn := range connections {
+		if err := conn.Close(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
 	run, err := s.evaluateComponentConditional(vm, component)
 	if err != nil {
 		return err
@@ -60,7 +70,7 @@ func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComp
 	case model.ProxyEndpointComponentTypeSingle:
 		fallthrough
 	case model.ProxyEndpointComponentTypeMulti:
-		err = s.runCallComponentCore(vm, component)
+		err = s.runCallComponentCore(vm, component, connections)
 	case model.ProxyEndpointComponentTypeJS:
 		err = s.runJSComponentCore(vm, component)
 	default:
@@ -101,7 +111,7 @@ func (s *Server) runCallComponentSetup(vm *vm.ProxyVM, component *model.ProxyEnd
 	return err
 }
 
-func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
 	var activeCalls []*model.ProxyEndpointCall
 
 	for _, call := range component.AllCalls() {
@@ -130,7 +140,7 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 		activeCallNames = append(activeCallNames, name)
 	}
 
-	requests, err := s.getRequests(vm, activeCallNames, activeCalls)
+	requests, err := s.getRequests(vm, activeCallNames, activeCalls, connections)
 	if err != nil {
 		return err
 	}

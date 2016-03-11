@@ -77,7 +77,7 @@ type RemoteEndpointEnvironmentData struct {
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
 	Links            struct {
-		Pads string `json:"pads"`
+		ScratchPads string `json:"scratch_pads"`
 	} `json:"links"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
@@ -121,6 +121,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		if err != nil {
 			errors.Add("base", fmt.Sprintf("error in database config: %s", err))
 		}
+	case RemoteEndpointTypeLDAP:
+		e.ValidateLDAP(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -253,6 +255,27 @@ func (e *RemoteEndpoint) ValidateScript(errors aperrors.Errors) {
 			errors.AddAll(errs)
 		}
 	}
+}
+
+// Validate LDAP endpoint configuration
+func (e *RemoteEndpoint) ValidateLDAP(errors aperrors.Errors) {
+	ldap := re.LDAP{}
+	if err := json.Unmarshal(e.Data, &ldap); err != nil {
+		errors.Add("base", "error in ldap config")
+		return
+	}
+
+	if errs := ldap.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
+	}
+
+	data, err := json.Marshal(ldap)
+	if err != nil {
+		errors.Add("base", "error re-encoding data")
+		return
+	}
+	e.Data = data
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
@@ -481,7 +504,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.Links.Pads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
+		envData.Links.ScratchPads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
 			apiID, envData.RemoteEndpointID, envData.ID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
@@ -789,7 +812,7 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
-	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap {
+	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap && e.Type != RemoteEndpointTypeLDAP {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:
