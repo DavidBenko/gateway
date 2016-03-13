@@ -30,7 +30,7 @@ type Collection struct {
 	UserID int64 `json:"-"`
 
 	ID        int64  `json:"id"`
-	AccountID int64  `json:"account_id" db:"account_id"`
+	AccountID int64  `json:"account_id,omitempty" db:"account_id"`
 	Name      string `json:"name"`
 }
 
@@ -38,7 +38,7 @@ type Object struct {
 	UserID int64 `json:"-"`
 
 	ID           int64          `json:"id"`
-	AccountID    int64          `json:"account_id" db:"account_id"`
+	AccountID    int64          `json:"account_id,omitempty" db:"account_id"`
 	CollectionID int64          `json:"store_collection_id" db:"collection_id"`
 	Data         types.JsonText `json:"data"`
 }

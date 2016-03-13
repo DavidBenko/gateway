@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -166,23 +167,31 @@ func (c *StoreCollectionsController) deserializeInstance(file io.Reader) (*store
 	return wrapped.Collection, nil
 }
 
+type Collection store.Collection
+
+func (c *Collection) MarshalJSON() ([]byte, error) {
+	collection := store.Collection(*c)
+	collection.AccountID = 0
+	return json.Marshal(&collection)
+}
+
 func (c *StoreCollectionsController) serializeInstance(instance *store.Collection,
 	w http.ResponseWriter) aphttp.Error {
-
 	wrapped := struct {
-		Collection *store.Collection `json:"store_collection"`
-	}{instance}
+		Collection Collection `json:"store_collection"`
+	}{Collection(*instance)}
 	return serialize(wrapped, w)
 }
 
 func (c *StoreCollectionsController) serializeCollection(collection []*store.Collection,
 	w http.ResponseWriter) aphttp.Error {
-	if len(collection) == 0 {
-		collection = []*store.Collection{}
+	collections := make([]Collection, len(collection))
+	for i, instance := range collection {
+		collections[i] = Collection(*instance)
 	}
 	wrapped := struct {
-		Collections []*store.Collection `json:"store_collections"`
-	}{collection}
+		Collections []Collection `json:"store_collections"`
+	}{collections}
 	return serialize(wrapped, w)
 }
 
@@ -315,22 +324,30 @@ func (c *StoreObjectsController) deserializeInstance(file io.Reader) (*store.Obj
 	return wrapped.Object, nil
 }
 
+type Object store.Object
+
+func (o *Object) MarshalJSON() ([]byte, error) {
+	object := store.Object(*o)
+	object.AccountID = 0
+	return json.Marshal(&object)
+}
+
 func (c *StoreObjectsController) serializeInstance(instance *store.Object,
 	w http.ResponseWriter) aphttp.Error {
-
 	wrapped := struct {
-		Object *store.Object `json:"store_object"`
-	}{instance}
+		Object Object `json:"store_object"`
+	}{Object(*instance)}
 	return serialize(wrapped, w)
 }
 
 func (c *StoreObjectsController) serializeCollection(collection []*store.Object,
 	w http.ResponseWriter) aphttp.Error {
-	if len(collection) == 0 {
-		collection = []*store.Object{}
+	objects := make([]Object, len(collection))
+	for i, instance := range collection {
+		objects[i] = Object(*instance)
 	}
 	wrapped := struct {
-		Objects []*store.Object `json:"store_objects"`
-	}{collection}
+		Objects []Object `json:"store_objects"`
+	}{objects}
 	return serialize(wrapped, w)
 }
