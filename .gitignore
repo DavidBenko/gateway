@@ -55,6 +55,7 @@ test/cookies
 
 # Generated files
 **/*_gen.go
+**/*.peg.go
 
 *.key
 

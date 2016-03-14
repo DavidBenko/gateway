@@ -16,6 +16,8 @@ import (
 	"github.com/lib/pq"
 )
 
+//go:generate peg jql.peg
+
 const (
 	StoreTypeBolt     = "boltdb"
 	StoreTypePostgres = "postgres"
