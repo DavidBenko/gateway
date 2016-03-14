@@ -100,6 +100,7 @@ def fixtures
         description: 'A basic environment',
         data: {method: 'POST'},
         session_name: 'session',
+        session_type: 'client',
         session_auth_key: 'auth-key',
         session_encryption_key: 'encryption-key',
         session_auth_key_rotate: '???',
