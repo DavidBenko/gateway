@@ -49,8 +49,8 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeMongo:     &RemoteEndpointType{ID: 5, Value: RemoteEndpointTypeMongo, Enabled: reConf.MongoDBEnabled},
 		RemoteEndpointTypeScript:    &RemoteEndpointType{ID: 6, Value: RemoteEndpointTypeScript, Enabled: reConf.ScriptEnabled},
 		RemoteEndpointTypeSoap:      &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
-		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 		RemoteEndpointTypeLDAP:      &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
+		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 	}
 }
 
