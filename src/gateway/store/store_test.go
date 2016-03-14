@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -24,7 +25,9 @@ func testPostgres(m *testing.M) int {
 	conf := config.Store{
 		Type: "postgres",
 	}
-	dockertest.BindDockerToLocalhost = "true"
+	if runtime.GOOS == "linux" {
+		dockertest.BindDockerToLocalhost = "true"
+	}
 	c, err := dockertest.ConnectToPostgreSQL(60, time.Second, func(url string) bool {
 		conf.ConnectionString = url
 		postgresStore, _ = store.Configure(conf)
