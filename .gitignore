@@ -39,6 +39,7 @@ test/raft.tddium*
 test/node
 test/gateway.db
 test/logs.bleve
+test/store.db
 
 **.DS_Store
 
@@ -54,6 +55,7 @@ test/cookies
 
 # Generated files
 **/*_gen.go
+**/*.peg.go
 
 *.key
 

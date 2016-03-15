@@ -11,6 +11,7 @@ import (
 	"gateway/logreport"
 	//"gateway/model"
 	sql "gateway/sql"
+	"gateway/store"
 
 	"github.com/gorilla/mux"
 )
@@ -20,7 +21,7 @@ var (
 )
 
 // Setup sets up the session and adds admin routes.
-func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration, c *core.Core) {
+func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.Configuration, c *core.Core) {
 	conf, psconf := configuration.Admin, configuration.Proxy
 	var admin aphttp.Router
 	admin = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
@@ -60,7 +61,7 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration, c
 	base := BaseController{conf: conf, accountID: accountID, userID: userID,
 		SMTP: configuration.SMTP, ProxyServer: psconf}
 
-	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db)
+	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db, s)
 
 	if conf.EnableBroker {
 		broker, err := newAggregator(conf)
@@ -103,6 +104,9 @@ func Setup(router *mux.Router, db *sql.DB, configuration config.Configuration, c
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
 	scratchPadController := &MetaScratchPadsController{ScratchPadsController{base}, c}
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
+
+	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
+	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)
 
 	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
 

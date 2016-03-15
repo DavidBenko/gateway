@@ -552,19 +552,91 @@ AP.Script.Request = function() {
 }
 
 /**
- * LDAP holds helper classes for LDAP related tasks.
+ * Store holds helper classes for Store related tasks
  *
  * @namespace
  */
-AP.LDAP = AP.LDAP || {};
+AP.Store = AP.Store || {};
 
 /**
- * Creates a new LDAP request
+ * Creates a new Store request.
  *
  * @class
  * @constructor
  * @param [request] - An incoming request to copy the parameters
  */
+AP.Store.Request = function() {
+  this.arguments = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+
+AP.Store.Request.prototype.query = function() {
+  this.arguments = arguments;
+}
+
+/**
+ * Inserts an object into a collection.
+ *
+ * @param {string} collection The collection to insert the object into.
+ * @param {Object} object An object to insert.
+ */
+AP.Store.Request.prototype.insert = function(collection, object) {
+  this.query("insert", collection, object);
+}
+
+/**
+ * Selects object(s) from a collection.
+ *
+ * @param {string} collection The collection to select object(s) from.
+ * @param {string|Number} query A query or id for selecting object(s).
+ */
+AP.Store.Request.prototype.select = function(collection, query) {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift("select");
+  this.query.apply(this, args);
+}
+
+/**
+ * Updates an object in a collection.
+ *
+ * @param {string} collection The collection to update the object in.
+ * @param {Number} id The id of the object to update.
+ * @param {Object} object An object to update with.
+ */
+AP.Store.Request.prototype.update = function(collection, id, object) {
+  this.query("update", collection, id, object);
+}
+
+/**
+ * Deletes an object from a collection.
+ *
+ * @param {string} collection The collection to delete the object from.
+ * @param {string|Number} query A query or id for the object(s) to delete.
+ */
+AP.Store.Request.prototype.delete = function(collection, query) {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift("delete");
+  this.query.apply(this, args);
+}
+
+/**
+* LDAP holds helper classes for LDAP related tasks.
+*
+* @namespace
+*/
+AP.LDAP = AP.LDAP || {};
+
+/**
+* Creates a new LDAP request
+*
+* @class
+* @constructor
+* @param [request] - An incoming request to copy the parameters
+*/
 AP.LDAP.Request = function() {
 
   /**

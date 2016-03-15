@@ -112,6 +112,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
 		e.ValidateSOAP(errors, isInsert)
+	case RemoteEndpointTypeStore:
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
@@ -320,6 +321,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 
 	idQuery := apsql.NQs(len(ids))
 	query := `SELECT
+		apis.account_id as account_id,
 		remote_endpoints.api_id as api_id,
 		remote_endpoints.id as id,
 		remote_endpoints.name as name,
@@ -331,6 +333,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.status_message as status_message,
 		soap_remote_endpoints.id as soap_id
 	FROM remote_endpoints
+	JOIN apis ON remote_endpoints.api_id = apis.id
 	LEFT JOIN remote_endpoint_environment_data
 		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
 	 AND remote_endpoint_environment_data.environment_id = ?
@@ -349,6 +352,9 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 func newRemoteEndpoint(rowResult map[string]interface{}) *RemoteEndpoint {
 	remoteEndpoint := new(RemoteEndpoint)
 
+	if accountID, ok := rowResult["account_id"].(int64); ok {
+		remoteEndpoint.AccountID = accountID
+	}
 	if apiID, ok := rowResult["api_id"].(int64); ok {
 		remoteEndpoint.APIID = apiID
 	}
