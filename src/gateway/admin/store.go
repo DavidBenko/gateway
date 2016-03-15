@@ -180,7 +180,7 @@ func (c *StoreCollectionsController) serializeInstance(instance *store.Collectio
 	wrapped := struct {
 		Collection Collection `json:"store_collection"`
 	}{Collection(*instance)}
-	return serialize(wrapped, w)
+	return serialize(&wrapped, w)
 }
 
 func (c *StoreCollectionsController) serializeCollection(collection []*store.Collection,
@@ -192,7 +192,7 @@ func (c *StoreCollectionsController) serializeCollection(collection []*store.Col
 	wrapped := struct {
 		Collections []Collection `json:"store_collections"`
 	}{collections}
-	return serialize(wrapped, w)
+	return serialize(&wrapped, w)
 }
 
 type StoreObjectsController struct {
@@ -337,7 +337,7 @@ func (c *StoreObjectsController) serializeInstance(instance *store.Object,
 	wrapped := struct {
 		Object Object `json:"store_object"`
 	}{Object(*instance)}
-	return serialize(wrapped, w)
+	return serialize(&wrapped, w)
 }
 
 func (c *StoreObjectsController) serializeCollection(collection []*store.Object,
@@ -349,5 +349,5 @@ func (c *StoreObjectsController) serializeCollection(collection []*store.Object,
 	wrapped := struct {
 		Objects []Object `json:"store_objects"`
 	}{objects}
-	return serialize(wrapped, w)
+	return serialize(&wrapped, w)
 }
