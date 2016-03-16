@@ -214,7 +214,8 @@ vendor_get: vendor_clean
 	gopkg.in/tomb.v1 \
 	github.com/hpcloud/tail \
 	github.com/ory-am/dockertest \
-	github.com/go-ldap/ldap
+	github.com/go-ldap/ldap \
+	github.com/pointlander/peg
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
