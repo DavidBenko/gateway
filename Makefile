@@ -60,7 +60,7 @@ build: vet assets generate
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
-	docker build -t justapis-ldap test/ldap
+	docker build -t anypresence/justapis-ldap test/ldap
 
 build_race: vet assets generate
 	go build $(LDFLAGS) -race -o ./bin/gateway ./src/gateway/main.go
@@ -154,7 +154,7 @@ test_all: admin assets test test_api test_integration
 test_integration: build test_integration_fast
 
 test_integration_fast: build_tail
-	docker run -p 389:389 -d justapis-ldap > ./tmp/.containerid
+	docker run -p 389:389 -d anypresence/justapis-ldap > ./tmp/.containerid
 	mkdir -p tmp
 	-rm ./tmp/gateway_log.txt
 	-rm ./tmp/gateway_test.db
