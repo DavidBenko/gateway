@@ -43,8 +43,12 @@ type ProxyEndpointComponent struct {
 	Call                  *ProxyEndpointCall             `json:"call,omitempty"`
 	Calls                 []*ProxyEndpointCall           `json:"calls,omitempty"`
 	Data                  types.JsonText                 `json:"data,omitempty"`
-	SharedComponentID     *int64                         `json:"shared_component_id,omitempty" db:"-"`
-	SharedComponentHandle *ProxyEndpointComponent        `json:"-" db:"-"`
+
+	SharedComponentID     *int64                  `json:"shared_component_id,omitempty" db:"-"`
+	SharedComponentHandle *ProxyEndpointComponent `json:"-" db:"-"`
+
+	// ExportSharedComponentID stores any SharedComponentID for API export.
+	ExportSharedComponentIndex *int `json:"shared_component_index,omitempty" db:"-"`
 
 	// TypeDiscriminator can be "standard" or "shared" to indicate whether
 	// the component has a synthetic reference to a shared component.

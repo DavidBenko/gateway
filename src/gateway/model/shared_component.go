@@ -11,7 +11,7 @@ type SharedComponent struct {
 	ProxyEndpointComponent
 
 	// ID overrides ProxyEndpointComponent's ID field.
-	ID int64 `json:"id" db:"id"`
+	ID int64 `json:"id,omitempty" db:"id"`
 
 	AccountID int64 `json:"-"`
 	UserID    int64 `json:"-"`

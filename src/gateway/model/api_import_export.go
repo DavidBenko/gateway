@@ -65,18 +65,18 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		return nil, aperrors.NewWrapped("Fetching remote endpoints", err)
 	}
 	remoteEndpointsIndexMap := make(map[int64]int)
-	environmentDataIndexMap, environmentDataIndex := make(map[int64]int), 1
+	environmentDataIndexMap := make(map[int64]int)
 	for index, endpoint := range api.RemoteEndpoints {
 		remoteEndpointsIndexMap[endpoint.ID] = index + 1
 		endpoint.APIID = 0
 		endpoint.ID = 0
-		for _, envData := range endpoint.EnvironmentData {
+		for envIndex, envData := range endpoint.EnvironmentData {
 			envData.ExportEnvironmentIndex = environmentsIndexMap[envData.EnvironmentID]
 			envData.EnvironmentID = 0
 			envData.Links = nil
-			environmentDataIndexMap[envData.ID] = environmentDataIndex
-			environmentDataIndex++
+			environmentDataIndexMap[envData.ID] = envIndex + 1
 			envData.ID = 0
+			envData.RemoteEndpointID = 0
 		}
 		if endpoint.Soap != nil && endpoint.Soap.Wsdl != "" {
 			if err := endpoint.encodeWsdlForExport(); err != nil {
@@ -91,19 +91,50 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		}
 	}
 
+	sharedComponents, err := AllSharedComponentsForAPIIDAndAccountID(
+		db, id, accountID,
+	)
+	if err != nil {
+		return nil, aperrors.NewWrapped("fetching shared components", err)
+	}
+	sharedComponentIndexMap := make(map[int64]int)
+	for index, sh := range sharedComponents {
+		sh.APIID = 0
+		sh.ProxyEndpointComponentReferenceID = nil
+		sh.ProxyEndpointComponent.ID = 0
+		// Store the 1-indexed number of the SharedComponent.
+		sharedComponentIndexMap[sh.ID] = index + 1
+		sh.ID = 0
+
+		stripTransformationIDs(sh.BeforeTransformations)
+		stripTransformationIDs(sh.AfterTransformations)
+
+		for _, call := range sh.AllCalls() {
+			call.ID = 0
+			call.RemoteEndpoint = nil
+			stripTransformationIDs(call.BeforeTransformations)
+			stripTransformationIDs(call.AfterTransformations)
+			call.ExportRemoteEndpointIndex =
+				remoteEndpointsIndexMap[call.RemoteEndpointID]
+			call.RemoteEndpointID = 0
+		}
+	}
+	api.SharedComponents = sharedComponents
+
 	// Very much room for optimization
 	proxyEndpointsIndexMap := make(map[int64]int)
 	api.ProxyEndpoints, err = AllProxyEndpointsForAPIIDAndAccountID(db, id, accountID)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoints", err)
 	}
-	for index, endpoint := range api.ProxyEndpoints {
-		api.ProxyEndpoints[index], err = FindProxyEndpointForAPIIDAndAccountID(db, endpoint.ID, id, accountID)
+	for i, ep := range api.ProxyEndpoints {
+		endpoint, err := FindProxyEndpointForAPIIDAndAccountID(
+			db, ep.ID, id, accountID,
+		)
 		if err != nil {
 			return nil, aperrors.NewWrapped("Fetching proxy endpoint", err)
 		}
-		endpoint = api.ProxyEndpoints[index]
-		proxyEndpointsIndexMap[endpoint.ID] = index + 1
+		proxyEndpointsIndexMap[endpoint.ID] = i + 1
 		endpoint.APIID = 0
 		endpoint.ID = 0
 		if endpoint.EndpointGroupID != nil {
@@ -112,18 +143,29 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		}
 		endpoint.ExportEnvironmentIndex = environmentsIndexMap[endpoint.EnvironmentID]
 		endpoint.EnvironmentID = 0
-		for _, component := range endpoint.Components {
-			component.ID = 0
-			stripTransformationIDs(component.BeforeTransformations)
-			stripTransformationIDs(component.AfterTransformations)
-			for _, call := range component.AllCalls() {
+		for _, c := range endpoint.Components {
+			c.ID = 0
+
+			if id := c.SharedComponentID; id != nil {
+				index := sharedComponentIndexMap[*id]
+				c.ExportSharedComponentIndex = &index
+				c.SharedComponentID = nil
+			}
+
+			stripTransformationIDs(c.BeforeTransformations)
+			stripTransformationIDs(c.AfterTransformations)
+			for _, call := range c.AllCalls() {
 				call.ID = 0
+				call.RemoteEndpoint = nil
 				stripTransformationIDs(call.BeforeTransformations)
 				stripTransformationIDs(call.AfterTransformations)
 				call.ExportRemoteEndpointIndex = remoteEndpointsIndexMap[call.RemoteEndpointID]
 				call.RemoteEndpointID = 0
 			}
+			c.ProxyEndpointComponentReferenceID = nil
 		}
+
+		api.ProxyEndpoints[i] = endpoint
 	}
 
 	schema := ProxyEndpointSchema{AccountID: accountID, APIID: id}
@@ -230,12 +272,55 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		}
 	}
 
+	// Map 1-indexed new SharedComponent indices to new SharedComponent IDs.
+	sharedComponentsIDMap := make(map[int]int64)
+	for index, sh := range a.SharedComponents {
+		sh.AccountID, sh.UserID, sh.APIID = a.AccountID, a.UserID, a.ID
+
+		for _, call := range sh.AllCalls() {
+			call.RemoteEndpointID = remoteEndpointsIDMap[call.ExportRemoteEndpointIndex]
+			call.ExportRemoteEndpointIndex = 0
+		}
+
+		if errs := sh.Validate(true); !errs.Empty() {
+			var err error
+			if base, ok := errs["base"]; ok {
+				err = fmt.Errorf(
+					"base validation error(s): %v", base,
+				)
+			} else {
+				err = fmt.Errorf(
+					"validation error(s): %v", errs,
+				)
+			}
+			return aperrors.NewWrapped(
+				"Inserting shared component", err,
+			)
+		}
+
+		// Map API export IDs to new IDs.
+		if err := sh.Insert(tx); err != nil {
+			return aperrors.NewWrapped("Inserting shared component", err)
+		}
+
+		sharedComponentsIDMap[index+1] = sh.ID
+	}
+
 	proxyEndpointsIDMap := make(map[int]int64)
 	for index, endpoint := range a.ProxyEndpoints {
-		for _, component := range endpoint.Components {
-			for _, call := range component.AllCalls() {
+		for _, c := range endpoint.Components {
+			for _, call := range c.AllCalls() {
 				call.RemoteEndpointID = remoteEndpointsIDMap[call.ExportRemoteEndpointIndex]
 				call.ExportRemoteEndpointIndex = 0
+			}
+			if id := c.ExportSharedComponentIndex; id != nil {
+				// If there is a non-nil SharedComponent index
+				// export, assign the newly inserted
+				// SharedComponent's ID here and nil out the
+				// exported index.
+				newID := sharedComponentsIDMap[*id]
+				c.SharedComponentID = &newID
+				c.ExportSharedComponentIndex = nil
 			}
 		}
 
@@ -251,8 +336,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		endpoint.AccountID = a.AccountID
 		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
-		err = endpoint.Insert(tx)
-		if err != nil {
+		if err := endpoint.Insert(tx); err != nil {
 			return aperrors.NewWrapped("Inserting proxy endpoint", err)
 		}
 		proxyEndpointsIDMap[index+1] = endpoint.ID
@@ -285,5 +369,6 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 			return aperrors.NewWrapped("Inserting scratch pad", err)
 		}
 	}
+
 	return nil
 }
