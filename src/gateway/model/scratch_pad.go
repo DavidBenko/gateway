@@ -52,6 +52,12 @@ func (s *ScratchPad) All(db *apsql.DB) ([]*ScratchPad, error) {
 		} else {
 			err = db.Select(&pads, db.SQL("scratch_pads/all_api"), s.APIID, s.AccountID)
 		}
+		for _, pad := range pads {
+			pad.AccountID = s.AccountID
+			pad.UserID = s.UserID
+			pad.APIID = s.APIID
+			pad.RemoteEndpointID = s.RemoteEndpointID
+		}
 	} else {
 		err = errors.New("APIID and AccountID required for All")
 	}
@@ -59,7 +65,12 @@ func (s *ScratchPad) All(db *apsql.DB) ([]*ScratchPad, error) {
 }
 
 func (s *ScratchPad) Find(db *apsql.DB) (*ScratchPad, error) {
-	pad := ScratchPad{}
+	pad := ScratchPad{
+		AccountID:        s.AccountID,
+		UserID:           s.UserID,
+		APIID:            s.APIID,
+		RemoteEndpointID: s.RemoteEndpointID,
+	}
 	err := db.Get(&pad, db.SQL("scratch_pads/find"), s.ID,
 		s.EnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
 	return &pad, err
