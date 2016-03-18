@@ -429,8 +429,11 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 
 func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	args := []interface{}{}
-	query := `SELECT
-		remote_endpoints.api_id as api_id,
+	query := `SELECT`
+	if accountID != 0 {
+		query += ` apis.account_id as account_id,`
+	}
+	query += ` remote_endpoints.api_id as api_id,
 	  remote_endpoints.id as id,
 	  remote_endpoints.name as name,
 		remote_endpoints.codename as codename,
