@@ -68,6 +68,10 @@ type RemoteEndpoint struct {
 	Soap *SoapRemoteEndpoint `json:"-"`
 }
 
+type RemoteEndpointEnvironmentDataLinks struct {
+	ScratchPads string `json:"scratch_pads"`
+}
+
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
 	// TODO: add type to remote_endpoint_environment_data table
@@ -76,11 +80,17 @@ type RemoteEndpointEnvironmentData struct {
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
-	Links            struct {
-		ScratchPads string `json:"scratch_pads"`
-	} `json:"links"`
+
+	Links *RemoteEndpointEnvironmentDataLinks `json:"links,omitempty"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
+}
+
+func (e *RemoteEndpointEnvironmentData) AddLinks(apiID int64) {
+	e.Links = &RemoteEndpointEnvironmentDataLinks{
+		ScratchPads: fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
+			apiID, e.RemoteEndpointID, e.ID),
+	}
 }
 
 // HTTPRequest encapsulates a request made over HTTP(s).
@@ -507,8 +517,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.Links.ScratchPads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
-			apiID, envData.RemoteEndpointID, envData.ID)
+		envData.AddLinks(apiID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
@@ -738,6 +747,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
+		envData.AddLinks(e.APIID)
 	}
 
 	if err := e.WriteScript(); err != nil {
@@ -889,6 +899,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 				return err
 			}
 		}
+		envData.AddLinks(e.APIID)
 	}
 
 	done := func() error {
