@@ -1,6 +1,6 @@
 # anypresence/gateway:cross-compilation
-# version 0.0.1
-FROM golang:1.5.1
+# version 5.0.0
+FROM golang:1.6.0
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
 # Install dependencies
