@@ -73,6 +73,7 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		for _, envData := range endpoint.EnvironmentData {
 			envData.ExportEnvironmentIndex = environmentsIndexMap[envData.EnvironmentID]
 			envData.EnvironmentID = 0
+			envData.Links = nil
 			environmentDataIndexMap[envData.ID] = environmentDataIndex
 			environmentDataIndex++
 			envData.ID = 0
