@@ -865,10 +865,10 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 
 	var existingEnvIDs []int64
 	err = tx.Select(&existingEnvIDs,
-		`SELECT environment_id
+		`SELECT id
 		FROM remote_endpoint_environment_data
 		WHERE remote_endpoint_id = ?
-		ORDER BY environment_id ASC;`,
+		ORDER BY id ASC;`,
 		e.ID)
 	if err != nil {
 		return err
@@ -881,14 +881,14 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		}
 
 		var found bool
-		existingEnvIDs, found = popID(envData.EnvironmentID, existingEnvIDs)
+		existingEnvIDs, found = popID(envData.ID, existingEnvIDs)
 		if found {
 			_, err = tx.Exec(
 				`UPDATE remote_endpoint_environment_data
-				  SET data = ?
+				  SET data = ?, environment_id = ?
 				WHERE remote_endpoint_id = ?
-				  AND environment_id = ?;`,
-				encodedData, e.ID, envData.EnvironmentID)
+				  AND id = ?;`,
+				encodedData, envData.EnvironmentID, e.ID, envData.ID)
 			if err != nil {
 				return err
 			}
@@ -920,7 +920,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	idQuery := apsql.NQs(len(existingEnvIDs))
 	_, err = tx.Exec(
 		`DELETE FROM remote_endpoint_environment_data
-		WHERE remote_endpoint_id = ? AND environment_id IN (`+idQuery+`);`,
+		WHERE remote_endpoint_id = ? AND id IN (`+idQuery+`);`,
 		args...)
 
 	if err != nil {
