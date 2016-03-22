@@ -13,6 +13,7 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	sql "gateway/sql"
+	"gateway/store"
 
 	"github.com/robertkrimen/otto"
 
@@ -25,6 +26,7 @@ type Core struct {
 	DBPools    *pools.Pools
 	OwnDb      *sql.DB // in-application datastore
 	SoapConf   config.Soap
+	Store      store.Store
 }
 
 func (s *Core) PrepareRequest(
@@ -51,6 +53,8 @@ func (s *Core) PrepareRequest(
 		return request.NewSoapRequest(endpoint, data, s.SoapConf, s.OwnDb)
 	case model.RemoteEndpointTypeScript:
 		return request.NewScriptRequest(endpoint, data)
+	case model.RemoteEndpointTypeStore:
+		return request.NewStoreRequest(s.Store, endpoint, data)
 	case model.RemoteEndpointTypeLDAP:
 		r, e := request.NewLDAPRequest(endpoint, data)
 		// cache connections in the connections map for later use within the same proxy endpoint workflow

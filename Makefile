@@ -43,7 +43,7 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
 	go-bindata -o src/gateway/mail/bindata.go -pkg mail $(BINDATA_DEBUG) -prefix "src/gateway/mail/static/" src/gateway/mail/static/...
 
-generate: install_goimports
+generate: install_goimports install_peg
 	go generate gateway/...
 
 DeveloperVersionAccounts = 1
@@ -60,7 +60,7 @@ build: vet assets generate
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
-	docker build -t justapis-ldap test/ldap
+	docker build -t anypresence/justapis-ldap test/ldap
 
 build_race: vet assets generate
 	go build $(LDFLAGS) -race -o ./bin/gateway ./src/gateway/main.go
@@ -154,7 +154,7 @@ test_all: admin assets test test_api test_integration
 test_integration: build test_integration_fast
 
 test_integration_fast: build_tail
-	docker run -p 389:389 -d justapis-ldap > ./tmp/.containerid
+	docker run -p 389:389 -d anypresence/justapis-ldap > ./tmp/.containerid
 	mkdir -p tmp
 	-rm ./tmp/gateway_log.txt
 	-rm ./tmp/gateway_test.db
@@ -210,9 +210,12 @@ vendor_get: vendor_clean
 	github.com/gdamore/mangos \
 	github.com/xeipuuv/gojsonschema \
 	gopkg.in/airbrake/gobrake.v2 \
+	github.com/boltdb/bolt \
 	gopkg.in/tomb.v1 \
 	github.com/hpcloud/tail \
-	github.com/go-ldap/ldap
+	github.com/ory-am/dockertest \
+	github.com/go-ldap/ldap \
+	github.com/pointlander/peg
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
@@ -225,6 +228,9 @@ install_bindata:
 
 install_goimports:
 	if hash goimports 2>/dev/null; then : ; else go install code.google.com/p/go.tools/cmd/goimports/...; fi;
+
+install_peg:
+	if hash peg 2>/dev/null; then : ; else go install github.com/pointlander/peg; fi;
 
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet

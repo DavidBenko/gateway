@@ -164,7 +164,8 @@ func FindAPIForAccountIDForSwagger(db *apsql.DB, id, accountID int64) (*API, err
 		}
 	}
 
-	api.ProxyEndpointSchemas, err = AllProxyEndpointSchemasForAPIIDAndAccountID(db, id, accountID)
+	schema := ProxyEndpointSchema{AccountID: accountID, APIID: id}
+	api.ProxyEndpointSchemas, err = schema.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoint schemas", err)
 	}

@@ -68,6 +68,10 @@ type RemoteEndpoint struct {
 	Soap *SoapRemoteEndpoint `json:"-"`
 }
 
+type RemoteEndpointEnvironmentDataLinks struct {
+	ScratchPads string `json:"scratch_pads"`
+}
+
 // RemoteEndpointEnvironmentData contains per-environment endpoint data
 type RemoteEndpointEnvironmentData struct {
 	// TODO: add type to remote_endpoint_environment_data table
@@ -76,11 +80,17 @@ type RemoteEndpointEnvironmentData struct {
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
-	Links            struct {
-		Pads string `json:"pads"`
-	} `json:"links"`
+
+	Links *RemoteEndpointEnvironmentDataLinks `json:"links,omitempty"`
 
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
+}
+
+func (e *RemoteEndpointEnvironmentData) AddLinks(apiID int64) {
+	e.Links = &RemoteEndpointEnvironmentDataLinks{
+		ScratchPads: fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
+			apiID, e.RemoteEndpointID, e.ID),
+	}
 }
 
 // HTTPRequest encapsulates a request made over HTTP(s).
@@ -112,6 +122,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateHTTP(errors)
 	case RemoteEndpointTypeSoap:
 		e.ValidateSOAP(errors, isInsert)
+	case RemoteEndpointTypeStore:
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
@@ -320,6 +331,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 
 	idQuery := apsql.NQs(len(ids))
 	query := `SELECT
+		apis.account_id as account_id,
 		remote_endpoints.api_id as api_id,
 		remote_endpoints.id as id,
 		remote_endpoints.name as name,
@@ -331,6 +343,7 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 		remote_endpoints.status_message as status_message,
 		soap_remote_endpoints.id as soap_id
 	FROM remote_endpoints
+	JOIN apis ON remote_endpoints.api_id = apis.id
 	LEFT JOIN remote_endpoint_environment_data
 		ON remote_endpoints.id = remote_endpoint_environment_data.remote_endpoint_id
 	 AND remote_endpoint_environment_data.environment_id = ?
@@ -349,6 +362,9 @@ func AllRemoteEndpointsForIDsInEnvironment(db *apsql.DB, ids []int64, environmen
 func newRemoteEndpoint(rowResult map[string]interface{}) *RemoteEndpoint {
 	remoteEndpoint := new(RemoteEndpoint)
 
+	if accountID, ok := rowResult["account_id"].(int64); ok {
+		remoteEndpoint.AccountID = accountID
+	}
 	if apiID, ok := rowResult["api_id"].(int64); ok {
 		remoteEndpoint.APIID = apiID
 	}
@@ -423,8 +439,11 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 
 func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	args := []interface{}{}
-	query := `SELECT
-		remote_endpoints.api_id as api_id,
+	query := `SELECT`
+	if accountID != 0 {
+		query += ` apis.account_id as account_id,`
+	}
+	query += ` remote_endpoints.api_id as api_id,
 	  remote_endpoints.id as id,
 	  remote_endpoints.name as name,
 		remote_endpoints.codename as codename,
@@ -498,8 +517,7 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.Links.Pads = fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
-			apiID, envData.RemoteEndpointID, envData.ID)
+		envData.AddLinks(apiID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
 	return remoteEndpoints, err
@@ -729,6 +747,7 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
+		envData.AddLinks(e.APIID)
 	}
 
 	if err := e.WriteScript(); err != nil {
@@ -846,10 +865,10 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 
 	var existingEnvIDs []int64
 	err = tx.Select(&existingEnvIDs,
-		`SELECT environment_id
+		`SELECT id
 		FROM remote_endpoint_environment_data
 		WHERE remote_endpoint_id = ?
-		ORDER BY environment_id ASC;`,
+		ORDER BY id ASC;`,
 		e.ID)
 	if err != nil {
 		return err
@@ -862,14 +881,14 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 		}
 
 		var found bool
-		existingEnvIDs, found = popID(envData.EnvironmentID, existingEnvIDs)
+		existingEnvIDs, found = popID(envData.ID, existingEnvIDs)
 		if found {
 			_, err = tx.Exec(
 				`UPDATE remote_endpoint_environment_data
-				  SET data = ?
+				  SET data = ?, environment_id = ?
 				WHERE remote_endpoint_id = ?
-				  AND environment_id = ?;`,
-				encodedData, e.ID, envData.EnvironmentID)
+				  AND id = ?;`,
+				encodedData, envData.EnvironmentID, e.ID, envData.ID)
 			if err != nil {
 				return err
 			}
@@ -880,6 +899,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 				return err
 			}
 		}
+		envData.AddLinks(e.APIID)
 	}
 
 	done := func() error {
@@ -900,7 +920,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	idQuery := apsql.NQs(len(existingEnvIDs))
 	_, err = tx.Exec(
 		`DELETE FROM remote_endpoint_environment_data
-		WHERE remote_endpoint_id = ? AND environment_id IN (`+idQuery+`);`,
+		WHERE remote_endpoint_id = ? AND id IN (`+idQuery+`);`,
 		args...)
 
 	if err != nil {

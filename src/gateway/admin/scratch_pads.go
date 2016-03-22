@@ -54,7 +54,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	for _, data := range endpoint.EnvironmentData {
-		if data.ID == pad.RemoteEndpointEnvironmentDataID {
+		if data.ID == pad.EnvironmentDataID {
 			endpoint.SelectedEnvironmentData = &data.Data
 			break
 		}

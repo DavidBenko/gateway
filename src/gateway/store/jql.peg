@@ -1,0 +1,35 @@
+package store
+
+type JQL Peg {
+
+}
+
+e <- sp e1 ( order / limit / offset )* !.
+order <- "order" sp ( cast / path ) ( asc / desc ) sp
+cast <- 'numeric' sp open path close
+asc <- "asc"
+desc <- "desc"
+limit <- "limit" sp value1
+offset <- "offset" sp value1
+e1 <- e2 ( or e2 )*
+e2 <- e3 ( and e3 )*
+e3 <- expression
+    / open e1 close
+expression <- path op value2
+            / boolean sp
+op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
+path <- word ('.' word)* sp
+word <- [[a-z0-9]]+
+value1 <- ( placeholder / whole ) sp
+value2 <- ( placeholder / string / number / boolean / null ) sp
+placeholder <- '$' [0-9]+
+string <- ['] ( !['] [[a-z0-9]] )* [']
+number <- [0-9]+ ('.' [0-9]+)?
+boolean <- 'true' / 'false'
+null <- 'null'
+whole <- [0-9]+
+and <- 'and' sp
+or <- 'or' sp
+open <- '(' sp
+close <- ')' sp
+sp <- ( ' ' / '\t' )*

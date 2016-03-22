@@ -11,13 +11,28 @@ INSERT INTO proxy_endpoint_schemas (
   data
 )
 VALUES (
-  (SELECT id FROM proxy_endpoints WHERE id = ? AND api_id = ?),
+  (SELECT proxy_endpoints.id
+    FROM proxy_endpoints, apis
+    WHERE proxy_endpoints.id = ?
+      AND proxy_endpoints.api_id = ?
+      AND proxy_endpoints.api_id = apis.id
+      AND apis.account_id = ?),
   ?,
-  (SELECT id FROM schemas WHERE id = ? AND api_id = ?),
+  (SELECT schemas.id
+    FROM schemas, apis
+    WHERE schemas.id = ?
+      AND schemas.api_id = ?
+      AND schemas.api_id = apis.id
+      AND apis.account_id = ?),
   ?,
   ?,
   ?,
-  (SELECT id from schemas WHERE id = ? AND api_id = ?),
+  (SELECT schemas.id
+    FROM schemas, apis
+    WHERE schemas.id = ?
+      AND schemas.api_id = ?
+      AND schemas.api_id = apis.id
+      AND apis.account_id = ?),
   ?,
   ?,
   ?

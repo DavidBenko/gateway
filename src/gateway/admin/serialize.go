@@ -77,6 +77,10 @@ func testIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["testID"])
 }
 
+func collectionIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["collectionID"])
+}
+
 func mapFromPath(r *http.Request, object interface{}) {
 	value := reflect.Indirect(reflect.ValueOf(object))
 	typ3 := value.Type()

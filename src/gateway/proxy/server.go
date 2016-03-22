@@ -20,6 +20,7 @@ import (
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
+	"gateway/store"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -41,7 +42,7 @@ type Server struct {
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
+func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	var source proxyDataSource
@@ -60,6 +61,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 			DBPools:    pools,
 			OwnDb:      ownDb,
 			SoapConf:   conf.Soap,
+			Store:      s,
 		},
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,
@@ -74,7 +76,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB) *Server {
 func (s *Server) Run() {
 
 	// Set up admin
-	admin.Setup(s.router, s.OwnDb, s.conf, s.Core)
+	admin.Setup(s.router, s.OwnDb, s.Store, s.conf, s.Core)
 
 	// Set up proxy
 	s.proxyRouter = newProxyRouter(s.OwnDb)

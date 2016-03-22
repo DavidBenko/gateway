@@ -31,6 +31,8 @@ const (
 	RemoteEndpointTypeScript = "script"
 	// RemoteEndpointTypeSoap denotes that a remote endpoint is a SOAP service
 	RemoteEndpointTypeSoap = "soap"
+	// RemoteEndpointTypeStore denotes that a remote endpoint is an Object Store database
+	RemoteEndpointTypeStore = "store"
 	// RemoteEndpointTypeLDAP denotes that a remote endpoint is an LDAP service
 	RemoteEndpointTypeLDAP = "ldap"
 )
@@ -48,6 +50,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeScript:    &RemoteEndpointType{ID: 6, Value: RemoteEndpointTypeScript, Enabled: reConf.ScriptEnabled},
 		RemoteEndpointTypeSoap:      &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
 		RemoteEndpointTypeLDAP:      &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
+		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 	}
 }
 
