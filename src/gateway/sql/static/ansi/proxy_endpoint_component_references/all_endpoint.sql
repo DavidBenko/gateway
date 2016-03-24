@@ -1,4 +1,11 @@
-WITH q AS (
+SELECT id
+  , proxy_endpoint_component_reference_id
+  , conditional
+  , conditional_positive
+  , type
+  , data
+  , type_discriminator
+FROM (
   SELECT
     pc.id AS id
     , cr.id AS proxy_endpoint_component_reference_id
@@ -17,7 +24,7 @@ UNION
     pc.id AS id
     , cr.id AS proxy_endpoint_component_reference_id
     , '' AS conditional
-    , FALSE AS conditional_positive
+    , (1 = 0) AS conditional_positive
     , '' AS type
     , '{}' AS data
     , pc.type_discriminator AS type_discriminator
@@ -26,15 +33,5 @@ UNION
   WHERE pc.id = cr.proxy_endpoint_component_id
     AND pc.type_discriminator = 'shared'
     AND cr.proxy_endpoint_id = ?
-)
-
-SELECT
-  id
-  , proxy_endpoint_component_reference_id
-  , conditional
-  , conditional_positive
-  , type
-  , data
-  , type_discriminator
-FROM q
-ORDER BY q.position ASC;
+) base
+ORDER BY base.position ASC
