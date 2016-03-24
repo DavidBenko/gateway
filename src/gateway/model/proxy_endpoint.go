@@ -57,8 +57,10 @@ func (e *ProxyEndpoint) Validate(isInsert bool) aperrors.Errors {
 			}
 		}
 	}
+	var isComponentInsert bool
 	for i, c := range e.Components {
-		cErrors := c.Validate()
+		isComponentInsert = isInsert || c.ID == 0
+		cErrors := c.Validate(isComponentInsert)
 		if !cErrors.Empty() {
 			errors.Add("components", fmt.Sprintf("%d is invalid: %v", i, cErrors))
 		}
@@ -98,7 +100,7 @@ func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64)
 	return proxyEndpoints, err
 }
 
-// AllActiveProxyEndpointsForRouting returns all proxyEndpoints in an
+// AllProxyEndpointsForRouting returns all proxyEndpoints in an
 // unspecified order, with enough data for routing.
 func AllProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
@@ -106,7 +108,7 @@ func AllProxyEndpointsForRouting(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	return proxyEndpoints, err
 }
 
-// AllActiveProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
+// AllProxyEndpointsForRoutingForAPIID returns all proxyEndpoints for an
 // api in an unspecified order, with enough data for routing.
 func AllProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
@@ -122,7 +124,9 @@ func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID in
 		return nil, err
 	}
 
-	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
+		db, apiID, proxyEndpoint.EnvironmentID, id,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +144,9 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 		return nil, aperrors.NewWrapped("Finding proxy endpoint", err)
 	}
 
-	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEndpointID(db, id)
+	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
+		db, proxyEndpoint.APIID, proxyEndpoint.EnvironmentID, id,
+	)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching components", err)
 	}
@@ -148,25 +154,6 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, id)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching tests", err)
-	}
-
-	var remoteEndpointIDs []int64
-	callsByRemoteEndpointID := make(map[int64][]*ProxyEndpointCall)
-	for _, component := range proxyEndpoint.Components {
-		for _, call := range component.AllCalls() {
-			remoteEndpointIDs = append(remoteEndpointIDs, call.RemoteEndpointID)
-			callsByRemoteEndpointID[call.RemoteEndpointID] = append(callsByRemoteEndpointID[call.RemoteEndpointID], call)
-		}
-	}
-	remoteEndpoints, err := AllRemoteEndpointsForIDsInEnvironment(db,
-		remoteEndpointIDs, proxyEndpoint.EnvironmentID)
-	if err != nil {
-		return nil, aperrors.NewWrapped("Fetching remote endpoints", err)
-	}
-	for _, remoteEndpoint := range remoteEndpoints {
-		for _, call := range callsByRemoteEndpointID[remoteEndpoint.ID] {
-			call.RemoteEndpoint = remoteEndpoint
-		}
 	}
 
 	proxyEndpoint.Environment, err = FindEnvironmentForProxy(db, proxyEndpoint.EnvironmentID)
@@ -272,22 +259,24 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	var validComponentIDs []int64
+	var validReferenceIDs []int64
 	for position, component := range e.Components {
 		if component.ID == 0 {
 			err = component.Insert(tx, e.ID, e.APIID, position)
-			if err != nil {
-				return err
-			}
 		} else {
 			err = component.Update(tx, e.ID, e.APIID, position)
-			if err != nil {
-				return err
-			}
 		}
-		validComponentIDs = append(validComponentIDs, component.ID)
+		if err != nil {
+			return err
+		}
+		validReferenceIDs = append(
+			validReferenceIDs,
+			*component.ProxyEndpointComponentReferenceID,
+		)
 	}
-	err = DeleteProxyEndpointComponentsWithEndpointIDAndNotInList(tx, e.ID, validComponentIDs)
+	err = DeleteProxyEndpointComponentsWithEndpointIDAndRefNotInSlice(
+		tx, e.ID, validReferenceIDs,
+	)
 	if err != nil {
 		return err
 	}

@@ -38,6 +38,7 @@ type API struct {
 	EndpointGroups       []*EndpointGroup       `json:"endpoint_groups,omitempty"`
 	Libraries            []*Library             `json:"libraries,omitempty"`
 	RemoteEndpoints      []*RemoteEndpoint      `json:"remote_endpoints,omitempty"`
+	SharedComponents     []*SharedComponent     `json:"shared_components,omitempty"`
 	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
 	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
 	ScratchPads          []*ScratchPad          `json:"scratch_pads,omitempty"`
@@ -61,6 +62,7 @@ func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 		a.EndpointGroups = other.EndpointGroups
 		a.Libraries = other.Libraries
 		a.RemoteEndpoints = other.RemoteEndpoints
+		a.SharedComponents = other.SharedComponents
 		a.ProxyEndpoints = other.ProxyEndpoints
 	}
 }
@@ -73,6 +75,7 @@ func (a *API) Normalize() {
 	a.EndpointGroups = []*EndpointGroup{}
 	a.Libraries = []*Library{}
 	a.RemoteEndpoints = []*RemoteEndpoint{}
+	a.SharedComponents = []*SharedComponent{}
 	a.ProxyEndpoints = []*ProxyEndpoint{}
 	a.ExportVersion = 0
 }
@@ -106,6 +109,7 @@ func (a *API) Validate(isInsert bool) aperrors.Errors {
 			logreport.Printf("Validation ok!")
 		}
 	}
+
 	return errors
 }
 
@@ -140,7 +144,7 @@ func FindAPIForAccountID(db *apsql.DB, id, accountID int64) (*API, error) {
 	return &api, err
 }
 
-// FindAPIForAccountID returns the api with the id specified.
+// FindAPIForProxy returns the api with the id specified.
 func FindAPIForProxy(db *apsql.DB, id int64) (*API, error) {
 	api := API{}
 	err := db.Get(&api, db.SQL("apis/find_proxy"), id)

@@ -17,6 +17,13 @@ func (e Errors) AddAll(errors Errors) {
 	}
 }
 
+// AddErrors appends all Errors slices in errs to an Errors.
+func (e Errors) AddErrors(errs Errors) {
+	for name, errors := range errs {
+		e[name] = append(e[name], errors...)
+	}
+}
+
 func (e Errors) MoveAllToName(name string) {
 	for key, value := range e {
 		if key == name {
