@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/errors/report"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	"gateway/queue"
@@ -86,8 +87,12 @@ func newPublisher(in chan []byte) *logPublisher {
 						case j.write <- buffer:
 						default:
 							err := errors.New("dropped log message for: " + j.name)
+							// print error to stdout, and then report directly to our error reporter.
+							// we don't want to log (or use logreport which both logs and reports)
+							// because we will potentially compound the problem which will result
+							// in further dropped messages
 							fmt.Printf("[logging] %v\n", err)
-							logreport.Report(err)
+							report.Error(err, nil)
 						}
 					}
 				}

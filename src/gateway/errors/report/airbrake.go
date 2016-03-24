@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -30,6 +31,15 @@ func ConfigureAirbrake(apiKey string, projectID int64, environment string) Repor
 
 	once.Do(func() {
 		ab := gobrake.NewNotifier(projectID, apiKey)
+		// Override Printf function for airbrake notifier.  By default, it uses
+		// log.Printf, which will try to send the logs to elastic search, which will
+		// try to send an airbrake failure if it fails, and we could end up in a
+		// feedback loop.  Using fmt.Printf will log the message to stdout,
+		// while subverting the rest of the logging infrastructure
+		ab.Printf = func(format string, v ...interface{}) {
+			withNewline := fmt.Sprintf("%s\n", format)
+			fmt.Printf(withNewline, v...)
+		}
 		airbrake = &airbrakeReporter{ab: ab}
 		ab.AddFilter(func(notice *gobrake.Notice) *gobrake.Notice {
 			notice.Context["environment"] = environment
