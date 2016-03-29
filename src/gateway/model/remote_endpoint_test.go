@@ -3,25 +3,17 @@ package model_test
 import (
 	"encoding/json"
 	"fmt"
-	"testing"
-
-	"github.com/jmoiron/sqlx/types"
-	jc "github.com/juju/testing/checkers"
-	gc "gopkg.in/check.v1"
 
 	"gateway/db"
 	"gateway/db/mongo"
 	"gateway/db/sql"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
+
+	"github.com/jmoiron/sqlx/types"
+	jc "github.com/juju/testing/checkers"
+	gc "gopkg.in/check.v1"
 )
-
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { gc.TestingT(t) }
-
-type RemoteEndpointSuite struct{}
-
-var _ = gc.Suite(&RemoteEndpointSuite{})
 
 func data() map[string]interface{} {
 	return map[string]interface{}{
@@ -169,21 +161,15 @@ func specs() map[string]db.Specifier {
 	for _, which := range []struct {
 		name string
 		kind string
-	}{{
-		"sqls-simple", model.RemoteEndpointTypeSQLServer,
-	}, {
-		"sqls-complicated", model.RemoteEndpointTypeSQLServer,
-	}, {
-		"pq-simple", model.RemoteEndpointTypePostgres,
-	}, {
-		"pq-complicated", model.RemoteEndpointTypePostgres,
-	}, {
-		"mysql-simple", model.RemoteEndpointTypeMySQL,
-	}, {
-		"mysql-complicated", model.RemoteEndpointTypeMySQL,
-	}, {
-		"mongo-complicated", model.RemoteEndpointTypeMongo,
-	}} {
+	}{
+		{"sqls-simple", model.RemoteEndpointTypeSQLServer},
+		{"sqls-complicated", model.RemoteEndpointTypeSQLServer},
+		{"pq-simple", model.RemoteEndpointTypePostgres},
+		{"pq-complicated", model.RemoteEndpointTypePostgres},
+		{"mysql-simple", model.RemoteEndpointTypeMySQL},
+		{"mysql-complicated", model.RemoteEndpointTypeMySQL},
+		{"mongo-complicated", model.RemoteEndpointTypeMongo},
+	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
 		if err != nil {
@@ -242,7 +228,7 @@ func specs() map[string]db.Specifier {
 	return specs
 }
 
-func (s *RemoteEndpointSuite) TestDBConfig(c *gc.C) {
+func (s *ModelSuite) TestDBConfig(c *gc.C) {
 	for i, t := range []struct {
 		should      string
 		givenConfig string

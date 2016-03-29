@@ -4,6 +4,144 @@ Airborne.configure do |config|
   config.base_url = "http://localhost:5000/admin"
 end
 
+# Add the 'except' method to get a hash less one of its keys.
+class Hash
+  def except(*ks)
+    tap do |h|
+      ks.each { |k| h.delete(k) }
+    end
+  end
+end
+
+def api_export_for(api, version, envs, remote_eps, shared_comps, proxy_eps)
+  index_map = {
+    environments: Hash[envs.collect.with_index(1) { |e, i| [e[:id], i] }],
+    proxy_endpoints:
+     Hash[proxy_eps.collect.with_index(1) { |pe, i| [pe[:id], i] }],
+    remote_endpoints:
+     Hash[remote_eps.collect.with_index(1) { |r, i| [r[:id], i] }],
+    shared_components:
+     Hash[shared_comps.collect.with_index(1) { |sc, i| [sc[:id], i] }],
+    environment_data: Hash[
+     remote_eps.flat_map do |re|
+       re[:environment_data].collect.with_index(1) do |ed, i|
+         [ed[:id], i]
+       end
+     end]
+  }
+
+  strip_call = lambda do |call|
+    unless call[:before].nil?
+      call[:before] = call[:before].collect { |xf| xf.except(:id) }
+    end
+    unless call[:after].nil?
+      call[:after] = call[:after].collect { |xf| xf.except(:id) }
+    end
+
+    call.merge(remote_endpoint_index:
+                index_map[:remote_endpoints][call[:remote_endpoint_id]])
+    .except(:id, :remote_endpoint, :remote_endpoint_id)
+  end
+
+  new_reps = remote_eps.collect do |re|
+    re.merge(id: 0,
+             api_id: 0,
+             environment_data:
+              re[:environment_data].collect.with_index(1) do |ed, i|
+                index_map[:environment_data][ed[:id]] = i
+                ed.merge(environment_index:
+                          index_map[:environments][ed[:environment_id]],
+                         remote_endpoint_id: 0)
+                  .except(:id, :environment_id, :links)
+              end)
+    .except(:id, :api_id)
+  end
+
+  new_shared_comps = shared_comps.collect do |sc|
+    unless sc[:before].nil?
+      sc[:before] = sc[:before].collect { |xf| xf.except(:id) }
+    end
+    unless sc[:after].nil?
+      sc[:after] = sc[:after].collect { |xf| xf.except(:id) }
+    end
+
+    sc[:call].nil? || sc[:call] = strip_call.call(sc[:call])
+    sc[:calls].nil? || sc[:calls] = sc[:calls].map(&strip_call)
+
+    sc.except(:id,
+              :api_id,
+              :proxy_endpoint_component_id,
+              :proxy_endpoint_component_reference_id)
+  end
+
+  new_proxy_eps = proxy_eps.collect do |pe|
+    new_comps = pe[:components].collect do |comp|
+      unless comp[:before].nil?
+        comp[:before] = comp[:before].collect { |xf| xf.except(:id) }
+      end
+      unless comp[:after].nil?
+        comp[:after] = comp[:after].collect { |xf| xf.except(:id) }
+      end
+
+      comp[:call].nil? || comp[:call] = strip_call.call(comp[:call])
+      comp[:calls].nil? || comp[:calls] = comp[:calls].collect(&strip_call)
+
+      unless comp[:shared_component_id].nil?
+        comp[:shared_component_index] =
+         index_map[:shared_components][comp[:shared_component_id]]
+      end
+
+      comp.except(:id,
+                  :proxy_endpoint_component_id,
+                  :proxy_endpoint_component_reference_id,
+                  :shared_component_id)
+    end
+
+    pe.merge(environment_index: index_map[:environments][pe[:environment_id]],
+             components: new_comps)
+    .except(:id, :api_id, :environment_id)
+  end
+
+  api.merge(export_version: version,
+            remote_endpoints: new_reps,
+            environments: [envs.collect { |e| e.except(:api_id, :id) },
+                           fixtures[:environments][:development]].flatten,
+            shared_components: new_shared_comps,
+            proxy_endpoints: new_proxy_eps,
+            base_url: '')
+    .except(:id)
+end
+
+def shared_component_for(api_id, remote_id, acc_id, keyword)
+  sh = fixtures[:shared_components][keyword]
+
+  # Insert remote_id in each call as remote_endpoint_id.
+  if !sh[:call].nil? then
+    sh[:call][:remote_endpoint_id] = remote_id
+  elsif !sh[:calls].nil? then
+    sh[:calls].each do |call|
+      call[:remote_endpoint_id] = remote_id
+    end
+  end
+
+  # Insert remote_endpoint_id, api_id, and account_id for the shared_component.
+  return sh.merge({
+    api_id:             api_id,
+    remote_endpoint_id: remote_id,
+    account_id:         acc_id,
+  })
+end
+
+def proxy_endpoint_for(api_id, env_id, remote_id, acc_id, components, keyword)
+  fixtures[:proxy_endpoints][keyword].merge({
+    api_id:             api_id,
+    environment_id:     env_id,
+    remote_endpoint_id: remote_id,
+    account_id:         acc_id,
+    components:         components,
+  })
+end
+
 def clear_db!
   get "/accounts"
   json_body[:accounts].each do |account|
@@ -31,6 +169,16 @@ def clear_apis!
   end
 end
 
+def clear_proxy_endpoints!
+  get "/apis"
+  json_body[:apis].each do |api|
+    get "/apis/#{api[:id]}/proxy_endpoints"
+    json_body[:proxy_endpoints].each do |shared|
+      delete "/apis/#{api[:id]}/proxy_endpoints/#{shared[:id]}"
+    end
+  end
+end
+
 def login(email, pw)
   post "/sessions", {email: email, password: pw}
   expect_status(200)
@@ -43,38 +191,248 @@ def logout!
 end
 
 def fixtures
-  {
+  fixts = {
     accounts: {
-      lulz: { name: "LulzCorp" },
-      foo:  { name: "Foo Corp" },
-      bar:  { name: "Bar Corp" },
+      lulz: { name: 'LulzCorp' },
+      foo:  { name: 'Foo Corp' },
+      bar:  { name: 'Bar Corp' },
     },
     users: {
-      geff:  { name: "Geff",  email: "g@ffery.com", password: "password", password_confirmation: "password", admin: true, confirmed: true },
-      brain: { name: "Brain", email: "br@in.com",   password: "password", password_confirmation: "password", confirmed: true },
-      poter: { name: "Poter", email: "p@ter.com",   password: "password", password_confirmation: "password", confirmed: true },
+      geff:  { name: 'Geff',  email: 'g@ffery.com', password: 'password', password_confirmation: 'password', admin: true, confirmed: true },
+      brain: { name: 'Brain', email: 'br@in.com',   password: 'password', password_confirmation: 'password', confirmed: true },
+      poter: { name: 'Poter', email: 'p@ter.com',   password: 'password', password_confirmation: 'password', confirmed: true },
+    },
+    environments: {
+      basic: {
+        name: 'Basic',
+        description: 'A basic environment',
+        data: {method: 'POST'},
+        session_name: 'session',
+        session_type: 'client',
+        session_auth_key: 'auth-key',
+        session_encryption_key: 'encryption-key',
+        session_auth_key_rotate: '???',
+        session_encryption_key_rotate: '!!!',
+        show_javascript_errors: true,
+      },
+      development: {
+        name: 'Development',
+        description: '',
+        data: nil,
+        session_type: 'client',
+        session_header: 'X-Session-Id',
+        session_name: '',
+        session_auth_key: '',
+        session_encryption_key: '',
+        session_auth_key_rotate: '',
+        session_encryption_key_rotate: '',
+        show_javascript_errors: false
+      }
+    },
+    environment_data: {
+      basic: {
+        name: 'Basic',
+        description: 'A basic environment.',
+        data: {method: 'POST'},
+        type: 'http',
+        environment_id: 1,
+        session_name: 'session',
+        session_auth_key: 'auth-key',
+        session_encryption_key: 'encryption-key',
+        session_auth_key_rotate: '???',
+        session_encryption_key_rotate: '!!!',
+        show_javascript_errors: true,
+      },
+    },
+    transformations: {
+      empty: {
+        type: 'js',
+        data: '',
+      },
+      basic: {
+        type: 'js',
+        data: 'some_basic_javascript();',
+      },
+      normal: {
+        type: 'js',
+        data: 'some_normal_javascript();',
+      },
     },
     apis: {
       widgets: {
-        name: "Widgets",
-        description: "Lots of widgets here",
-        cors_allow_origin: "*",
-        cors_allow_headers: "content-type, accept",
+        name: 'Widgets',
+        description: 'Lots of widgets here',
+        cors_allow_origin: '*',
+        cors_allow_headers: 'content-type, accept',
         cors_allow_credentials: true,
-        cors_request_headers: "*",
+        cors_request_headers: '*',
         cors_max_age: 600
       },
       gadgets: {
-        name: "Gadgets",
-        description: "No widgets",
-        cors_allow_origin: "*",
-        cors_allow_headers: "content-type, accept",
+        name: 'Gadgets',
+        description: 'No widgets',
+        cors_allow_origin: '*',
+        cors_allow_headers: 'content-type, accept',
         cors_allow_credentials: true,
-        cors_request_headers: "*",
+        cors_request_headers: '*',
         cors_max_age: 600
       },
-    }
+    },
+    components: {
+      simple: {
+        conditional: 'var foo = function () {\n\n};',
+        conditional_positive: true,
+        type: 'js',
+        data: 'code string',
+      },
+    },
   }
+
+  fixts[:remote_endpoints] = {
+    basic: {
+      name: 'Basic',
+      codename: 'basic',
+      description: 'A simple remote endpoint.',
+      type: 'http',
+      data: {
+        method:'GET',
+        url:'http://localhost:8080',
+        body:'',
+        headers: { a: 2 },
+        query: { b: 'c' },
+      },
+    },
+  }
+
+  fixts[:calls] = {
+    basic_notrans: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:empty],
+      ],
+      after: [
+        fixts[:transformations][:empty],
+      ],
+    },
+    basic: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+    },
+    normal: {
+      endpoint_name_override: '',
+      conditional: 'something conditional',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+    },
+  }
+
+  fixts[:shared_components] = {
+    single: {
+      name: 'Ordinary single component',
+      description: 'An utterly unremarkable shared_component',
+      type: 'single',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      call: fixts[:calls][:basic],
+      data: {},
+    },
+    single_notrans: {
+      name: 'Single notrans',
+      description: 'A shared_component without transformations',
+      type: 'single',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:empty],
+      ],
+      after: [
+        fixts[:transformations][:empty],
+      ],
+      call: fixts[:calls][:basic_notrans],
+      data: {},
+    },
+    multi: {
+      name: 'Less Ordinary multi component',
+      description: 'A somewhat less ordinary shared_component',
+      type: 'multi',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      calls: [
+        fixts[:calls][:basic],
+        fixts[:calls][:normal],
+      ],
+    },
+    js: {
+      name: 'Javascripty',
+      description: 'A JavaScripty shared_component',
+      type: 'multi',
+      conditional: 'x == 5;',
+      conditional_positive: true,
+      before: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      after: [
+        fixts[:transformations][:basic],
+        fixts[:transformations][:normal],
+      ],
+      calls: [
+        fixts[:calls][:basic],
+        fixts[:calls][:normal],
+      ],
+    },
+  }
+
+  fixts[:proxy_endpoints] = {
+    simple: {
+      name: 'Simple Proxy',
+      description: 'A simple Proxy Endpoint',
+      active: true,
+      cors_enabled: true,
+      routes: [{
+        path: '/proxy',
+        methods: ['GET'],
+      }],
+      components: [fixts[:components][:simple]],
+      tests: [],
+    },
+  }
+
+  return fixts
 end
 
 class Hash

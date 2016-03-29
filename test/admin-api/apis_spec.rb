@@ -13,15 +13,30 @@ end
 
 shared_examples "a valid api" do
   it { expect_status(200) }
-  it { expect_json_types("api", {id: :int, 
+  it { expect_json_types("api", {id: :int,
                                  name: :string,
-                                 description: :string, 
+                                 description: :string,
                                  cors_allow_origin: :string,
                                  cors_allow_headers: :string,
                                  cors_allow_credentials: :boolean,
                                  cors_request_headers: :string,
                                  cors_max_age: :int
                                  })}
+end
+
+shared_examples 'a valid api export' do
+  it { expect_status(200) }
+  it { expect_json_types('api', name: :string,
+                                description: :string,
+                                cors_allow_origin: :string,
+                                cors_allow_headers: :string,
+                                cors_allow_credentials: :boolean,
+                                cors_request_headers: :string,
+                                cors_max_age: :int,
+                                environments: :array,
+                                remote_endpoints: :array,
+                                shared_components: :array,
+                                proxy_endpoints: :array) }
 end
 
 describe "apis" do
@@ -161,6 +176,140 @@ describe "apis" do
         end
 
         it_behaves_like "a valid api"
+      end
+    end
+
+    describe 'import / export' do
+      context 'with valid API already created' do
+        before(:all) do
+          clear_apis!
+
+          # Post a new API.
+          post '/apis', api: fixtures[:apis][:widgets]
+          expect_status 200
+          @api = json_body[:api]
+
+          # Post an environment to the new API.
+          post "/apis/#{@api[:id]}/environments",
+               environment: fixtures[:environments][:basic]
+          expect_status(200)
+          env = json_body[:environment]
+
+          # Populate the environment_id field of this environment_data.
+          env_data = fixtures[:environment_data][:basic].merge(
+            environment_id: env[:id]
+          )
+
+          # Set it as the environment_data for the remote endpoint.
+          re = fixtures[:remote_endpoints][:basic].merge(
+            environment_data: [env_data]
+          )
+
+          # Post the new remote endpoint.
+          post "/apis/#{@api[:id]}/remote_endpoints",
+               remote_endpoint: re
+          expect_status(200)
+          remote_endpoint = json_body[:remote_endpoint]
+
+          # Post a new Shared Component.
+          post "/apis/#{@api[:id]}/shared_components",
+               shared_component: shared_component_for(
+                 @api_id,
+                 remote_endpoint[:id],
+                 @geff[:id],
+                 :single
+               )
+          expect_status(200)
+          shared_component = json_body[:shared_component]
+
+          # Post a new Proxy Endpoint.
+          post "/apis/#{@api[:id]}/proxy_endpoints",
+               proxy_endpoint: proxy_endpoint_for(
+                 @api[:id],
+                 env[:id],
+                 remote_endpoint[:id],
+                 @geff[:id],
+                 [shared_component_id: shared_component[:id]],
+                 :simple
+               )
+          expect_status(200)
+          proxy_endpoint = json_body[:proxy_endpoint]
+
+          @expect_api_export = api_export_for(@api, 1,
+                                              [env],
+                                              [remote_endpoint],
+                                              [shared_component],
+                                              [proxy_endpoint])
+
+          get "/apis/#{@api[:id]}/export"
+          expect_status(200)
+          @api_json = json_body[:api]
+          expect_json('api', @expect_api_export)
+        end
+
+        it_behaves_like 'a valid api export'
+
+        it 'imports a good export without a problem' do
+          # Wipe the stored API.
+          clear_apis!
+
+          # Try to import the exported API.
+          post '/apis', api: @api_json
+          expect_status(200)
+
+          # Note that we expect a new ID and base URL.
+          expect_json('api', @api.merge(id: json_body[:api][:id],
+                                        base_url: json_body[:api][:base_url]))
+        end
+
+        it 'fails to import an export with the wrong export version' do
+          # Wipe the stored API.
+          clear_apis!
+
+          # Try to import the exported API.
+          post '/apis', api: @api_json.merge(export_version: 2)
+          expect_status(500)
+
+          expect_json('error', 'Server error')
+        end
+
+        it 'fails to import a bad export' do
+          # Wipe the stored API.
+          clear_apis!
+
+          bad_env_data = @api_json[:remote_endpoints][0][:environment_data][0]
+                         .merge(environment_id:
+                                 [@api_json[:remote_endpoints][0][
+                                            :environment_data][0][
+                                            :environment_id]])
+
+          bad_re = @api_json[:remote_endpoints][0].merge(
+            environment_data: bad_env_data)
+
+          # Try to import the exported API.
+          post '/apis', api: @api_json.merge(remote_endpoints: [bad_re])
+          expect_status(400)
+
+          expect_json('error', 'json: cannot unmarshal object into Go value ' \
+                               'of type []*model.RemoteEndpointEnvironmentData')
+        end
+
+        it 'fails to import an export with invalid shared components' do
+          # Wipe the stored API.
+          clear_apis!
+
+          bad_sh_c = @api_json[:shared_components][0].merge(
+            call: @api_json[:shared_components][0][:call].merge(
+              remote_endpoint_index: 0))
+
+          # Try to import the exported API.
+          post '/apis', api: @api_json.merge(
+            shared_components: [bad_sh_c])
+
+          expect_status(500)
+
+          expect_json('error', 'Server error')
+        end
       end
     end
 

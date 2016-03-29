@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"gateway/config"
@@ -19,7 +20,7 @@ import (
 
 const (
 	soapRemoteEndpoints = "soap_remote_endpoints"
-	filePrefix          = "file://"
+	filePrefix          = "file:///"
 )
 
 // SoapRemoteEndpoint contains attributes for a remote endpoint of type Soap
@@ -135,7 +136,7 @@ func (s *SoapRemoteEndpoint) JarExists() (bool, error) {
 		return false, err
 	}
 	if strings.HasPrefix(jarURL, filePrefix) {
-		jarURL = jarURL[len(filePrefix):]
+		jarURL = filepath.FromSlash(jarURL[len(filePrefix):])
 	}
 	if _, err := os.Stat(jarURL); os.IsNotExist(err) {
 		return false, nil

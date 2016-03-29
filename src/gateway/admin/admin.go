@@ -104,6 +104,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
 	scratchPadController := &MetaScratchPadsController{ScratchPadsController{base}, c}
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
+	RouteResource(&SharedComponentsController{base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)

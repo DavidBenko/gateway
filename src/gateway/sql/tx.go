@@ -111,8 +111,12 @@ func (tx *Tx) TopTag() string {
 // (in memory on a single single box, to be used for development only), whereas
 //  Postgres uses its NOTIFY command and triggers on commit for database-based
 // listeners.
-func (tx *Tx) Notify(table string, accountID, userID, apiID, proxyEndpointID, id int64,
-	event NotificationEventType, messages ...interface{}) error {
+func (tx *Tx) Notify(
+	table string,
+	accountID, userID, apiID, proxyEndpointID, id int64,
+	event NotificationEventType,
+	messages ...interface{},
+) error {
 	n := Notification{
 		Table:           table,
 		AccountID:       accountID,

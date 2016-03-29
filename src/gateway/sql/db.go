@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 10
+const currentVersion = 11
 
 type driverType string
 
@@ -59,70 +59,30 @@ func (db *DB) UpToDate() bool {
 // Migrate migrates the database to the current version
 func (db *DB) Migrate() error {
 	version, err := db.CurrentVersion()
-
 	if err != nil {
 		if err = setupSchemaTable(db); err != nil {
 			return fmt.Errorf("Could not create schema table: %v", err)
 		}
 	}
 
-	if version < 1 {
-		if err = migrateToV1(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v1: %v", err)
-		}
+	migrations := []func(*DB) error{
+		migrateToV1,
+		migrateToV2,
+		migrateToV3,
+		migrateToV4,
+		migrateToV5,
+		migrateToV6,
+		migrateToV7,
+		migrateToV8,
+		migrateToV9,
+		migrateToV10,
+		migrateToV11,
 	}
 
-	if version < 2 {
-		if err = migrateToV2(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v2: %v", err)
-		}
-	}
-
-	if version < 3 {
-		if err = migrateToV3(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v3: %v", err)
-		}
-	}
-
-	if version < 4 {
-		if err = migrateToV4(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v4: %v", err)
-		}
-	}
-
-	if version < 5 {
-		if err = migrateToV5(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v5: %v", err)
-		}
-	}
-
-	if version < 6 {
-		if err = migrateToV6(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v6: %v", err)
-		}
-	}
-
-	if version < 7 {
-		if err = migrateToV7(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v7: %v", err)
-		}
-	}
-
-	if version < 8 {
-		if err = migrateToV8(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v8: %v", err)
-		}
-	}
-
-	if version < 9 {
-		if err = migrateToV9(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v9: %v", err)
-		}
-	}
-
-	if version < 10 {
-		if err = migrateToV10(db); err != nil {
-			return fmt.Errorf("Could not migrate to schema v10: %v", err)
+	for i := version; i < currentVersion; i++ {
+		// Note that i = 3 is 4th migration, V4, etc.
+		if err = migrations[i](db); err != nil {
+			return fmt.Errorf("Could not migrate to schema v%d: %v", i+1, err)
 		}
 	}
 
