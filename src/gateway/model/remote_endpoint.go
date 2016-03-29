@@ -133,6 +133,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		}
 	case RemoteEndpointTypeLDAP:
 		e.ValidateLDAP(errors)
+	case RemoteEndpointTypePush:
+		e.ValidatePush(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -286,6 +288,31 @@ func (e *RemoteEndpoint) ValidateLDAP(errors aperrors.Errors) {
 		return
 	}
 	e.Data = data
+}
+
+func (e *RemoteEndpoint) ValidatePush(errors aperrors.Errors) {
+	push := &re.Push{}
+	if err := json.Unmarshal(e.Data, push); err != nil {
+		errors.Add("push_platforms", fmt.Sprintf("error in push config: %s", err))
+		return
+	}
+	if errs := push.Validate(); errs != nil {
+		errs.MoveAllToName("push_platforms")
+		errors.AddAll(errs)
+	}
+
+	for _, environment := range e.EnvironmentData {
+		epush := &re.Push{}
+		if err := json.Unmarshal(environment.Data, epush); err != nil {
+			errors.Add("push_platforms", fmt.Sprintf("error in push config: %s", err))
+			return
+		}
+		epush.UpdateWith(push)
+		if errs := epush.Validate(); errs != nil {
+			errs.MoveAllToName("push_platforms")
+			errors.AddAll(errs)
+		}
+	}
 }
 
 // ValidateFromDatabaseError translates possible database constraint errors
@@ -580,7 +607,9 @@ func DeleteRemoteEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID
 	}
 	endpoint := endpoints[0]
 	var msg interface{}
-	if endpoint.Type != RemoteEndpointTypeHTTP && endpoint.Type != RemoteEndpointTypeSoap {
+	if endpoint.Type != RemoteEndpointTypeHTTP &&
+		endpoint.Type != RemoteEndpointTypeSoap &&
+		endpoint.Type != RemoteEndpointTypePush {
 		conf, err := endpoint.DBConfig()
 		switch err {
 		case nil:
@@ -825,7 +854,10 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
-	if e.Type != RemoteEndpointTypeHTTP && e.Type != RemoteEndpointTypeSoap && e.Type != RemoteEndpointTypeLDAP {
+	if e.Type != RemoteEndpointTypeHTTP &&
+		e.Type != RemoteEndpointTypeSoap &&
+		e.Type != RemoteEndpointTypeLDAP &&
+		e.Type != RemoteEndpointTypePush {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:

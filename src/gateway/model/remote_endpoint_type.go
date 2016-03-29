@@ -35,6 +35,8 @@ const (
 	RemoteEndpointTypeStore = "store"
 	// RemoteEndpointTypeLDAP denotes that a remote endpoint is an LDAP service
 	RemoteEndpointTypeLDAP = "ldap"
+	// RemoteEndpointTypePush denotes that a remote endpoint is an Push service
+	RemoteEndpointTypePush = "push"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -51,6 +53,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeSoap:      &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
 		RemoteEndpointTypeLDAP:      &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
 		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
+		RemoteEndpointTypePush:      &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
 	}
 }
 
