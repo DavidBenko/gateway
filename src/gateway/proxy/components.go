@@ -29,6 +29,9 @@ func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpoint
 	connections := make(map[int64]io.Closer)
 
 	for _, c := range components {
+		if sh := c.SharedComponentHandle; sh != nil {
+			c = sh
+		}
 		if err := s.runComponent(vm, c, connections); err != nil {
 			return err
 		}

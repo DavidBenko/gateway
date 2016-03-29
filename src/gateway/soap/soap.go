@@ -162,7 +162,7 @@ func JarURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("file://%s", fullFilePath), nil
+	return fmt.Sprintf("file:///%s", filepath.ToSlash(fullFilePath)), nil
 }
 
 func inflateSoapClient() (string, error) {

@@ -11,6 +11,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/errors/report"
 	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
@@ -111,7 +112,12 @@ func ElasticLoggingService(conf config.Configuration) {
 			}
 			_, err = c.Index("gateway", "log", "", nil, elasticMessage)
 			if err != nil {
-				logreport.Printf("[elastic] %v", err)
+				// print error to stdout, and then report directly to our error reporter.
+				// we don't want to log (or use logreport which both logs and reports)
+				// because we will potentially compound the problem which is being
+				// encountered
+				fmt.Printf("[elastic] %v\n", err)
+				report.Error(err, nil)
 			}
 		}
 		processLogs(logs, add)

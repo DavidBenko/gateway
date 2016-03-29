@@ -41,10 +41,13 @@ type endpointCache struct {
 }
 
 func newCachingProxyDataSource(db *apsql.DB) *endpointCache {
-	cache := &endpointCache{db: db}
-	cache.endpointIDs = make(map[int64][]int64)
-	cache.endpoints = make(map[int64]*model.ProxyEndpoint)
-	cache.libraries = make(map[int64][]*model.Library)
+	cache := &endpointCache{
+		db:          db,
+		endpointIDs: make(map[int64][]int64),
+		endpoints:   make(map[int64]*model.ProxyEndpoint),
+		libraries:   make(map[int64][]*model.Library),
+	}
+
 	db.RegisterListener(cache)
 	return cache
 }
@@ -105,6 +108,7 @@ func (c *endpointCache) clearAPI(apiID int64) {
 	}
 
 	c.mutex.Lock()
+
 	ids := c.endpointIDs[apiID]
 	if ids != nil {
 		for _, id := range c.endpointIDs[apiID] {
@@ -113,6 +117,7 @@ func (c *endpointCache) clearAPI(apiID int64) {
 	}
 	delete(c.endpointIDs, apiID)
 	delete(c.libraries, apiID)
+
 	c.mutex.Unlock()
 }
 
@@ -136,6 +141,8 @@ func (c *endpointCache) Notify(n *apsql.Notification) {
 	case n.Table == "libraries":
 		fallthrough
 	case n.Table == "proxy_endpoint_schemas":
+		fallthrough
+	case n.Table == "proxy_endpoint_components" && (n.Event == apsql.Update || n.Event == apsql.Delete):
 		fallthrough
 	case n.Table == "remote_endpoints" && (n.Event == apsql.Update || n.Event == apsql.Delete):
 		fallthrough
