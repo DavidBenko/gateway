@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const filePrefix = "file://"
+const filePrefix = "file:///"
 
 // SoapRequest encapsulates a request made via SOAP
 type SoapRequest struct {
