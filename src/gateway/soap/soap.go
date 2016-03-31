@@ -1,8 +1,6 @@
 package soap
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,18 +104,7 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 		return fmt.Errorf("Wsimport is not configured on this system")
 	}
 
-	bytes, err := ioutil.ReadFile(wsdlFile)
-	if err != nil {
-		return aperrors.NewWrapped("[soap.go] Unable to read wsdl file", err)
-	}
-
-	// Use a generated package name that consists of the WSDL's md5 sum, prefixed with 'v' (for version)
-	// This will prevent class version collisions when an update is made to a WSDL
-	checksum := md5.Sum(bytes)
-	hexsum := hex.EncodeToString(checksum[:])
-	packageName := fmt.Sprintf("v%s", hexsum)
-
-	jarOutputFile, err = filepath.Abs(jarOutputFile)
+	jarOutputFile, err := filepath.Abs(jarOutputFile)
 	if err != nil {
 		return aperrors.NewWrapped("[soap.go] Unable to get absolute path for jar file", err)
 	}
@@ -129,8 +116,14 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 
 	defer os.Remove(tmpdir)
 
-	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-clientjar", jarOutputFile, wsdlFile)
 	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+		output, err = cmd.CombinedOutput()
+	}
+
 	logreport.Println(string(output))
 
 	if err != nil {
