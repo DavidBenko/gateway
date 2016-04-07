@@ -146,6 +146,7 @@ func TestPush(t *testing.T) {
 		RemoteEndpointID: remoteEndpoint.ID,
 		Name:             "test",
 		PushChannelID:    channel.ID,
+		EnvironmentID:    environment.ID,
 		Type:             re.PushTypeGCM,
 		Token:            "abc123",
 	}

@@ -4,7 +4,14 @@ SET
   type = ?,
   token = ?,
   expires = ?,
-  data = ?
+  data = ?,
+  environment_id =
+  (SELECT environments.id
+    FROM environments, apis
+    WHERE environments.id = ?
+      AND environments.api_id = ?
+      AND environments.api_id = apis.id
+      AND apis.account_id = ?)
 WHERE push_devices.id = ?
   AND push_devices.push_channel_id IN
     (SELECT push_channels.id

@@ -1,5 +1,6 @@
 INSERT INTO push_devices (
   push_channel_id,
+  environment_id,
   name,
   type,
   token,
@@ -14,6 +15,12 @@ VALUES (
       AND push_channels.remote_endpoint_id = remote_endpoints.id
       AND remote_endpoints.api_id = ?
       AND remote_endpoints.api_id = apis.id
+      AND apis.account_id = ?),
+  (SELECT environments.id
+    FROM environments, apis
+    WHERE environments.id = ?
+      AND environments.api_id = ?
+      AND environments.api_id = apis.id
       AND apis.account_id = ?),
   ?,
   ?,
