@@ -23,7 +23,7 @@ import (
 
 const (
 	testString  = "brekeccakkeccak koax koax"
-	katFilename = "keccakKats.json.deflate"
+	katFilename = "testdata/keccakKats.json.deflate"
 )
 
 // Internal-use instances of SHAKE used to test against KATs.
@@ -159,7 +159,7 @@ func TestAppend(t *testing.T) {
 	testUnalignedAndGeneric(t, func(impl string) {
 		d := New224()
 
-		for capacity := 2; capacity < 64; capacity += 64 {
+		for capacity := 2; capacity <= 66; capacity += 64 {
 			// The first time around the loop, Sum will have to reallocate.
 			// The second time, it will not.
 			buf := make([]byte, 2, capacity)
