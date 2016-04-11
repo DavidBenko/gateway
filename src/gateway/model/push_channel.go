@@ -58,8 +58,14 @@ func (c *PushChannel) Find(db *apsql.DB) (*PushChannel, error) {
 		UserID:    c.UserID,
 		APIID:     c.APIID,
 	}
-	err := db.Get(&channel, db.SQL("push_channels/find"), c.ID,
-		c.RemoteEndpointID, c.APIID, c.AccountID)
+	var err error
+	if c.ID == 0 {
+		err = db.Get(&channel, db.SQL("push_channels/find_name"), c.Name,
+			c.RemoteEndpointID, c.APIID, c.AccountID)
+	} else {
+		err = db.Get(&channel, db.SQL("push_channels/find"), c.ID,
+			c.RemoteEndpointID, c.APIID, c.AccountID)
+	}
 	return &channel, err
 }
 

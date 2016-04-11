@@ -70,8 +70,17 @@ func (d *PushDevice) Find(db *apsql.DB) (*PushDevice, error) {
 		APIID:            d.APIID,
 		RemoteEndpointID: d.RemoteEndpointID,
 	}
-	err := db.Get(&device, db.SQL("push_devices/find"), d.ID,
-		d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+	var err error
+	if d.ID != 0 {
+		err = db.Get(&device, db.SQL("push_devices/find"), d.ID,
+			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+	} else if d.Name != "" {
+		err = db.Get(&device, db.SQL("push_devices/find_name"), d.Name,
+			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+	} else {
+		err = db.Get(&device, db.SQL("push_devices/find_name"), d.Token,
+			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+	}
 	return &device, err
 }
 

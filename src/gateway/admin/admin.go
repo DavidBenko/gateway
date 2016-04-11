@@ -125,14 +125,15 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
 
-	var swagger aphttp.Router
-	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+	var public aphttp.Router
+	public = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
 		router)
 	if conf.CORSEnabled {
-		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
+		public = aphttp.NewCORSAwareRouter(conf.CORSOrigin, public)
 	}
-	sc := newSwaggerController(db)
-	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
+	matcher := newHostMatcher(db)
+	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
+	RoutePush(&PushController{matcher}, "/push", public, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

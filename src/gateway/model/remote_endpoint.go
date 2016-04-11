@@ -333,11 +333,11 @@ func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 
 // AllRemoteEndpointsForAPIIDAndAccountID returns all remoteEndpoints on the Account's API in default order.
 func AllRemoteEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*RemoteEndpoint, error) {
-	return _remoteEndpoints(db, 0, apiID, accountID)
+	return _remoteEndpoints(db, "", 0, apiID, accountID)
 }
 
 func WriteAllScriptFiles(db *apsql.DB) error {
-	endpoints, err := _remoteEndpoints(db, 0, 0, 0)
+	endpoints, err := _remoteEndpoints(db, "", 0, 0, 0)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*Rem
 
 // FindRemoteEndpointForAPIIDAndAccountID returns the remoteEndpoint with the id, api id, and account_id specified.
 func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*RemoteEndpoint, error) {
-	endpoints, err := _remoteEndpoints(db, id, apiID, accountID)
+	endpoints, err := _remoteEndpoints(db, "", id, apiID, accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +464,18 @@ func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID i
 	return endpoints[0], nil
 }
 
-func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
+func FindRemoteEndpointForCodenameAndAPIIDAndAccountID(db *apsql.DB, codename string, apiID, accountID int64) (*RemoteEndpoint, error) {
+	endpoints, err := _remoteEndpoints(db, codename, 0, apiID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if len(endpoints) == 0 {
+		return nil, fmt.Errorf("No endpoint with codename %v found", codename)
+	}
+	return endpoints[0], nil
+}
+
+func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	args := []interface{}{}
 	query := `SELECT`
 	if accountID != 0 {
@@ -493,12 +504,15 @@ func _remoteEndpoints(db *apsql.DB, id, apiID, accountID int64) ([]*RemoteEndpoi
 		if id != 0 {
 			query += " remote_endpoints.id = ?"
 			args = append(args, id)
-			if apiID != 0 {
-				query += " AND"
-			}
+		} else if codename != "" {
+			query += " remote_endpoints.codename = ?"
+			args = append(args, codename)
 		}
 
 		if apiID != 0 {
+			if id != 0 || codename != "" {
+				query += " AND"
+			}
 			query += " remote_endpoints.api_id = ?"
 			args = append(args, apiID)
 		}
