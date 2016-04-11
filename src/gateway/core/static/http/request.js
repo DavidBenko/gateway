@@ -290,6 +290,16 @@ AP.MySQL.Request.prototype.query = function(stmt, params) {
   }
 }
 
+AP.Converter = function(value, convertTo) {
+  this._type = "Converter";
+  this.value = value;
+  this.convertTo = convertTo;
+}
+
+var Int = function(a) {
+  return new AP.Converter(a, 'int64');
+};
+
 /**
  * Mongo holds helper classes for Mongo related tasks
  *
@@ -745,16 +755,6 @@ AP.LDAP.Request.prototype.search = function(baseDistinguishedName, scope,
   };
   this._execute(searchParams, "search", opts);
 }
-
-var Converter = function(value, convertTo) {
-  this._type = "Converter";
-  this.value = value;
-  this.convertTo = convertTo;
-}
-
-var Int = function(a) {
-  return new Converter(a, 'int64');
-};
 
 /**
  * Execute a bind request.
