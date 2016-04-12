@@ -17,7 +17,6 @@ type PushDevice struct {
 
 	ID            int64          `json:"id,omitempty" path:"id"`
 	PushChannelID int64          `json:"push_channel_id" db:"push_channel_id" path:"pushChannelID"`
-	EnvironmentID int64          `json:"environment_id" db:"environment_id"`
 	Name          string         `json:"name"`
 	Type          string         `json:"type"`
 	Token         string         `json:"token"`
@@ -101,7 +100,6 @@ func (d *PushDevice) Insert(tx *apsql.Tx) error {
 
 	d.ID, err = tx.InsertOne(tx.SQL("push_devices/insert"),
 		d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID,
-		d.EnvironmentID, d.APIID, d.AccountID,
 		d.Name, d.Type, d.Token, d.Expires, data)
 	if err != nil {
 		return err
@@ -116,7 +114,6 @@ func (d *PushDevice) Update(tx *apsql.Tx) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("push_devices/update"), d.Name, d.Type, d.Token, d.Expires, data,
-		d.EnvironmentID, d.APIID, d.AccountID,
 		d.ID, d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
 	if err != nil {
 		return err
