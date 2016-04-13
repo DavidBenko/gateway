@@ -377,26 +377,33 @@ AP.MySQL.Request.prototype.query = function(stmt, params, resultTypes) {
   this.resultTypes = newResultTypes;
 }
 
-AP.Converter = function(value, convertTo) {
+/**
+ * SQL holds helper classes for SQL related tasks
+ *
+ * @namespace
+ */
+AP.SQL = AP.SQL || {};
+
+AP.SQL.Converter = function(value, convertTo) {
   this._type = "Converter";
   this.value = value;
   this.convertTo = convertTo;
 }
 
-var Float = function(a) {
-  return new AP.Converter(a, 'float64');
+AP.SQL.Float = function(a) {
+  return new AP.SQL.Converter(a, 'float64');
 }
 
-var Int = function(a) {
-  return new AP.Converter(a, 'int64');
+AP.SQL.Int = function(a) {
+  return new AP.SQL.Converter(a, 'int64');
 };
 
-var Bool = function(a) {
-  return new AP.Converter(a, 'bool');
+AP.SQL.Bool = function(a) {
+  return new AP.SQL.Converter(a, 'bool');
 }
 
-var String = function(a) {
-  return new AP.Converter(a, 'string');
+AP.SQL.String = function(a) {
+  return new AP.SQL.Converter(a, 'string');
 }
 
 /**
