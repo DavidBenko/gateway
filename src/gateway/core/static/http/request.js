@@ -133,6 +133,14 @@ AP.SQLServer.Request = function() {
   this.executeStatement = null;
 
   /**
+   * The result types expected by the query.  The keys represent the column
+   * names of the result set, and the values represent a conversion object
+   * such as Int or Float.
+   * @type {object}
+   */
+   this.resultTypes = null;
+
+  /**
    * The request's parameters to the SQL statement.
    * @type {Array.<object>}
    */
@@ -143,6 +151,7 @@ AP.SQLServer.Request = function() {
     this.query = _.clone(request.queryStatement);
     this.execute = _.clone(request.executeStatement);
     this.parameters = _.clone(request.parameters);
+    this.resultTypes = _.clone(request.resultTypes);
   }
 }
 
@@ -153,15 +162,35 @@ AP.SQLServer.Request.prototype.execute = function(stmt, params) {
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
 }
 
-AP.SQLServer.Request.prototype.query = function(stmt, params) {
+AP.SQLServer.Request.prototype.query = function(stmt, params, resultTypes) {
   this.queryStatement = stmt;
   if (typeof params === 'undefined' || params === null) {
     this.parameters = [];
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
+
+  var newResultTypes = {};
+  _.each(_.pairs(this.resultTypes), function(pair) {
+    var k = pair[0];
+    var v = pair[1];
+    newResultTypes[k] = v(null);
+  });
+  this.resultTypes = newResultTypes;
 }
 
 /**
@@ -196,6 +225,14 @@ AP.Postgres.Request = function() {
   this.executeStatement = null;
 
   /**
+   * The result types expected by the query.  The keys represent the column
+   * names of the result set, and the values represent a conversion object
+   * such as Int or Float.
+   * @type {object}
+   */
+   this.resultTypes = null;
+
+  /**
    * The request's parameters to the SQL statement.
    * @type {Array.<object>}
    */
@@ -206,6 +243,7 @@ AP.Postgres.Request = function() {
     this.query = _.clone(request.queryStatement);
     this.execute = _.clone(request.executeStatement);
     this.parameters = _.clone(request.parameters);
+    this.resultTypes = _.clone(request.resultTypes);
   }
 }
 
@@ -216,15 +254,35 @@ AP.Postgres.Request.prototype.execute = function(stmt, params) {
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
 }
 
-AP.Postgres.Request.prototype.query = function(stmt, params) {
+AP.Postgres.Request.prototype.query = function(stmt, params, resultTypes) {
   this.queryStatement = stmt;
   if (typeof params === 'undefined' || params === null) {
     this.parameters = [];
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
+
+  var newResultTypes = {};
+  _.each(_.pairs(this.resultTypes), function(pair) {
+    var k = pair[0];
+    var v = pair[1];
+    newResultTypes[k] = v(null);
+  });
+  this.resultTypes = newResultTypes;
 }
 
 /**
@@ -259,6 +317,14 @@ AP.MySQL.Request = function() {
   this.executeStatement = null;
 
   /**
+   * The result types expected by the query.  The keys represent the column
+   * names of the result set, and the values represent a conversion object
+   * such as Int or Float.
+   * @type {object}
+   */
+   this.resultTypes = null;
+
+  /**
    * The request's parameters to the SQL statement.
    * @type {Array.<object>}
    */
@@ -269,6 +335,7 @@ AP.MySQL.Request = function() {
     this.query = _.clone(request.queryStatement);
     this.execute = _.clone(request.executeStatement);
     this.parameters = _.clone(request.parameters);
+    this.resultTypes = _.clone(request.resultTypes);
   }
 }
 
@@ -279,15 +346,35 @@ AP.MySQL.Request.prototype.execute = function(stmt, params) {
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
 }
 
-AP.MySQL.Request.prototype.query = function(stmt, params) {
+AP.MySQL.Request.prototype.query = function(stmt, params, resultTypes) {
   this.queryStatement = stmt;
   if (typeof params === 'undefined' || params === null) {
     this.parameters = [];
   } else {
     this.parameters = params;
   }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
+
+  var newResultTypes = {};
+  _.each(_.pairs(this.resultTypes), function(pair) {
+    var k = pair[0];
+    var v = pair[1];
+    newResultTypes[k] = v(null);
+  });
+  this.resultTypes = newResultTypes;
 }
 
 AP.Converter = function(value, convertTo) {
@@ -296,9 +383,21 @@ AP.Converter = function(value, convertTo) {
   this.convertTo = convertTo;
 }
 
+var Float = function(a) {
+  return new AP.Converter(a, 'float64');
+}
+
 var Int = function(a) {
   return new AP.Converter(a, 'int64');
 };
+
+var Bool = function(a) {
+  return new AP.Converter(a, 'bool');
+}
+
+var String = function(a) {
+  return new AP.Converter(a, 'string');
+}
 
 /**
  * Mongo holds helper classes for Mongo related tasks
