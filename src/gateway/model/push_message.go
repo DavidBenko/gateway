@@ -69,6 +69,21 @@ func (m *PushMessage) Delete(tx *apsql.Tx) error {
 	return tx.Notify("push_messages", m.AccountID, m.UserID, m.APIID, 0, m.ID, apsql.Delete)
 }
 
+func (m *PushMessage) DeleteOffset(tx *apsql.Tx) error {
+	messages, err := m.All(tx.DB)
+	if err != nil {
+		for len(messages) > 10 {
+			message := messages[0]
+			err = message.Delete(tx)
+			if err != nil {
+				return err
+			}
+			messages = messages[1:]
+		}
+	}
+	return err
+}
+
 func (m *PushMessage) Insert(tx *apsql.Tx) error {
 	data, err := marshaledForStorage(m.Data)
 	if err != nil {

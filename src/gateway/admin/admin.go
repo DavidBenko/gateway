@@ -133,7 +133,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	}
 	matcher := newHostMatcher(db)
 	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
-	RoutePush(&PushController{matcher}, "/push", public, db, conf)
+	RoutePush(&PushController{matcher, c}, "/push", public, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

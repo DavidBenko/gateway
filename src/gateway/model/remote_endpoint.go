@@ -78,6 +78,7 @@ type RemoteEndpointEnvironmentData struct {
 	ID               int64          `json:"id,omitempty"`
 	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	EnvironmentID    int64          `json:"environment_id,omitempty" db:"environment_id"`
+	Name             string         `json:"-"`
 	Type             string         `json:"type"`
 	Data             types.JsonText `json:"data"`
 
@@ -538,7 +539,8 @@ func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64)
 			remote_endpoint_environment_data.id as id,
 			remote_endpoint_environment_data.remote_endpoint_id as remote_endpoint_id,
 			remote_endpoint_environment_data.environment_id as environment_id,
-			remote_endpoint_environment_data.data as data
+			remote_endpoint_environment_data.data as data,
+			environments.name as name
 		FROM remote_endpoint_environment_data, remote_endpoints, environments
 		WHERE remote_endpoint_environment_data.remote_endpoint_id IN (`+idQuery+`)
 			AND remote_endpoint_environment_data.environment_id = environments.id

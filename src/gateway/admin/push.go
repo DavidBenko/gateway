@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gateway/config"
+	"gateway/core"
 	aphttp "gateway/http"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
@@ -19,6 +20,7 @@ import (
 
 type PushController struct {
 	matcher *HostMatcher
+	core    *core.Core
 }
 
 func RoutePush(controller *PushController, path string,
@@ -30,14 +32,20 @@ func RoutePush(controller *PushController, path string,
 	unsubscribeRoutes := map[string]http.Handler{
 		"PUT": writeForHost(db, controller.Unsubscribe),
 	}
+	publishRoutes := map[string]http.Handler{
+		"PUT": writeForHost(db, controller.Publish),
+	}
 	if conf.CORSEnabled {
 		subscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
 		unsubscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
+		publishRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
 	}
 
 	router.Handle(path+"/{endpoint}/subscribe", handlers.MethodHandler(subscribeRoutes)).
 		MatcherFunc(controller.matcher.isRouted)
 	router.Handle(path+"/{endpoint}/unsubscribe", handlers.MethodHandler(unsubscribeRoutes)).
+		MatcherFunc(controller.matcher.isRouted)
+	router.Handle(path+"/{endpoint}/publish", handlers.MethodHandler(publishRoutes)).
 		MatcherFunc(controller.matcher.isRouted)
 }
 
@@ -47,6 +55,12 @@ type Subscription struct {
 	Period   int64  `json:"period"`
 	Name     string `json:"name"`
 	Token    string `json:"token"`
+}
+
+type Message struct {
+	Channel     string                 `json:"channel"`
+	Environment string                 `json:"environment"`
+	Payload     map[string]interface{} `json:"payload"`
 }
 
 func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *apsql.Tx, match *HostMatch) aphttp.Error {
@@ -109,7 +123,7 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 		RemoteEndpointID: endpoint.ID,
 		Name:             subscription.Channel,
 	}
-	channel, err = channel.Find(tx.DB)
+	_channel, err := channel.Find(tx.DB)
 	expires := time.Now().Unix() + subscription.Period
 	if err != nil {
 		channel.Expires = expires
@@ -117,11 +131,14 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 		if err != nil {
 			return aphttp.NewError(err, http.StatusBadRequest)
 		}
-	} else if channel.Expires < expires {
-		channel.Expires = expires
-		err := channel.Update(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
+	} else {
+		channel = _channel
+		if channel.Expires < expires {
+			channel.Expires = expires
+			err := channel.Update(tx)
+			if err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
 		}
 	}
 
@@ -208,6 +225,114 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	err = dev.Delete(tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	return nil
+}
+
+func (s *PushController) Publish(w http.ResponseWriter, r *http.Request, tx *apsql.Tx, match *HostMatch) aphttp.Error {
+	message := Message{}
+	if err := deserialize(&message, r.Body); err != nil {
+		return err
+	}
+	if message.Channel == "" {
+		return aphttp.NewError(errors.New("a channel is required"), http.StatusBadRequest)
+	}
+	if message.Environment == "" {
+		return aphttp.NewError(errors.New("an environment is required"), http.StatusBadRequest)
+	}
+
+	codename := mux.Vars(r)["endpoint"]
+	endpoint, err := model.FindRemoteEndpointForCodenameAndAPIIDAndAccountID(tx.DB, codename, match.APIID, match.AccountID)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	channel := &model.PushChannel{
+		AccountID:        match.AccountID,
+		APIID:            match.APIID,
+		RemoteEndpointID: endpoint.ID,
+		Name:             message.Channel,
+	}
+	channel, err = channel.Find(tx.DB)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	device := &model.PushDevice{
+		AccountID:        match.AccountID,
+		APIID:            match.APIID,
+		RemoteEndpointID: endpoint.ID,
+		PushChannelID:    channel.ID,
+	}
+	devices, err := device.All(tx.DB)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	push := &re.Push{}
+	err = json.Unmarshal(endpoint.Data, push)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+	epush, found := &re.Push{}, false
+	for _, environment := range endpoint.EnvironmentData {
+		if environment.Name == message.Environment {
+			found = true
+			err = json.Unmarshal(environment.Data, epush)
+			if err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+			epush.UpdateWith(push)
+			break
+		}
+	}
+	if !found {
+		epush.UpdateWith(push)
+	}
+
+	for _, device := range devices {
+		err := fmt.Errorf("coulnd't find device %v", device.Name)
+		for _, platform := range epush.PushPlatforms {
+			if device.Type == platform.Codename {
+				err = nil
+				pusher := s.core.Push.Connection(&platform)
+				err = pusher.Push(device.Token, message.Payload)
+				break
+			}
+		}
+		var data []byte
+		if err != nil {
+			payload := struct{ err string }{err.Error()}
+			var _err error
+			data, _err = json.Marshal(&payload)
+			if _err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+		} else {
+			var _err error
+			data, _err = json.Marshal(message.Payload)
+			if _err != nil {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+		}
+		pushMessage := &model.PushMessage{
+			AccountID:        match.AccountID,
+			APIID:            match.APIID,
+			RemoteEndpointID: endpoint.ID,
+			PushChannelID:    channel.ID,
+			PushDeviceID:     device.ID,
+			Stamp:            time.Now().Unix(),
+			Data:             data,
+		}
+		err = pushMessage.Insert(tx)
+		if err != nil {
+			return aphttp.NewError(err, http.StatusBadRequest)
+		}
+		err = pushMessage.DeleteOffset(tx)
+		if err != nil {
+			return aphttp.NewError(err, http.StatusBadRequest)
+		}
 	}
 
 	return nil
