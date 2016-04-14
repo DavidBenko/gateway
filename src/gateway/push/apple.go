@@ -14,6 +14,7 @@ import (
 
 type ApplePusher struct {
 	connection *apns.Client
+	topic      string
 }
 
 func NewApplePusher(platform *re.PushPlatform) *ApplePusher {
@@ -42,12 +43,16 @@ func NewApplePusher(platform *re.PushPlatform) *ApplePusher {
 	} else {
 		client = client.Production()
 	}
-	return &ApplePusher{connection: client}
+	return &ApplePusher{
+		connection: client,
+		topic:      platform.Topic,
+	}
 }
 
 func (p *ApplePusher) Push(token string, data interface{}) error {
 	notification := &apns.Notification{}
 	notification.DeviceToken = token
+	notification.Topic = p.topic
 	payload, err := json.Marshal(data)
 	if err != nil {
 		logreport.Fatal(err)

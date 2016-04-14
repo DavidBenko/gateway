@@ -33,6 +33,7 @@ type PushPlatform struct {
 	Type        string `json:"type"`
 	Certificate string `json:"certificate"`
 	Password    string `json:"password"`
+	Topic       string `json:"topic"`
 	Development bool   `json:"development"`
 	APIKey      string `json:"api_key"`
 }
