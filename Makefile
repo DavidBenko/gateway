@@ -218,7 +218,8 @@ vendor_get: vendor_clean
 	github.com/pointlander/peg \
 	golang.org/x/net/http2 \
 	golang.org/x/crypto/pkcs12 \
-	github.com/sideshow/apns2
+	github.com/sideshow/apns2 \
+	github.com/alexjlockwood/gcm
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
