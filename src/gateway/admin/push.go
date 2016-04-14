@@ -292,12 +292,16 @@ func (s *PushController) Publish(w http.ResponseWriter, r *http.Request, tx *aps
 	}
 
 	for _, device := range devices {
-		err := fmt.Errorf("coulnd't find device %v", device.Name)
+		err := fmt.Errorf("coulnd't find device platform %v", device.Name)
 		for _, platform := range epush.PushPlatforms {
 			if device.Type == platform.Codename {
 				err = nil
 				pusher := s.core.Push.Connection(&platform)
-				err = pusher.Push(device.Token, message.Payload)
+				payload, ok := message.Payload[device.Type]
+				if !ok {
+					payload = message.Payload["default"]
+				}
+				err = pusher.Push(device.Token, payload)
 				break
 			}
 		}
