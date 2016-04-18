@@ -66,6 +66,8 @@ func (s *Core) PrepareRequest(
 		}
 		connections[endpoint.ID] = conn
 		return r, e
+	case model.RemoteEndpointTypePush:
+		return request.NewPushRequest(endpoint, data, s.Push, s.OwnDb)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

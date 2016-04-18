@@ -248,95 +248,26 @@ func (s *PushController) Publish(w http.ResponseWriter, r *http.Request, tx *aps
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	channel := &model.PushChannel{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		Name:             message.Channel,
-	}
-	channel, err = channel.Find(tx.DB)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
-	device := &model.PushDevice{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		PushChannelID:    channel.ID,
-	}
-	devices, err := device.All(tx.DB)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
 	push := &re.Push{}
 	err = json.Unmarshal(endpoint.Data, push)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	epush, found := &re.Push{}, false
+	epush := &re.Push{}
 	for _, environment := range endpoint.EnvironmentData {
 		if environment.Name == message.Environment {
-			found = true
 			err = json.Unmarshal(environment.Data, epush)
 			if err != nil {
 				return aphttp.NewError(err, http.StatusBadRequest)
 			}
-			epush.UpdateWith(push)
 			break
 		}
 	}
-	if !found {
-		epush.UpdateWith(push)
-	}
+	epush.UpdateWith(push)
 
-	for _, device := range devices {
-		err := fmt.Errorf("coulnd't find device platform %v", device.Name)
-		for _, platform := range epush.PushPlatforms {
-			if device.Type == platform.Codename {
-				err = nil
-				pusher := s.core.Push.Connection(&platform)
-				payload, ok := message.Payload[device.Type]
-				if !ok {
-					payload = message.Payload["default"]
-				}
-				err = pusher.Push(device.Token, payload)
-				break
-			}
-		}
-		var data []byte
-		if err != nil {
-			payload := struct{ err string }{err.Error()}
-			var _err error
-			data, _err = json.Marshal(&payload)
-			if _err != nil {
-				return aphttp.NewError(err, http.StatusBadRequest)
-			}
-		} else {
-			var _err error
-			data, _err = json.Marshal(message.Payload)
-			if _err != nil {
-				return aphttp.NewError(err, http.StatusBadRequest)
-			}
-		}
-		pushMessage := &model.PushMessage{
-			AccountID:        match.AccountID,
-			APIID:            match.APIID,
-			RemoteEndpointID: endpoint.ID,
-			PushChannelID:    channel.ID,
-			PushDeviceID:     device.ID,
-			Stamp:            time.Now().Unix(),
-			Data:             data,
-		}
-		err = pushMessage.Insert(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
-		err = pushMessage.DeleteOffset(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
+	err = s.core.Push.Push(epush, tx, match.AccountID, match.APIID, endpoint.ID, message.Channel, message.Payload)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
 	return nil

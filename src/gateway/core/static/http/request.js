@@ -806,3 +806,48 @@ AP.LDAP.Request.prototype.compare = function(distinguishedName, attribute, value
 
   this._execute(compareParams, "compare");
 }
+
+/**
+ * Push holds helper classes for Push related tasks.
+ *
+ * @namespace
+ */
+AP.Push = AP.Push || {};
+
+/**
+ * Creates a new Push request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the channel and payload.
+ */
+AP.Push.Request = function() {
+  /**
+   * The channel to send the payload to.
+   * @type {string}
+   */
+  this.channel = null;
+
+  /**
+   * The payload to send to devices.
+   * @type {Object}
+   */
+  this.payload = {};
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.channel = _.clone(request.channel);
+    this.payload = _.clone(request.payload);
+  }
+}
+
+/**
+ * Set the channel and payload
+ *
+ * @param {string} channel The channel to push to
+ * @param {object} payload The payload to send to the channel
+ */
+AP.Push.Request.prototype.push = function(channel, payload) {
+  this.channel = channel;
+  this.payload = payload;
+1}

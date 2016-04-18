@@ -2,10 +2,14 @@ package push
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
+	"time"
 
 	"gateway/logreport"
+	"gateway/model"
 	re "gateway/model/remote_endpoint"
+	apsql "gateway/sql"
 )
 
 type Pusher interface {
@@ -48,4 +52,80 @@ func (p *PushPool) Connection(platform *re.PushPlatform) Pusher {
 	defer p.Unlock()
 	p.pool[string(spec)] = pusher
 	return pusher
+}
+
+func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remoteEndpointID int64, name string, payload map[string]interface{}) error {
+	channel := &model.PushChannel{
+		AccountID:        accountID,
+		APIID:            apiID,
+		RemoteEndpointID: remoteEndpointID,
+		Name:             name,
+	}
+	channel, err := channel.Find(tx.DB)
+	if err != nil {
+		return err
+	}
+
+	device := &model.PushDevice{
+		AccountID:        accountID,
+		APIID:            apiID,
+		RemoteEndpointID: remoteEndpointID,
+		PushChannelID:    channel.ID,
+	}
+	devices, err := device.All(tx.DB)
+	if err != nil {
+		return err
+	}
+
+	for _, device := range devices {
+		err := fmt.Errorf("coulnd't find device platform %v", device.Name)
+		var _payload interface{}
+		for _, platform := range platforms.PushPlatforms {
+			if device.Type == platform.Codename {
+				err = nil
+				pusher := p.Connection(&platform)
+				var ok bool
+				_payload, ok = payload[device.Type]
+				if !ok {
+					_payload = payload["default"]
+				}
+				err = pusher.Push(device.Token, _payload)
+				break
+			}
+		}
+		var data []byte
+		if err != nil {
+			payload := struct{ err string }{err.Error()}
+			var _err error
+			data, _err = json.Marshal(&payload)
+			if _err != nil {
+				return err
+			}
+		} else {
+			var _err error
+			data, _err = json.Marshal(_payload)
+			if _err != nil {
+				return err
+			}
+		}
+		pushMessage := &model.PushMessage{
+			AccountID:        accountID,
+			APIID:            apiID,
+			RemoteEndpointID: remoteEndpointID,
+			PushChannelID:    channel.ID,
+			PushDeviceID:     device.ID,
+			Stamp:            time.Now().Unix(),
+			Data:             data,
+		}
+		err = pushMessage.Insert(tx)
+		if err != nil {
+			return err
+		}
+		err = pushMessage.DeleteOffset(tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
