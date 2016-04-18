@@ -24,7 +24,8 @@ const (
 )
 
 type Push struct {
-	PushPlatforms []PushPlatform `json:"push_platforms"`
+	PublishEndpoint bool           `json:"publish_endpoint"`
+	PushPlatforms   []PushPlatform `json:"push_platforms"`
 }
 
 type PushPlatform struct {
@@ -39,6 +40,7 @@ type PushPlatform struct {
 }
 
 func (p *Push) UpdateWith(parent *Push) {
+	p.PublishEndpoint = p.PublishEndpoint || parent.PublishEndpoint
 	length := len(p.PushPlatforms)
 	for i := range parent.PushPlatforms {
 		found := false

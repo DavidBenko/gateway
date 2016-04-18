@@ -264,6 +264,9 @@ func (s *PushController) Publish(w http.ResponseWriter, r *http.Request, tx *aps
 		}
 	}
 	epush.UpdateWith(push)
+	if !epush.PublishEndpoint {
+		return aphttp.NewError(errors.New("publish endpoint is disabled"), http.StatusBadRequest)
+	}
 
 	err = s.core.Push.Push(epush, tx, match.AccountID, match.APIID, endpoint.ID, message.Channel, message.Payload)
 	if err != nil {
