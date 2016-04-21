@@ -17,9 +17,10 @@ func LogQuery(
 // SampleQuery exports sampleQuery for testing.
 func SampleQuery(
 	f func(int) []string,
-	vars, tags []string,
+	constraints []stats.Constraint,
+	vars []string,
 ) string {
-	return sampleQuery(f, vars, tags)
+	return sampleQuery(f, constraints, vars)
 }
 
 // GetArgs exports getArgs for testing.

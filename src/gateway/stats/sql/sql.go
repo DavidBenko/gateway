@@ -13,7 +13,7 @@ import (
 
 var (
 	knownMeasurements *regexp.Regexp
-	knownTags         *regexp.Regexp
+	knownConstraints  *regexp.Regexp
 
 	measurements = []string{
 		`request_size`,
@@ -23,19 +23,21 @@ var (
 		`response_status`,
 		`response_error`,
 	}
-	tags = []string{
+	constraints = []string{
 		`api_id`,
 		`user_id`,
+		`node`,
+		`timestamp`,
 	}
 )
 
 func init() {
-	knownMeasurements = regexp.MustCompile(regexp.QuoteMeta(strings.Join(
-		measurements, "|",
-	)))
-	knownTags = regexp.MustCompile(regexp.QuoteMeta(strings.Join(
-		tags, "|",
-	)))
+	knownMeasurements = regexp.MustCompile(regexp.QuoteMeta(
+		"^(" + strings.Join(measurements, "|") + ")$",
+	))
+	knownConstraints = regexp.MustCompile(regexp.QuoteMeta(
+		"^(" + strings.Join(append(constraints, measurements...), "|") + ")$",
+	))
 }
 
 // Driver is the driver to be used for the given stats logger / sampler.

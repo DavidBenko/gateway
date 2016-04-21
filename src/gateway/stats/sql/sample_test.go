@@ -1,7 +1,6 @@
 package sql_test
 
 import (
-	"fmt"
 	"time"
 
 	"gateway/stats"
@@ -14,15 +13,13 @@ import (
 
 func (s *SQLSuite) TestSampleQuery(c *gc.C) {
 	for i, test := range []struct {
-		should      string
-		givenVars   []string
-		givenTags   map[string]interface{}
-		givenFrom   time.Time
-		givenTo     time.Time
-		givenDriver *sqlx.DB
-		expect      string
+		should           string
+		givenConstraints []stats.Constraint
+		givenVars        []string
+		givenDriver      *sqlx.DB
+		expect           string
 	}{{
-		should:      "generate a simple sampler query for SQLite",
+		should:      "generate a minimal sampler query for SQLite",
 		givenVars:   []string{"request.size", "request.id"},
 		givenDriver: s.sqlite,
 		expect: `
@@ -30,10 +27,9 @@ SELECT
   request_size
   , request_id
 FROM stats
-WHERE timestamp >= ? AND timestamp < ?
 ORDER BY timestamp, node`[1:],
 	}, {
-		should:      "generate a simple sampler query for Postgres",
+		should:      "generate a minimal sampler query for Postgres",
 		givenVars:   []string{"request.size", "request.id"},
 		givenDriver: s.postgres,
 		expect: `
@@ -41,13 +37,46 @@ SELECT
   request_size
   , request_id
 FROM stats
-WHERE timestamp >= $1 AND timestamp < $2
+ORDER BY timestamp, node`[1:],
+	}, {
+		should: "generate a simple sampler query for SQLite",
+		givenConstraints: []stats.Constraint{
+			{"timestamp", stats.GTE, time.Now()},
+			{"timestamp", stats.LT, time.Now()},
+		},
+		givenVars:   []string{"request.size", "request.id"},
+		givenDriver: s.sqlite,
+		expect: `
+SELECT
+  request_size
+  , request_id
+FROM stats
+WHERE timestamp >= ?
+  AND timestamp < ?
+ORDER BY timestamp, node`[1:],
+	}, {
+		should: "generate a simple sampler query for Postgres",
+		givenConstraints: []stats.Constraint{
+			{"timestamp", stats.GTE, time.Now()},
+			{"timestamp", stats.LT, time.Now()},
+		},
+		givenVars:   []string{"request.size", "request.id"},
+		givenDriver: s.postgres,
+		expect: `
+SELECT
+  request_size
+  , request_id
+FROM stats
+WHERE timestamp >= $1
+  AND timestamp < $2
 ORDER BY timestamp, node`[1:],
 	}, {
 		should: "generate a more complex sampler query for SQLite",
-		givenTags: map[string]interface{}{
-			"node":       "global",
-			"request.id": "1234",
+		givenConstraints: []stats.Constraint{
+			{"node", stats.EQ, "foo"},
+			{"request.id", stats.IN, []string{"1", "2"}},
+			{"timestamp", stats.GTE, time.Now()},
+			{"timestamp", stats.LT, time.Now()},
 		},
 		givenVars: []string{
 			"node", "timestamp", "request.size", "request.id",
@@ -61,22 +90,42 @@ SELECT
   , request_id
 FROM stats
 WHERE node = ?
-  AND request_id = ?
-  AND timestamp >= ? AND timestamp < ?
+  AND request_id IN ?
+  AND timestamp >= ?
+  AND timestamp < ?
+ORDER BY timestamp, node`[1:],
+	}, {
+		should: "generate a more complex sampler query for Postgres",
+		givenConstraints: []stats.Constraint{
+			{"node", stats.EQ, "foo"},
+			{"request.id", stats.IN, []string{"1", "2"}},
+			{"timestamp", stats.GTE, time.Now()},
+			{"timestamp", stats.LT, time.Now()},
+		},
+		givenVars: []string{
+			"node", "timestamp", "request.size", "request.id",
+		},
+		givenDriver: s.postgres,
+		expect: `
+SELECT
+  node
+  , timestamp
+  , request_size
+  , request_id
+FROM stats
+WHERE node = $1
+  AND request_id IN $2
+  AND timestamp >= $3
+  AND timestamp < $4
 ORDER BY timestamp, node`[1:],
 	}} {
 		c.Logf("test %d: should %s", i, test.should)
 		sq := &sql.SQL{DB: test.givenDriver}
 
-		var tagParams []string
-		for t := range test.givenTags {
-			tagParams = append(tagParams, t)
-		}
-
 		got := sql.SampleQuery(
 			sq.Parameters,
+			test.givenConstraints,
 			test.givenVars,
-			tagParams,
 		)
 
 		c.Check(got, gc.Equals, test.expect)
@@ -90,44 +139,23 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		should            string
 		driver            *sqlx.DB
 		given             map[string][]stats.Point
-		givenTags         map[string]interface{}
-		from              time.Time
-		to                time.Time
+		givenConstraints  []stats.Constraint
 		givenMeasurements []string
 		expect            stats.Result
 		expectError       string
 	}{{
-		should:    "fail with bad time constraints",
-		driver:    s.sqlite,
-		givenTags: map[string]interface{}{"node": "global"},
-		given: map[string][]stats.Point{
-			"global": {samplePoint("simple", tNow)},
-		},
-		from: tNow.Add(time.Second),
-		to:   tNow.Add(-1 * time.Second),
-		expectError: fmt.Sprintf(
-			"time %s is not after %s",
-			tNow.Add(-1*time.Second),
-			tNow.Add(time.Second),
-		),
-	}, {
-		should:    "fail with no measurements",
-		driver:    s.sqlite,
-		givenTags: map[string]interface{}{"node": "global"},
-		given: map[string][]stats.Point{
-			"global": {samplePoint("simple", tNow)},
-		},
-		from:        tNow.Add(-1 * time.Second),
-		to:          tNow.Add(time.Second),
-		expectError: "no measurements given",
-	}, {
-		should: "work with nil tags",
+		should: "fail with no measurements",
 		driver: s.sqlite,
 		given: map[string][]stats.Point{
 			"global": {samplePoint("simple", tNow)},
 		},
-		from:              tNow.Add(-1 * time.Second),
-		to:                tNow.Add(time.Second),
+		expectError: "no measurements given",
+	}, {
+		should: "work with nil Constraints",
+		driver: s.sqlite,
+		given: map[string][]stats.Point{
+			"global": {samplePoint("simple", tNow)},
+		},
 		givenMeasurements: []string{"node"},
 		expect:            stats.Result{{Node: "global"}},
 	}, {
@@ -141,8 +169,10 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 			},
 			"node1": {samplePoint("simple", tNow)},
 		},
-		from:              tNow.Add(-2 * time.Second),
-		to:                tNow.Add(2 * time.Second),
+		givenConstraints: []stats.Constraint{
+			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
+			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
+		},
 		givenMeasurements: []string{"node", "timestamp"},
 		expect: stats.Result{
 			{Node: "global", Timestamp: tNow.Add(-1 * time.Second).UTC()},
@@ -166,8 +196,10 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 				samplePoint("simple", tNow),
 			},
 		},
-		from:              tNow.Add(-2 * time.Second),
-		to:                tNow.Add(2 * time.Second),
+		givenConstraints: []stats.Constraint{
+			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
+			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
+		},
 		givenMeasurements: []string{"node", "timestamp", "request.size"},
 		expect: stats.Result{{
 			Node:      "global",
@@ -213,7 +245,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 			),
 		}},
 	}, {
-		should: "restrict results on tags correctly",
+		should: "restrict results correctly using stats.Constraints",
 		driver: s.sqlite,
 		given: map[string][]stats.Point{
 			"global": {
@@ -227,10 +259,10 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 				samplePoint("simple", tNow),
 			},
 		},
-		from: tNow.Add(-2 * time.Second),
-		to:   tNow.Add(2 * time.Second),
-		givenTags: map[string]interface{}{
-			"node": "global",
+		givenConstraints: []stats.Constraint{
+			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
+			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
+			{"node", stats.EQ, "global"},
 		},
 		givenMeasurements: []string{"timestamp", "response.time"},
 		expect: stats.Result{{
@@ -270,9 +302,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		sq.ID = oldID
 
 		got, err := sq.Sample(
-			test.givenTags,
-			test.from,
-			test.to,
+			test.givenConstraints,
 			test.givenMeasurements...,
 		)
 

@@ -12,41 +12,42 @@ import (
 
 func sampleQuery(
 	paramVals func(int) []string,
-	vars, tags []string,
+	constraints []stats.Constraint,
+	vars []string,
 ) string {
 	var (
 		// At least two time constraints, plus any tags.
-		ps          = paramVals(len(tags) + 2)
-		fixedVars   = make([]string, len(vars))
-		constraints = make([]string, len(tags)+1)
+		fixedVars        = make([]string, len(vars))
+		queryConstraints = make([]string, len(constraints))
+		ps               = paramVals(len(constraints))
 	)
 
 	for i, v := range vars {
 		fixedVars[i] = strings.Replace(v, ".", "_", -1)
 	}
 
-	for i, t := range tags {
-		constraints[i] = fmt.Sprintf(
-			"%s = %s",
-			strings.Replace(t, ".", "_", -1),
+	for i, c := range constraints {
+		queryConstraints[i] = fmt.Sprintf(
+			"%s %s %s",
+			strings.Replace(c.Key, ".", "_", -1),
+			c.Operator,
 			ps[i],
 		)
 	}
 
-	constraints[len(constraints)-1] = fmt.Sprintf(
-		"timestamp >= %s AND timestamp < %s",
-		ps[len(ps)-2],
-		ps[len(ps)-1],
-	)
+	anyConstraints := ""
+	if len(constraints) > 0 {
+		anyConstraints = "\nWHERE " +
+			strings.Join(queryConstraints, "\n  AND ")
+	}
 
 	return fmt.Sprintf(`
 SELECT
   %s
-FROM stats
-WHERE %s
+FROM stats%s
 ORDER BY timestamp, node`[1:],
 		strings.Join(fixedVars, "\n  , "),
-		strings.Join(constraints, "\n  AND "),
+		anyConstraints,
 	)
 }
 
@@ -55,16 +56,9 @@ ORDER BY timestamp, node`[1:],
 // passed tags and vars -- don't expose these to the user, or validate their
 // values if you must expose them.
 func (s *SQL) Sample(
-	tags map[string]interface{},
-	from time.Time,
-	to time.Time,
+	constraints []stats.Constraint,
 	measurements ...string,
 ) (stats.Result, error) {
-	// Make sure timestamps are in correct order.
-	if !from.Before(to) {
-		return nil, fmt.Errorf("time %s is not after %s", to, from)
-	}
-
 	if len(measurements) < 1 {
 		return nil, errors.New("no measurements given")
 	}
@@ -82,19 +76,14 @@ func (s *SQL) Sample(
 		}
 	}
 
-	var tagParams []string
-	for t := range tags {
-		tagParams = append(tagParams, t)
+	query := sampleQuery(s.Parameters, constraints, measurements)
+
+	args := make([]interface{}, len(constraints))
+	for i, c := range constraints {
+		args[i] = c.Value
 	}
 
-	query := sampleQuery(s.Parameters, measurements, tagParams)
-
-	args := make([]interface{}, len(tags))
-	for i, t := range tagParams {
-		args[i] = tags[t]
-	}
-
-	rows, err := s.Queryx(query, append(args, from.UTC(), to.UTC())...)
+	rows, err := s.Queryx(query, args...)
 	switch {
 	case err != nil:
 		return nil, err

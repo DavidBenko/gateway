@@ -32,13 +32,10 @@ type Result []Row
 
 // Sampler defines the methods a stats sampler must implement.
 type Sampler interface {
-	// Sample gets the values matching the given tags over the given time
-	// interval, optionally given a slice of measurements to restrict
-	// results by.
+	// Sample gets the logged values using the given constraints, given a
+	// slice of measurements to return for result values.
 	Sample(
-		map[string]interface{},
-		time.Time,
-		time.Time,
+		[]Constraint,
 		...string,
 	) (Result, error)
 }
