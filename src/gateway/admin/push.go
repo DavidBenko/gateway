@@ -143,11 +143,9 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	}
 
 	device := &model.PushDevice{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		PushChannelID:    channel.ID,
-		Name:             subscription.Name,
+		AccountID:     match.AccountID,
+		PushChannelID: channel.ID,
+		Name:          subscription.Name,
 	}
 	dev, err := device.Find(tx.DB)
 	update := false
@@ -207,11 +205,9 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	}
 
 	device := &model.PushDevice{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		PushChannelID:    channel.ID,
-		Name:             subscription.Name,
+		AccountID:     match.AccountID,
+		PushChannelID: channel.ID,
+		Name:          subscription.Name,
 	}
 	dev, err := device.Find(tx.DB)
 	if err != nil {

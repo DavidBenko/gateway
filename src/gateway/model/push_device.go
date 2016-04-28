@@ -10,10 +10,8 @@ import (
 )
 
 type PushDevice struct {
-	AccountID        int64 `json:"-"`
-	UserID           int64 `json:"-"`
-	APIID            int64 `json:"-" path:"apiID"`
-	RemoteEndpointID int64 `json:"-" path:"endpointID"`
+	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 
 	ID            int64          `json:"id,omitempty" path:"id"`
 	PushChannelID int64          `json:"push_channel_id" db:"push_channel_id" path:"pushChannelID"`
@@ -49,47 +47,43 @@ func (d *PushDevice) ValidateFromDatabaseError(err error) aperrors.Errors {
 func (d *PushDevice) All(db *apsql.DB) ([]*PushDevice, error) {
 	devices := []*PushDevice{}
 	err := db.Select(&devices, db.SQL("push_devices/all"),
-		d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+		d.PushChannelID, d.AccountID)
 	if err != nil {
 		return nil, err
 	}
 	for _, device := range devices {
 		device.AccountID = d.AccountID
 		device.UserID = d.UserID
-		device.APIID = d.APIID
-		device.RemoteEndpointID = d.RemoteEndpointID
 	}
 	return devices, nil
 }
 
 func (d *PushDevice) Find(db *apsql.DB) (*PushDevice, error) {
 	device := PushDevice{
-		AccountID:        d.AccountID,
-		UserID:           d.UserID,
-		APIID:            d.APIID,
-		RemoteEndpointID: d.RemoteEndpointID,
+		AccountID: d.AccountID,
+		UserID:    d.UserID,
 	}
 	var err error
 	if d.ID != 0 {
 		err = db.Get(&device, db.SQL("push_devices/find"), d.ID,
-			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+			d.PushChannelID, d.AccountID)
 	} else if d.Name != "" {
 		err = db.Get(&device, db.SQL("push_devices/find_name"), d.Name,
-			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+			d.PushChannelID, d.AccountID)
 	} else {
-		err = db.Get(&device, db.SQL("push_devices/find_name"), d.Token,
-			d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+		err = db.Get(&device, db.SQL("push_devices/find_token"), d.Token,
+			d.PushChannelID, d.AccountID)
 	}
 	return &device, err
 }
 
 func (d *PushDevice) Delete(tx *apsql.Tx) error {
 	err := tx.DeleteOne(tx.SQL("push_devices/delete"), d.ID,
-		d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+		d.PushChannelID, d.AccountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("push_devices", d.AccountID, d.UserID, d.APIID, 0, d.ID, apsql.Delete)
+	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Delete)
 }
 
 func (d *PushDevice) Insert(tx *apsql.Tx) error {
@@ -99,12 +93,12 @@ func (d *PushDevice) Insert(tx *apsql.Tx) error {
 	}
 
 	d.ID, err = tx.InsertOne(tx.SQL("push_devices/insert"),
-		d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID,
+		d.PushChannelID, d.AccountID,
 		d.Name, d.Type, d.Token, d.Expires, data)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("push_devices", d.AccountID, d.UserID, d.APIID, 0, d.ID, apsql.Insert)
+	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Insert)
 }
 
 func (d *PushDevice) Update(tx *apsql.Tx) error {
@@ -114,9 +108,9 @@ func (d *PushDevice) Update(tx *apsql.Tx) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("push_devices/update"), d.Name, d.Type, d.Token, d.Expires, data,
-		d.ID, d.PushChannelID, d.RemoteEndpointID, d.APIID, d.AccountID)
+		d.ID, d.PushChannelID, d.AccountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("push_devices", d.AccountID, d.UserID, d.APIID, 0, d.ID, apsql.Update)
+	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Update)
 }

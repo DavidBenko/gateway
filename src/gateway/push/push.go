@@ -67,10 +67,8 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 	}
 
 	device := &model.PushDevice{
-		AccountID:        accountID,
-		APIID:            apiID,
-		RemoteEndpointID: remoteEndpointID,
-		PushChannelID:    channel.ID,
+		AccountID:     accountID,
+		PushChannelID: channel.ID,
 	}
 	devices, err := device.All(tx.DB)
 	if err != nil {
@@ -109,13 +107,11 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 			}
 		}
 		pushMessage := &model.PushMessage{
-			AccountID:        accountID,
-			APIID:            apiID,
-			RemoteEndpointID: remoteEndpointID,
-			PushChannelID:    channel.ID,
-			PushDeviceID:     device.ID,
-			Stamp:            time.Now().Unix(),
-			Data:             data,
+			AccountID:     accountID,
+			PushChannelID: channel.ID,
+			PushDeviceID:  device.ID,
+			Stamp:         time.Now().Unix(),
+			Data:          data,
 		}
 		err = pushMessage.Insert(tx)
 		if err != nil {

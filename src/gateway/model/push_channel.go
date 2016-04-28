@@ -10,12 +10,12 @@ import (
 )
 
 type PushChannel struct {
-	AccountID int64 `json:"-"`
-	UserID    int64 `json:"-"`
-	APIID     int64 `json:"-" path:"apiID"`
+	UserID int64 `json:"-"`
 
 	ID               int64          `json:"id,omitempty" path:"id"`
-	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id" path:"endpointID"`
+	AccountID        int64          `json:"account_id" db:"account_id"`
+	APIID            int64          `json:"api_id" db:"api_id"`
+	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	Name             string         `json:"name"`
 	Expires          int64          `json:"expires"`
 	Data             types.JsonText `json:"-" db:"data"`
@@ -39,15 +39,13 @@ func (c *PushChannel) ValidateFromDatabaseError(err error) aperrors.Errors {
 
 func (c *PushChannel) All(db *apsql.DB) ([]*PushChannel, error) {
 	channels := []*PushChannel{}
-	err := db.Select(&channels, db.SQL("push_channels/all"),
-		c.RemoteEndpointID, c.APIID, c.AccountID)
+	err := db.Select(&channels, db.SQL("push_channels/all"), c.AccountID)
 	if err != nil {
 		return nil, err
 	}
 	for _, channel := range channels {
 		channel.AccountID = c.AccountID
 		channel.UserID = c.UserID
-		channel.APIID = c.APIID
 	}
 	return channels, nil
 }
@@ -56,22 +54,21 @@ func (c *PushChannel) Find(db *apsql.DB) (*PushChannel, error) {
 	channel := PushChannel{
 		AccountID: c.AccountID,
 		UserID:    c.UserID,
-		APIID:     c.APIID,
 	}
 	var err error
 	if c.ID == 0 {
 		err = db.Get(&channel, db.SQL("push_channels/find_name"), c.Name,
-			c.RemoteEndpointID, c.APIID, c.AccountID)
+			c.APIID, c.RemoteEndpointID, c.AccountID)
 	} else {
 		err = db.Get(&channel, db.SQL("push_channels/find"), c.ID,
-			c.RemoteEndpointID, c.APIID, c.AccountID)
+			c.AccountID)
 	}
 	return &channel, err
 }
 
 func (c *PushChannel) Delete(tx *apsql.Tx) error {
 	err := tx.DeleteOne(tx.SQL("push_channels/delete"), c.ID,
-		c.RemoteEndpointID, c.APIID, c.AccountID)
+		c.AccountID)
 	if err != nil {
 		return err
 	}
@@ -85,6 +82,8 @@ func (c *PushChannel) Insert(tx *apsql.Tx) error {
 	}
 
 	c.ID, err = tx.InsertOne(tx.SQL("push_channels/insert"),
+		c.AccountID,
+		c.APIID, c.AccountID,
 		c.RemoteEndpointID, c.APIID, c.AccountID,
 		c.Name, c.Expires, data)
 	if err != nil {
@@ -99,8 +98,10 @@ func (c *PushChannel) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	err = tx.UpdateOne(tx.SQL("push_channels/update"), c.Name, c.Expires, data, c.ID,
-		c.RemoteEndpointID, c.APIID, c.AccountID)
+	err = tx.UpdateOne(tx.SQL("push_channels/update"), c.APIID, c.AccountID,
+		c.RemoteEndpointID, c.APIID, c.AccountID,
+		c.Name, c.Expires, data,
+		c.ID, c.AccountID)
 	if err != nil {
 		return err
 	}
