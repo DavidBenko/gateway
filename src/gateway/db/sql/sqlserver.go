@@ -22,6 +22,7 @@ type SQLServerSpec struct {
 	Database string `json:"database"`
 	Schema   string `json:"schema,omitempty"`
 	Timeout  int    `json:"connection timeout,omitempty"`
+	Encrypt  string `json:"encrypt,omitempty"`
 }
 
 func (s *SQLServerSpec) driver() driver {
@@ -36,6 +37,7 @@ func (s *SQLServerSpec) validate() error {
 		{kw: "database", errCond: s.Database == "", val: s.Database},
 		{kw: "server", errCond: s.Server == "", val: s.Server},
 		{kw: "timeout", errCond: s.Timeout < 0, val: s.Timeout},
+		{kw: "encrypt", errCond: s.Encrypt != "" && s.Encrypt != "true" && s.Encrypt != "false" && s.Encrypt != "disable", val: s.Encrypt},
 	})
 }
 
@@ -48,6 +50,9 @@ func (s *SQLServerSpec) ConnectionString() string {
 		"server":   s.Server,
 	}
 
+	if s.Encrypt != "" {
+		m["encrypt"] = s.Encrypt
+	}
 	if s.Schema != "" {
 		m["schema"] = s.Schema
 	}
