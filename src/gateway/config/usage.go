@@ -35,6 +35,7 @@ const dbConnStringHelp = `The connection string for your database
 
 var usageStrings = map[string]string{
 	"version":         "Whether to print the version and quit",
+	"oss-licenses":    "Whether to print the list of libraries and respective licenses used by this product and quit",
 	"config":          "The path to the configuration file",
 	"license":         "The path to a valid Gateway license key",
 	"license-content": "The license contents as a base64 encoded string.  If present, license option is ignored",

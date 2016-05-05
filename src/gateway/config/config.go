@@ -18,6 +18,7 @@ var defaultDomain = "lvh.me"
 // Configuration specifies the complete Gateway configuration.
 type Configuration struct {
 	Version        bool   `flag:"version" default:"false"`
+	OssLicenses    string `flag:"oss-licenses" dfeault:"false"`
 	File           string `flag:"config" default:"gateway.conf"`
 	License        string `flag:"license"`
 	LicenseContent string `flag:"license-content"`
