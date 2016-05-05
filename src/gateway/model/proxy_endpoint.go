@@ -24,7 +24,7 @@ type ProxyEndpoint struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Active      bool           `json:"active"`
-	CORSEnabled bool           `json:"cors_enabled,omitempty" db:"cors_enabled"`
+	CORSEnabled bool           `json:"cors_enabled" db:"cors_enabled"`
 	Routes      types.JsonText `json:"routes,omitempty"`
 
 	Components []*ProxyEndpointComponent `json:"components,omitempty"`
