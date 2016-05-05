@@ -105,7 +105,7 @@ func (s *SQLServerSpec) NeedsUpdate(sp db.Specifier) bool {
 		return false
 	}
 	if spec, ok := sp.(*SQLServerSpec); ok {
-		return spec.Timeout != s.Timeout || s.spec.NeedsUpdate(sp)
+		return spec.Timeout != s.Timeout || spec.Encrypt != s.Encrypt || spec.Schema != s.Schema || s.spec.NeedsUpdate(sp)
 	}
 
 	logreport.Panicf("tried to compare %T to %T!", s, sp)
@@ -124,6 +124,8 @@ func (s *SQLServerSpec) Update(sp db.Specifier) error {
 	}
 
 	s.Timeout = spec.Timeout
+	s.Encrypt = spec.Encrypt
+	s.Schema = spec.Schema
 	return nil
 }
 

@@ -27,7 +27,7 @@ func sqlsConfigs() map[string]map[string]interface{} {
 			"user id":            "user",
 			"password":           "pass",
 			"database":           "db",
-			"schema":             "dbschema",
+			"schema":             "complexSchema",
 			"connection timeout": 30,
 			"encrypt":            "true",
 		},
@@ -66,7 +66,7 @@ func (s *SQLSuite) TestSQLSConfig(c *gc.C) {
 	}, {
 		should:       "work with a complicated config",
 		given:        sqlsConfigs()["complicated"],
-		expectString: "database=db;encrypt=true;password=pass;port=1234;schema=dbschema;server=some.url.net;timeout=30;user id=user",
+		expectString: "database=db;encrypt=true;password=pass;port=1234;schema=complexSchema;server=some.url.net;timeout=30;user id=user",
 		expectUnique: "dbname=db;host=some.url.net;password=pass;port=1234;user id=user",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
