@@ -46,6 +46,11 @@ func main() {
 		return
 	}
 
+	if exampleConfigCheck() {
+		fmt.Printf("%s", config.ExampleConfigurationFile)
+		return
+	}
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Setup logging
@@ -218,6 +223,11 @@ func versionCheck() bool {
 func ossLicensesCheck() bool {
 	return len(os.Args) >= 2 &&
 		strings.ToLower(os.Args[1:2][0]) == "-oss-licenses"
+}
+
+func exampleConfigCheck() bool {
+	return len(os.Args) >= 2 &&
+		strings.ToLower(os.Args[1:2][0]) == "-example-config"
 }
 
 func createDevAccount(db *sql.DB) error {
