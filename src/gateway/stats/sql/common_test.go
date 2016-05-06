@@ -78,6 +78,7 @@ func samplePoint(name string, tst time.Time) stats.Point {
 		"simple": stats.Point{
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    0,
 				"request.id":      "1234",
 				"response.time":   50,
@@ -89,6 +90,7 @@ func samplePoint(name string, tst time.Time) stats.Point {
 		"simple1": stats.Point{
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    0,
 				"request.id":      "1234",
 				"response.time":   50,
@@ -100,6 +102,7 @@ func samplePoint(name string, tst time.Time) stats.Point {
 		"simple2": stats.Point{
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    10,
 				"request.id":      "1234",
 				"response.time":   60,
@@ -111,6 +114,7 @@ func samplePoint(name string, tst time.Time) stats.Point {
 		"simple3": stats.Point{
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    20,
 				"request.id":      "1234",
 				"response.time":   70,
@@ -128,6 +132,7 @@ func sampleRow(name, node string, tst time.Time) stats.Row {
 			Node:      node,
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    0,
 				"request.id":      "1234",
 				"response.time":   50,
@@ -140,6 +145,7 @@ func sampleRow(name, node string, tst time.Time) stats.Row {
 			Node:      node,
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    0,
 				"request.id":      "1234",
 				"response.time":   50,
@@ -152,6 +158,7 @@ func sampleRow(name, node string, tst time.Time) stats.Row {
 			Node:      node,
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    10,
 				"request.id":      "1234",
 				"response.time":   60,
@@ -164,6 +171,7 @@ func sampleRow(name, node string, tst time.Time) stats.Row {
 			Node:      node,
 			Timestamp: tst,
 			Values: map[string]interface{}{
+				"api.id":          int64(1),
 				"request.size":    20,
 				"request.id":      "1234",
 				"response.time":   70,
@@ -177,17 +185,17 @@ func sampleRow(name, node string, tst time.Time) stats.Row {
 
 func (s *SQLSuite) setup(c *gc.C) {
 	c.Log("    >>DB: Connecting to in-memory sqlite3 database")
+
 	sqliteDB, err := sqlx.Open("sqlite3", ":memory:")
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sqliteDB.Ping(), jc.ErrorIsNil)
-
 	c.Assert(sql.Migrate(sqliteDB, sql.SQLite3), jc.ErrorIsNil)
 
 	c.Logf("    >>DB: Connecting to pq using connection string %q", pgConnString)
+
 	pgDB, err := sqlx.Open("postgres", pgConnString)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pgDB.Ping(), jc.ErrorIsNil)
-
 	c.Assert(sql.Migrate(pgDB, sql.Postgres), jc.ErrorIsNil)
 
 	s.sqlite, s.postgres = sqliteDB, pgDB
