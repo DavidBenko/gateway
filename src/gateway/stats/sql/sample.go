@@ -53,30 +53,33 @@ ORDER BY timestamp, node`[1:],
 
 // Sample implements stats.Sampler on SQL.  Note that it only supports certain
 // tags: "node", "api_id", and "user_id".  It auto-generates the query based on
-// passed tags and vars -- don't expose these to the user, or validate their
-// values if you must expose them.
+// passed constraints and vars -- don't expose these to the user, or validate
+// their values if you must expose them.
 func (s *SQL) Sample(
 	constraints []stats.Constraint,
-	measurements ...string,
+	vars ...string,
 ) (stats.Result, error) {
-	if len(measurements) < 1 {
-		return nil, errors.New("no measurements given")
+	if len(vars) < 1 {
+		return nil, errors.New("no vars given")
 	}
 
 	var desiredValues []string
 	wantsNode, wantsTimestamp := false, false
-	for _, m := range measurements {
+	for _, v := range vars {
+		if !stats.ValidSample(v) {
+			return nil, fmt.Errorf("unknown var %q", v)
+		}
 		switch {
-		case m == "node":
+		case v == "node":
 			wantsNode = true
-		case m == "timestamp":
+		case v == "timestamp":
 			wantsTimestamp = true
 		default:
-			desiredValues = append(desiredValues, m)
+			desiredValues = append(desiredValues, v)
 		}
 	}
 
-	query := sampleQuery(s.Parameters, constraints, measurements)
+	query := sampleQuery(s.Parameters, constraints, vars)
 
 	args := make([]interface{}, len(constraints))
 	for i, c := range constraints {

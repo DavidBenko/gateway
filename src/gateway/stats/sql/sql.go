@@ -4,41 +4,10 @@ package sql
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 )
-
-var (
-	knownMeasurements *regexp.Regexp
-	knownConstraints  *regexp.Regexp
-
-	measurements = []string{
-		`request_size`,
-		`request_id`,
-		`response_time`,
-		`response_size`,
-		`response_status`,
-		`response_error`,
-	}
-	constraints = []string{
-		`api_id`,
-		`user_id`,
-		`node`,
-		`timestamp`,
-	}
-)
-
-func init() {
-	knownMeasurements = regexp.MustCompile(regexp.QuoteMeta(
-		"^(" + strings.Join(measurements, "|") + ")$",
-	))
-	knownConstraints = regexp.MustCompile(regexp.QuoteMeta(
-		"^(" + strings.Join(append(constraints, measurements...), "|") + ")$",
-	))
-}
 
 // Driver is the driver to be used for the given stats logger / sampler.
 // This must be one of the given constants.

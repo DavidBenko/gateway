@@ -149,7 +149,15 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		given: map[string][]stats.Point{
 			"global": {samplePoint("simple", tNow)},
 		},
-		expectError: "no measurements given",
+		expectError: "no vars given",
+	}, {
+		should: "fail with unknown var ",
+		driver: s.sqlite,
+		given: map[string][]stats.Point{
+			"global": {samplePoint("simple", tNow)},
+		},
+		givenMeasurements: []string{"SELECT"},
+		expectError:       `unknown var "SELECT"`,
 	}, {
 		should: "work with nil Constraints",
 		driver: s.sqlite,

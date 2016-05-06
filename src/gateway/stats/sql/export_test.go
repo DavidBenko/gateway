@@ -6,12 +6,8 @@ import (
 )
 
 // LogQuery exports logQuery for testing.
-func LogQuery(
-	f func(int) []string,
-	node string,
-	n int,
-) string {
-	return logQuery(f, node, n)
+func LogQuery(f func(int) []string, n int) string {
+	return logQuery(f, n)
 }
 
 // SampleQuery exports sampleQuery for testing.
@@ -24,8 +20,8 @@ func SampleQuery(
 }
 
 // GetArgs exports getArgs for testing.
-func GetArgs(ps ...stats.Point) ([]interface{}, error) {
-	return getArgs(ps...)
+func GetArgs(node string, ps ...stats.Point) ([]interface{}, error) {
+	return getArgs(node, ps...)
 }
 
 // DayMillis exports dayMillis for testing.

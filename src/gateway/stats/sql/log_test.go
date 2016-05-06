@@ -18,96 +18,94 @@ func (s *SQLSuite) TestLogQuery(c *gc.C) {
 	for i, t := range []struct {
 		should      string
 		given       int
-		givenNode   string
 		givenDriver *sqlx.DB
 		expect      string
 	}{{
 		should:      "generate a correct query for SQLite",
 		given:       1,
-		givenNode:   "global",
 		givenDriver: s.sqlite,
 		expect: `
 INSERT INTO stats (
-  node
-  , timestamp
-  , ms
-  , request_size
+  api_id
+  , node
   , request_id
-  , response_time
+  , request_size
+  , response_error
   , response_size
   , response_status
-  , response_error
+  , response_time
+  , timestamp
+  , ms
 ) VALUES
-  ('global', ?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `[1:],
 	}, {
 		should:      "generate a correct query for multi-point SQLite",
 		given:       3,
-		givenNode:   "global",
 		givenDriver: s.sqlite,
 		expect: `
 INSERT INTO stats (
-  node
-  , timestamp
-  , ms
-  , request_size
+  api_id
+  , node
   , request_id
-  , response_time
+  , request_size
+  , response_error
   , response_size
   , response_status
-  , response_error
+  , response_time
+  , timestamp
+  , ms
 ) VALUES
-  ('global', ?, ?, ?, ?, ?, ?, ?, ?)
-  , ('global', ?, ?, ?, ?, ?, ?, ?, ?)
-  , ('global', ?, ?, ?, ?, ?, ?, ?, ?)
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `[1:],
 	}, {
 		should:      "generate a correct query for Postgres",
 		given:       1,
-		givenNode:   "global",
 		givenDriver: s.postgres,
 		expect: `
 INSERT INTO stats (
-  node
-  , timestamp
-  , ms
-  , request_size
+  api_id
+  , node
   , request_id
-  , response_time
+  , request_size
+  , response_error
   , response_size
   , response_status
-  , response_error
+  , response_time
+  , timestamp
+  , ms
 ) VALUES
-  ('global', $1, $2, $3, $4, $5, $6, $7, $8)
+  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `[1:],
 	}, {
 		should:      "generate a correct query for multi-point Postgres",
 		given:       3,
-		givenNode:   "global",
 		givenDriver: s.postgres,
 		expect: `
 INSERT INTO stats (
-  node
-  , timestamp
-  , ms
-  , request_size
+  api_id
+  , node
   , request_id
-  , response_time
+  , request_size
+  , response_error
   , response_size
   , response_status
-  , response_error
+  , response_time
+  , timestamp
+  , ms
 ) VALUES
-  ('global', $1, $2, $3, $4, $5, $6, $7, $8)
-  , ('global', $9, $10, $11, $12, $13, $14, $15, $16)
-  , ('global', $17, $18, $19, $20, $21, $22, $23, $24)
+  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  , ($11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+  , ($21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
 `[1:],
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
-		sq := &sql.SQL{ID: t.givenNode, DB: t.givenDriver}
+		sq := &sql.SQL{DB: t.givenDriver}
 
 		got := sql.LogQuery(
 			sq.Parameters,
-			t.givenNode,
 			t.given,
 		)
 
@@ -121,6 +119,7 @@ func (s *SQLSuite) TestGetArgs(c *gc.C) {
 	for i, t := range []struct {
 		should    string
 		given     []stats.Point
+		givenNode string
 		expect    []interface{}
 		expectErr string
 	}{{
@@ -132,30 +131,36 @@ func (s *SQLSuite) TestGetArgs(c *gc.C) {
 			Timestamp: tNow,
 			Values:    map[string]interface{}{"request_time": 0},
 		}},
-		expectErr: `point missing measurement "request.size"`,
+		givenNode: "global",
+		expectErr: `point missing measurement "api.id"`,
 	}, {
-		should: "get args for stats.Point slice of 1 element",
-		given:  []stats.Point{samplePoint("simple", tNow)},
+		should:    "get args for stats.Point slice of 1 element",
+		given:     []stats.Point{samplePoint("simple", tNow)},
+		givenNode: "global",
 		expect: []interface{}{
+			int64(1), "global", "1234",
+			0, "", 500, 200, 50,
 			tNow.UTC(), sql.DayMillis(tNow.UTC()),
-			0, "1234", 50, 500, 200, "",
 		},
 	}, {
 		should: "get args for stats.Point slice of several elements",
 		given: []stats.Point{
 			samplePoint("simple1", tNow),
-			samplePoint("simple2", tNow),
+			samplePoint("simple2", tNow.Add(1*time.Second)),
 		},
+		givenNode: "global",
 		expect: []interface{}{
-			tNow.UTC(), sql.DayMillis(tNow.UTC()),
-			0, "1234", 50, 500, 200, "",
-			tNow.UTC(), sql.DayMillis(tNow.UTC()),
-			10, "1234", 60, 500, 200, "",
+			int64(1), "global", "1234", 0, "", 500, 200, 50,
+			tNow.UTC(),
+			sql.DayMillis(tNow.UTC()),
+			int64(1), "global", "1234", 10, "", 500, 200, 60,
+			tNow.Add(1 * time.Second).UTC(),
+			sql.DayMillis(tNow.Add(1 * time.Second).UTC()),
 		},
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
 
-		got, err := sql.GetArgs(t.given...)
+		got, err := sql.GetArgs(t.givenNode, t.given...)
 		if t.expectErr != "" {
 			c.Check(err, gc.ErrorMatches, t.expectErr)
 			continue
@@ -187,7 +192,7 @@ func (s *SQLSuite) TestLog(c *gc.C) {
 			Values:    map[string]interface{}{"something": 0},
 		}},
 		expectError: `failed to log: failed to get args for stats ` +
-			`query: point missing measurement "request.size"`,
+			`query: point missing measurement "api.id"`,
 	}, {
 		should:    "log a single point",
 		timestamp: tNow,
@@ -287,7 +292,8 @@ func testLog(
 
 	rows, err := s.Queryx(fmt.Sprintf(`
 SELECT
-  node
+  api_id
+  , node
   , timestamp
   , request_size
   , request_id
@@ -296,7 +302,7 @@ SELECT
   , response_status
   , response_error
 FROM stats
-WHERE node = '%s'`[1:], ID))
+WHERE node = %s`[1:], s.Parameters(1)[0]), ID)
 
 	switch {
 	case err != nil:
@@ -320,6 +326,7 @@ WHERE node = '%s'`[1:], ID))
 			Node:      row.Node,
 			Timestamp: row.Timestamp.UTC(),
 			Values: map[string]interface{}{
+				"api.id":          row.APIID,
 				"request.size":    row.RequestSize,
 				"request.id":      row.RequestID,
 				"response.time":   row.ResponseTime,
