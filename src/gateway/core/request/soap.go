@@ -196,8 +196,7 @@ func (soapRequest *SoapRequest) Perform() Response {
 		if readlen == 0 {
 			break
 		}
-		responseBytesScrubbed := responseBytes[:readlen]
-		buf.Write(responseBytesScrubbed)
+		buf.Write(responseBytes[:readlen])
 	}
 
 	rawMessage := new(json.RawMessage)
