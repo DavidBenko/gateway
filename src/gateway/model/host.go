@@ -86,7 +86,7 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID i
 		return err
 	}
 	// Notify regarding APIs since a host change can impact default base url of an API.
-	return tx.Notify("apis", accountID, userID, apiID, 0, apiID, apsql.Delete)
+	return tx.Notify("apis", accountID, userID, apiID, 0, apiID, apsql.Update)
 }
 
 // Insert inserts the host into the database as a new row.
@@ -101,7 +101,7 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 		return err
 	}
 	// Notify regarding APIs since a host change can impact default base url of an API.
-	return tx.Notify("apis", h.AccountID, h.UserID, h.APIID, 0, h.APIID, apsql.Insert)
+	return tx.Notify("apis", h.AccountID, h.UserID, h.APIID, 0, h.APIID, apsql.Update)
 }
 
 // Update updates the host in the database.
