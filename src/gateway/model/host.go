@@ -81,7 +81,12 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID i
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", accountID, userID, apiID, 0, id, apsql.Delete)
+	err = tx.Notify("hosts", accountID, userID, apiID, 0, id, apsql.Delete)
+	if err != nil {
+		return err
+	}
+	// Notify regarding APIs since a host change can impact default base url of an API.
+	return tx.Notify("apis", accountID, userID, apiID, 0, apiID, apsql.Update)
 }
 
 // Insert inserts the host into the database as a new row.
@@ -91,7 +96,12 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Insert)
+	err = tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Insert)
+	if err != nil {
+		return err
+	}
+	// Notify regarding APIs since a host change can impact default base url of an API.
+	return tx.Notify("apis", h.AccountID, h.UserID, h.APIID, 0, h.APIID, apsql.Update)
 }
 
 // Update updates the host in the database.
@@ -101,5 +111,10 @@ func (h *Host) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Update)
+	err = tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Update)
+	if err != nil {
+		return err
+	}
+	// Notify regarding APIs since a host change can impact default base url of an API.
+	return tx.Notify("apis", h.AccountID, h.UserID, h.APIID, 0, h.APIID, apsql.Update)
 }
