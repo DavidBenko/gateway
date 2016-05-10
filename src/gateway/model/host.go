@@ -101,5 +101,10 @@ func (h *Host) Update(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Update)
+	err = tx.Notify("hosts", h.AccountID, h.UserID, h.APIID, 0, h.ID, apsql.Update)
+	if err != nil {
+		return err
+	}
+	// Notify regarding APIs since a host change can impact default base url of an API.
+	return tx.Notify("apis", h.AccountID, h.UserID, h.APIID, 0, h.APIID, apsql.Update)
 }
