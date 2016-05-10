@@ -3,10 +3,11 @@ package sql
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
-	gwerr "gateway/errors"
+	aperrors "gateway/errors"
 	"gateway/stats"
 )
 
@@ -51,12 +52,10 @@ ORDER BY timestamp, node`[1:],
 	)
 }
 
-// Sample implements stats.Sampler on SQL.  Note that it only supports certain
-// tags: "node", "api_id", and "user_id".  It auto-generates the query based on
-// passed constraints and vars -- don't expose these to the user, or validate
-// their values if you must expose them.
+// Sample implements stats.Sampler on SQL.
 func (s *SQL) Sample(
 	constraints []stats.Constraint,
+	terminate <-chan struct{},
 	vars ...string,
 ) (stats.Result, error) {
 	if len(vars) < 1 {
@@ -96,44 +95,148 @@ func (s *SQL) Sample(
 
 	defer rows.Close()
 
-	var result stats.Result
+	// Get the max procs without changing the setting.
+	procs := runtime.GOMAXPROCS(-1)
+	var (
+		numRows = 0
 
-	for rowNum := 0; rows.Next(); rowNum++ {
-		var (
-			row       Row
-			node      string
-			timestamp time.Time
+		inCh  = make(chan ithSQLRow, procs)
+		ready = make(chan struct{})
+		outCh = make(chan ithStatsRow, procs)
+	)
+
+	select {
+	case <-terminate:
+		return nil, errors.New("Sample terminated")
+	default:
+	}
+
+	for i := 0; i < procs; i++ {
+		go receiveRows(
+			ready,
+			terminate,
+			inCh,
+			outCh,
+			wantsNode,
+			wantsTimestamp,
+			desiredValues,
 		)
+	}
 
-		if err = rows.StructScan(&row); err != nil {
-			return nil, gwerr.NewWrapped("failed to scan", err)
-		}
-
-		var resultValues map[string]interface{}
-		if len(desiredValues) > 0 {
-			resultValues = make(map[string]interface{})
-		}
-		for _, v := range desiredValues {
-			resultValues[v] = row.value(v)
+	for i := 0; rows.Next(); i++ {
+		row := new(Row)
+		if err = rows.StructScan(row); err != nil {
+			return nil, aperrors.NewWrapped("failed to scan", err)
 		}
 
-		if wantsNode {
-			node = row.Node
+		select {
+		case <-terminate:
+			return nil, errors.New("Sample terminated")
+		case inCh <- ithSQLRow{i: i, row: row}:
+			numRows++
 		}
-		if wantsTimestamp {
-			timestamp = row.Timestamp.UTC()
-		}
-
-		result = append(result, stats.Row{
-			Node:      node,
-			Timestamp: timestamp,
-			Values:    resultValues,
-		})
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, gwerr.NewWrapped("sql stats rows had error", err)
+		return nil, aperrors.NewWrapped("sql stats rows had error", err)
+	}
+
+	close(ready)
+
+	result := make(stats.Result, numRows)
+
+	for i := 0; i < numRows; i++ {
+		select {
+		case row := <-outCh:
+			result[row.i] = *row.row
+		case <-terminate:
+			// If a send from a worker to outCh was blocking, it
+			// will select its terminate case.
+			return nil, errors.New("Sample terminated")
+		}
 	}
 
 	return result, nil
+}
+
+type ithSQLRow struct {
+	i   int
+	row *Row
+}
+
+type ithStatsRow struct {
+	i   int
+	row *stats.Row
+}
+
+func receiveRows(
+	ready, terminate <-chan struct{},
+	inCh <-chan ithSQLRow,
+	outCh chan<- ithStatsRow,
+	wantsNode, wantsTimestamp bool,
+	desiredValues []string,
+) {
+	var received []ithStatsRow
+
+receiveAll:
+	for {
+		select {
+		case in := <-inCh:
+			received = append(received, ithStatsRow{
+				i: in.i,
+				row: getRow(
+					in.row,
+					wantsNode,
+					wantsTimestamp,
+					desiredValues,
+				),
+			})
+		case <-terminate:
+			return
+		case <-ready:
+			// start sending
+			break receiveAll
+		}
+	}
+
+	for _, ithRow := range received {
+		select {
+		case <-terminate:
+			return
+		case outCh <- ithRow:
+		}
+	}
+}
+
+func getRow(
+	row *Row,
+	wantsNode, wantsTimestamp bool,
+	desiredValues []string,
+) *stats.Row {
+	var (
+		node      string
+		timestamp time.Time
+	)
+
+	var resultValues map[string]interface{}
+	if len(desiredValues) > 0 {
+		resultValues = make(map[string]interface{})
+	}
+
+	for _, v := range desiredValues {
+		resultValues[v] = row.value(v)
+	}
+
+	if wantsNode {
+		node = row.Node
+	}
+	if wantsTimestamp {
+		timestamp = row.Timestamp.UTC()
+	}
+
+	return &stats.Row{
+		Node:      node,
+		Timestamp: timestamp,
+		Values:    resultValues,
+	}
 }

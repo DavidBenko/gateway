@@ -311,6 +311,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 
 		got, err := sq.Sample(
 			test.givenConstraints,
+			make(chan struct{}), // termination channel
 			test.givenMeasurements...,
 		)
 
