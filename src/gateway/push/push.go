@@ -16,15 +16,36 @@ type Pusher interface {
 	Push(token string, data interface{}) error
 }
 
+type PushPoolEntry struct {
+	sync.RWMutex
+	Pusher
+	time.Time
+}
+
 type PushPool struct {
 	sync.RWMutex
-	pool map[string]Pusher
+	pool map[string]*PushPoolEntry
 }
 
 func NewPushPool() *PushPool {
 	pool := &PushPool{
-		pool: make(map[string]Pusher),
+		pool: make(map[string]*PushPoolEntry),
 	}
+	deleteTicker := time.NewTicker(time.Hour)
+	go func() {
+		for _ = range deleteTicker.C {
+			now := time.Now()
+			pool.Lock()
+			for key, value := range pool.pool {
+				value.RLock()
+				if value.Before(now) {
+					delete(pool.pool, key)
+				}
+				value.RUnlock()
+			}
+			pool.Unlock()
+		}
+	}()
 	return pool
 }
 
@@ -34,12 +55,16 @@ func (p *PushPool) Connection(platform *re.PushPlatform) Pusher {
 		logreport.Fatal(err)
 	}
 	p.RLock()
-	pusher := p.pool[string(spec)]
+	entry := p.pool[string(spec)]
 	p.RUnlock()
-	if pusher != nil {
-		return pusher
+	if entry != nil {
+		entry.Lock()
+		defer entry.Unlock()
+		entry.Time = time.Now().Add(time.Hour)
+		return entry
 	}
 
+	var pusher Pusher
 	switch platform.Type {
 	case re.PushTypeOSX:
 		fallthrough
@@ -50,7 +75,7 @@ func (p *PushPool) Connection(platform *re.PushPlatform) Pusher {
 	}
 	p.Lock()
 	defer p.Unlock()
-	p.pool[string(spec)] = pusher
+	p.pool[string(spec)] = &PushPoolEntry{Pusher: pusher, Time: time.Now().Add(time.Hour)}
 	return pusher
 }
 
