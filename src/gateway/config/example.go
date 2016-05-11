@@ -136,10 +136,10 @@ const ExampleConfigurationFile = `##############################################
 # broker = 'localhost'
 
 # The port of the broker pub, default is 5555.
-# brokerPubPort = 5555
+# brokerPubPort = '5555'
 
 # The port of the broker sub, default is 5556.
-# brokerSubPort = 5556
+# brokerSubPort = '5556'
 
 # The broker transport, default is 'tcp'.
 # brokerTransport = 'tcp'
