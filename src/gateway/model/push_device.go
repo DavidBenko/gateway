@@ -38,7 +38,7 @@ func (d *PushDevice) Validate(isInsert bool) aperrors.Errors {
 
 func (d *PushDevice) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "push_devices", "push_device_id", "name") {
+	if apsql.IsUniqueConstraint(err, "push_devices", "push_channel_id", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
