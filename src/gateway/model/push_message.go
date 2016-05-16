@@ -65,7 +65,7 @@ func (m *PushMessage) Delete(tx *apsql.Tx) error {
 
 func (m *PushMessage) DeleteOffset(tx *apsql.Tx) error {
 	messages, err := m.All(tx.DB)
-	if err != nil {
+	if err == nil {
 		for len(messages) > 10 {
 			message := messages[0]
 			err = message.Delete(tx)

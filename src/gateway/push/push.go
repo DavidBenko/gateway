@@ -118,7 +118,7 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 		}
 		var data []byte
 		if err != nil {
-			payload := struct{ err string }{err.Error()}
+			payload := struct{ Error string }{err.Error()}
 			var _err error
 			data, _err = json.Marshal(&payload)
 			if _err != nil {
