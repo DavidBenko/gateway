@@ -1,16 +1,16 @@
 package soap
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"gateway/config"
 	aperrors "gateway/errors"
@@ -71,10 +71,24 @@ func Configure(soap config.Soap, devMode bool) error {
 	cmd := exec.Command(fullJavaCommandPath, "-version")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		log.Printf("Received error from java -version command.  Output is %s", output)
 		return fmt.Errorf("Received error checking for existence of java command: %s", err)
 	}
 
-	javaVersion, _ := strconv.Atoi(javaVersionRegex.FindStringSubmatch(string(output))[1])
+	lines := strings.Split(string(output), "\n")
+	var match *string
+	for _, line := range lines {
+		matches := javaVersionRegex.FindStringSubmatch(line)
+		if len(matches) == 2 {
+			match = &matches[1]
+			break
+		}
+	}
+	if match == nil {
+		return fmt.Errorf("Unable to detect Java version!  Output of java -version is:\n\n%s", output)
+	}
+
+	javaVersion, _ := strconv.Atoi(*match)
 	if javaVersion < minSupportedJdkVersion {
 		return fmt.Errorf("Invalid Java version: Java must be version 1.8 or higher")
 	}
@@ -106,18 +120,7 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 		return fmt.Errorf("Wsimport is not configured on this system")
 	}
 
-	bytes, err := ioutil.ReadFile(wsdlFile)
-	if err != nil {
-		return aperrors.NewWrapped("[soap.go] Unable to read wsdl file", err)
-	}
-
-	// Use a generated package name that consists of the WSDL's md5 sum, prefixed with 'v' (for version)
-	// This will prevent class version collisions when an update is made to a WSDL
-	checksum := md5.Sum(bytes)
-	hexsum := hex.EncodeToString(checksum[:])
-	packageName := fmt.Sprintf("v%s", hexsum)
-
-	jarOutputFile, err = filepath.Abs(jarOutputFile)
+	jarOutputFile, err := filepath.Abs(jarOutputFile)
 	if err != nil {
 		return aperrors.NewWrapped("[soap.go] Unable to get absolute path for jar file", err)
 	}
@@ -129,8 +132,14 @@ func Wsimport(wsdlFile string, jarOutputFile string) error {
 
 	defer os.Remove(tmpdir)
 
-	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-p", packageName, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-clientjar", jarOutputFile, wsdlFile)
 	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-extension", "-clientjar", jarOutputFile, wsdlFile)
+		output, err = cmd.CombinedOutput()
+	}
+
 	logreport.Println(string(output))
 
 	if err != nil {
@@ -162,7 +171,7 @@ func JarURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("file:///%s", filepath.ToSlash(fullFilePath)), nil
+	return fmt.Sprintf("file:///%s", strings.Replace(filepath.ToSlash(fullFilePath), " ", "%20", -1)), nil
 }
 
 func inflateSoapClient() (string, error) {

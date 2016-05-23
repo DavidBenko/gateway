@@ -21,6 +21,7 @@ import (
 	"gateway/logreport"
 	"gateway/mail"
 	"gateway/model"
+	"gateway/osslicenses"
 	"gateway/proxy"
 	"gateway/service"
 	"gateway/soap"
@@ -37,6 +38,16 @@ func main() {
 	if versionCheck() {
 		fmt.Printf("Gateway %s (%s)\n",
 			version.Name(), version.Commit())
+		return
+	}
+
+	if ossLicensesCheck() {
+		fmt.Printf("%s", osslicenses.OssLicenseList)
+		return
+	}
+
+	if exampleConfigCheck() {
+		fmt.Printf("%s", config.ExampleConfigurationFile)
 		return
 	}
 
@@ -208,6 +219,16 @@ func main() {
 func versionCheck() bool {
 	return len(os.Args) >= 2 &&
 		strings.ToLower(os.Args[1:2][0]) == "-version"
+}
+
+func ossLicensesCheck() bool {
+	return len(os.Args) >= 2 &&
+		strings.ToLower(os.Args[1:2][0]) == "-oss-licenses"
+}
+
+func exampleConfigCheck() bool {
+	return len(os.Args) >= 2 &&
+		strings.ToLower(os.Args[1:2][0]) == "-example-config"
 }
 
 func createDevAccount(db *sql.DB) error {

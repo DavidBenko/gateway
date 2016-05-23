@@ -2,7 +2,7 @@ SELECT
   libraries.api_id as api_id,
   libraries.id as id,
   libraries.name as name,
-  libraries.description as description
+  libraries.description as description,
   libraries.data as data
 FROM libraries, apis
 WHERE libraries.id = ?

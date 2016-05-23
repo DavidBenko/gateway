@@ -206,7 +206,7 @@ func (l *LDAPRequest) CreateOrReuse(conn io.Closer) (io.Closer, error) {
 			return nil, aperrors.NewWrapped("[ldap] Dialing ldap endpoint", err)
 		}
 
-		l.connection = &apldap.ConnectionAdapter{newConn}
+		l.connection = &apldap.ConnectionAdapter{Conn: newConn}
 	} else {
 		var ldapConn *apldap.ConnectionAdapter
 		var ok bool

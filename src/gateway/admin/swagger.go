@@ -79,7 +79,7 @@ func (s *SwaggerController) Swagger(w http.ResponseWriter, r *http.Request, db *
 			for _, method := range route.Methods {
 				parameters := []interface{}{}
 				ok := map[string]interface{}{
-					"description:": endpoint.Description,
+					"description": endpoint.Description,
 				}
 				routePath := []rune(route.Path)
 				for i := 0; i < len(routePath); i++ {

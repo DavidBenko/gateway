@@ -11,15 +11,21 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	parameterType = "_type"
+	converter     = "Converter"
+)
+
 // sqlRequest is a generic SQL implementation without a config or generator.
 // Extend this to implement other SQL database types e.g. MySQL, Postgres
 type sqlRequest struct {
-	Query       string        `json:"queryStatement"`
-	Execute     string        `json:"executeStatement"`
-	Parameters  []interface{} `json:"parameters"`
-	Tx          bool          `json:"transactions"`
-	MaxOpenConn int           `json:"maxOpenConn,omitempty"`
-	MaxIdleConn int           `json:"maxIdleConn,omitempty"`
+	Query       string                            `json:"queryStatement"`
+	Execute     string                            `json:"executeStatement"`
+	Parameters  []interface{}                     `json:"parameters"`
+	ResultTypes map[string]map[string]interface{} `json:"resultTypes"`
+	Tx          bool                              `json:"transactions"`
+	MaxOpenConn int                               `json:"maxOpenConn,omitempty"`
+	MaxIdleConn int                               `json:"maxIdleConn,omitempty"`
 	conn        *sqlx.DB
 }
 
@@ -30,9 +36,69 @@ type sqlResponse struct {
 	RowsAffected int64                    `json:"rowsAffected,omitempty"`
 }
 
+func (r *sqlRequest) normalizeParameters() error {
+	for idx, param := range r.Parameters {
+
+		switch e := param.(type) {
+		case map[string]interface{}:
+			if e[parameterType] != converter {
+				continue
+			}
+
+			newParam, err := r.normalizeParameter(e)
+			if err != nil {
+				return err
+			}
+			r.Parameters[idx] = newParam
+		default:
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (r *sqlRequest) normalizeParameter(param map[string]interface{}) (interface{}, error) {
+	convertTo, ok := param["convertTo"]
+	if !ok {
+		return nil, fmt.Errorf("No 'convertTo' specified")
+	}
+
+	var convertToStr string
+	switch c := convertTo.(type) {
+	case string:
+		convertToStr = c
+	default:
+		return nil, fmt.Errorf("Expected 'convertTo' to be a string")
+	}
+
+	value, ok := param["value"]
+	if !ok {
+		return nil, fmt.Errorf("No 'value' specified")
+	}
+
+	srcType := fmt.Sprintf("%T", value)
+
+	conversionFuncs, ok := converters[srcType]
+	if !ok {
+		return nil, fmt.Errorf("No conversion functions found for source type %s", srcType)
+	}
+
+	conversionFunc, ok := conversionFuncs[convertToStr]
+	if !ok {
+		return nil, fmt.Errorf("No conversion functions found for destination type %s", convertTo)
+	}
+
+	return conversionFunc(value)
+}
+
 // Perform executes the sqlRequest and returns its response
 func (r *sqlRequest) Perform() Response {
 	isQuery, isExec := r.Query != "", r.Execute != ""
+
+	if err := r.normalizeParameters(); err != nil {
+		return NewErrorResponse(err)
+	}
 
 	switch {
 	case isQuery && !r.Tx:
@@ -46,6 +112,50 @@ func (r *sqlRequest) Perform() Response {
 	default:
 		return NewErrorResponse(errors.New("no SQL query or execute specified"))
 	}
+}
+
+func (r *sqlRequest) convertResultData(newMap map[string]interface{}) error {
+	for k, v := range r.ResultTypes {
+		var toConvert interface{}
+		var ok bool
+
+		if toConvert, ok = newMap[k]; !ok {
+			continue
+		}
+
+		var convertTo interface{}
+		if convertTo, ok = v["convertTo"]; !ok {
+			continue
+		}
+
+		var convertToStr string
+		switch t := convertTo.(type) {
+		case string:
+			convertToStr = t
+		default:
+			return fmt.Errorf("Expected 'convertTo' to be a string")
+		}
+
+		srcType := fmt.Sprintf("%T", toConvert)
+
+		conversionFuncs, ok := converters[srcType]
+		if !ok {
+			return fmt.Errorf("No conversion functions found for source type %s", srcType)
+		}
+
+		conversionFunc, ok := conversionFuncs[convertToStr]
+		if !ok {
+			return fmt.Errorf("No conversion functions found for destination type %s", convertTo)
+		}
+
+		newValue, err := conversionFunc(toConvert)
+		if err != nil {
+			return err
+		}
+		newMap[k] = newValue
+
+	}
+	return nil
 }
 
 func (r *sqlRequest) performQuery() Response {
@@ -73,6 +183,10 @@ func (r *sqlRequest) performQuery() Response {
 		err = rows.MapScan(newMap)
 		if err != nil {
 			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
+		}
+
+		if e := r.convertResultData(newMap); e != nil {
+			return NewErrorResponse(e)
 		}
 
 		dataRows = append(dataRows, newMap)
@@ -122,6 +236,11 @@ func (r *sqlRequest) transactQuery() Response {
 			}
 			return NewSQLErrorResponse(err, "failed to extract results of SQL query")
 		}
+
+		if e := r.convertResultData(newMap); e != nil {
+			return NewErrorResponse(e)
+		}
+
 		dataRows = append(dataRows, newMap)
 	}
 
@@ -209,20 +328,20 @@ func (r *sqlRequest) transactExecute() Response {
 
 // Log returns the SQL request basics, It returns the SQL statement when in server mode.
 // When in dev mode the query parameters are also returned.
-func (request *sqlRequest) Log(devMode bool) string {
+func (r *sqlRequest) Log(devMode bool) string {
 	var buffer bytes.Buffer
 
-	if request.Query != "" {
-		buffer.WriteString(request.Query)
-	} else if request.Execute != "" {
-		buffer.WriteString(request.Execute)
+	if r.Query != "" {
+		buffer.WriteString(r.Query)
+	} else if r.Execute != "" {
+		buffer.WriteString(r.Execute)
 	}
 
 	if devMode {
-		if len(request.Parameters) > 0 {
-			buffer.WriteString(fmt.Sprintf("\nParameters: %v", request.Parameters))
+		if len(r.Parameters) > 0 {
+			buffer.WriteString(fmt.Sprintf("\nParameters: %v", r.Parameters))
 		}
-		buffer.WriteString(fmt.Sprintf("\nTransactional: %t", request.Tx))
+		buffer.WriteString(fmt.Sprintf("\nTransactional: %t", r.Tx))
 	}
 	return buffer.String()
 }

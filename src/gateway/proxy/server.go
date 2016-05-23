@@ -93,6 +93,14 @@ func (s *Server) Run() {
 	// Run server
 	listen := fmt.Sprintf("%s:%d", s.proxyConf.Host, s.proxyConf.Port)
 	logreport.Printf("%s Server listening at %s", config.Proxy, listen)
+	var adminHost string
+	if len(strings.TrimSpace(s.adminConf.Host)) == 0 {
+		adminHost = s.proxyConf.Host
+	} else {
+		adminHost = s.adminConf.Host
+	}
+	adminAvailable := fmt.Sprintf("%s:%d%s", adminHost, s.proxyConf.Port, s.adminConf.PathPrefix)
+	logreport.Printf("%s Admin dashboard available at %s", config.Admin, adminAvailable)
 	logreport.Fatalf("%s %v", config.System, http.ListenAndServe(listen, s.router))
 }
 

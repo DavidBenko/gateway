@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const filePrefix = "file://"
+const filePrefix = "file:///"
 
 // SoapRequest encapsulates a request made via SOAP
 type SoapRequest struct {
@@ -196,8 +196,7 @@ func (soapRequest *SoapRequest) Perform() Response {
 		if readlen == 0 {
 			break
 		}
-
-		buf.Write(responseBytes)
+		buf.Write(responseBytes[:readlen])
 	}
 
 	rawMessage := new(json.RawMessage)
