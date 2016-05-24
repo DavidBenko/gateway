@@ -13,7 +13,8 @@ type Point struct {
 	Values    map[string]interface{}
 }
 
-// Logger is an interface defining the necessary methods for a stats logger.
+// Logger is an interface defining the necessary methods for a stats logger.  It
+// must be concurrency-safe.
 type Logger interface {
 	// Log logs a set of Points to a logging target.
 	Log(...Point) error
@@ -30,7 +31,8 @@ type Row struct {
 // Result is the result of a Sampler query.  It is an alias for []Row.
 type Result []Row
 
-// Sampler defines the methods a stats sampler must implement.
+// Sampler defines the methods a stats sampler must implement.  It must be
+// concurrency-safe.
 type Sampler interface {
 	// Sample gets the logged values using the given constraints, given a
 	// slice of measurements to return for result values.  Sample may be
