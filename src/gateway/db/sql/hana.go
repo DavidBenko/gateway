@@ -6,23 +6,23 @@ import (
 
 	"gateway/db"
 
-  _ "github.com/SAP/go-hdb/driver"
+	_ "github.com/SAP/go-hdb/driver"
 )
 
 // HanaSpec implements db.Specifier for Hana connection parameters.
 type HanaSpec struct {
 	spec
-  User     string `json:"user"`
+	User     string `json:"user"`
 	Password string `json:"password"`
-  Host     string `json:"host"`
-  Port     int    `json:"port"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
 }
 
 func (h *HanaSpec) validate() error {
 	return validate(h, []validation{
-    {kw: "user", errCond: h.User == "", val: h.User},
+		{kw: "user", errCond: h.User == "", val: h.User},
 		{kw: "password", errCond: h.Password == "", val: h.Password},
-    {kw: "host", errCond: h.Host == "", val: h.Host},
+		{kw: "host", errCond: h.Host == "", val: h.Host},
 		{kw: "port", errCond: h.Port < 0, val: h.Port},
 	})
 }

@@ -21,6 +21,7 @@ const (
 	postgres driver = "pgx"
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
+	hana     driver = "hana"
 )
 
 var knownDrivers *regexp.Regexp
@@ -31,6 +32,7 @@ func init() {
 		string(mysql),
 		string(mssql),
 		string(postgres),
+		string(hana),
 	}
 	knownDrivers = regexp.MustCompile(strings.Join(drivers, "|"))
 }
@@ -228,6 +230,10 @@ func validateSqlSpec(s sqlSpec) error {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
 	case *MySQLSpec:
+		if tS == nil {
+			return errors.New("cannot create SQL Connection with nil Specifier")
+		}
+	case *HanaSpec:
 		if tS == nil {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
