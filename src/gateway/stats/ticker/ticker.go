@@ -2,9 +2,10 @@ package ticker
 
 import (
 	"errors"
-	"gateway/stats"
 	"sort"
 	"time"
+
+	"gateway/stats"
 )
 
 type byDate []stats.Point
@@ -31,7 +32,7 @@ type Ticker struct {
 }
 
 // Make returns a new *Ticker and a channel to receive any errors on.  Using a
-// nil backend will cause panics.
+// nil backend will cause a panic on Start.
 func Make(backend stats.Logger) *Ticker {
 	tkr := &Ticker{
 		backend: backend,
@@ -41,7 +42,9 @@ func Make(backend stats.Logger) *Ticker {
 	return tkr
 }
 
-// Start starts the Ticker with the given control channels.
+// Start starts the Ticker logging to the backend it was created with, each time
+// a value is sent to tick (using time.MakeTicker is ordinary.)  Close die to
+// stop and clean up.  Backend Log errors will be returned on errCh.
 func (t *Ticker) Start(
 	die <-chan struct{},
 	tick <-chan time.Time,

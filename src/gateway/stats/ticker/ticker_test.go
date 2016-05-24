@@ -105,9 +105,7 @@ func (t *TickerSuite) TestLog(c *gc.C) {
 		testLog(
 			c,
 			tkr,
-			die,
-			ctrl,
-			BEErr,
+			die, ctrl, BEErr,
 			t.givenBackend,
 			t.given, t.givenNext,
 			t.expectBackendErr,

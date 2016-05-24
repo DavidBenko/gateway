@@ -15,9 +15,7 @@ import (
 func testLog(
 	c *gc.C,
 	tkr *ticker.Ticker,
-	die chan<- struct{},
-	ctrl chan time.Time,
-	BEErr chan error,
+	die chan<- struct{}, ctrl chan time.Time, BEErr chan error,
 	backend *statst.Logger,
 	givenFirst, givenNext [][]stats.Point,
 	expectBackendErr string,
@@ -28,9 +26,7 @@ func testLog(
 		close(die)
 	}()
 
-	if !checkLogAll(c, tkr, givenFirst, "") {
-		return
-	}
+	checkLogAll(c, tkr, givenFirst)
 
 	if !checkNotYetTriggered(c, backend.Buffer, BEErr) {
 		return
@@ -55,9 +51,7 @@ func testLog(
 
 	// If we haven't returned yet, we're testing for more good behavior. Log
 	// the next set of points.
-	if !checkLogAll(c, tkr, givenNext, "") {
-		return
-	}
+	checkLogAll(c, tkr, givenNext)
 
 	// Make sure we have still only seen the first set of points.
 	c.Check(backend.Buffer, gc.DeepEquals, expectLoggedFirst)
@@ -69,33 +63,10 @@ func testLog(
 	checkErrCh(c, BEErr, "")
 	c.Check(backend.Buffer, gc.DeepEquals, expectLoggedNext)
 }
-
-func checkLogAll(
-	c *gc.C,
-	tkr *ticker.Ticker,
-	given [][]stats.Point,
-	err string,
-) bool {
+func checkLogAll(c *gc.C, tkr *ticker.Ticker, given [][]stats.Point) {
 	// Randomize order to simulate concurrent access.
 	for _, i := range rand.Perm(len(given)) {
-		if !checkLog(c, tkr, given[i], err) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// false: don't continue this test
-func checkLog(c *gc.C, tkr *ticker.Ticker, ps []stats.Point, expect string) bool {
-	err := tkr.Log(ps...)
-
-	if expect != "" {
-		c.Check(err, gc.ErrorMatches, expect)
-		return false
-	} else {
-		c.Assert(err, gc.IsNil)
-		return true
+		c.Assert(tkr.Log(given[i]...), gc.IsNil)
 	}
 }
 
