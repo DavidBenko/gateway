@@ -28,3 +28,20 @@ func GetArgs(node string, ps ...stats.Point) ([]interface{}, error) {
 func DayMillis(t time.Time) int64 {
 	return dayMillis(t)
 }
+
+// Value exports Row.value for testing.
+func (r *Row) Value(k string) interface{} {
+	return r.value(k)
+}
+
+func (r *Row) Values(ks ...string) map[string]interface{} {
+	if len(ks) == 0 {
+		return nil
+	}
+
+	result := make(map[string]interface{})
+	for _, k := range ks {
+		result[k] = r.Value(k)
+	}
+	return result
+}

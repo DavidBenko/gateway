@@ -21,19 +21,34 @@ const (
 )
 
 var (
+	// Samples are things which the package user can sample on, but which
+	// are not API-related; for example, node ID and timestamp are not part
+	// of the frontend, the proxy endpoint, the request, etc.
 	validSamples = map[string]bool{
 		`node`:      true,
 		`timestamp`: true,
 	}
 
 	validMeasurements = map[string]bool{
-		`api.id`:          true,
-		`request.size`:    true,
-		`request.id`:      true,
-		`response.time`:   true,
-		`response.size`:   true,
-		`response.status`: true,
-		`response.error`:  true,
+		`request.size`:                  true,
+		`request.id`:                    true,
+		`api.id`:                        true,
+		`api.name`:                      true,
+		`host.id`:                       true,
+		`host.name`:                     true,
+		`proxy.id`:                      true,
+		`proxy.name`:                    true,
+		`proxy.env.id`:                  true,
+		`proxy.env.name`:                true,
+		`proxy.route.path`:              true,
+		`proxy.route.verb`:              true,
+		`proxy.group.id`:                true,
+		`proxy.group.name`:              true,
+		`response.time`:                 true,
+		`response.size`:                 true,
+		`response.status`:               true,
+		`response.error`:                true,
+		`remote_endpoint.response.time`: true,
 	}
 
 	validOperators = map[Operator]bool{

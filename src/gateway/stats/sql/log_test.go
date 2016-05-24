@@ -14,6 +14,31 @@ import (
 	gc "gopkg.in/check.v1"
 )
 
+var variables = `
+  api_id
+  , api_name
+  , host_id
+  , host_name
+  , node
+  , proxy_env_id
+  , proxy_env_name
+  , proxy_group_id
+  , proxy_group_name
+  , proxy_id
+  , proxy_name
+  , proxy_route_path
+  , proxy_route_verb
+  , remote_endpoint_response_time
+  , request_id
+  , request_size
+  , response_error
+  , response_size
+  , response_status
+  , response_time
+  , timestamp
+  , ms
+`
+
 func (s *SQLSuite) TestLogQuery(c *gc.C) {
 	for i, t := range []struct {
 		should      string
@@ -24,82 +49,34 @@ func (s *SQLSuite) TestLogQuery(c *gc.C) {
 		should:      "generate a correct query for SQLite",
 		given:       1,
 		givenDriver: s.sqlite,
-		expect: `
-INSERT INTO stats (
-  api_id
-  , node
-  , request_id
-  , request_size
-  , response_error
-  , response_size
-  , response_status
-  , response_time
-  , timestamp
-  , ms
-) VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`[1:],
+		expect: `INSERT INTO stats (` + variables + `) VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`,
 	}, {
 		should:      "generate a correct query for multi-point SQLite",
 		given:       3,
 		givenDriver: s.sqlite,
-		expect: `
-INSERT INTO stats (
-  api_id
-  , node
-  , request_id
-  , request_size
-  , response_error
-  , response_size
-  , response_status
-  , response_time
-  , timestamp
-  , ms
-) VALUES
-  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`[1:],
+		expect: `INSERT INTO stats (` + variables + `) VALUES
+  (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  , (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`,
 	}, {
 		should:      "generate a correct query for Postgres",
 		given:       1,
 		givenDriver: s.postgres,
-		expect: `
-INSERT INTO stats (
-  api_id
-  , node
-  , request_id
-  , request_size
-  , response_error
-  , response_size
-  , response_status
-  , response_time
-  , timestamp
-  , ms
-) VALUES
-  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-`[1:],
+		expect: `INSERT INTO stats (` + variables + `) VALUES
+  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+`,
 	}, {
 		should:      "generate a correct query for multi-point Postgres",
 		given:       3,
 		givenDriver: s.postgres,
-		expect: `
-INSERT INTO stats (
-  api_id
-  , node
-  , request_id
-  , request_size
-  , response_error
-  , response_size
-  , response_status
-  , response_time
-  , timestamp
-  , ms
-) VALUES
-  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  , ($11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
-  , ($21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
-`[1:],
+		expect: `INSERT INTO stats (` + variables + `) VALUES
+  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+  , ($23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44)
+  , ($45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66)
+`,
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
 		sq := &sql.SQL{DB: t.givenDriver}
@@ -138,9 +115,11 @@ func (s *SQLSuite) TestGetArgs(c *gc.C) {
 		given:     []stats.Point{samplePoint("simple", tNow)},
 		givenNode: "global",
 		expect: []interface{}{
-			int64(1), "global", "1234",
-			0, "", 500, 200, 50,
-			tNow.UTC(), sql.DayMillis(tNow.UTC()),
+			int64(1), "text", int64(2), "text", "global", int64(2),
+			"text", int64(2), "text", int64(2), "text", "text",
+			"text", 2, "1234", 0, "", 500, 200, 50,
+			tNow.UTC(),
+			sql.DayMillis(tNow.UTC()),
 		},
 	}, {
 		should: "get args for stats.Point slice of several elements",
@@ -150,10 +129,15 @@ func (s *SQLSuite) TestGetArgs(c *gc.C) {
 		},
 		givenNode: "global",
 		expect: []interface{}{
-			int64(1), "global", "1234", 0, "", 500, 200, 50,
+			int64(1), "text", int64(2), "text", "global", int64(2),
+			"text", int64(2), "text", int64(2), "text", "text",
+			"text", 2, "1234", 0, "", 500, 200, 50,
 			tNow.UTC(),
 			sql.DayMillis(tNow.UTC()),
-			int64(1), "global", "1234", 10, "", 500, 200, 60,
+
+			int64(1), "text", int64(2), "text", "global", int64(2),
+			"text", int64(2), "text", int64(2), "text", "text",
+			"text", 2, "1234", 10, "", 500, 200, 60,
 			tNow.Add(1 * time.Second).UTC(),
 			sql.DayMillis(tNow.Add(1 * time.Second).UTC()),
 		},
@@ -293,14 +277,26 @@ func testLog(
 	rows, err := s.Queryx(fmt.Sprintf(`
 SELECT
   api_id
+  , api_name
+  , host_id
+  , host_name
   , node
-  , timestamp
-  , request_size
+  , proxy_env_id
+  , proxy_env_name
+  , proxy_group_id
+  , proxy_group_name
+  , proxy_id
+  , proxy_name
+  , proxy_route_path
+  , proxy_route_verb
+  , remote_endpoint_response_time
   , request_id
-  , response_time
+  , request_size
+  , response_error
   , response_size
   , response_status
-  , response_error
+  , response_time
+  , timestamp
 FROM stats
 WHERE node = %s`[1:], s.Parameters(1)[0]), ID)
 
@@ -325,15 +321,27 @@ WHERE node = %s`[1:], s.Parameters(1)[0]), ID)
 		result = append(result, stats.Row{
 			Node:      row.Node,
 			Timestamp: row.Timestamp.UTC(),
-			Values: map[string]interface{}{
-				"api.id":          row.APIID,
-				"request.size":    row.RequestSize,
-				"request.id":      row.RequestID,
-				"response.time":   row.ResponseTime,
-				"response.size":   row.ResponseSize,
-				"response.status": row.ResponseStatus,
-				"response.error":  row.ResponseError,
-			},
+			Values: row.Values(
+				"api.id",
+				"api.name",
+				"host.id",
+				"host.name",
+				"proxy.env.id",
+				"proxy.env.name",
+				"proxy.group.id",
+				"proxy.group.name",
+				"proxy.id",
+				"proxy.name",
+				"proxy.route.path",
+				"proxy.route.verb",
+				"remote_endpoint.response.time",
+				"request.id",
+				"request.size",
+				"response.error",
+				"response.size",
+				"response.status",
+				"response.time",
+			),
 		})
 	}
 
