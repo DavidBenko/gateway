@@ -3,7 +3,6 @@ package sql
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 
@@ -15,6 +14,7 @@ var allSamples = append(stats.AllSamples(), "ms")
 var allMeasurements = stats.AllMeasurements()
 var rowLength = len(allSamples)
 
+// logQuery generates the INSERT statement for the given vals.
 func logQuery(paramVals func(int) []string, num int) string {
 	fixedSamples := make([]string, len(allSamples))
 	for i, s := range allSamples {
@@ -40,6 +40,7 @@ INSERT INTO stats (
 	)
 }
 
+// getArgs retrieves the args for the INSERT given the slice of stats.Point's.
 func getArgs(node string, ps ...stats.Point) ([]interface{}, error) {
 	if len(ps) < 1 {
 		return nil, errors.New("must pass at least one stats.Point")
@@ -52,7 +53,8 @@ func getArgs(node string, ps ...stats.Point) ([]interface{}, error) {
 
 	for i, p := range ps {
 		wg.Add(1)
-		// concurrent safe slice mutation via re-slice
+		// concurrent safe slice mutation via re-slice.  This could be
+		// made more efficient by using a set of workers as in Sample.
 		go func(n int, p stats.Point, args []interface{}) {
 			defer wg.Done()
 			errs[n] = setPointArgs(p, node, args)
@@ -70,6 +72,8 @@ func getArgs(node string, ps ...stats.Point) ([]interface{}, error) {
 	return args, nil
 }
 
+// setPointArgs assigns the args which will be passed to the INSERT as
+// interpolation values.
 func setPointArgs(p stats.Point, node string, args []interface{}) error {
 	ts := p.Timestamp.UTC()
 	for i, m := range allSamples {
@@ -101,6 +105,7 @@ func (s *SQL) Log(ps ...stats.Point) error {
 		node = s.ID
 	}
 
+	// get the args we'll use as interpolation values in the INSERT.
 	args, err := getArgs(node, ps...)
 	if err != nil {
 		return gwerr.NewWrapped(
@@ -108,14 +113,15 @@ func (s *SQL) Log(ps ...stats.Point) error {
 		)
 	}
 
+	// generate the INSERT query we'll use.
 	query := logQuery(
 		s.Parameters,
 		len(ps),
 	)
 
+	// Execute the query.
 	_, err = s.Exec(query, args...)
 	if err != nil {
-		log.Println("\n" + query)
 		return gwerr.NewWrapped("failed to exec stats query", err)
 	}
 

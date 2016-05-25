@@ -9,12 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Driver is the driver to be used for the given stats logger / sampler.
-// This must be one of the given constants.
+// Driver is the driver to be used for the given stats logger / sampler.  This
+// must be one of the given constants.
 type Driver string
 
 const (
-	// Version is the version of the binary's stats schema.
+	// Version is the version of the Gateway stats schema.
 	Version = 1
 
 	// SQLite3 is the SQLite3 Driver.
@@ -24,18 +24,21 @@ const (
 	Postgres Driver = "postgres"
 )
 
+// Given a time, dayMillis returns the number of milliseconds into the day.
 func dayMillis(t time.Time) int64 {
 	return int64(t.Hour()*1000*60*60 +
 		t.Minute()*1000*60 +
 		t.Second()*1000)
 }
 
-// SQL implements stats.Logger and stats.Sampler.
+// SQL implements stats.Logger and stats.Sampler on a SQL backend.
 type SQL struct {
+	// ID is the name of the given node.
 	ID string
 	*sqlx.DB
 }
 
+// quoteCol quotes a column name correctly depending on driver.
 func (s *SQL) quoteCol(str string) string {
 	if Driver(s.DriverName()) == SQLite3 {
 		return fmt.Sprintf("`%s`", str)

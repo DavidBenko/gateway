@@ -23,12 +23,14 @@ const (
 var (
 	// Samples are things which the package user can sample on, but which
 	// are not API-related; for example, node ID and timestamp are not part
-	// of the frontend, the proxy endpoint, the request, etc.
+	// of the frontend, the proxy endpoint, the request, etc.  Valid Samples
+	// are all these values union all valid Measurements.
 	validSamples = map[string]bool{
 		`node`:      true,
 		`timestamp`: true,
 	}
 
+	// Measurements are stats variables which are part of the gateway model.
 	validMeasurements = map[string]bool{
 		`request.size`:                  true,
 		`request.id`:                    true,
@@ -108,7 +110,7 @@ func ValidSample(s string) bool {
 	return validSamples[s]
 }
 
-// Constraint implements stats.Constrainer for sql.
+// Constraint is a model for valid query constraints [WHERE {Key} {Operator} {Value}].
 type Constraint struct {
 	Key      string
 	Operator Operator

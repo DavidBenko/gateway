@@ -11,6 +11,8 @@ import (
 	"gateway/stats"
 )
 
+// sampleQuery generates the SQL query used to get the sample from the given
+// Constraints.  It always appends ORDER BY timestamp, node.
 func sampleQuery(
 	paramVals func(int) []string,
 	constraints []stats.Constraint,
@@ -52,7 +54,8 @@ ORDER BY timestamp, node`[1:],
 	)
 }
 
-// Sample implements stats.Sampler on SQL.
+// Sample implements stats.Sampler on SQL.  Querying with no named vars will
+// return an error.  All vars must be valid measurements or sample names.
 func (s *SQL) Sample(
 	constraints []stats.Constraint,
 	terminate <-chan struct{},
@@ -62,6 +65,8 @@ func (s *SQL) Sample(
 		return nil, errors.New("no vars given")
 	}
 
+	// Make sure all requested vars are legit.  If asked for node or
+	// timestamp, we'll set those separately later, so set flags.
 	var desiredValues []string
 	wantsNode, wantsTimestamp := false, false
 	for _, v := range vars {
@@ -78,13 +83,16 @@ func (s *SQL) Sample(
 		}
 	}
 
+	// Generate the query given the constraints and vars.
 	query := sampleQuery(s.Parameters, constraints, vars)
 
+	// Set the constraint args.
 	args := make([]interface{}, len(constraints))
 	for i, c := range constraints {
 		args[i] = c.Value
 	}
 
+	// Make the query.
 	rows, err := s.Queryx(query, args...)
 	switch {
 	case err != nil:
@@ -93,11 +101,14 @@ func (s *SQL) Sample(
 		return nil, errors.New("no rows for stats query")
 	}
 
+	// If rows initialized, close when finished.
 	defer rows.Close()
 
 	// Get the max procs without changing the setting.
 	procs := runtime.GOMAXPROCS(-1)
 	var (
+		// numRows will determine the size of the stats.Result workers
+		// will write to.
 		numRows = 0
 
 		inCh       = make(chan ithSQLRow, procs)
@@ -105,12 +116,16 @@ func (s *SQL) Sample(
 		outCh      = make(chan ithStatsRow, procs)
 	)
 
+	// If user already requested terminate, stop now.
 	select {
 	case <-terminate:
 		return nil, errors.New("Sample terminated")
 	default:
 	}
 
+	// Make a worker for each proc which will receive sql.Row's and make
+	// them into stats.Row's.  If terminate is closed, the workers will
+	// return.
 	for i := 0; i < procs; i++ {
 		go receiveRows(
 			ready, terminate, die,
@@ -120,6 +135,7 @@ func (s *SQL) Sample(
 		)
 	}
 
+	// Iterate over rows, sending them via channel to workers.
 	for i := 0; rows.Next(); i++ {
 		row := new(Row)
 		if err = rows.StructScan(row); err != nil {
@@ -141,6 +157,7 @@ func (s *SQL) Sample(
 		return nil, aperrors.NewWrapped("sql stats rows had error", err)
 	}
 
+	// Let our workers know they can start sending values.
 	close(ready)
 
 	result := make(stats.Result, numRows)
@@ -148,6 +165,7 @@ func (s *SQL) Sample(
 	for i := 0; i < numRows; i++ {
 		select {
 		case row := <-outCh:
+			// Note results won't be received in order.
 			result[row.i] = *row.row
 		case <-terminate:
 			// If a send from a worker to outCh was blocking, it
@@ -156,9 +174,12 @@ func (s *SQL) Sample(
 		}
 	}
 
+	// Not necessary to stop workers, they've all finished looping and
+	// returned by now.
 	return result, nil
 }
 
+// Note that a SQLRow is not the same as a stats.Row.
 type ithSQLRow struct {
 	i   int
 	row *Row
@@ -169,12 +190,15 @@ type ithStatsRow struct {
 	row *stats.Row
 }
 
+// receiveRows is a worker function which receives sql.Row's and uses getRow to
+// turn them into stats.Row's.
 func receiveRows(
 	ready, terminate, die <-chan struct{},
 	inCh <-chan ithSQLRow, outCh chan<- ithStatsRow,
 	wantsNode, wantsTimestamp bool,
 	desiredValues []string,
 ) {
+	// Buffer received values in received.
 	var received []ithStatsRow
 
 receiveAll:
@@ -209,6 +233,8 @@ receiveAll:
 	}
 }
 
+// getRow makes a stats.Row out of a sql.Row given the vars the user requested
+// and whether to get the node and timestamp.
 func getRow(
 	row *Row,
 	wantsNode, wantsTimestamp bool,

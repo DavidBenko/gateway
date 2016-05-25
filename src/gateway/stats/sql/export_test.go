@@ -1,8 +1,9 @@
 package sql
 
 import (
-	"gateway/stats"
 	"time"
+
+	"gateway/stats"
 )
 
 // LogQuery exports logQuery for testing.
@@ -34,6 +35,7 @@ func (r *Row) Value(k string) interface{} {
 	return r.value(k)
 }
 
+// Values returns a map[string]interface{} of the values with the given names.
 func (r *Row) Values(ks ...string) map[string]interface{} {
 	if len(ks) == 0 {
 		return nil

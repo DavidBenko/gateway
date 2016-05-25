@@ -2,13 +2,14 @@ package sql_test
 
 import (
 	"fmt"
-	"gateway/stats"
-	"gateway/stats/sql"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"gateway/stats"
+	"gateway/stats/sql"
 
 	"github.com/jmoiron/sqlx"
 	jc "github.com/juju/testing/checkers"
@@ -54,6 +55,7 @@ func (s *SQLSuite) SetUpTest(c *gc.C) {
 	s.setup(c)
 }
 
+// mapOnly returns a copy of the given map containing only the given keys.
 func mapOnly(m1 map[string]interface{}, ks ...string) map[string]interface{} {
 	res := make(map[string]interface{})
 	for _, k := range ks {
@@ -62,6 +64,7 @@ func mapOnly(m1 map[string]interface{}, ks ...string) map[string]interface{} {
 	return res
 }
 
+// mapWithout returns a copy of the given map without the given keys.
 func mapWithout(m1 map[string]interface{}, ks ...string) map[string]interface{} {
 	res := make(map[string]interface{})
 	for k, v := range m1 {
