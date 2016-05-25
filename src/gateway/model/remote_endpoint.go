@@ -126,7 +126,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	case RemoteEndpointTypeScript:
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
-		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo:
+		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo, RemoteEndpointTypeHana:
 		_, err := e.DBConfig()
 		if err != nil {
 			errors.Add("base", fmt.Sprintf("error in database config: %s", err))
@@ -643,6 +643,8 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 		return re.MySQLConfig(e.Data)
 	case RemoteEndpointTypeMongo:
 		return re.MongoConfig(e.Data)
+	case RemoteEndpointTypeHana:
+		return re.HanaConfig(e.Data)
 	default:
 		return nil, fmt.Errorf("unknown database endpoint type %q", e.Type)
 	}
