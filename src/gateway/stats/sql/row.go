@@ -26,26 +26,48 @@ type Row struct {
 	ResponseTime               int    `db:"response_time"`
 }
 
+// value gets the value of r mapped by its stats variable name.
 func (r *Row) value(k string) interface{} {
-	return map[string]interface{}{
-		"api.id":                        r.APIID,
-		"api.name":                      r.APIName,
-		"host.id":                       r.HostID,
-		"host.name":                     r.HostName,
-		"proxy.env.id":                  r.ProxyEnvID,
-		"proxy.env.name":                r.ProxyEnvName,
-		"proxy.group.id":                r.ProxyGroupID,
-		"proxy.group.name":              r.ProxyGroupName,
-		"proxy.id":                      r.ProxyID,
-		"proxy.name":                    r.ProxyName,
-		"proxy.route.path":              r.ProxyRoutePath,
-		"proxy.route.verb":              r.ProxyRouteVerb,
-		"remote_endpoint.response.time": r.RemoteEndpointResponseTime,
-		"request.size":                  r.RequestSize,
-		"request.id":                    r.RequestID,
-		"response.time":                 r.ResponseTime,
-		"response.size":                 r.ResponseSize,
-		"response.status":               r.ResponseStatus,
-		"response.error":                r.ResponseError,
-	}[k]
+	switch k {
+	case "api.id":
+		return r.APIID
+	case "api.name":
+		return r.APIName
+	case "host.id":
+		return r.HostID
+	case "host.name":
+		return r.HostName
+	case "proxy.env.id":
+		return r.ProxyEnvID
+	case "proxy.env.name":
+		return r.ProxyEnvName
+	case "proxy.group.id":
+		return r.ProxyGroupID
+	case "proxy.group.name":
+		return r.ProxyGroupName
+	case "proxy.id":
+		return r.ProxyID
+	case "proxy.name":
+		return r.ProxyName
+	case "proxy.route.path":
+		return r.ProxyRoutePath
+	case "proxy.route.verb":
+		return r.ProxyRouteVerb
+	case "remote_endpoint.response.time":
+		return r.RemoteEndpointResponseTime
+	case "request.size":
+		return r.RequestSize
+	case "request.id":
+		return r.RequestID
+	case "response.time":
+		return r.ResponseTime
+	case "response.size":
+		return r.ResponseSize
+	case "response.status":
+		return r.ResponseStatus
+	case "response.error":
+		return r.ResponseError
+	default:
+		return nil
+	}
 }

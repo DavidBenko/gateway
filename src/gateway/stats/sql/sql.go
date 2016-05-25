@@ -56,10 +56,11 @@ func (s *SQL) Parameters(n int) []string {
 		for i := 0; i < n; i++ {
 			result[i] = "?"
 		}
-	} else {
-		for i := 1; i <= n; i++ {
-			result[i-1] = fmt.Sprintf(`$%d`, i)
-		}
+		return result
+	}
+
+	for i := 1; i <= n; i++ {
+		result[i-1] = fmt.Sprintf(`$%d`, i)
 	}
 
 	return result

@@ -2,11 +2,6 @@ package stats
 
 import "time"
 
-const (
-	// Resolution is the resolution of the stats tables.
-	Resolution = time.Millisecond
-)
-
 // Point is a timestamp and map of measurement name to value.
 type Point struct {
 	Timestamp time.Time

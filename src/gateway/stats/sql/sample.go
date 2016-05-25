@@ -100,9 +100,9 @@ func (s *SQL) Sample(
 	var (
 		numRows = 0
 
-		inCh  = make(chan ithSQLRow, procs)
-		ready = make(chan struct{})
-		outCh = make(chan ithStatsRow, procs)
+		inCh       = make(chan ithSQLRow, procs)
+		ready, die = make(chan struct{}), make(chan struct{})
+		outCh      = make(chan ithStatsRow, procs)
 	)
 
 	select {
@@ -113,12 +113,9 @@ func (s *SQL) Sample(
 
 	for i := 0; i < procs; i++ {
 		go receiveRows(
-			ready,
-			terminate,
-			inCh,
-			outCh,
-			wantsNode,
-			wantsTimestamp,
+			ready, terminate, die,
+			inCh, outCh,
+			wantsNode, wantsTimestamp,
 			desiredValues,
 		)
 	}
@@ -138,6 +135,9 @@ func (s *SQL) Sample(
 	}
 
 	if err = rows.Err(); err != nil {
+		// terminate is used externally, die is used internally to stop
+		// workers.
+		close(die)
 		return nil, aperrors.NewWrapped("sql stats rows had error", err)
 	}
 
@@ -170,9 +170,8 @@ type ithStatsRow struct {
 }
 
 func receiveRows(
-	ready, terminate <-chan struct{},
-	inCh <-chan ithSQLRow,
-	outCh chan<- ithStatsRow,
+	ready, terminate, die <-chan struct{},
+	inCh <-chan ithSQLRow, outCh chan<- ithStatsRow,
 	wantsNode, wantsTimestamp bool,
 	desiredValues []string,
 ) {
@@ -192,6 +191,8 @@ receiveAll:
 				),
 			})
 		case <-terminate:
+			return
+		case <-die:
 			return
 		case <-ready:
 			// start sending
