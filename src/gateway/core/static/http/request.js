@@ -922,3 +922,95 @@ AP.LDAP.Request.prototype.compare = function(distinguishedName, attribute, value
 
   this._execute(compareParams, "compare");
 }
+
+/**
+ * Hana holds helper classes for SAP Hana related tasks
+ *
+ * @namespace
+ */
+AP.Hana = AP.Hana || {};
+
+
+/**
+ * Creates a new SAP Hana request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.Hana.Request = function() {
+
+  /**
+   * The request's SQL statement to be executed.  Must be a query that does
+   * not modify data
+   * @type {string}
+   */
+  this.queryStatement = null;
+
+  /**
+   * The request's SQL statement to be executed.  Must be an update that modifies
+   * data.
+   * @type {string}
+   */
+  this.executeStatement = null;
+
+  /**
+   * The result types expected by the query.  The keys represent the column
+   * names of the result set, and the values represent a conversion object
+   * such as Int or Float.
+   * @type {object}
+   */
+   this.resultTypes = null;
+
+  /**
+   * The request's parameters to the SQL statement.
+   * @type {Array.<object>}
+   */
+  this.parameters = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.query = _.clone(request.queryStatement);
+    this.execute = _.clone(request.executeStatement);
+    this.parameters = _.clone(request.parameters);
+    this.resultTypes = _.clone(request.resultTypes);
+  }
+}
+
+AP.Hana.Request.prototype.execute = function(stmt, params) {
+  this.executeStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
+}
+
+AP.Hana.Request.prototype.query = function(stmt, params, resultTypes) {
+  this.queryStatement = stmt;
+  if (typeof params === 'undefined' || params === null) {
+    this.parameters = [];
+  } else {
+    this.parameters = params;
+  }
+
+  if (typeof resultTypes === 'undefined' || resultTypes === null) {
+    this.resultTypes = {};
+  } else {
+    this.resultTypes = resultTypes;
+  }
+
+  var newResultTypes = {};
+  _.each(_.pairs(this.resultTypes), function(pair) {
+    var k = pair[0];
+    var v = pair[1];
+    newResultTypes[k] = v(null);
+  });
+  this.resultTypes = newResultTypes;
+}
