@@ -97,6 +97,7 @@ type RemoteEndpoint struct {
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
 	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"false"`
 	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
+	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

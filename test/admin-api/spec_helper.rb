@@ -179,6 +179,36 @@ def clear_proxy_endpoints!
   end
 end
 
+def clear_push_channels!
+  get "/push_channels"
+  json_body[:push_channels].each do |push_channel|
+    delete "/push_channels/#{push_channel[:id]}"
+  end
+end
+
+def clear_push_devices!
+  get "/push_channels"
+  json_body[:push_channels].each do |push_channel|
+    get "/push_channels/#{push_channel[:id]}/push_devices"
+    json_body[:push_devices].each do |push_device|
+      delete "/push_channels/#{push_channel[:id]}/push_devices/#{push_device[:id]}"
+    end
+  end
+end
+
+def clear_push_messages!
+  get "/push_channels"
+  json_body[:push_channels].each do |push_channel|
+    get "/push_channels/#{push_channel[:id]}/push_devices"
+    json_body[:push_devices].each do |push_device|
+      get "/push_channels/#{push_channel[:id]}/push_devices/#{push_device[:id]}/push_messages"
+      json_body[:push_messages].each do |push_message|
+        delete "/push_channels/#{push_channel[:id]}/push_devices/#{push_device[:id]}/push_messages/#{push_message[:id]}"
+      end
+    end
+  end
+end
+
 def login(email, pw)
   post "/sessions", {email: email, password: pw}
   expect_status(200)
@@ -243,6 +273,11 @@ def fixtures
         session_encryption_key_rotate: '!!!',
         show_javascript_errors: true,
       },
+      push: {
+        name: 'Push',
+        type: 'push',
+        data: {publish_endpoint: true},
+      },
     },
     transformations: {
       empty: {
@@ -288,6 +323,13 @@ def fixtures
     },
   }
 
+  fixts[:hosts] = {
+    basic: {
+      name: "localhost",
+      hostname: "localhost",
+    },
+  }
+
   fixts[:remote_endpoints] = {
     basic: {
       name: 'Basic',
@@ -300,6 +342,24 @@ def fixtures
         body:'',
         headers: { a: 2 },
         query: { b: 'c' },
+      },
+    },
+    push: {
+      name: 'Push',
+      codename: 'push',
+      description: 'A push remote endpoint.',
+      type: 'push',
+      data: {
+        push_platforms: [
+          {
+             name: "Test GCM",
+             codename: "test-gcm",
+             type: "gcm",
+             development: false,
+             api_key: "AIzaSyCPc5PN7PkKT7BGj-b60XAmEpp5f9N1oNY",
+          },
+        ],
+        publish_endpoint: true,
       },
     },
   }
@@ -432,6 +492,45 @@ def fixtures
     },
   }
 
+  fixts[:push_channels] = {
+    basic: {
+      name: "A Push Channel",
+      expires: Time.now.to_i + 86400,
+    },
+  }
+
+  fixts[:push_devices] = {
+    basic: {
+      name: "A Push Device",
+      type: "test-gcm",
+      token: "cqvkjqoUL9A:APA91bEFS9knUbRH_X9_4UzuCdIpUp7iXQUCvmQ8zf1OepQBOEpPKkDNkjslVIqiehRN8WVi2R3hyUmK5FZ14qHMMkPQBq1pEPH2aokuFk4jAIwPEiQSCjcqvkjqoUL9A:APA91bEFS9knUbRH_X9_4UzuCdIpUp7iXQUCvmQ8zf1OepQBOEpPKkDNkjslVIqiehRN8WVi2R3hyUmK5FZ14qHMMkPQBq1pEPH2aokuFk4jAIwPEiQSCj",
+      expires: Time.now.to_i + 86400,
+    },
+  }
+
+  fixts[:push_messages] = {
+    basic: {
+      stamp: Time.now.to_i - 86400,
+      data: {
+        aps: {
+          alert: {
+            body: "A test Message",
+          },
+          'url-args': [],
+        },
+      },
+    },
+  }
+
+  fixts[:push_subscribe] = {
+    basic: {
+      platform: "test-gcm",
+	    channel: "test",
+      period: 31536000,
+      name: "test-gcm",
+      token: "cqvkjqoUL9A:APA91bEFS9knUbRH_X9_4UzuCdIpUp7iXQUCvmQ8zf1OepQBOEpPKkDNkjslVIqiehRN8WVi2R3hyUmK5FZ14qHMMkPQBq1pEPH2aokuFk4jAIwPEiQSCj-Ywu9bNVoGrl-ZXMjeqzPw",
+    },
+  }
   return fixts
 end
 
