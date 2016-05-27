@@ -19,6 +19,7 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
+	"gateway/push"
 	sql "gateway/sql"
 	"gateway/store"
 
@@ -62,6 +63,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			OwnDb:      ownDb,
 			SoapConf:   conf.Soap,
 			Store:      s,
+			Push:       push.NewPushPool(),
 		},
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,

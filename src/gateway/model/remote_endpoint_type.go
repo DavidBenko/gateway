@@ -37,6 +37,8 @@ const (
 	RemoteEndpointTypeLDAP = "ldap"
 	// RemoteEndpointTypeHana denotes that a remote endpoint is an SAP Hana database
 	RemoteEndpointTypeHana = "hana"
+	// RemoteEndpointTypePush denotes that a remote endpoint is an Push service
+	RemoteEndpointTypePush = "push"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -54,6 +56,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeLDAP:      &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
 		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 		RemoteEndpointTypeHana:      &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypeHana, Enabled: reConf.HanaEnabled},
+		RemoteEndpointTypePush:      &RemoteEndpointType{ID: 11, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
 	}
 }
 

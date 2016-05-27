@@ -86,6 +86,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-store-enabled":      "Whether or not Store remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-ldap-enabled":       "Whether or not LDAP remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-hana-enabled":       "Whether or not SAP Hana remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",

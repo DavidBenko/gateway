@@ -100,10 +100,15 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&LibrariesController{base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
 	RouteResource(&EndpointGroupsController{base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
 	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
+	RouteRootRemoteEndpoints(&RootRemoteEndpointsController{base}, "/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
 	scratchPadController := &MetaScratchPadsController{ScratchPadsController{base}, c}
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
+	pushChannelsController := &MetaPushChannelsController{PushChannelsController{base}, c}
+	RoutePushChannels(pushChannelsController, "/push_channels", authAdmin, db, conf)
+	RouteResource(&PushDevicesController{base}, "/push_channels/{pushChannelID}/push_devices", authAdmin, db, conf)
+	RouteResource(&PushMessagesController{base}, "/push_channels/{pushChannelID}/push_devices/{pushDeviceID}/push_messages", authAdmin, db, conf)
 	RouteResource(&SharedComponentsController{base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
@@ -122,14 +127,15 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 		http.Redirect(w, r, fmt.Sprintf("%s/", adminPath), http.StatusMovedPermanently)
 	})
 
-	var swagger aphttp.Router
-	swagger = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+	var public aphttp.Router
+	public = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
 		router)
 	if conf.CORSEnabled {
-		swagger = aphttp.NewCORSAwareRouter(conf.CORSOrigin, swagger)
+		public = aphttp.NewCORSAwareRouter(conf.CORSOrigin, public)
 	}
-	sc := newSwaggerController(db)
-	RouteSwagger(sc, "/swagger.json", swagger, db, conf)
+	matcher := newHostMatcher(db)
+	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
+	RoutePush(&PushController{matcher, c}, "/push", public, db, conf)
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

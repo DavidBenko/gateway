@@ -41,6 +41,9 @@ var RESOURCE_MAP = map[string]string{
 	"scratch_pads":              "remote-endpoint-environment-datum-scratch-pad",
 	"users":                     "user",
 	"proxy_endpoint_components": "shared-component",
+	"push_channels":             "push-channel",
+	"push_devices":              "push-channel-push-device",
+	"push_messages":             "push-channel-push-device-push-message",
 }
 
 var ACTION_MAP = [...]string{

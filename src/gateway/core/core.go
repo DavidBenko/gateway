@@ -12,6 +12,7 @@ import (
 	aperrors "gateway/errors"
 	"gateway/logreport"
 	"gateway/model"
+	"gateway/push"
 	sql "gateway/sql"
 	"gateway/store"
 
@@ -27,6 +28,7 @@ type Core struct {
 	OwnDb      *sql.DB // in-application datastore
 	SoapConf   config.Soap
 	Store      store.Store
+	Push       *push.PushPool
 }
 
 func (s *Core) PrepareRequest(
@@ -64,6 +66,8 @@ func (s *Core) PrepareRequest(
 		}
 		connections[endpoint.ID] = conn
 		return r, e
+	case model.RemoteEndpointTypePush:
+		return request.NewPushRequest(endpoint, data, s.Push, s.OwnDb)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
