@@ -5,7 +5,7 @@
     "Key": "index.docker.io/.dockercfg"
   },
   "Image": {
-    "Name": "anypresence/gateway:deployment-5.0.0",
+    "Name": "anypresence/gateway:deployment-5.1.0",
     "Update": "true"
   },
   "Ports": [
