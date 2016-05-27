@@ -6,6 +6,9 @@ First, make sure you have the [DEPS](doc/DEPS.md).
 
 To build and test Gateway, read [BUILD.md](doc/BUILD.md).
 
+Before committing new code, be sure to run `scripts/make-hooks` to add gateway's
+git hooks, to ensure your commits pass `go fmt` checks, etc.
+
 Then, take a look over the [examples](#examples) and [Admin API doc](doc/Admin API.md).
 
 ## Static Assets
