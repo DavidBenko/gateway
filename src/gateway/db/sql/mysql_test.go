@@ -3,6 +3,7 @@ package sql_test
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"gateway/db"
 	sql "gateway/db/sql"
@@ -64,18 +65,18 @@ func (s *SQLSuite) TestMySQLConfig(c *gc.C) {
 	for i, t := range []struct {
 		should       string
 		given        *sql.MySQLSpec
-		expectString string
+		expectParams []string
 		expectUnique string
 		expectError  string
 	}{{
 		should:       "work with a simple config",
 		given:        mysqlSpecs()["simple"],
-		expectString: "username:pass@tcp(some.url.net:1234)/db?parseTime=true",
+		expectParams: []string{"parseTime=true"},
 		expectUnique: "username:pass@tcp(some.url.net:1234)/db",
 	}, {
 		should:       "work with a complicated config",
 		given:        mysqlSpecs()["complicated"],
-		expectString: `user name:pass's@tcp(some.url.net:1234)/db?timeout=30s&parseTime=true`,
+		expectParams: []string{"timeout=30s", "parseTime=true"},
 		expectUnique: `user name:pass's@tcp(some.url.net:1234)/db`,
 	}, {
 		should:      "not work with a bad config",
@@ -97,7 +98,26 @@ func (s *SQLSuite) TestMySQLConfig(c *gc.C) {
 			continue
 		}
 		c.Assert(err, jc.ErrorIsNil)
-		c.Check(obtained.ConnectionString(), gc.Equals, t.expectString)
+		seen := make(map[string]bool)
+		for _, param := range t.expectParams {
+			seen[param] = true
+		}
+		gotParams := obtained.ConnectionString()
+		if params := strings.SplitN(gotParams, "?", 2)[1]; len(strings.Split(params, "&")) == len(seen) {
+			for _, str := range strings.Split(
+				params,
+				"&",
+			) {
+				if !c.Failed() && !seen[str] {
+					c.Logf("got unexpected param %q", str)
+					c.Fail()
+				}
+			}
+		} else {
+			c.Logf("got wrong params %+q, expected %v", params, t.expectParams)
+			c.Fail()
+		}
+
 		c.Check(obtained.UniqueServer(), gc.Equals, t.expectUnique)
 	}
 }
