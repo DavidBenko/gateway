@@ -24,11 +24,29 @@ func pqConfigs() map[string]map[string]interface{} {
 			"user":   "user",
 			"dbname": "db",
 		},
+		"bad-ssl": map[string]interface{}{
+			"host":     "some.url.net",
+			"port":     1234,
+			"user":     "user",
+			"password": "pass",
+			"dbname":   "db",
+			"sslmode":  "preferHelloWorld",
+		},
+		"no-ssl": map[string]interface{}{
+			"host":     "some.url.net",
+			"port":     1234,
+			"user":     "user",
+			"password": "pass",
+			"dbname":   "db",
+			"sslmode":  "",
+		},
 		"badport": map[string]interface{}{
+			"host":     "foo.bar",
 			"port":     -1234,
 			"user":     "user",
 			"password": "pass",
 			"dbname":   "db",
+			"sslmode":  "prefer",
 		},
 		"complicated": map[string]interface{}{
 			"host":     "some.url.net",
@@ -74,13 +92,25 @@ func (s *SQLSuite) TestPostgresConfig(c *gc.C) {
 		expectString: `postgres://user name:pass's@some.url.net:1234/db?sslmode=verify-ca`,
 		expectUnique: `postgres://user name:pass's@some.url.net:1234/db?sslmode=verify-ca`,
 	}, {
-		should:      "not work with a bad config",
-		given:       pqSpecs()["bad"],
-		expectError: `pgx config errors: bad value "" for "password"; bad value "" for "host"`,
+		should: "not work with a bad sslMode",
+		given:  pqSpecs()["bad-ssl"],
+		expectError: `pgx config errors: ` +
+			`bad value "preferHelloWorld" for "sslmode"`,
 	}, {
-		should:      "not work with a bad config",
+		should:      "not work with a missing sslMode",
+		given:       pqSpecs()["no-ssl"],
+		expectError: `pgx config errors: bad value "" for "sslmode"`,
+	}, {
+		should:      "not work with a bad port",
 		given:       pqSpecs()["badport"],
-		expectError: `pgx config errors: bad value -1234 for "port"; bad value "" for "host"`,
+		expectError: `pgx config errors: bad value -1234 for "port"`,
+	}, {
+		should: "fail with multiple bad config items",
+		given:  pqSpecs()["bad"],
+		expectError: `pgx config errors: ` +
+			`bad value "" for "password"; ` +
+			`bad value "" for "host"; ` +
+			`bad value "" for "sslmode"`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
