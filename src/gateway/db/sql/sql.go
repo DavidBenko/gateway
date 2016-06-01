@@ -19,7 +19,7 @@ const (
 	postgres driver = "pgx"
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
-	hana     driver = "hana"
+	hana     driver = "hdb"
 )
 
 var knownDrivers = map[driver]bool{
