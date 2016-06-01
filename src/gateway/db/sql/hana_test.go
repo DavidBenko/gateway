@@ -59,11 +59,11 @@ func (s *SQLSuite) TestHanaConfig(c *gc.C) {
 	}, {
 		should:      "not work without a host and password",
 		given:       hanaSpecs()["bad"],
-		expectError: `hana config errors: bad value "" for "password"; bad value "" for "host"`,
+		expectError: `hdb config errors: bad value "" for "password"; bad value "" for "host"`,
 	}, {
 		should:      "not work with a bad config",
 		given:       hanaSpecs()["badport"],
-		expectError: `hana config errors: bad value "" for "host"; bad value -1234 for "port"`,
+		expectError: `hdb config errors: bad value "" for "host"; bad value -1234 for "port"`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 

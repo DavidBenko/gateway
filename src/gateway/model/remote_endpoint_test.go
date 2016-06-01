@@ -357,7 +357,7 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		should:      "(Hana) fail with a bad config",
 		givenConfig: "hana-badConfig",
 		givenType:   model.RemoteEndpointTypeHana,
-		expectError: `hana config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "host"`,
+		expectError: `hdb config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "host"`,
 	}, {
 		should:      "Mongo work with a complex config",
 		givenConfig: "mongo-complicated",
