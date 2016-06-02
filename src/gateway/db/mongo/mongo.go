@@ -6,8 +6,6 @@ import (
 	"net/url"
 	"runtime"
 
-	"gopkg.in/mgo.v2"
-
 	"gateway/db"
 )
 
