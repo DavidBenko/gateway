@@ -10,6 +10,9 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
+PKG_CONFIG_PATH := ${PWD}/contrib
+export PKG_CONFIG_PATH
+
 ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
@@ -242,3 +245,6 @@ install_peg:
 vet:
 	./scripts/make-hooks
 	./scripts/hooks/pre-commit
+
+install_oracle:
+	mkdir -p /opt/oracle/instantclient_12_1 #TODO download garbage from S3
