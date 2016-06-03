@@ -17,8 +17,12 @@ ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
 
-ifneq ($(MAKECMDGOALS), package)
+ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release))
 	BINDATA_DEBUG = -debug
+endif
+
+ifeq ($(MAKECMDGOALS), release)
+	LICENSE_PUBLIC_KEY = "public_keys/production"
 endif
 
 ifdef TDDIUM_DB_NAME
@@ -77,6 +81,9 @@ debug: vet assets generate
 
 package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
+
+release: vet admin assets generate
+	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
 
 keygen:
 	go build -o ./bin/keygen keygen
@@ -219,7 +226,7 @@ vendor_get: vendor_clean
 	github.com/ory-am/dockertest \
 	github.com/go-ldap/ldap \
 	github.com/pointlander/peg \
-	github.com/SAP/go-hdb/driver
+	github.com/SAP/go-hdb/driver \
 	golang.org/x/net/http2 \
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
