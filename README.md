@@ -100,26 +100,34 @@ To completely clear the default Gateway data:
 
     rake clean
 
+## Testing
+
+You can run the unit tests via:
+
+    make test
+
+You can run the integration test suite via:
+
+    make test_all
+
+This will spin up Docker images to test some of the remote endpoint types. It will also run against a local Postgres instance. In order for this test suite to pass please make sure you have Docker installed and you have access to the anypresence/justapis-ldap repo on the Docker Hub.
+
+Also, make sure that the CA cert file located at `test/ldap/security/cacert.pem` is added to your Keychain and trusted.
+
 ## Packaging
 
 `make package` will build the gateway for all available platforms and put the
 resulting binaries in the `build` directory.
 
-The command is using [`gox`](https://github.com/mitchellh/gox). To install you
-will need to:
-
-	go get github.com/mitchellh/gox
-	gox -build-toolchain
-
 ### Building for Linux and Windows with Docker
 
 If you have Docker installed locally, you can build the CrossCompilation Dockerfile and then compile in there. You can build the Docker image with:
 
-    docker build --no-cache -t anypresence/gateway:cross-compilation-0.0.1 -f dockerfiles/CrossCompilation .
+    docker build --no-cache -t anypresence/gateway:cross-compilation-5.0.0 -f dockerfiles/CrossCompilation .
 
 If you are a collaborator on the Docker Hub repository for anypresence/gateway, you can alternatively just pull the image from there:
 
-    docker pull anypresence/gateway:cross-compilation-0.0.1
+    docker pull anypresence/gateway:cross-compilation-5.0.0
 
 Then, run the following to compile the binary with the dev public key:
 
@@ -128,6 +136,6 @@ Then, run the following to compile the binary with the dev public key:
 
 Use the following for the production public:
 
-    docker run -e "LICENSE_PUBLIC_KEY=/usr/src/justapis/public_keys/production" --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-0.0.1
+    docker run -e "LICENSE_PUBLIC_KEY=/usr/src/justapis/public_keys/production" --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-5.0.0
 
 Your new binary will be at ./build/gateway-{GOOS}-{GOARCH}
