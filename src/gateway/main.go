@@ -154,6 +154,7 @@ func main() {
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
+	service.PushDeletionService(conf, db)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 

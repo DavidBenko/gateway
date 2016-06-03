@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/jmoiron/sqlx"
 
@@ -21,18 +19,14 @@ const (
 	postgres driver = "pgx"
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
+	hana     driver = "hdb"
 )
 
-var knownDrivers *regexp.Regexp
-
-// init prepares a RE of our known drivers.
-func init() {
-	drivers := []string{
-		string(mysql),
-		string(mssql),
-		string(postgres),
-	}
-	knownDrivers = regexp.MustCompile(strings.Join(drivers, "|"))
+var knownDrivers = map[driver]bool{
+	postgres: true,
+	mssql:    true,
+	mysql:    true,
+	hana:     true,
 }
 
 // sqlSpec defines the extra methods a db.Specifier for SQL must implement.
@@ -178,12 +172,11 @@ func (d *DB) Update(s db.Specifier) error {
 // newDB Opens a new *database/sql.DB, and calls wrapDB to wrap it with its config.
 func newDB(s sqlSpec) (db.DB, error) {
 	drv := s.driver()
-	d := string(drv)
-	if !knownDrivers.MatchString(d) {
-		return nil, fmt.Errorf("unknown sql driver %q", d)
+	if !knownDrivers[drv] {
+		return nil, fmt.Errorf("unknown sql driver %q", drv)
 	}
 
-	sqlDb, err := sql.Open(d, s.ConnectionString())
+	sqlDb, err := sql.Open(string(drv), s.ConnectionString())
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +187,11 @@ func newDB(s sqlSpec) (db.DB, error) {
 // wrapDB wraps a *database/sql.DB with its config.
 func wrapDB(sqlDb *sql.DB, s sqlSpec) (db.DB, error) {
 	drv := s.driver()
-	d := string(drv)
-	if !knownDrivers.MatchString(d) {
-		return nil, fmt.Errorf("unknown sql driver %q", d)
+	if !knownDrivers[drv] {
+		return nil, fmt.Errorf("unknown sql driver %q", drv)
 	}
 
-	sqlxDb := sqlx.NewDb(sqlDb, d)
+	sqlxDb := sqlx.NewDb(sqlDb, string(drv))
 
 	maxO, maxI := s.getMaxOpenIdle()
 	sqlxDb.SetMaxIdleConns(maxI)
@@ -231,6 +223,10 @@ func validateSqlSpec(s sqlSpec) error {
 		if tS == nil {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
+	case *HanaSpec:
+		if tS == nil {
+			return errors.New("cannot create SQL Connection with nil Specifier")
+		}
 	default:
 		return fmt.Errorf("cannot create SQL Connection with %T", tS)
 	}
@@ -251,7 +247,7 @@ func validate(s sqlSpec, vs []validation) error {
 	if s == nil {
 		return errors.New("can't validate nil SQL Specifier")
 	}
-	if dr := s.driver(); !knownDrivers.MatchString(string(dr)) {
+	if dr := s.driver(); !knownDrivers[dr] {
 		return fmt.Errorf("unknown SQL driver %q", dr)
 	}
 	msg := string(s.driver()) + " config errors: "

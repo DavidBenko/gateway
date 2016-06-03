@@ -22,6 +22,9 @@ import (
 //go:generate ./controller.rb --model User --account --transform-method c.sanitize --transform-type sanitizedUser
 //go:generate ./controller.rb --model ProxyEndpointSchema --reflect
 //go:generate ./controller.rb --model ScratchPad --reflect
+//go:generate ./controller.rb --model PushChannel --reflect
+//go:generate ./controller.rb --model PushDevice --reflect
+//go:generate ./controller.rb --model PushMessage --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource

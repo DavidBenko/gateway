@@ -139,6 +139,17 @@ func data() map[string]interface{} {
 			},
 			"maxOpenConn": "hello",
 		},
+		"hana-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"user":     "SYSTEM",
+				"password": "pass",
+				"host":     "some.url.net",
+				"port":     30015,
+			},
+		},
+		"hana-badConfig": map[string]interface{}{
+			"config": map[string]interface{}{},
+		},
 		"mongo-complicated": map[string]interface{}{
 			"config": map[string]interface{}{
 				"hosts": []interface{}{
@@ -169,6 +180,7 @@ func specs() map[string]db.Specifier {
 		{"mysql-simple", model.RemoteEndpointTypeMySQL},
 		{"mysql-complicated", model.RemoteEndpointTypeMySQL},
 		{"mongo-complicated", model.RemoteEndpointTypeMongo},
+		{"hana-simple", model.RemoteEndpointTypeHana},
 	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
@@ -196,6 +208,15 @@ func specs() map[string]db.Specifier {
 			s, err = sql.Config(
 				sql.Connection(conf.Config),
 				sql.MaxOpenIdle(conf.MaxOpenConn, conf.MaxIdleConn),
+			)
+		case model.RemoteEndpointTypeHana:
+			var conf re.Hana
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+			s, err = sql.Config(
+				sql.Connection(conf.Config),
 			)
 		case model.RemoteEndpointTypeMySQL:
 			var conf re.MySQL
@@ -249,17 +270,22 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		should:      "(SQLS) fail with a bad config",
 		givenConfig: "sqls-badConfig",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectError: `mssql config errors: bad value "" for "user id"; bad value "" for "password"; bad value "" for "database"`,
+		expectError: `mssql config errors: ` +
+			`bad value "" for "user id"; ` +
+			`bad value "" for "password"; ` +
+			`bad value "" for "database"`,
 	}, {
 		should:      "(SQLS) fail with a bad config type",
 		givenConfig: "sqls-badConfigType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectError: `bad JSON for SQL Server config: json: cannot unmarshal number into Go value of type sql.SQLServerSpec`,
+		expectError: `bad JSON for SQL Server config: ` +
+			`json: cannot unmarshal number into Go value of type sql.SQLServerSpec`,
 	}, {
 		should:      "(SQLS) fail with a bad max idle type",
 		givenConfig: "sqls-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
-		expectError: `bad JSON for SQL Server config: json: cannot unmarshal string into Go value of type int`,
+		expectError: `bad JSON for SQL Server config: ` +
+			`json: cannot unmarshal string into Go value of type int`,
 	}, {
 		should:      "(MySQL) work with a simple config",
 		givenConfig: "mysql-simple",
@@ -274,17 +300,22 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		should:      "(MySQL) fail with a bad config",
 		givenConfig: "mysql-badConfig",
 		givenType:   model.RemoteEndpointTypeMySQL,
-		expectError: `mysql config errors: bad value "" for "username"; bad value "" for "password"; bad value "" for "dbname"`,
+		expectError: `mysql config errors: ` +
+			`bad value "" for "username"; ` +
+			`bad value "" for "password"; ` +
+			`bad value "" for "dbname"`,
 	}, {
 		should:      "(MySQL) fail with a bad config type",
 		givenConfig: "mysql-badConfigType",
 		givenType:   model.RemoteEndpointTypeMySQL,
-		expectError: `bad JSON for MySQL config: json: cannot unmarshal number into Go value of type sql.MySQLSpec`,
+		expectError: `bad JSON for MySQL config: ` +
+			`json: cannot unmarshal number into Go value of type sql.MySQLSpec`,
 	}, {
 		should:      "(MySQL) fail with a bad max idle type",
 		givenConfig: "mysql-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeMySQL,
-		expectError: `bad JSON for MySQL config: json: cannot unmarshal string into Go value of type int`,
+		expectError: `bad JSON for MySQL config: ` +
+			`json: cannot unmarshal string into Go value of type int`,
 	}, {
 		should:      "(PSQL) work with a simple config",
 		givenConfig: "pq-simple",
@@ -299,17 +330,34 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		should:      "(PSQL) fail with a bad config",
 		givenConfig: "pq-badConfig",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `pgx config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "dbname"; bad value "" for "host"`,
+		expectError: `pgx config errors: ` +
+			`bad value "" for "user"; ` +
+			`bad value "" for "password"; ` +
+			`bad value "" for "dbname"; ` +
+			`bad value "" for "host"; ` +
+			`bad value "" for "sslmode"`,
 	}, {
 		should:      "(PSQL) fail with a bad config type",
 		givenConfig: "pq-badConfigType",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `bad JSON for Postgres config: json: cannot unmarshal number into Go value of type sql.PostgresSpec`,
+		expectError: `bad JSON for Postgres config: ` +
+			`json: cannot unmarshal number into Go value of type sql.PostgresSpec`,
 	}, {
 		should:      "(PSQL) fail with a bad max idle type",
 		givenConfig: "pq-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypePostgres,
-		expectError: `bad JSON for Postgres config: json: cannot unmarshal string into Go value of type int`,
+		expectError: `bad JSON for Postgres config: ` +
+			`json: cannot unmarshal string into Go value of type int`,
+	}, {
+		should:      "(Hana) work with a simple config",
+		givenConfig: "hana-simple",
+		givenType:   model.RemoteEndpointTypeHana,
+		expectSpec:  "hana-simple",
+	}, {
+		should:      "(Hana) fail with a bad config",
+		givenConfig: "hana-badConfig",
+		givenType:   model.RemoteEndpointTypeHana,
+		expectError: `hdb config errors: bad value "" for "user"; bad value "" for "password"; bad value "" for "host"`,
 	}, {
 		should:      "Mongo work with a complex config",
 		givenConfig: "mongo-complicated",
