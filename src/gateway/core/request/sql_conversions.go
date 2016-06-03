@@ -66,6 +66,12 @@ var converters = map[string]map[string]conversion{
 		"bool":    toBool,
 		"string":  toString,
 	},
+	"[]uint8": {
+		"string": toString,
+	},
+	"[]byte": {
+		"string": toString,
+	},
 	"bool": {
 		"int64":   toInt64,
 		"float64": toFloat64,
@@ -86,6 +92,8 @@ func toString(src interface{}) (interface{}, error) {
 	switch s := src.(type) {
 	case float64, float32, uint64, uint32, uint16, uint8, int64, int32, int16, int8:
 		return fmt.Sprintf("%d", s), nil
+	case []byte:
+		return string(s), nil
 	case string:
 		return s, nil
 	case bool:
