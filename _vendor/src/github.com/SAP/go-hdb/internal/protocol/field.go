@@ -419,7 +419,7 @@ func readField(rd *bufio.Reader, tc typeCode) (interface{}, error) {
 		if null {
 			return nil, nil
 		}
-		return value, nil
+		return string(value), nil
 
 	case tcNvarchar:
 		value, null, err := readUtf8(rd)
@@ -429,7 +429,7 @@ func readField(rd *bufio.Reader, tc typeCode) (interface{}, error) {
 		if null {
 			return nil, nil
 		}
-		return value, nil
+		return string(value), nil
 
 	case tcBlob, tcClob, tcNclob:
 		null, writer, err := readLob(rd, tc)
