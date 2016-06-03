@@ -19,12 +19,14 @@ const (
 	postgres driver = "pgx"
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
+	hana     driver = "hdb"
 )
 
 var knownDrivers = map[driver]bool{
 	postgres: true,
 	mssql:    true,
 	mysql:    true,
+	hana:     true,
 }
 
 // sqlSpec defines the extra methods a db.Specifier for SQL must implement.
@@ -218,6 +220,10 @@ func validateSqlSpec(s sqlSpec) error {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
 	case *MySQLSpec:
+		if tS == nil {
+			return errors.New("cannot create SQL Connection with nil Specifier")
+		}
+	case *HanaSpec:
 		if tS == nil {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}

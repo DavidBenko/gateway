@@ -216,6 +216,7 @@ vendor_get: vendor_clean
 	github.com/ory-am/dockertest \
 	github.com/go-ldap/ldap \
 	github.com/pointlander/peg \
+	github.com/SAP/go-hdb/driver
 	golang.org/x/net/http2 \
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
