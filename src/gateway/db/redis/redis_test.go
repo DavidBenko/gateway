@@ -2,6 +2,9 @@ package redis_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"gateway/db"
+	"gateway/db/mongo"
 	"gateway/db/redis"
 	"testing"
 
@@ -76,4 +79,68 @@ func (r *RedisSuite) TestRedisConfig(c *gc.C) {
 		c.Check(conf.UniqueServer(), gc.Equals, t.expectUnique)
 
 	}
+}
+
+func (r *RedisSuite) TestNeedsUpdate(c *gc.C) {
+	self := redisSpecs()["simple"]
+
+	// Redis spec containing a different pool limit
+	poolLimitSpec, err := redis.Config(redis.Connection(redisSpecs()["simple"]), redis.PoolLimit(5))
+	if err != nil {
+		panic(err)
+	}
+
+	for i, t := range []struct {
+		should      string
+		given       db.Specifier
+		compare     db.Specifier
+		expect      bool
+		expectPanic string
+	}{{
+		should:  "not error a self-check",
+		given:   self,
+		compare: self,
+	}, {
+		should:      "not work comparing different types",
+		given:       redisSpecs()["simple"],
+		compare:     &mongo.Spec{},
+		expectPanic: "tried to compare wrong database kinds: Redis and *mongo.Spec",
+	}, {
+		should:      "fail to compare to nil",
+		given:       redisSpecs()["simple"],
+		expectPanic: "tried to compare to nil db.Specifier!",
+	}, {
+		should:  "return true if supplied a different limit",
+		given:   redisSpecs()["simple"],
+		compare: poolLimitSpec,
+		expect:  true,
+	}} {
+		message := fmt.Sprintf("Test %d: should %s", i, t.should)
+		if t.expectPanic != "" {
+			message += " (expect panic)"
+		}
+
+		c.Log(message)
+
+		func() {
+
+			defer func() {
+				e := recover()
+				switch {
+				case t.expectPanic != "":
+					c.Assert(e, gc.Equals, t.expectPanic)
+				default:
+					c.Assert(e, gc.IsNil)
+				}
+			}()
+
+			result := t.given.NeedsUpdate(t.compare)
+			c.Check(result, gc.Equals, t.expect)
+
+		}()
+	}
+}
+
+func (r *RedisSuite) TestUpdate(c *gc.C) {
+
 }

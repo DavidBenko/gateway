@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"gateway/db"
+	"gateway/logreport"
 )
 
 type redisSpec interface {
@@ -38,6 +39,13 @@ func (r *Spec) UniqueServer() string {
 }
 
 func (r *Spec) NeedsUpdate(spec db.Specifier) bool {
+	if spec == nil {
+		logreport.Panicf("tried to compare to nil db.Specifier!")
+	}
+	if rSpec, ok := spec.(*Spec); ok {
+		return rSpec.limit != r.limit
+	}
+	logreport.Panicf("tried to compare wrong database kinds: Redis and %T", spec)
 	return false
 }
 
@@ -97,5 +105,17 @@ func Connection(c redisSpec) db.Configurator {
 		}
 
 		return spec, nil
+	}
+}
+
+func PoolLimit(limit int) db.Configurator {
+	return func(s db.Specifier) (db.Specifier, error) {
+		switch redis := s.(type) {
+		case *Spec:
+			redis.limit = limit
+			return redis, nil
+		default:
+			return nil, fmt.Errorf("Redis PoolLimit requires redis.Spec, got %T", s)
+		}
 	}
 }
