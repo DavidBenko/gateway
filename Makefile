@@ -14,8 +14,12 @@ ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
 
-ifneq ($(MAKECMDGOALS), package)
+ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release))
 	BINDATA_DEBUG = -debug
+endif
+
+ifeq ($(MAKECMDGOALS), release)
+	LICENSE_PUBLIC_KEY = "public_keys/production"
 endif
 
 ifdef TDDIUM_DB_NAME
