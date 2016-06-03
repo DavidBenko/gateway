@@ -223,7 +223,8 @@ vendor_get: vendor_clean
 	golang.org/x/net/http2 \
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
-	github.com/alexjlockwood/gcm
+	github.com/alexjlockwood/gcm \
+	github.com/mattn/go-oci8
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
