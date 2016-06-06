@@ -142,5 +142,34 @@ func (r *RedisSuite) TestNeedsUpdate(c *gc.C) {
 }
 
 func (r *RedisSuite) TestUpdate(c *gc.C) {
-
+	for i, t := range []struct {
+		should       string
+		givenLimit   int
+		newLimit     int
+		expectUpdate bool
+	}{{
+		should:       "not update if limit is the same",
+		givenLimit:   0,
+		newLimit:     0,
+		expectUpdate: false,
+	}, {
+		should:       "update if limit changes",
+		givenLimit:   0,
+		newLimit:     5,
+		expectUpdate: true,
+	}} {
+		c.Logf("Test %d: should %s", i, t.should)
+		conf, err := redis.Config(
+			redis.Connection(redisSpecs()["simple"]),
+			redis.PoolLimit(t.givenLimit),
+		)
+		c.Assert(err, gc.IsNil)
+		newConf, err := redis.Config(
+			redis.Connection(redisSpecs()["simple"]),
+			redis.PoolLimit(t.newLimit),
+		)
+		c.Assert(err, gc.IsNil)
+		c.Logf("Test %d:\n old: %v\n new: %+v\n", i, conf, newConf)
+		c.Check(conf.NeedsUpdate(newConf), gc.Equals, t.expectUpdate)
+	}
 }
