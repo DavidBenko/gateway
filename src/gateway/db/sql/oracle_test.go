@@ -41,7 +41,7 @@ func oracleSpecs() map[string]*sql.OracleSpec {
 	return specs
 }
 
-func (s *SQLSuite) TestPostgresConfig(c *gc.C) {
+func (s *SQLSuite) TestOracleConfig(c *gc.C) {
 	for i, t := range []struct {
 		should       string
 		given        *sql.OracleSpec
