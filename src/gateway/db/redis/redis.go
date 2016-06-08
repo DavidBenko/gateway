@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"gateway/db"
 	"gateway/logreport"
+
+	redigo "github.com/garyburd/redigo/redis"
 )
 
 type redisSpec interface {
@@ -14,12 +16,13 @@ type redisSpec interface {
 // Spec implements db.Specifier for Redis connection parameters.
 type Spec struct {
 	redisSpec
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Database string `json:"database"`
-	limit    int
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Database  string `json:"database"`
+	maxActive int
+	maxIdle   int
 }
 
 // ConnectionString returns the redis connection string derived from the
@@ -43,14 +46,10 @@ func (r *Spec) NeedsUpdate(spec db.Specifier) bool {
 		logreport.Panicf("tried to compare to nil db.Specifier!")
 	}
 	if rSpec, ok := spec.(*Spec); ok {
-		return rSpec.limit != r.limit
+		return rSpec.maxActive != r.maxActive || rSpec.maxIdle != r.maxIdle
 	}
 	logreport.Panicf("tried to compare wrong database kinds: Redis and %T", spec)
 	return false
-}
-
-func (r *Spec) NewDB() (db.DB, error) {
-	return nil, nil
 }
 
 func Config(confs ...db.Configurator) (db.Specifier, error) {
@@ -108,14 +107,68 @@ func Connection(c redisSpec) db.Configurator {
 	}
 }
 
-func PoolLimit(limit int) db.Configurator {
+func MaxActive(limit int) db.Configurator {
 	return func(s db.Specifier) (db.Specifier, error) {
 		switch redis := s.(type) {
 		case *Spec:
-			redis.limit = limit
+			redis.maxActive = limit
 			return redis, nil
 		default:
-			return nil, fmt.Errorf("Redis PoolLimit requires redis.Spec, got %T", s)
+			return nil, fmt.Errorf("Redis MaxActive requires redis.Spec, got %T", s)
 		}
 	}
+}
+
+func MaxIdle(idle int) db.Configurator {
+	return func(s db.Specifier) (db.Specifier, error) {
+		switch redis := s.(type) {
+		case *Spec:
+			redis.maxIdle = idle
+			return redis, nil
+		default:
+			return nil, fmt.Errorf("Redis MaxIdle requires redis.Spec, got %T", s)
+		}
+	}
+}
+
+type DB struct {
+	Pool *redigo.Pool
+	conf *Spec
+}
+
+func (r *Spec) NewDB() (db.DB, error) {
+	pool := newPool(r)
+	db := &DB{pool, r}
+	return db, nil
+}
+
+// newPool returns a redigo.pool struct. Since redigo does not implement
+// a connection pooling mechanism under the hood, we have to create our own.
+func newPool(r *Spec) *redigo.Pool {
+	return &redigo.Pool{
+		MaxIdle:   r.maxIdle,
+		MaxActive: r.maxActive,
+		Dial: func() (redigo.Conn, error) {
+			c, err := redigo.DialURL(r.ConnectionString())
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		},
+	}
+}
+
+func (d *DB) Spec() db.Specifier {
+	return d.conf
+}
+
+func (d *DB) Update(s db.Specifier) error {
+	spec, ok := s.(*Spec)
+	if !ok {
+		return fmt.Errorf("can't update Redis with %T", spec)
+	}
+	d.conf.maxActive = spec.maxActive
+	d.conf.maxIdle = spec.maxIdle
+	// set Pool limit
+	return nil
 }

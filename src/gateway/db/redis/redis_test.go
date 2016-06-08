@@ -85,7 +85,7 @@ func (r *RedisSuite) TestNeedsUpdate(c *gc.C) {
 	self := redisSpecs()["simple"]
 
 	// Redis spec containing a different pool limit
-	poolLimitSpec, err := redis.Config(redis.Connection(redisSpecs()["simple"]), redis.PoolLimit(5))
+	poolLimitSpec, err := redis.Config(redis.Connection(redisSpecs()["simple"]), redis.MaxActive(5))
 	if err != nil {
 		panic(err)
 	}
@@ -161,12 +161,12 @@ func (r *RedisSuite) TestUpdate(c *gc.C) {
 		c.Logf("Test %d: should %s", i, t.should)
 		conf, err := redis.Config(
 			redis.Connection(redisSpecs()["simple"]),
-			redis.PoolLimit(t.givenLimit),
+			redis.MaxActive(t.givenLimit),
 		)
 		c.Assert(err, gc.IsNil)
 		newConf, err := redis.Config(
 			redis.Connection(redisSpecs()["simple"]),
-			redis.PoolLimit(t.newLimit),
+			redis.MaxActive(t.newLimit),
 		)
 		c.Assert(err, gc.IsNil)
 		c.Logf("Test %d:\n old: %v\n new: %+v\n", i, conf, newConf)
