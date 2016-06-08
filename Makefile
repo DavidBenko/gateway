@@ -255,4 +255,5 @@ vet:
 	./scripts/hooks/pre-commit
 
 install_oracle:
-	mkdir -p /opt/oracle/instantclient_12_1 #TODO download garbage from S3
+	#first argument is directory to save instant client, second file to append env vars into
+	./scripts/install_oracle_instant_client.rb /opt/oracle ~/.bash_profile && source ~/.bash_profile
