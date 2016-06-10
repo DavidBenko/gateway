@@ -10,7 +10,9 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-PKG_CONFIG_PATH := ${PWD}/contrib
+ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
+
+PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
 export PKG_CONFIG_PATH
 
 ifndef LICENSE_PUBLIC_KEY
@@ -242,7 +244,7 @@ vendor_update: vendor_get
 install_bindata:
 	if hash go-bindata 2>/dev/null; then : ; else go install github.com/jteeuwen/go-bindata/...; fi;
 
-install_goimports:
+install_goimports: install_oracle
 	if hash goimports 2>/dev/null; then : ; else go install code.google.com/p/go.tools/cmd/goimports/...; fi;
 
 install_peg:
@@ -255,5 +257,6 @@ vet:
 	./scripts/hooks/pre-commit
 
 install_oracle:
-	#first argument is directory to save instant client, second file to append env vars into
-	./scripts/install_oracle_instant_client.rb /opt/oracle ~/.bash_profile && source ~/.bash_profile
+	#first argument is directory to save instant client, second is the package config file source
+	#which is processed and saved as oci8.pc in the same argument directory
+	./scripts/install_oracle_instant_client.rb $(ORACLE_INSTANT_CLIENT_DIR) contrib/oci8.pc
