@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'rbconfig'
+require 'fileutils'
 
 def download_url
   "http://downloads.justapis.com/v5.1.0/oracle/#{os}_instant_client_12_1.tar.gz"
@@ -24,19 +25,26 @@ def os
   )
 end
 
-def append(file, line_to_append)
-  `echo '#{line_to_append}' >> #{file}`
-  raise "Failed to append #{line_to_append} to #{file}" unless $?.success?
+def create_config(template, new_first_line, destination_file)
+  original_config = File.read(template)
+  new_config = new_first_line
+  new_config << original_config
+  File.open(destination_file, 'w') {|f| f.puts new_config }
 end
 
 if os == :osx
-  INSTANT_CLIENT_DIR_LOCATION = ARGV[0]
-  INSTANT_CLIENT_DIR_NAME="instantclient_12_1"
-  INSTANT_CLIENT_DIR = "#{INSTANT_CLIENT_DIR_LOCATION}/#{INSTANT_CLIENT_DIR_NAME}"
-  OCI_INC_DIR="#{INSTANT_CLIENT_DIR}/sdk/include"
-  `mkdir -p #{INSTANT_CLIENT_DIR_LOCATION} && curl --silent #{download_url} | tar -C #{INSTANT_CLIENT_DIR_LOCATION} -zxv `
-  raise "Failed to download client from #{download_url} into #{INSTANT_CLIENT_DIR}" unless $?.success?
-  append(ARGV[1],"\nexport DYLD_LIBRARY_PATH=#{INSTANT_CLIENT_DIR}") unless ENV['DYLD_LIBRARY_PATH'] == INSTANT_CLIENT_DIR
-  append(ARGV[1],"\nexport OCI_LIB_DIR=#{INSTANT_CLIENT_DIR}") unless ENV['OCI_LIB_DIR'] == INSTANT_CLIENT_DIR
-  append(ARGV[1],"\nexport OCI_INC_DIR=#{OCI_INC_DIR}") unless ['OCI_INC_DIR'] == OCI_INC_DIR
+  INSTANT_CLIENT_DIR = ARGV[0]
+  if File.symlink?(File.join(INSTANT_CLIENT_DIR,'libclntsh.dylib'))
+    puts "Instant client appears to be already installed."
+  else
+    puts "Setting up instant client in #{INSTANT_CLIENT_DIR}"
+    FileUtils::mkdir_p(INSTANT_CLIENT_DIR)
+    `curl --silent #{download_url} | tar -zxv -C #{INSTANT_CLIENT_DIR} --strip 1`
+    raise "Failed to download client from #{download_url} into #{INSTANT_CLIENT_DIR}" unless $?.success?
+    prefix = "prefix=#{INSTANT_CLIENT_DIR}"
+    oci8_pc = File.join(INSTANT_CLIENT_DIR,'oci8.pc')
+    create_config(ARGV[1], prefix, oci8_pc)
+    `cd #{INSTANT_CLIENT_DIR} && ln -s libclntsh.dylib.12.1 libclntsh.dylib`
+    raise "Failed to create a symbolic link!" unless $?.success?
+  end
 end
