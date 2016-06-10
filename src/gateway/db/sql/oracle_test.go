@@ -56,9 +56,10 @@ func (s *SQLSuite) TestOracleConfig(c *gc.C) {
 	}, {
 		should: "fail with multiple bad config items",
 		given:  oracleSpecs()["bad"],
-		expectError: `pgx config errors: ` +
+		expectError: `oci8 config errors: ` +
+			`bad value -1234 for "port"; ` +
 			`bad value "" for "password"; ` +
-			`bad value "" for "host"; `,
+			`bad value "" for "host"`,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
