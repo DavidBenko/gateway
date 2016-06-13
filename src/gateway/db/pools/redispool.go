@@ -2,19 +2,19 @@ package pools
 
 import (
 	"gateway/db"
-	"gateway/db/mongo"
+	"gateway/db/redis"
 	"sync"
 )
 
 // redisPool implements pools.ServerPool for Redis.
 type redisPool struct {
-	dbs map[string]*mongo.DB
+	dbs map[string]*redis.DB
 	sync.RWMutex
 }
 
 func (p *redisPool) Get(spec db.Specifier) (db.DB, bool) {
 	if d, ok := p.dbs[spec.UniqueServer()]; ok {
-		return d.Copy(), ok
+		return d, ok
 	}
 	return nil, false
 }

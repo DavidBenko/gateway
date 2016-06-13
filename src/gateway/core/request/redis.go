@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,13 +13,14 @@ import (
 )
 
 type RedisRequest struct {
-	Config    *redis.Spec `json:"config"`
-	MaxActive int
-	MaxIdle   int
-	conn      redigo.Conn
+	Config     *redis.Spec `json:"config"`
+	Parameters []interface{}
+	conn       redigo.Conn
 }
 
 type RedisResponse struct {
+	Data  []interface{} `json:"data"`
+	Error string        `json:"error,omitempty"`
 }
 
 func NewRedisRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
@@ -40,8 +42,6 @@ func NewRedisRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *j
 
 	c, err := pools.Connect(redis.Config(
 		redis.Connection(request.Config),
-		redis.MaxActive(request.MaxActive),
-		redis.MaxIdle(request.MaxIdle),
 	))
 
 	if err != nil {
@@ -57,6 +57,54 @@ func NewRedisRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *j
 	return nil, fmt.Errorf("need Redis connection, got %T", c)
 }
 
+func (r *RedisRequest) JSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+func (r *RedisRequest) Perform() Response {
+	response := &RedisResponse{}
+
+	if len(r.Parameters) == 0 {
+		response.Error = "missing command parameter"
+		return response
+	}
+
+	command, ok := r.Parameters[0].(string)
+	if !ok {
+		response.Error = fmt.Sprintf("invalid command parameter type %T", command)
+		return response
+	}
+
+	result, err := r.conn.Do(command, r.Parameters[1:]...)
+
+	if err != nil {
+		response.Error = err.Error()
+		return response
+	}
+
+	response.Error = err.Error()
+
+	scanned, err := redigo.Values(result, nil)
+
+	if err != nil {
+		response.Error = "failed to extract redis results"
+		return response
+	}
+
+	response.Data = scanned
+
+	return response
+}
+
+func (r *RedisRequest) Log(devMode bool) string {
+	if devMode {
+		var buffer bytes.Buffer
+		// TODO: Log some things
+		return buffer.String()
+	}
+	return ""
+}
+
 func (r *RedisRequest) updateWith(endpointData *RedisRequest) {
 	if endpointData.Config != nil {
 		if r.Config == nil {
@@ -64,11 +112,12 @@ func (r *RedisRequest) updateWith(endpointData *RedisRequest) {
 		}
 		r.Config.UpdateWith(endpointData.Config)
 	}
+}
 
-	if r.MaxActive != endpointData.MaxActive {
-		r.MaxActive = endpointData.MaxActive
-	}
-	if r.MaxIdle != endpointData.MaxIdle {
-		r.MaxIdle = endpointData.MaxIdle
-	}
+func (r *RedisResponse) JSON() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+func (r *RedisResponse) Log() string {
+	return fmt.Sprintf("Add some response logging")
 }

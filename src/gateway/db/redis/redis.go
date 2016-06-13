@@ -28,9 +28,17 @@ type Spec struct {
 // ConnectionString returns the redis connection string derived from the
 // redis.Spec.
 func (r *Spec) ConnectionString() string {
-	return fmt.Sprintf("redis://%s:%s@%s:%d/%s",
-		r.Username,
-		r.Password,
+	s := "redis://"
+
+	if r.Username != "" {
+		s += r.Username
+	}
+	if r.Password != "" {
+		s += fmt.Sprintf(":%s@", r.Password)
+	}
+
+	return fmt.Sprintf("%s%s:%d/%s",
+		s,
 		r.Host,
 		r.Port,
 		r.Database,
@@ -50,6 +58,31 @@ func (r *Spec) NeedsUpdate(spec db.Specifier) bool {
 	}
 	logreport.Panicf("tried to compare wrong database kinds: Redis and %T", spec)
 	return false
+}
+
+func (r *Spec) UpdateWith(spec db.Specifier) error {
+	if spec == nil {
+		return errors.New("cannot update Redis with a nil Specifier")
+	}
+	return nil
+}
+
+func (r *Spec) validate() error {
+	message := ""
+
+	if r.Host == "" {
+		message += "; requires Host"
+	}
+
+	if r.Port == 0 {
+		message += "; requires Port"
+	}
+
+	if message != "" {
+		message = "redis config errors: " + message
+		return errors.New(message)
+	}
+	return nil
 }
 
 func Config(confs ...db.Configurator) (db.Specifier, error) {
@@ -75,32 +108,15 @@ func Connection(c redisSpec) db.Configurator {
 		if c == nil {
 			return nil, errors.New("can't validate nil specifier")
 		}
-		message := ""
 
 		spec, ok := c.(*Spec)
 		if !ok {
 			return nil, fmt.Errorf("invalid type %T", c)
 		}
 
-		if spec.Username == "" {
-			message += "requires Username"
-		}
-
-		if spec.Password == "" {
-			message += "; requires Password"
-		}
-
-		if spec.Host == "" {
-			message += "; requires Host"
-		}
-
-		if spec.Port == 0 {
-			message += "; requires Port"
-		}
-
-		if message != "" {
-			message = "redis config errors: " + message
-			return nil, errors.New(message)
+		err := spec.validate()
+		if err != nil {
+			return nil, err
 		}
 
 		return spec, nil
@@ -167,8 +183,17 @@ func (d *DB) Update(s db.Specifier) error {
 	if !ok {
 		return fmt.Errorf("can't update Redis with %T", spec)
 	}
+
+	if err := spec.validate(); err != nil {
+		return err
+	}
+
 	d.conf.maxActive = spec.maxActive
 	d.conf.maxIdle = spec.maxIdle
-	// set Pool limit
+
+	// update underlying pool
+	d.Pool.MaxActive = spec.maxActive
+	d.Pool.MaxIdle = spec.maxIdle
+
 	return nil
 }
