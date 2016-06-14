@@ -1,26 +1,40 @@
 package request
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"gateway/db/pools"
 	"gateway/db/redis"
 	"gateway/model"
+	"strings"
 
 	redigo "github.com/garyburd/redigo/redis"
 )
 
 type RedisRequest struct {
-	Config     *redis.Spec `json:"config"`
-	Parameters []interface{}
-	conn       redigo.Conn
+	Config    *redis.Spec `json:"config"`
+	Statement string      `json:"executeStatement"`
+	conn      redigo.Conn
 }
 
 type RedisResponse struct {
 	Data  []interface{} `json:"data"`
 	Error string        `json:"error,omitempty"`
+}
+
+func splitStatement(statement string) []string {
+	return strings.Split(statement, " ")
+}
+
+func toEmptyInterfaceSlice(s []string) []interface{} {
+	a := make([]interface{}, len(s))
+
+	for i := range s {
+		a[i] = s[i]
+	}
+
+	return a
 }
 
 func NewRedisRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
@@ -64,25 +78,25 @@ func (r *RedisRequest) JSON() ([]byte, error) {
 func (r *RedisRequest) Perform() Response {
 	response := &RedisResponse{}
 
-	if len(r.Parameters) == 0 {
+	// Split the supplied statement into separate arguments to be consumed
+	// by the redis driver.
+	parameters := splitStatement(r.Statement)
+
+	if len(parameters) == 0 {
 		response.Error = "missing command parameter"
 		return response
 	}
 
-	command, ok := r.Parameters[0].(string)
-	if !ok {
-		response.Error = fmt.Sprintf("invalid command parameter type %T", command)
-		return response
-	}
+	// The command will be the first element in the string slice
+	command := parameters[0]
 
-	result, err := r.conn.Do(command, r.Parameters[1:]...)
+	// Pass the command and all parameters after the first (the first is the command)
+	result, err := r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...)
 
 	if err != nil {
 		response.Error = err.Error()
 		return response
 	}
-
-	response.Error = err.Error()
 
 	scanned, err := redigo.Values(result, nil)
 
@@ -97,12 +111,7 @@ func (r *RedisRequest) Perform() Response {
 }
 
 func (r *RedisRequest) Log(devMode bool) string {
-	if devMode {
-		var buffer bytes.Buffer
-		// TODO: Log some things
-		return buffer.String()
-	}
-	return ""
+	return r.Statement
 }
 
 func (r *RedisRequest) updateWith(endpointData *RedisRequest) {
@@ -119,5 +128,5 @@ func (r *RedisResponse) JSON() ([]byte, error) {
 }
 
 func (r *RedisResponse) Log() string {
-	return fmt.Sprintf("Add some response logging")
+	return ""
 }
