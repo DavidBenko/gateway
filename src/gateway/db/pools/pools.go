@@ -15,6 +15,7 @@ type Pools struct {
 	sqlsPool  *sqlPool
 	pqPool    *sqlPool
 	mySqlPool *sqlPool
+	hanaPool  *sqlPool
 	mongoPool *mongoPool
 	redisPool *redisPool
 }
@@ -28,6 +29,8 @@ func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 		return p.pqPool, nil
 	case *sql.MySQLSpec:
 		return p.mySqlPool, nil
+	case *sql.HanaSpec:
+		return p.hanaPool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
 	case *redis.Spec:
@@ -59,6 +62,7 @@ func MakePools() *Pools {
 		sqlsPool:  makeSqlPool(),
 		pqPool:    makeSqlPool(),
 		mySqlPool: makeSqlPool(),
+		hanaPool:  makeSqlPool(),
 		mongoPool: makeMongoPool(),
 		redisPool: makeRedisPool(),
 	}

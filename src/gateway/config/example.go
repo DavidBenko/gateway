@@ -213,6 +213,9 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not the local store remote endpoints are enabled, default is false.
 # storeEnabled =
 
+# Whether or not the SAP Hana remote endpoints are enabled, default is true.
+# hanaEnabled =
+
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
 # soapClientHost = ''

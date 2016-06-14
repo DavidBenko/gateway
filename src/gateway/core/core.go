@@ -68,6 +68,8 @@ func (s *Core) PrepareRequest(
 		return r, e
 	case model.RemoteEndpointTypePush:
 		return request.NewPushRequest(endpoint, data, s.Push, s.OwnDb)
+	case model.RemoteEndpointTypeHana:
+		return request.NewHanaRequest(s.DBPools, endpoint, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
