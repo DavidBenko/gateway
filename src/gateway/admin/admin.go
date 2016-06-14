@@ -128,7 +128,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	})
 
 	var public aphttp.Router
-	public = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+	public = aphttp.NewAccessLoggingRouter(config.Proxy, conf.RequestIDHeader,
 		router)
 	if conf.CORSEnabled {
 		public = aphttp.NewCORSAwareRouter(conf.CORSOrigin, public)

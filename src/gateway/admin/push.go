@@ -27,18 +27,21 @@ func RoutePush(controller *PushController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	subscribeRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Subscribe),
+		"PUT":  writeForHost(db, controller.Subscribe),
+		"POST": writeForHost(db, controller.Subscribe),
 	}
 	unsubscribeRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Unsubscribe),
+		"PUT":  writeForHost(db, controller.Unsubscribe),
+		"POST": writeForHost(db, controller.Unsubscribe),
 	}
 	publishRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Publish),
+		"PUT":  writeForHost(db, controller.Publish),
+		"POST": writeForHost(db, controller.Publish),
 	}
 	if conf.CORSEnabled {
-		subscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
-		unsubscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
-		publishRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
+		subscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
+		unsubscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
+		publishRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path+"/{endpoint}/subscribe", handlers.MethodHandler(subscribeRoutes)).
