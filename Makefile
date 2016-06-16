@@ -10,6 +10,7 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
+# This path has to be ~/lib on El Capitan
 ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
 
 PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
@@ -65,7 +66,7 @@ LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersi
  -X gateway/license.developerVersionAPIs=$(DeveloperVersionAPIs)\
  -X gateway/license.developerVersionProxyEndpoints=$(DeveloperVersionProxyEndpoints)"
 
-build: vet assets generate
+build: vet assets generate install_oracle_client
 	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
@@ -244,7 +245,7 @@ vendor_update: vendor_get
 install_bindata:
 	if hash go-bindata 2>/dev/null; then : ; else go install github.com/jteeuwen/go-bindata/...; fi;
 
-install_goimports: install_oracle
+install_goimports:
 	if hash goimports 2>/dev/null; then : ; else go install code.google.com/p/go.tools/cmd/goimports/...; fi;
 
 install_peg:
@@ -256,7 +257,12 @@ vet:
 	./scripts/make-hooks
 	./scripts/hooks/pre-commit
 
-install_oracle:
+install_oracle_client:
 	#first argument is directory to save instant client, second is the package config file source
 	#which is processed and saved as oci8.pc in the same argument directory
 	./scripts/install_oracle_instant_client.rb $(ORACLE_INSTANT_CLIENT_DIR) contrib/oci8.pc
+
+start_oracle:
+	# Starts the docker container named 'orcl' running Oracle 12c on a machine named oracle
+	# DB named 'ORCL' on port 1521 with login system/manager
+	./scripts/start_oracle.sh
