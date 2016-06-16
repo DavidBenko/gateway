@@ -12,11 +12,11 @@ import (
 func OracleConfigs() map[string]map[string]interface{} {
 	return map[string]map[string]interface{}{
 		"simple": map[string]interface{}{
-			"host":     "database.oracle.net",
+			"host":     "localhost",
 			"port":     1521,
-			"user":     "scott",
-			"password": "tiger",
-			"dbname":   "XE",
+			"user":     "system",
+			"password": "manager",
+			"dbname":   "orcl",
 		},
 		"bad": map[string]interface{}{
 			"port":   -1234,
@@ -42,6 +42,7 @@ func oracleSpecs() map[string]*sql.OracleSpec {
 }
 
 func (s *SQLSuite) TestOracleConfig(c *gc.C) {
+
 	for i, t := range []struct {
 		should       string
 		given        *sql.OracleSpec
@@ -51,8 +52,8 @@ func (s *SQLSuite) TestOracleConfig(c *gc.C) {
 	}{{
 		should:       "work with a simple config",
 		given:        oracleSpecs()["simple"],
-		expectString: "oci8://scott:tiger@database.oracle.net:1521/XE",
-		expectUnique: "oci8://scott:tiger@database.oracle.net:1521/XE",
+		expectString: "oci8://system:manager@localhost:1521/orcl",
+		expectUnique: "oci8://system:manager@localhost:1521/orcl",
 	}, {
 		should: "fail with multiple bad config items",
 		given:  oracleSpecs()["bad"],
