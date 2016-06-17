@@ -1,4 +1,4 @@
-package remote_endpoints
+package remote_endpoint
 
 import (
 	"encoding/json"
@@ -10,9 +10,9 @@ import (
 )
 
 type Redis struct {
-	Config    *redis.Config `json:"config"`
-	MaxActive int           `json:"maxActive"`
-	MaxIdle   int           `json:"maxIdle"`
+	Config    *redis.Spec `json:"config"`
+	MaxActive int         `json:"maxActive"`
+	MaxIdle   int         `json:"maxIdle"`
 }
 
 func RedisConfig(data types.JsonText) (db.Specifier, error) {
@@ -23,7 +23,7 @@ func RedisConfig(data types.JsonText) (db.Specifier, error) {
 	}
 
 	spec, err := redis.Config(
-		redis.Connection(conf),
+		redis.Connection(conf.Config),
 		redis.MaxActive(conf.MaxActive),
 		redis.MaxIdle(conf.MaxIdle),
 	)
