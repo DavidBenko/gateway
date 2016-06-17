@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	PushTypeOSX = "osx"
-	PushTypeIOS = "ios"
-	PushTypeGCM = "gcm"
+	PushTypeOSX  = "osx"
+	PushTypeIOS  = "ios"
+	PushTypeGCM  = "gcm"
+	PushTypeMQTT = "mqtt"
 
 	PushCertificateTypePKCS12 = "application/x-pkcs12"
 	PushCertificateTypeX509   = "application/x-x509-ca-cert"
@@ -165,6 +166,7 @@ func (p *Push) Validate() aperrors.Errors {
 				errors.Add("api_key", "must not be blank")
 			}
 			validateKey(key, errors)
+		case PushTypeMQTT:
 		default:
 			errors.Add("type", "must be a valid type")
 		}

@@ -23,6 +23,7 @@ import (
 	"gateway/model"
 	"gateway/osslicenses"
 	"gateway/proxy"
+	"gateway/push"
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
@@ -157,6 +158,8 @@ func main() {
 	service.PushDeletionService(conf, db)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
+
+	push.SetupMQTT(db)
 
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)
