@@ -146,38 +146,34 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	}
 
 	device := &model.PushDevice{
-		AccountID:     match.AccountID,
-		PushChannelID: channel.ID,
-		Name:          subscription.Name,
+		AccountID:        match.AccountID,
+		PushChannelID:    channel.ID,
+		Token:            subscription.Token,
+		Name:             subscription.Name,
+		RemoteEndpointID: endpoint.ID,
 	}
 	dev, err := device.Find(tx.DB)
 	update := false
 	if err != nil {
-		device.Name = ""
-		device.Token = subscription.Token
-		dev, err = device.Find(tx.DB)
+		device.Name = subscription.Name
+		device.Type = subscription.Platform
+		device.Expires = expires
+		err = device.Insert(tx)
 		if err != nil {
-			device.Name = subscription.Name
-			device.Type = subscription.Platform
-			device.Expires = expires
-			err = device.Insert(tx)
-			if err != nil {
-				return aphttp.NewError(err, http.StatusBadRequest)
-			}
-		} else {
-			update = true
+			return aphttp.NewError(err, http.StatusBadRequest)
 		}
 	} else {
 		update = true
 	}
 	if update {
+		dev.PushChannelID = channel.ID
+		dev.Name = subscription.Name
 		dev.Expires = expires
 		err := dev.Update(tx)
 		if err != nil {
 			return aphttp.NewError(err, http.StatusBadRequest)
 		}
 	}
-
 	return nil
 }
 
@@ -208,20 +204,17 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	}
 
 	device := &model.PushDevice{
-		AccountID:     match.AccountID,
-		PushChannelID: channel.ID,
-		Name:          subscription.Name,
+		AccountID:        match.AccountID,
+		PushChannelID:    channel.ID,
+		Name:             subscription.Name,
+		Token:            subscription.Token,
+		RemoteEndpointID: endpoint.ID,
 	}
 	dev, err := device.Find(tx.DB)
 	if err != nil {
-		device.Name = ""
-		device.Token = subscription.Token
-		dev, err = device.Find(tx.DB)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	err = dev.Delete(tx)
+	err = dev.DeleteFromChannel(tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

@@ -22,7 +22,7 @@ func PushDeletionService(conf config.Configuration, db *sql.DB) {
 				if err != nil {
 					return err
 				}
-				_, err = tx.Exec(tx.SQL("push_devices/delete_stale"), now)
+				_, err = tx.Exec(tx.SQL("push_devices/delete_stale_channel_mappings"), now)
 				return err
 			})
 			if err != nil {
