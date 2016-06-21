@@ -57,7 +57,7 @@ func SetupMQTT(db *apsql.DB) *MQTT {
 
 func (m *MQTT) Authenticate(id string, cred interface{}) (fmt.Stringer, error) {
 	username := strings.Split(id, ",")
-	if len(username) != 4 || len(username) != 5 {
+	if len(username) != 4 && len(username) != 5 {
 		return nil, errors.New("user name should have format: '<emai>,<api name>,<remote endpoint codename>,<push platform codename>[,<environment name>]'")
 	}
 	environmentName := ""
