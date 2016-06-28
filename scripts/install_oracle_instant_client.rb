@@ -3,6 +3,8 @@
 require 'rbconfig'
 require 'fileutils'
 
+INSTANT_CLIENT_DIR = ARGV[0]
+
 def download_url
   "http://downloads.justapis.com/v5.1.0/oracle/#{os}_instant_client_12_1.tar.gz"
 end
@@ -32,9 +34,8 @@ def create_config(template, new_first_line, destination_file)
   File.open(destination_file, 'w') {|f| f.puts new_config }
 end
 
-if os == :osx
-  INSTANT_CLIENT_DIR = ARGV[0]
-  if File.symlink?(File.join(INSTANT_CLIENT_DIR,'libclntsh.dylib'))
+def do_install(extension)
+ if File.symlink?(File.join(INSTANT_CLIENT_DIR,"libclntsh.#{extension}"))
     puts "Instant client appears to be already installed."
   else
     puts "Setting up instant client in #{INSTANT_CLIENT_DIR}"
@@ -44,7 +45,15 @@ if os == :osx
     prefix = "prefix=#{INSTANT_CLIENT_DIR}"
     oci8_pc = File.join(INSTANT_CLIENT_DIR,'oci8.pc')
     create_config(ARGV[1], prefix, oci8_pc)
-    `cd #{INSTANT_CLIENT_DIR} && ln -s libclntsh.dylib.12.1 libclntsh.dylib`
+    `cd #{INSTANT_CLIENT_DIR} && ln -s libclntsh.#{extension}.12.1 libclntsh.#{extension}`
     raise "Failed to create a symbolic link!" unless $?.success?
   end
+end
+
+if os == :osx
+  do_install('dylib')
+elsif os == :linux
+  do_install('so')
+else
+  raise "Please implement me for #{os}!"  
 end
