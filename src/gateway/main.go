@@ -159,7 +159,7 @@ func main() {
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 
-	push.SetupMQTT(db)
+	push.SetupMQTT(db, conf.Push)
 
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)
