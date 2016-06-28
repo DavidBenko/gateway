@@ -10,8 +10,8 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-# This path has to be ~/lib on El Capitan
-ORACLE_INSTANT_CLIENT_DIR = ${HOME}/instant_client_12_1
+# This path has to be ${HOME}/lib on El Capitan
+ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
 
 PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
 export PKG_CONFIG_PATH
