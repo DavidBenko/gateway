@@ -11,10 +11,14 @@ export GOPATH
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
 # This path has to be ~/lib on El Capitan
-ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
+ORACLE_INSTANT_CLIENT_DIR = ${HOME}/instant_client_12_1
 
 PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
 export PKG_CONFIG_PATH
+
+# This must be done for OCI8 to work on Linux
+LD_LIBRARY_PATH := ${LD_LIBRARY_PATH}:$(PKG_CONFIG_PATH)
+export LD_LIBRARY_PATH
 
 ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
