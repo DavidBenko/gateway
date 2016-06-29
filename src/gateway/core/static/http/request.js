@@ -1082,6 +1082,6 @@ AP.Redis.Request = function() {
   }
 }
 
-AP.Redis.Request.prototype.execute(stmt) {
+AP.Redis.Request.prototype.execute = function(stmt) {
   this.executeStatement = stmt;
 }

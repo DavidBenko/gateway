@@ -397,7 +397,7 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		should:      "(Redis) fail with bad config",
 		givenConfig: "redis-badConfig",
 		givenType:   model.RemoteEndpointTypeRedis,
-		expectError: "redis config errors: ; requires Host; requires Port",
+		expectError: "redis config errors: requires Host; requires Port",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		data := data()[t.givenConfig]

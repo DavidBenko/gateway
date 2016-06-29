@@ -71,11 +71,11 @@ func (r *Spec) validate() error {
 	message := ""
 
 	if r.Host == "" {
-		message += "; requires Host"
+		message += "requires Host;"
 	}
 
 	if r.Port == 0 {
-		message += "; requires Port"
+		message += " requires Port"
 	}
 
 	if message != "" {

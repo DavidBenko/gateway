@@ -64,7 +64,7 @@ func (r *RedisSuite) TestRedisConfig(c *gc.C) {
 	}, {
 		should:      "not work with a bad config",
 		given:       redisSpecs()["bad"],
-		expectError: "redis config errors: requires Username; requires Password; requires Host; requires Port",
+		expectError: "redis config errors: requires Host; requires Port",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		conf, err := redis.Config(redis.Connection(t.given))
