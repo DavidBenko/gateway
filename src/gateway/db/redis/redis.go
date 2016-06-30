@@ -60,10 +60,16 @@ func (r *Spec) NeedsUpdate(spec db.Specifier) bool {
 	return false
 }
 
-func (r *Spec) UpdateWith(spec db.Specifier) error {
+func (r *Spec) UpdateWith(spec *Spec) error {
 	if spec == nil {
 		return errors.New("cannot update Redis with a nil Specifier")
 	}
+
+	if err := spec.validate(); err != nil {
+		return err
+	}
+
+	*r = *spec
 	return nil
 }
 

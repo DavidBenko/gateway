@@ -91,21 +91,14 @@ func (r *RedisRequest) Perform() Response {
 	command := parameters[0]
 
 	// Pass the command and all parameters after the first (the first is the command)
-	result, err := r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...)
+	result, err := redigo.Values(r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...))
 
 	if err != nil {
 		response.Error = err.Error()
 		return response
 	}
 
-	scanned, err := redigo.Values(result, nil)
-
-	if err != nil {
-		response.Error = "failed to extract redis results"
-		return response
-	}
-
-	response.Data = scanned
+	response.Data = result
 
 	return response
 }
