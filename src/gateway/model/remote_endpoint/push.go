@@ -30,14 +30,17 @@ type Push struct {
 }
 
 type PushPlatform struct {
-	Name        string `json:"name"`
-	Codename    string `json:"codename"`
-	Type        string `json:"type"`
-	Certificate string `json:"certificate"`
-	Password    string `json:"password"`
-	Topic       string `json:"topic"`
-	Development bool   `json:"development"`
-	APIKey      string `json:"api_key"`
+	Name           string `json:"name"`
+	Codename       string `json:"codename"`
+	Type           string `json:"type"`
+	Certificate    string `json:"certificate"`
+	Password       string `json:"password"`
+	Topic          string `json:"topic"`
+	Development    bool   `json:"development"`
+	APIKey         string `json:"api_key"`
+	ConnectTimeout int    `json:"connect_timeout"`
+	AckTimeout     int    `json:"ack_timeout"`
+	TimeoutRetries int    `json:"timeout_retries"`
 }
 
 func (p *Push) UpdateWith(parent *Push) {
@@ -167,6 +170,15 @@ func (p *Push) Validate() aperrors.Errors {
 			}
 			validateKey(key, errors)
 		case PushTypeMQTT:
+			if p.PushPlatforms[i].ConnectTimeout == 0 {
+				errors.Add("connect_timeout", "must not be zero")
+			}
+			if p.PushPlatforms[i].AckTimeout == 0 {
+				errors.Add("ack_timeout", "must not be zero")
+			}
+			if p.PushPlatforms[i].TimeoutRetries == 0 {
+				errors.Add("timeout_retries", "must not be zero")
+			}
 		default:
 			errors.Add("type", "must be a valid type")
 		}

@@ -33,10 +33,25 @@ type MQTT struct {
 type Context struct {
 	RemoteEndpointID     int64
 	PushPlatformCodename string
+	ConnectTimeout       int
+	AckTimeout           int
+	TimeoutRetries       int
 }
 
 func (c *Context) String() string {
 	return fmt.Sprintf("%v,%v", c.RemoteEndpointID, c.PushPlatformCodename)
+}
+
+func (c *Context) GetConnectTimeout() int {
+	return c.ConnectTimeout
+}
+
+func (c *Context) GetAckTimeout() int {
+	return c.AckTimeout
+}
+
+func (c *Context) GetTimeoutRetries() int {
+	return c.TimeoutRetries
 }
 
 func NewMQTTPusher(pool *PushPool, platform *re.PushPlatform) *MQTTPusher {
@@ -159,54 +174,48 @@ func (m *MQTT) Authenticate(id string, cred interface{}) (fmt.Stringer, error) {
 		return nil, errors.New("invalid credentials")
 	}
 
-	found, password, endpoint, codename := false, "", endpoints[0], username[3]
+	parent, endpoint, codename := &re.Push{}, endpoints[0], username[3]
+	err = json.Unmarshal(endpoint.Data, parent)
+	if err != nil {
+		return nil, err
+	}
+	push := &re.Push{}
 	if environmentName != "" {
 		for _, environment := range endpoint.EnvironmentData {
 			if environment.Name == environmentName {
-				push := &re.Push{}
 				err = json.Unmarshal(environment.Data, push)
 				if err != nil {
 					return nil, err
-				}
-				for _, platform := range push.PushPlatforms {
-					if platform.Codename == codename {
-						found = true
-						password = platform.Password
-						break
-					}
 				}
 				break
 			}
 		}
 	}
-	if !found {
-		push := &re.Push{}
-		err = json.Unmarshal(endpoint.Data, push)
-		if err != nil {
-			return nil, err
-		}
-		for _, platform := range push.PushPlatforms {
-			if platform.Codename == codename {
-				found = true
-				password = platform.Password
-				break
+	push.UpdateWith(parent)
+
+	context := &Context{
+		RemoteEndpointID:     endpoint.ID,
+		PushPlatformCodename: codename,
+	}
+
+	found := false
+	for _, platform := range push.PushPlatforms {
+		if platform.Codename == codename {
+			found = true
+			if platform.Password != "" {
+				if cred.(string) != platform.Password {
+					return nil, errors.New("invalid credentials")
+				}
 			}
+			context.ConnectTimeout = platform.ConnectTimeout
+			context.AckTimeout = platform.AckTimeout
+			context.TimeoutRetries = platform.TimeoutRetries
+			break
 		}
 	}
 
 	if !found {
 		return nil, fmt.Errorf("%v is not a valid platform", codename)
-	}
-
-	if password != "" {
-		if cred.(string) != password {
-			return nil, errors.New("invalid credentials")
-		}
-	}
-
-	context := &Context{
-		RemoteEndpointID:     endpoint.ID,
-		PushPlatformCodename: codename,
 	}
 
 	return context, nil
