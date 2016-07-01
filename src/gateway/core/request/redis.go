@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gateway/db/pools"
 	"gateway/db/redis"
+	"gateway/logreport"
 	"gateway/model"
 	"strings"
 
@@ -91,14 +92,48 @@ func (r *RedisRequest) Perform() Response {
 	command := parameters[0]
 
 	// Pass the command and all parameters after the first (the first is the command)
-	result, err := redigo.Values(r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...))
+
+	d, err := r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...)
 
 	if err != nil {
+		logreport.Printf(err.Error())
 		response.Error = err.Error()
 		return response
 	}
 
-	response.Data = result
+	switch t := d.(type) {
+	case int64, string:
+		data := make([]interface{}, 1)
+		data[0] = d
+		response.Data = data
+	case []byte:
+		data := make([]interface{}, 1)
+		data[0] = string(d.([]byte)[:])
+		response.Data = data
+	case []interface{}:
+		values, err := redigo.Values(d, nil)
+
+		if err != nil {
+			response.Error = err.Error()
+			break
+		}
+
+		data := make([]interface{}, len(values))
+
+		for i, v := range values {
+			switch tt := v.(type) {
+			case []byte:
+				data[i] = string(v.([]byte)[:])
+			default:
+				_ = tt
+				data[i] = v
+			}
+		}
+
+		response.Data = data
+	default:
+		_ = t
+	}
 
 	return response
 }
