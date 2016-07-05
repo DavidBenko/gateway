@@ -172,12 +172,23 @@ func TestPush(t *testing.T) {
 		return device.Update(tx)
 	})
 
-	message := &model.PushMessage{
+	channelMessage := &model.PushChannelMessage{
 		AccountID:     account.ID,
 		UserID:        user.ID,
 		PushChannelID: channel.ID,
-		PushDeviceID:  device.ID,
 		Stamp:         123,
+	}
+	transaction("insert push channel message", func(tx *apsql.Tx) error {
+		return channelMessage.Insert(tx)
+	})
+
+	message := &model.PushMessage{
+		AccountID:            account.ID,
+		UserID:               user.ID,
+		PushChannelID:        channel.ID,
+		PushDeviceID:         device.ID,
+		PushChannelMessageID: channelMessage.ID,
+		Stamp:                123,
 	}
 	transaction("insert push message", func(tx *apsql.Tx) error {
 		return message.Insert(tx)

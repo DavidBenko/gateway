@@ -138,6 +138,10 @@ func (p *Push) Validate() aperrors.Errors {
 		case PushTypeOSX:
 			fallthrough
 		case PushTypeIOS:
+			if p.PushPlatforms[i].Topic == "" {
+				errors.Add("topic", "must not be blank")
+				continue
+			}
 			dataURL, err := dataurl.DecodeString(p.PushPlatforms[i].Certificate)
 			if err != nil {
 				errors.Add("certificate", fmt.Sprintf("invalid data url: %v", err))
