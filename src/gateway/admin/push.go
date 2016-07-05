@@ -27,18 +27,21 @@ func RoutePush(controller *PushController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	subscribeRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Subscribe),
+		"PUT":  writeForHost(db, controller.Subscribe),
+		"POST": writeForHost(db, controller.Subscribe),
 	}
 	unsubscribeRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Unsubscribe),
+		"PUT":  writeForHost(db, controller.Unsubscribe),
+		"POST": writeForHost(db, controller.Unsubscribe),
 	}
 	publishRoutes := map[string]http.Handler{
-		"PUT": writeForHost(db, controller.Publish),
+		"PUT":  writeForHost(db, controller.Publish),
+		"POST": writeForHost(db, controller.Publish),
 	}
 	if conf.CORSEnabled {
-		subscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
-		unsubscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
-		publishRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "OPTIONS"})
+		subscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
+		unsubscribeRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
+		publishRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"PUT", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path+"/{endpoint}/subscribe", handlers.MethodHandler(subscribeRoutes)).
@@ -143,38 +146,34 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	}
 
 	device := &model.PushDevice{
-		AccountID:     match.AccountID,
-		PushChannelID: channel.ID,
-		Name:          subscription.Name,
+		AccountID:        match.AccountID,
+		PushChannelID:    channel.ID,
+		Token:            subscription.Token,
+		Name:             subscription.Name,
+		RemoteEndpointID: endpoint.ID,
 	}
 	dev, err := device.Find(tx.DB)
 	update := false
 	if err != nil {
-		device.Name = ""
-		device.Token = subscription.Token
-		dev, err = device.Find(tx.DB)
+		device.Name = subscription.Name
+		device.Type = subscription.Platform
+		device.Expires = expires
+		err = device.Insert(tx)
 		if err != nil {
-			device.Name = subscription.Name
-			device.Type = subscription.Platform
-			device.Expires = expires
-			err = device.Insert(tx)
-			if err != nil {
-				return aphttp.NewError(err, http.StatusBadRequest)
-			}
-		} else {
-			update = true
+			return aphttp.NewError(err, http.StatusBadRequest)
 		}
 	} else {
 		update = true
 	}
 	if update {
+		dev.PushChannelID = channel.ID
+		dev.Name = subscription.Name
 		dev.Expires = expires
 		err := dev.Update(tx)
 		if err != nil {
 			return aphttp.NewError(err, http.StatusBadRequest)
 		}
 	}
-
 	return nil
 }
 
@@ -205,20 +204,17 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	}
 
 	device := &model.PushDevice{
-		AccountID:     match.AccountID,
-		PushChannelID: channel.ID,
-		Name:          subscription.Name,
+		AccountID:        match.AccountID,
+		PushChannelID:    channel.ID,
+		Name:             subscription.Name,
+		Token:            subscription.Token,
+		RemoteEndpointID: endpoint.ID,
 	}
 	dev, err := device.Find(tx.DB)
 	if err != nil {
-		device.Name = ""
-		device.Token = subscription.Token
-		dev, err = device.Find(tx.DB)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	err = dev.Delete(tx)
+	err = dev.DeleteFromChannel(tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
