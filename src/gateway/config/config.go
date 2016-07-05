@@ -99,6 +99,7 @@ type RemoteEndpoint struct {
 	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
 	HanaEnabled       bool `flag:"remote-endpoint-hana-enabled" default:"true"`
 	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
+	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
