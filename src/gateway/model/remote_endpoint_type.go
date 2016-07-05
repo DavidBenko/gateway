@@ -41,6 +41,8 @@ const (
 	RemoteEndpointTypeHana = "hana"
 	// RemoteEndpointTypePush denotes that a remote endpoint is an Push service
 	RemoteEndpointTypePush = "push"
+	// RemoteEndpointTypeRedis denotes that a remote endpoint is a Redis database
+	RemoteEndpointTypeRedis = "redis"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -60,6 +62,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeHana:      &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypeHana, Enabled: reConf.HanaEnabled},
 		RemoteEndpointTypePush:      &RemoteEndpointType{ID: 11, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
 		RemoteEndpointTypeOracle:    &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeOracle, Enabled: reConf.OracleEnabled},
+		RemoteEndpointTypeRedis:     &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
 	}
 }
 

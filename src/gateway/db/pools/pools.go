@@ -5,6 +5,7 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
+	"gateway/db/redis"
 	"gateway/db/sql"
 )
 
@@ -17,6 +18,7 @@ type Pools struct {
 	hanaPool   *sqlPool
 	oraclePool *sqlPool
 	mongoPool  *mongoPool
+	redisPool  *redisPool
 }
 
 // poolForSpec returns the correct pool for the given db.Specifier.
@@ -34,6 +36,8 @@ func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 		return p.oraclePool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
+	case *redis.Spec:
+		return p.redisPool, nil
 	default:
 		return nil, fmt.Errorf("no pool defined for spec type %T", spec)
 	}
@@ -64,6 +68,7 @@ func MakePools() *Pools {
 		hanaPool:   makeSqlPool(),
 		oraclePool: makeSqlPool(),
 		mongoPool:  makeMongoPool(),
+		redisPool:  makeRedisPool(),
 	}
 }
 

@@ -1149,3 +1149,30 @@ AP.Oracle.Request.prototype.query = function(stmt, params, resultTypes) {
   });
   this.resultTypes = newResultTypes;
 }
+
+/**
+ * Redis holds helper classes for Redis related tasks
+ *
+ * @namespace
+ */
+AP.Redis = AP.Redis || {};
+
+/**
+ * Creates a new Redis request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.Redis.Request = function() {
+  this.executeStatement = null;
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.executeStatement = _.clone(request.executeStatement)
+  }
+}
+
+AP.Redis.Request.prototype.execute = function(stmt) {
+  this.executeStatement = stmt;
+}

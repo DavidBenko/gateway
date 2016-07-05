@@ -499,6 +499,12 @@ def fixtures
     },
   }
 
+  fixts[:push_manual_messages] = {
+    basic: {
+      payload: { "test-gcm": { default: 'Test'} }
+    }
+  }
+
   fixts[:push_devices] = {
     basic: {
       name: "A Push Device",

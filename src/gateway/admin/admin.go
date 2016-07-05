@@ -107,8 +107,11 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
 	pushChannelsController := &MetaPushChannelsController{PushChannelsController{base}, c}
 	RoutePushChannels(pushChannelsController, "/push_channels", authAdmin, db, conf)
+	RouteResource(&PushChannelMessagesController{base}, "/push_channels/{pushChannelID}/push_channel_messages", authAdmin, db, conf)
 	RouteResource(&PushDevicesController{base}, "/push_channels/{pushChannelID}/push_devices", authAdmin, db, conf)
 	RouteResource(&PushMessagesController{base}, "/push_channels/{pushChannelID}/push_devices/{pushDeviceID}/push_messages", authAdmin, db, conf)
+	RouteResource(&PushDevicesController{base}, "/push_devices", authAdmin, db, conf)
+	RouteResource(&PushChannelMessagesController{base}, "/push_channel_messages", authAdmin, db, conf)
 	RouteResource(&SharedComponentsController{base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
@@ -128,7 +131,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	})
 
 	var public aphttp.Router
-	public = aphttp.NewAccessLoggingRouter(config.Admin, conf.RequestIDHeader,
+	public = aphttp.NewAccessLoggingRouter(config.Proxy, conf.RequestIDHeader,
 		router)
 	if conf.CORSEnabled {
 		public = aphttp.NewCORSAwareRouter(conf.CORSOrigin, public)

@@ -6,6 +6,7 @@ import (
 
 	"gateway/db"
 	"gateway/db/mongo"
+	"gateway/db/redis"
 	"gateway/db/sql"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
@@ -164,6 +165,18 @@ func data() map[string]interface{} {
 			},
 			"limit": 123,
 		},
+		"redis-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"username": "user",
+				"password": "password",
+				"host":     "localhost",
+				"port":     1234,
+				"database": "0",
+			},
+		},
+		"redis-badConfig": map[string]interface{}{
+			"config": map[string]interface{}{},
+		},
 	}
 }
 
@@ -181,6 +194,7 @@ func specs() map[string]db.Specifier {
 		{"mysql-complicated", model.RemoteEndpointTypeMySQL},
 		{"mongo-complicated", model.RemoteEndpointTypeMongo},
 		{"hana-simple", model.RemoteEndpointTypeHana},
+		{"redis-simple", model.RemoteEndpointTypeRedis},
 	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
@@ -237,6 +251,17 @@ func specs() map[string]db.Specifier {
 			s, err = mongo.Config(
 				mongo.Connection(conf.Config),
 				mongo.PoolLimit(conf.Limit),
+			)
+		case model.RemoteEndpointTypeRedis:
+			var conf re.Redis
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+			s, err = redis.Config(
+				redis.Connection(conf.Config),
+				redis.MaxActive(conf.MaxActive),
+				redis.MaxIdle(conf.MaxIdle),
 			)
 		default:
 			err = fmt.Errorf("no such type %q", which.kind)
@@ -363,6 +388,16 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		givenConfig: "mongo-complicated",
 		givenType:   model.RemoteEndpointTypeMongo,
 		expectSpec:  "mongo-complicated",
+	}, {
+		should:      "(Redis) work with a simple config",
+		givenConfig: "redis-simple",
+		givenType:   model.RemoteEndpointTypeRedis,
+		expectSpec:  "redis-simple",
+	}, {
+		should:      "(Redis) fail with bad config",
+		givenConfig: "redis-badConfig",
+		givenType:   model.RemoteEndpointTypeRedis,
+		expectError: "redis config errors: requires Host; requires Port",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 		data := data()[t.givenConfig]
