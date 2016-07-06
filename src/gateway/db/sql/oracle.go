@@ -34,7 +34,7 @@ func (o *OracleSpec) driver() driver {
 }
 
 func (o *OracleSpec) ConnectionString() string {
-	return fmt.Sprintf("oci8://%s:%s@%s:%d/%s",
+	return fmt.Sprintf("oracle://%s:%s@%s:%d/%s",
 		o.User,
 		o.Password,
 		o.Host,
