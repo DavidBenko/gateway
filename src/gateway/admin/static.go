@@ -107,6 +107,9 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			if conf.ShowVersion {
 				interpolatedValues[versionRegex] = version.Name()
 				interpolatedValues[commitRegex] = version.Commit()
+			} else {
+				interpolatedValues[versionRegex] = ""
+				interpolatedValues[commitRegex] = ""
 			}
 			interpolatedValues[devModeRegex] = fmt.Sprintf("%t", conf.DevMode)
 			interpolatedValues[goosRegex] = runtime.GOOS
