@@ -6,7 +6,7 @@ require 'fileutils'
 INSTANT_CLIENT_DIR = ARGV[0]
 
 def download_url
-  "http://downloads.justapis.com/v5.1.0/oracle/#{os}_instant_client_12_1.tar.gz"
+  "http://downloads.justapis.com/v5.1.0/oracle/#{os}_#{architecture}_instant_client_12_1.tar.gz"
 end
 
 def os
@@ -25,6 +25,10 @@ def os
       raise Error, "unknown os: #{host_os.inspect}"
     end
   )
+end
+
+def architecture
+  1.size * 8
 end
 
 def create_config(template, new_first_line, destination_file)
@@ -55,5 +59,5 @@ if os == :osx
 elsif os == :linux
   do_install('so')
 else
-  raise "Please implement me for #{os}!"  
+  raise "Please implement me for #{os}!"
 end
