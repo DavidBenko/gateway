@@ -142,6 +142,10 @@ func (p *Push) Validate() aperrors.Errors {
 		case PushTypeOSX:
 			fallthrough
 		case PushTypeIOS:
+			if p.PushPlatforms[i].Topic == "" {
+				errors.Add("topic", "must not be blank")
+				continue
+			}
 			dataURL, err := dataurl.DecodeString(p.PushPlatforms[i].Certificate)
 			if err != nil {
 				errors.Add("certificate", fmt.Sprintf("invalid data url: %v", err))
@@ -152,12 +156,14 @@ func (p *Push) Validate() aperrors.Errors {
 				cert, err := certificate.FromP12Bytes(dataURL.Data, p.PushPlatforms[i].Password)
 				if err != nil {
 					errors.Add("certificate", fmt.Sprintf("invalid certificate: %v", err))
+					continue
 				}
 				validateCertificate(cert, errors)
 			case PushCertificateTypeX509:
 				cert, err := certificate.FromPemBytes(dataURL.Data, p.PushPlatforms[i].Password)
 				if err != nil {
 					errors.Add("certificate", fmt.Sprintf("invalid certificate: %v", err))
+					continue
 				}
 				validateCertificate(cert, errors)
 			default:
@@ -167,6 +173,7 @@ func (p *Push) Validate() aperrors.Errors {
 			key := p.PushPlatforms[i].APIKey
 			if key == "" {
 				errors.Add("api_key", "must not be blank")
+				continue
 			}
 			validateKey(key, errors)
 		case PushTypeMQTT:

@@ -128,6 +128,24 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 		return err
 	}
 
+	pushChannelMessagePayload, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	pushChannelMessage := &model.PushChannelMessage{
+		AccountID:     accountID,
+		PushChannelID: channel.ID,
+		Stamp:         time.Now().Unix(),
+		Data:          pushChannelMessagePayload,
+	}
+
+	err = pushChannelMessage.Insert(tx)
+
+	if err != nil {
+		return err
+	}
+
 	for _, device := range devices {
 		err := fmt.Errorf("coulnd't find device platform %v", device.Name)
 		var _payload interface{}
@@ -160,17 +178,14 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 			}
 		}
 		pushMessage := &model.PushMessage{
-			AccountID:     accountID,
-			PushChannelID: channel.ID,
-			PushDeviceID:  device.ID,
-			Stamp:         time.Now().Unix(),
-			Data:          data,
+			AccountID:            accountID,
+			PushChannelID:        channel.ID,
+			PushDeviceID:         device.ID,
+			PushChannelMessageID: pushChannelMessage.ID,
+			Stamp:                time.Now().Unix(),
+			Data:                 data,
 		}
 		err = pushMessage.Insert(tx)
-		if err != nil {
-			return err
-		}
-		err = pushMessage.DeleteOffset(tx)
 		if err != nil {
 			return err
 		}

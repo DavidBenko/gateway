@@ -3,19 +3,19 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
-
 	"github.com/jmoiron/sqlx/types"
 )
 
 type PushMessage struct {
-	AccountID     int64 `json:"-"`
-	UserID        int64 `json:"-"`
-	PushChannelID int64 `json:"-" path:"pushChannelID"`
+	AccountID int64 `json:"-"`
+	UserID    int64 `json:"-"`
 
-	ID           int64          `json:"id,omitempty" path:"id"`
-	PushDeviceID int64          `json:"push_device_id" db:"push_device_id" path:"pushDeviceID"`
-	Stamp        int64          `json:"stamp"`
-	Data         types.JsonText `json:"data" db:"data"`
+	ID                   int64          `json:"id,omitempty" path:"id"`
+	PushDeviceID         int64          `json:"push_device_id" db:"push_device_id" path:"pushDeviceID"`
+	PushChannelID        int64          `json:"push_channel_id" db:"push_channel_id" path:"pushChannelID"`
+	PushChannelMessageID int64          `json:"push_channel_message_id" db:"push_channel_message_id"`
+	Stamp                int64          `json:"stamp"`
+	Data                 types.JsonText `json:"data" db:"data"`
 }
 
 func (d *PushMessage) Validate(isInsert bool) aperrors.Errors {
@@ -38,7 +38,6 @@ func (m *PushMessage) All(db *apsql.DB) ([]*PushMessage, error) {
 	for _, message := range messages {
 		message.AccountID = m.AccountID
 		message.UserID = m.UserID
-		message.PushChannelID = m.PushChannelID
 	}
 	return messages, nil
 }
@@ -56,26 +55,11 @@ func (m *PushMessage) Find(db *apsql.DB) (*PushMessage, error) {
 
 func (m *PushMessage) Delete(tx *apsql.Tx) error {
 	err := tx.DeleteOne(tx.SQL("push_messages/delete"), m.ID,
-		m.PushDeviceID, m.PushChannelID, m.AccountID)
+		m.PushDeviceID, m.AccountID, m.PushChannelID, m.AccountID)
 	if err != nil {
 		return err
 	}
 	return tx.Notify("push_messages", m.AccountID, m.UserID, 0, 0, m.ID, apsql.Delete)
-}
-
-func (m *PushMessage) DeleteOffset(tx *apsql.Tx) error {
-	messages, err := m.All(tx.DB)
-	if err == nil {
-		for len(messages) > 10 {
-			message := messages[0]
-			err = message.Delete(tx)
-			if err != nil {
-				return err
-			}
-			messages = messages[1:]
-		}
-	}
-	return err
 }
 
 func (m *PushMessage) Insert(tx *apsql.Tx) error {
@@ -85,8 +69,8 @@ func (m *PushMessage) Insert(tx *apsql.Tx) error {
 	}
 
 	m.ID, err = tx.InsertOne(tx.SQL("push_messages/insert"),
-		m.PushDeviceID, m.PushChannelID, m.AccountID,
-		m.Stamp, data)
+		m.PushDeviceID, m.PushChannelID, m.AccountID, m.PushChannelID, m.AccountID,
+		m.PushChannelMessageID, m.Stamp, data)
 	if err != nil {
 		return err
 	}
@@ -100,7 +84,7 @@ func (m *PushMessage) Update(tx *apsql.Tx) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("push_messages/update"), m.Stamp, data, m.ID,
-		m.PushDeviceID, m.PushChannelID, m.AccountID)
+		m.PushDeviceID, m.AccountID, m.PushChannelID, m.AccountID)
 	if err != nil {
 		return err
 	}
