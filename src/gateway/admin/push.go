@@ -94,6 +94,7 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	}
 
 	found := false
+	subscribable := false
 	push := &re.Push{}
 	err = json.Unmarshal(endpoint.Data, push)
 	if err != nil {
@@ -102,6 +103,7 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	for _, platform := range push.PushPlatforms {
 		if platform.Codename == subscription.Platform {
 			found = true
+			subscribable = push.SubscribeEndpoint
 		}
 	}
 	for _, environment := range endpoint.EnvironmentData {
@@ -113,11 +115,15 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 		for _, platform := range push.PushPlatforms {
 			if platform.Codename == subscription.Platform {
 				found = true
+				subscribable = push.SubscribeEndpoint
 			}
 		}
 	}
 	if !found {
 		return aphttp.NewError(fmt.Errorf("%v is not a valid platform", subscription.Platform), http.StatusBadRequest)
+	}
+	if !subscribable {
+		return aphttp.NewError(errors.New("subscribe endpoint is disabled"), http.StatusBadRequest)
 	}
 
 	channel := &model.PushChannel{
@@ -190,6 +196,33 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	endpoint, err := model.FindRemoteEndpointForCodenameAndAPIIDAndAccountID(tx.DB, codename, match.APIID, match.AccountID)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+
+	unsubscribable := false
+	push := &re.Push{}
+	err = json.Unmarshal(endpoint.Data, push)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+	for _, platform := range push.PushPlatforms {
+		if platform.Codename == subscription.Platform {
+			unsubscribable = push.UnsubscribeEndpoint
+		}
+	}
+	for _, environment := range endpoint.EnvironmentData {
+		push := &re.Push{}
+		err = json.Unmarshal(environment.Data, push)
+		if err != nil {
+			return aphttp.NewError(err, http.StatusBadRequest)
+		}
+		for _, platform := range push.PushPlatforms {
+			if platform.Codename == subscription.Platform {
+				unsubscribable = push.UnsubscribeEndpoint
+			}
+		}
+	}
+	if !unsubscribable {
+		return aphttp.NewError(errors.New("unsubscribe endpoint is disabled"), http.StatusBadRequest)
 	}
 
 	channel := &model.PushChannel{
