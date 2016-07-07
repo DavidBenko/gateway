@@ -46,6 +46,7 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
 	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
 	go-bindata -o src/gateway/mail/bindata.go -pkg mail $(BINDATA_DEBUG) -prefix "src/gateway/mail/static/" src/gateway/mail/static/...
+	go-bindata -o src/gateway/stats/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/stats/sql/static/" src/gateway/stats/sql/static/...
 
 generate: install_goimports install_peg
 	go generate gateway/...
@@ -228,7 +229,8 @@ vendor_get: vendor_clean
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
 	github.com/alexjlockwood/gcm \
-	github.com/garyburd/redigo
+	github.com/garyburd/redigo \
+	github.com/davecgh/go-spew/spew
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
