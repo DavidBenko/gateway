@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"gateway/config"
 	"gateway/core"
@@ -95,15 +94,15 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 
 	found := false
 	subscribable := false
-	push := &re.Push{}
-	err = json.Unmarshal(endpoint.Data, push)
+	epush := &re.Push{}
+	err = json.Unmarshal(endpoint.Data, epush)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	for _, platform := range push.PushPlatforms {
+	for _, platform := range epush.PushPlatforms {
 		if platform.Codename == subscription.Platform {
 			found = true
-			subscribable = push.SubscribeEndpoint
+			subscribable = epush.SubscribeEndpoint
 		}
 	}
 	for _, environment := range endpoint.EnvironmentData {
@@ -125,60 +124,9 @@ func (s *PushController) Subscribe(w http.ResponseWriter, r *http.Request, tx *a
 	if !subscribable {
 		return aphttp.NewError(errors.New("subscribe endpoint is disabled"), http.StatusBadRequest)
 	}
-
-	channel := &model.PushChannel{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		Name:             subscription.Channel,
-	}
-	_channel, err := channel.Find(tx.DB)
-	expires := time.Now().Unix() + subscription.Period
+	err = s.core.Push.Subscribe(epush, tx, match.AccountID, match.APIID, endpoint.ID, subscription.Platform, subscription.Channel, subscription.Period, subscription.Name, subscription.Token)
 	if err != nil {
-		channel.Expires = expires
-		err := channel.Insert(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
-	} else {
-		channel = _channel
-		if channel.Expires < expires {
-			channel.Expires = expires
-			err := channel.Update(tx)
-			if err != nil {
-				return aphttp.NewError(err, http.StatusBadRequest)
-			}
-		}
-	}
-
-	device := &model.PushDevice{
-		AccountID:        match.AccountID,
-		PushChannelID:    channel.ID,
-		Token:            subscription.Token,
-		Name:             subscription.Name,
-		RemoteEndpointID: endpoint.ID,
-	}
-	dev, err := device.Find(tx.DB)
-	update := false
-	if err != nil {
-		device.Name = subscription.Name
-		device.Type = subscription.Platform
-		device.Expires = expires
-		err = device.Insert(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
-	} else {
-		update = true
-	}
-	if update {
-		dev.PushChannelID = channel.ID
-		dev.Name = subscription.Name
-		dev.Expires = expires
-		err := dev.Update(tx)
-		if err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	return nil
 }
@@ -199,14 +147,14 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	}
 
 	unsubscribable := false
-	push := &re.Push{}
-	err = json.Unmarshal(endpoint.Data, push)
+	epush := &re.Push{}
+	err = json.Unmarshal(endpoint.Data, epush)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-	for _, platform := range push.PushPlatforms {
+	for _, platform := range epush.PushPlatforms {
 		if platform.Codename == subscription.Platform {
-			unsubscribable = push.UnsubscribeEndpoint
+			unsubscribable = epush.UnsubscribeEndpoint
 		}
 	}
 	for _, environment := range endpoint.EnvironmentData {
@@ -224,34 +172,10 @@ func (s *PushController) Unsubscribe(w http.ResponseWriter, r *http.Request, tx 
 	if !unsubscribable {
 		return aphttp.NewError(errors.New("unsubscribe endpoint is disabled"), http.StatusBadRequest)
 	}
-
-	channel := &model.PushChannel{
-		AccountID:        match.AccountID,
-		APIID:            match.APIID,
-		RemoteEndpointID: endpoint.ID,
-		Name:             subscription.Channel,
-	}
-	channel, err = channel.Find(tx.DB)
+	err = s.core.Push.Unsubscribe(epush, tx, match.AccountID, match.APIID, endpoint.ID, subscription.Platform, subscription.Channel, subscription.Token)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-
-	device := &model.PushDevice{
-		AccountID:        match.AccountID,
-		PushChannelID:    channel.ID,
-		Name:             subscription.Name,
-		Token:            subscription.Token,
-		RemoteEndpointID: endpoint.ID,
-	}
-	dev, err := device.Find(tx.DB)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-	err = dev.DeleteFromChannel(tx)
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
-	}
-
 	return nil
 }
 
