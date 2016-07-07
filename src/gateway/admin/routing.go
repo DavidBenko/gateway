@@ -98,6 +98,13 @@ func (m *HostMatcher) isRouted(r *http.Request, rm *mux.RouteMatch) bool {
 	m.mutex.RLock()
 	ok := m.router.Match(r, &match)
 	if ok {
+		hostMatch := &HostMatch{}
+		err := json.Unmarshal([]byte(match.Route.GetName()), hostMatch)
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		context.Set(r, aphttp.ContextAccountIDKey, hostMatch.AccountID)
+		context.Set(r, aphttp.ContextAPIIDKey, hostMatch.APIID)
 		context.Set(r, aphttp.ContextMatchKey, &match)
 	}
 	return ok

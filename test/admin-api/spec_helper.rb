@@ -276,7 +276,7 @@ def fixtures
       push: {
         name: 'Push',
         type: 'push',
-        data: {publish_endpoint: true},
+        data: {publish_endpoint: true, subscribe_endpoint: true, unsubscribe_endpoint: true},
       },
     },
     transformations: {
@@ -359,7 +359,7 @@ def fixtures
              api_key: "AIzaSyCPc5PN7PkKT7BGj-b60XAmEpp5f9N1oNY",
           },
         ],
-        publish_endpoint: true,
+        publish_endpoint: true, subscribe_endpoint: true, unsubscribe_endpoint: true,
       },
     },
   }
@@ -497,6 +497,12 @@ def fixtures
       name: "A Push Channel",
       expires: Time.now.to_i + 86400,
     },
+  }
+
+  fixts[:push_manual_messages] = {
+    basic: {
+      payload: { "test-gcm": { default: 'Test'} }
+    }
   }
 
   fixts[:push_devices] = {

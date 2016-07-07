@@ -92,8 +92,10 @@ func TestPush(t *testing.T) {
 		APIKey:   "AIzaSyCPc5PN7PkKT7BGj-b60XAmEpp5f9N1oNY",
 	}
 	data, err := json.Marshal(&re.Push{
-		PublishEndpoint: true,
-		PushPlatforms:   []re.PushPlatform{platform},
+		PublishEndpoint:     true,
+		SubscribeEndpoint:   true,
+		UnsubscribeEndpoint: true,
+		PushPlatforms:       []re.PushPlatform{platform},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -172,12 +174,23 @@ func TestPush(t *testing.T) {
 		return device.Update(tx)
 	})
 
-	message := &model.PushMessage{
+	channelMessage := &model.PushChannelMessage{
 		AccountID:     account.ID,
 		UserID:        user.ID,
 		PushChannelID: channel.ID,
-		PushDeviceID:  device.ID,
 		Stamp:         123,
+	}
+	transaction("insert push channel message", func(tx *apsql.Tx) error {
+		return channelMessage.Insert(tx)
+	})
+
+	message := &model.PushMessage{
+		AccountID:            account.ID,
+		UserID:               user.ID,
+		PushChannelID:        channel.ID,
+		PushDeviceID:         device.ID,
+		PushChannelMessageID: channelMessage.ID,
+		Stamp:                123,
 	}
 	transaction("insert push message", func(tx *apsql.Tx) error {
 		return message.Insert(tx)

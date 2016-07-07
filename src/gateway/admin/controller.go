@@ -25,6 +25,7 @@ import (
 //go:generate ./controller.rb --model PushChannel --reflect
 //go:generate ./controller.rb --model PushDevice --reflect
 //go:generate ./controller.rb --model PushMessage --reflect
+//go:generate ./controller.rb --model PushChannelMessage --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource

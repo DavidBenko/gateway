@@ -341,8 +341,8 @@ func (s *PostgresStore) CreateObject(object *Object) (err error) {
 }
 
 func (s *PostgresStore) ShowObject(object *Object) error {
-	return s.db.Get(object, "SELECT id, account_id, collection_id, data FROM objects WHERE id = $1 AND account_id = $2;",
-		object.ID, object.AccountID)
+	return s.db.Get(object, "SELECT id, account_id, collection_id, data FROM objects WHERE id = $1 AND account_id = $2 AND collection_id = $3;",
+		object.ID, object.AccountID, object.CollectionID)
 }
 
 func (s *PostgresStore) UpdateObject(object *Object) (err error) {
@@ -363,8 +363,8 @@ func (s *PostgresStore) UpdateObject(object *Object) (err error) {
 		return err
 	}
 
-	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
-		object.Data, object.ID, object.AccountID)
+	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3 AND collection_id = $4;",
+		object.Data, object.ID, object.AccountID, object.CollectionID)
 	if err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (s *PostgresStore) DeleteObject(object *Object) (err error) {
 		err = tx.Commit()
 	}()
 
-	err = tx.Get(object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", object.ID, object.AccountID)
+	err = tx.Get(object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 AND collection_id = $3 RETURNING *;", object.ID, object.AccountID, object.CollectionID)
 	if err != nil {
 		return err
 	}
@@ -394,9 +394,15 @@ func (s *PostgresStore) DeleteObject(object *Object) (err error) {
 }
 
 func (s *PostgresStore) SelectByID(accountID int64, collection string, id uint64) (interface{}, error) {
+	var collectionId int64
+	err := s.db.Get(&collectionId, "SELECT id FROM collections WHERE account_id = $1 AND name = $2;",
+		accountID, collection)
+	if err != nil {
+		return nil, err
+	}
 	object := Object{}
-	err := s.db.Get(&object, "SELECT id, account_id, collection_id, data FROM objects WHERE id = $1 AND account_id = $2;",
-		id, accountID)
+	err = s.db.Get(&object, "SELECT id, account_id, collection_id, data FROM objects WHERE id = $1 AND account_id = $2 AND collection_id = $3;",
+		id, accountID, collectionId)
 	if err != nil {
 		return nil, err
 	}
@@ -421,8 +427,8 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 		}
 		err = tx.Commit()
 	}()
-
-	err = s.addCollection(tx, &Collection{AccountID: accountID, Name: collection})
+	collect := &Collection{AccountID: accountID, Name: collection}
+	err = s.addCollection(tx, collect)
 	if err != nil {
 		return nil, err
 	}
@@ -432,8 +438,8 @@ func (s *PostgresStore) UpdateByID(accountID int64, collection string, id uint64
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3;",
-		string(value), id, accountID)
+	_, err = tx.Exec("UPDATE objects SET data = $1 WHERE id = $2 AND account_id = $3 AND collection_id = $4;",
+		string(value), id, accountID, collect.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -459,14 +465,14 @@ func (s *PostgresStore) DeleteByID(accountID int64, collection string, id uint64
 		}
 		err = tx.Commit()
 	}()
-
-	err = s.addCollection(tx, &Collection{AccountID: accountID, Name: collection})
+	collect := &Collection{AccountID: accountID, Name: collection}
+	err = s.addCollection(tx, collect)
 	if err != nil {
 		return nil, err
 	}
 
 	object := Object{}
-	err = tx.Get(&object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 RETURNING *;", id, accountID)
+	err = tx.Get(&object, "DELETE FROM objects WHERE id = $1 AND account_id = $2 AND collection_id = $3 RETURNING *;", id, accountID, collect.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -565,12 +571,12 @@ func (s *PostgresStore) Delete(accountID int64, collection string, query string,
 	if err != nil {
 		return nil, err
 	}
-	stmt, err := tx.Preparex("DELETE FROM objects WHERE id = $1 AND account_id = $2;")
+	stmt, err := tx.Preparex("DELETE FROM objects WHERE id = $1 AND account_id = $2 AND collection_id = $3;")
 	if err != nil {
 		return nil, err
 	}
 	for _, object := range objects {
-		_, err := stmt.Exec(object.ID, accountID)
+		_, err := stmt.Exec(object.ID, accountID, collect.ID)
 		if err != nil {
 			return nil, err
 		}

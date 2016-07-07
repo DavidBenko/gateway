@@ -1030,10 +1030,40 @@ AP.Push = AP.Push || {};
  */
 AP.Push.Request = function() {
   /**
-   * The channel to send the payload to.
+   * The operation name to perform.
+   * @type {string}
+   */
+  this.operationName = null;
+
+  /**
+   * The channel to subscribe to or send the payload to.
    * @type {string}
    */
   this.channel = null;
+
+  /**
+   * The platform to use for the subscribing device.
+   * @type {string}
+   */
+  this.platform = null;
+
+  /**
+   * The period of validity for the subscription (in seconds).
+   * @type {Number}
+   */
+  this.period = null;
+
+  /**
+   * The name to use for the subscribing device.
+   * @type {string}
+   */
+  this.name = null;
+
+  /**
+   * The token of the subscribing device.
+   * @type {string}
+   */
+  this.token = null;
 
   /**
    * The payload to send to devices.
@@ -1043,6 +1073,7 @@ AP.Push.Request = function() {
 
   if (arguments.length == 1) {
     var request = arguments[0];
+    this.operationName = "push";
     this.channel = _.clone(request.channel);
     this.payload = _.clone(request.payload);
   }
@@ -1055,6 +1086,66 @@ AP.Push.Request = function() {
  * @param {object} payload The payload to send to the channel
  */
 AP.Push.Request.prototype.push = function(channel, payload) {
+  this.operationName = "push";
   this.channel = channel;
   this.payload = payload;
-1}
+}
+
+/**
+ * Set the platform, channel, period, name, and token
+ *
+ * @param {string} platform The platform to use for the device
+ * @param {string} channel The channel to push to
+ * @param {Number} period The period during which the device subscription should be valid
+ * @param {string} name The name of the device
+ * @param {string} token The token of the device
+ */
+AP.Push.Request.prototype.subscribe = function(platform, channel, period, name, token) {
+  this.operationName = "subscribe";
+  this.platform = platform;
+  this.channel = channel;
+  this.period = period;
+  this.name = name;
+  this.token = token;
+}
+
+/**
+ * Set the platform, channel, and token
+ *
+ * @param {string} platform The platform of the device
+ * @param {string} channel The channel to push to
+ * @param {string} token The token of the device
+ */
+AP.Push.Request.prototype.unsubscribe = function(platform, channel, token) {
+  this.operationName = "unsubscribe";
+  this.platform = platform;
+  this.channel = channel;
+  this.token = token;
+}
+
+/**
+ * Redis holds helper classes for Redis related tasks
+ *
+ * @namespace
+ */
+AP.Redis = AP.Redis || {};
+
+/**
+ * Creates a new Redis request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the statement and parameters
+ */
+AP.Redis.Request = function() {
+  this.executeStatement = null;
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.executeStatement = _.clone(request.executeStatement)
+  }
+}
+
+AP.Redis.Request.prototype.execute = function(stmt) {
+  this.executeStatement = stmt;
+}

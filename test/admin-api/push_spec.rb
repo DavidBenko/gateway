@@ -25,12 +25,12 @@ end
 shared_examples "a valid push_device" do
   it { expect_status(200) }
   it { expect_json_types("push_device", {
-    id:               :int,
-    push_channel_id:  :int,
-    name:             :string,
-    type:             :string,
-    token:            :string,
-    expires:          :int,
+    id:                  :int,
+    remote_endpoint_id:  :int,
+    name:                :string,
+    type:                :string,
+    token:               :string,
+    expires:             :int,
   }) }
 end
 
@@ -44,6 +44,8 @@ shared_examples "a valid push_message" do
   it { expect_json_types("push_message", {
     id:             :int,
     push_device_id: :int,
+    push_channel_id: :int,
+    push_channel_message_id: :int,
     stamp:          :int,
     data:           :object,
   }) }
@@ -330,22 +332,23 @@ describe "push" do
         it { expect_json("errors", { name: ["must not be blank"] }) }
       end
 
-      context "with the same name as another push_device on account" do
-        before(:all) do
-          clear_push_devices!
-          pd = fixtures[:push_devices][:basic].merge({
-            push_channel_id: @existent_push_channel_id,
-          })
-          post "/push_channels/#{@existent_push_channel_id}/push_devices",
-            push_device: pd
-          expect_status(200)
-          post "/push_channels/#{@existent_push_channel_id}/push_devices",
-            push_device: pd
-        end
-
-        it { expect_status(400) }
-        it { expect_json("errors", { name: ['is already taken'] }) }
-      end
+      # TODO Jeff: remove transparent handling of token lookup on device insert.
+      # context "with the same token as another push_device on account" do
+      #   before(:all) do
+      #     clear_push_devices!
+      #     pd = fixtures[:push_devices][:basic].merge({
+      #       push_channel_id: @existent_push_channel_id,
+      #     })
+      #     post "/push_channels/#{@existent_push_channel_id}/push_devices",
+      #       push_device: pd
+      #     expect_status(200)
+      #     post "/push_channels/#{@existent_push_channel_id}/push_devices",
+      #       push_device: pd
+      #   end
+      #
+      #   it { expect_status(400) }
+      #   it { expect_json("errors", { token: ['is already taken'] }) }
+      # end
     end
 
     describe "show" do
@@ -365,8 +368,8 @@ describe "push" do
         before(:all) do
           get "/push_channels/#{@existent_push_channel_id}/push_devices/#{@pd_id}"
         end
-
         it_behaves_like "a valid push_device"
+
         it { expect_json("push_device", @expect_pd) }
       end
 
@@ -482,19 +485,19 @@ describe "push" do
         context "with valid data" do
           before(:all) do
             clear_push_messages!
-            pm = fixtures[:push_messages][:basic].merge({
-              push_device_id: @existent_push_device_id,
-            })
-            post "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages",
-              push_message: pm
           end
 
-          it_behaves_like "a valid push_message"
+          it "should send a manual message" do
+            pm = fixtures[:push_manual_messages][:basic]
+            post "/push_channels/#{@existent_push_channel_id}/push_manual_messages",
+              push_manual_message: pm.merge({environment: "Push"})
+            expect_status(200)
+          end
         end
 
         context "with invalid json" do
           before(:all) do
-            post "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages", "{"
+            post "/push_channels/#{@existent_push_channel_id}/push_manual_messages", "{"
           end
 
           it_behaves_like "invalid json"
@@ -504,13 +507,12 @@ describe "push" do
       describe "show" do
         before(:all) do
           clear_push_messages!
-          pm = fixtures[:push_messages][:basic].merge({
-            push_device_id: @existent_push_device_id,
-          })
-          post "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages",
-            push_message: pm
+          pm = fixtures[:push_manual_messages][:basic]
+          post "/push_channels/#{@existent_push_channel_id}/push_manual_messages",
+            push_manual_message: pm.merge({environment: "Push"})
           expect_status(200)
-          @expect_pm = json_body[:push_message]
+          get "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages"
+          @expect_pm = json_body[:push_messages][0]
           @pm_id = @expect_pm[:id]
         end
 
@@ -532,58 +534,15 @@ describe "push" do
         end
       end
 
-      describe "update" do
-        before(:all) do
-          clear_push_messages!
-          pm = fixtures[:push_messages][:basic].merge({
-            push_device_id: @existent_push_device_id,
-          })
-          post "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages",
-            push_message: pm
-          expect_status(200)
-          @ordinary = json_body[:push_message]
-        end
-
-        context "with an updated stamp" do
-          before(:all) do
-            @new_pm = @ordinary.merge({ stamp: Time.now.to_i })
-            put "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages/#{@ordinary[:id]}",
-              push_message: @new_pm
-          end
-
-          it_behaves_like "a valid push_message"
-          it { expect_json("push_message", @new_pm) }
-        end
-
-        context "with invalid json" do
-          before(:all) do
-            put "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages/#{@ordinary[:id]}",
-              '{"push_message`":{"stamp":123'
-          end
-
-          it_behaves_like "invalid json"
-        end
-
-        context "non-existing" do
-          before(:all) do
-            put "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages/#{@ordinary[:id]+100}",
-              push_message: @ordinary
-          end
-
-          it_behaves_like "a missing push_message"
-        end
-      end
-
       describe "delete" do
         before(:all) do
           clear_push_messages!
-          pm = fixtures[:push_messages][:basic].merge({
-            push_device_id: @existent_push_device_id,
-          })
-          post "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages",
-            push_message: pm
+          pm = fixtures[:push_manual_messages][:basic]
+          post "/push_channels/#{@existent_push_channel_id}/push_manual_messages",
+            push_manual_message: pm.merge({environment: "Push"})
           expect_status(200)
-          @ordinary = json_body[:push_message]
+          get "/push_channels/#{@existent_push_channel_id}/push_devices/#{@existent_push_device_id}/push_messages"
+          @ordinary = json_body[:push_messages][0]
         end
 
         context "existing" do
