@@ -50,6 +50,19 @@ func (c *PushChannel) All(db *apsql.DB) ([]*PushChannel, error) {
 	return channels, nil
 }
 
+func (c *PushChannel) AllForDeviceToken(db *apsql.DB, token string) ([]*PushChannel, error) {
+	channels := []*PushChannel{}
+	err := db.Select(&channels, db.SQL("push_channels/all_for_device"), c.AccountID, token)
+	if err != nil {
+		return nil, err
+	}
+	for _, channel := range channels {
+		channel.AccountID = c.AccountID
+		channel.UserID = c.UserID
+	}
+	return channels, nil
+}
+
 func (c *PushChannel) Find(db *apsql.DB) (*PushChannel, error) {
 	channel := PushChannel{
 		AccountID: c.AccountID,
