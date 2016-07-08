@@ -52,12 +52,12 @@ func (s *SQLSuite) TestOracleConfig(c *gc.C) {
 	}{{
 		should:       "work with a simple config",
 		given:        oracleSpecs()["simple"],
-		expectString: "oracle://system:manager@localhost:1521/orcl",
-		expectUnique: "oracle://system:manager@localhost:1521/orcl",
+		expectString: "system:manager@localhost:1521/orcl",
+		expectUnique: "system:manager@localhost:1521/orcl",
 	}, {
 		should: "fail with multiple bad config items",
 		given:  oracleSpecs()["bad"],
-		expectError: `oracle config errors: ` +
+		expectError: `oci8 config errors: ` +
 			`bad value -1234 for "port"; ` +
 			`bad value "" for "password"; ` +
 			`bad value "" for "host"`,

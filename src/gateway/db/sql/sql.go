@@ -20,7 +20,7 @@ const (
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
 	hana     driver = "hdb"
-	oracle   driver = "oracle"
+	oracle   driver = "oci8"
 )
 
 var knownDrivers = map[driver]bool{
