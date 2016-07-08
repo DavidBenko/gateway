@@ -216,6 +216,9 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not the SAP Hana remote endpoints are enabled, default is true.
 # hanaEnabled =
 
+# Whether or not Oracle remote endpoints are enabled, default is true.
+# oracleEnabled =
+
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
 # soapClientHost = ''
