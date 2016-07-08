@@ -40,8 +40,10 @@ func smtpConfigs() map[string]map[string]interface{} {
 	}
 }
 
-func toSpec(s map[string]interface{}) (*smtp.Spec, error) {
-	return smtp.NewSpec(s["host"].(string), s["port"].(int), s["user"].(string), s["password"].(string), s["sender"].(string))
+func toSpec(s map[string]interface{}) *smtp.Spec {
+	spec := &smtp.Spec{Host: s["host"].(string), Port: s["port"].(int), User: s["user"].(string), Password: s["password"].(string), Sender: s["sender"].(string)}
+	spec.CreateAuth()
+	return spec
 }
 
 func (s *SmtpSuite) TestNewServer(c *gc.C) {
@@ -52,23 +54,12 @@ func (s *SmtpSuite) TestNewServer(c *gc.C) {
 	}{{
 		should: "work with a simple config",
 		given:  smtpConfigs()["simple"],
-	}, {
-		should:      "not work with missing user",
-		given:       smtpConfigs()["no-user"],
-		expectError: "user is required",
-	}, {
-		should:      "not work with missing password",
-		given:       smtpConfigs()["no-password"],
-		expectError: "password is required",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
-		_, err := toSpec(t.given)
-		if t.expectError != "" {
-			c.Check(err, gc.ErrorMatches, t.expectError)
-			continue
-		}
-		c.Assert(err, jc.ErrorIsNil)
+		spec := toSpec(t.given)
+
+		c.Check(spec, gc.NotNil)
 	}
 }
 
@@ -84,9 +75,7 @@ func (s *SmtpSuite) TestConnectionString(c *gc.C) {
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
-		spec, err := toSpec(t.given)
-
-		c.Assert(err, jc.ErrorIsNil)
+		spec := toSpec(t.given)
 
 		c.Check(spec.ConnectionString(), gc.Equals, t.expect)
 	}
@@ -105,9 +94,7 @@ func (s *SmtpSuite) TestSmtpPool(c *gc.C) {
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
-		spec, err := toSpec(t.given)
-
-		c.Assert(err, jc.ErrorIsNil)
+		spec := toSpec(t.given)
 
 		connection, err := t.pool.Connection(spec)
 

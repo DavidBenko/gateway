@@ -2,7 +2,6 @@ package smtp
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"gateway/logreport"
 	"net/smtp"
@@ -22,22 +21,15 @@ type Spec struct {
 	Auth     smtp.Auth
 }
 
-func NewSpec(host string, port int, user string, password string, sender string) (*Spec, error) {
-	if user == "" {
-		return nil, errors.New("user is required")
-	}
-	if password == "" {
-		return nil, errors.New("password is required")
-	}
-
+func (s *Spec) CreateAuth() {
 	auth := smtp.PlainAuth(
 		"",
-		user,
-		password,
-		host,
+		s.User,
+		s.Password,
+		s.Host,
 	)
 
-	return &Spec{host, port, user, password, sender, auth}, nil
+	s.Auth = auth
 }
 
 func (s *Spec) Send(email string, body string) error {

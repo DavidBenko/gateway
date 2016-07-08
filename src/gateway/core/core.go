@@ -13,6 +13,7 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/push"
+	"gateway/smtp"
 	sql "gateway/sql"
 	"gateway/store"
 
@@ -29,6 +30,7 @@ type Core struct {
 	SoapConf   config.Soap
 	Store      store.Store
 	Push       *push.PushPool
+	Smtp       *smtp.SmtpPool
 }
 
 func (s *Core) PrepareRequest(
@@ -72,6 +74,8 @@ func (s *Core) PrepareRequest(
 		return request.NewHanaRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeRedis:
 		return request.NewRedisRequest(s.DBPools, endpoint, data)
+	case model.RemoteEndpointTypeSMTP:
+		return request.NewSmtpRequest(s.Smtp, endpoint, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

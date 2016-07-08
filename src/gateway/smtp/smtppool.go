@@ -22,6 +22,8 @@ func (p *SmtpPool) Connection(spec *Spec) (Mailer, error) {
 		return connection, nil
 	}
 
+	spec.CreateAuth()
+
 	p.Lock()
 	defer p.Unlock()
 	p.pool[spec.ConnectionString()] = spec
