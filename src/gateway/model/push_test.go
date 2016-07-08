@@ -92,8 +92,10 @@ func TestPush(t *testing.T) {
 		APIKey:   "AIzaSyCPc5PN7PkKT7BGj-b60XAmEpp5f9N1oNY",
 	}
 	data, err := json.Marshal(&re.Push{
-		PublishEndpoint: true,
-		PushPlatforms:   []re.PushPlatform{platform},
+		PublishEndpoint:     true,
+		SubscribeEndpoint:   true,
+		UnsubscribeEndpoint: true,
+		PushPlatforms:       []re.PushPlatform{platform},
 	})
 	if err != nil {
 		t.Fatal(err)
