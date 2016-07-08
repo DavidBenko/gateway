@@ -12,8 +12,8 @@ type Smtp struct {
 func (s *Smtp) Validate() aperrors.Errors {
 	errors := make(aperrors.Errors)
 
-	if s.Config.User == "" {
-		errors.Add("user", "user is required")
+	if s.Config.Username == "" {
+		errors.Add("username", "username is required")
 	}
 
 	if s.Config.Password == "" {

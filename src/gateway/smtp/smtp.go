@@ -15,7 +15,7 @@ type Mailer interface {
 type Spec struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
-	User     string `json:"user"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 	Sender   string `json:"sender"`
 	Auth     smtp.Auth
@@ -24,7 +24,7 @@ type Spec struct {
 func (s *Spec) CreateAuth() {
 	auth := smtp.PlainAuth(
 		"",
-		s.User,
+		s.Username,
 		s.Password,
 		s.Host,
 	)

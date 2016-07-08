@@ -17,21 +17,21 @@ var _ = gc.Suite(&SmtpSuite{})
 func smtpConfigs() map[string]map[string]interface{} {
 	return map[string]map[string]interface{}{
 		"simple": map[string]interface{}{
-			"user":     "admin",
+			"username": "admin",
 			"password": "abc123",
 			"host":     "mail.server.com",
 			"port":     80,
 			"sender":   "admin@mail.server.com",
 		},
 		"no-user": map[string]interface{}{
-			"user":     "",
+			"username": "",
 			"password": "abc123",
 			"host":     "mail.server.com",
 			"port":     80,
 			"sender":   "admin@mail.server.com",
 		},
 		"no-password": map[string]interface{}{
-			"user":     "admin",
+			"username": "admin",
 			"password": "",
 			"host":     "mail.server.com",
 			"port":     80,
@@ -41,7 +41,7 @@ func smtpConfigs() map[string]map[string]interface{} {
 }
 
 func toSpec(s map[string]interface{}) *smtp.Spec {
-	spec := &smtp.Spec{Host: s["host"].(string), Port: s["port"].(int), User: s["user"].(string), Password: s["password"].(string), Sender: s["sender"].(string)}
+	spec := &smtp.Spec{Host: s["host"].(string), Port: s["port"].(int), Username: s["username"].(string), Password: s["password"].(string), Sender: s["sender"].(string)}
 	spec.CreateAuth()
 	return spec
 }
@@ -71,7 +71,7 @@ func (s *SmtpSuite) TestConnectionString(c *gc.C) {
 	}{{
 		should: "return expected connection string",
 		given:  smtpConfigs()["simple"],
-		expect: "{\"host\":\"mail.server.com\",\"port\":80,\"user\":\"admin\",\"password\":\"abc123\",\"sender\":\"admin@mail.server.com\",\"Auth\":{}}",
+		expect: "{\"host\":\"mail.server.com\",\"port\":80,\"username\":\"admin\",\"password\":\"abc123\",\"sender\":\"admin@mail.server.com\",\"Auth\":{}}",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
