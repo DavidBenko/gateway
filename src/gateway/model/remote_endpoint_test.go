@@ -179,7 +179,7 @@ func data() map[string]interface{} {
 		},
 		"smtp-simple": map[string]interface{}{
 			"config": map[string]interface{}{
-				"user":     "admin",
+				"username": "admin",
 				"password": "password",
 				"host":     "mail.server.com",
 				"port":     234,
