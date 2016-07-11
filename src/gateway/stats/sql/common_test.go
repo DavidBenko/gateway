@@ -308,14 +308,14 @@ func (s *SQLSuite) teardown(c *gc.C) {
 	} {
 		c.Logf("    >>DB: dropping Postgres table %q", table)
 		_, err := s.postgres.Exec(fmt.Sprintf(
-			"DROP TABLE %s;", table,
+			"DROP TABLE IF EXISTS %s;", table,
 		))
 
 		c.Assert(err, jc.ErrorIsNil)
 
 		c.Logf("    >>DB: dropping SQLite3 table %q", table)
 		_, err = s.sqlite.Exec(fmt.Sprintf(
-			"DROP TABLE %s;", table,
+			"DROP TABLE IF EXISTS %s;", table,
 		))
 
 		c.Assert(err, jc.ErrorIsNil)
