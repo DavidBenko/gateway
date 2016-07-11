@@ -177,6 +177,15 @@ func data() map[string]interface{} {
 		"redis-badConfig": map[string]interface{}{
 			"config": map[string]interface{}{},
 		},
+		"smtp-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"username": "admin",
+				"password": "password",
+				"host":     "mail.server.com",
+				"port":     234,
+				"sender":   "admin@mail.server.com",
+			},
+		},
 	}
 }
 
@@ -195,6 +204,7 @@ func specs() map[string]db.Specifier {
 		{"mongo-complicated", model.RemoteEndpointTypeMongo},
 		{"hana-simple", model.RemoteEndpointTypeHana},
 		{"redis-simple", model.RemoteEndpointTypeRedis},
+		{"smtp-simple", model.RemoteEndpointTypeSMTP},
 	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
@@ -263,6 +273,12 @@ func specs() map[string]db.Specifier {
 				redis.MaxActive(conf.MaxActive),
 				redis.MaxIdle(conf.MaxIdle),
 			)
+		case model.RemoteEndpointTypeSMTP:
+			var conf re.Smtp
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
 		default:
 			err = fmt.Errorf("no such type %q", which.kind)
 		}
