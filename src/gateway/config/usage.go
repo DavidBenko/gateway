@@ -87,6 +87,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-ldap-enabled":       "Whether or not LDAP remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-hana-enabled":       "Whether or not SAP Hana remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-oracle-enabled":     "Whether or not Oracle remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
 

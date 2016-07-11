@@ -12,8 +12,13 @@ import (
 
 type PushRequest struct {
 	re.Push
+	OperationName    string                 `json:"operationName"`
+	Platform         string                 `json:"platform"`
 	Channel          string                 `json:"channel"`
 	Payload          map[string]interface{} `json:"payload"`
+	Period           int64                  `json:"period"`
+	Name             string                 `json:"name"`
+	Token            string                 `json:"token"`
 	pool             *push.PushPool
 	db               *sql.DB
 	accountID        int64
@@ -55,7 +60,18 @@ func NewPushRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, pool 
 func (p *PushRequest) Perform() Response {
 	response := &PushResponse{}
 	err := p.db.DoInTransaction(func(tx *sql.Tx) error {
-		return p.pool.Push(&p.Push, tx, p.accountID, p.apiID, p.remoteEndpointID, p.Channel, p.Payload)
+		switch p.OperationName {
+		case "push":
+			return p.pool.Push(&p.Push, tx, p.accountID, p.apiID, p.remoteEndpointID, p.Channel, p.Payload)
+		case "subscribe":
+			return p.pool.Subscribe(&p.Push, tx, p.accountID, p.apiID, p.remoteEndpointID, p.Platform, p.Channel, p.Period, p.Name, p.Token)
+		case "unsubscribe":
+			return p.pool.Unsubscribe(&p.Push, tx, p.accountID, p.apiID, p.remoteEndpointID, p.Platform, p.Channel, p.Token)
+		case "":
+		default:
+			return fmt.Errorf("Unsupported Push operation %s", p.OperationName)
+		}
+		return fmt.Errorf("Unsupported Push operation %s", p.OperationName)
 	})
 	if err != nil {
 		response.Error = err.Error()

@@ -25,6 +25,8 @@ const (
 	RemoteEndpointTypeMySQL = "mysql"
 	// RemoteEndpointTypePostgres denotes that a remote endpoint is a PostgreSQL Server database
 	RemoteEndpointTypePostgres = "postgres"
+	// RemoteEndpointTypeOracle denotes that a remote endpoint is an Oracle database
+	RemoteEndpointTypeOracle = "oracle"
 	// RemoteEndpointTypeMongo denotes that a remote endpoint is a MongoDB database
 	RemoteEndpointTypeMongo = "mongodb"
 	// RemoteEndpointTypeScript denotes that a remote endpoint is a SOAP service
@@ -61,8 +63,9 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
 		RemoteEndpointTypeHana:      &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypeHana, Enabled: reConf.HanaEnabled},
 		RemoteEndpointTypePush:      &RemoteEndpointType{ID: 11, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
-		RemoteEndpointTypeRedis:     &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
-		RemoteEndpointTypeSMTP:      &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeSMTP, Enabled: reConf.SMTPEnabled},
+		RemoteEndpointTypeOracle:    &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeOracle, Enabled: reConf.OracleEnabled},
+		RemoteEndpointTypeRedis:     &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
+		RemoteEndpointTypeSMTP:      &RemoteEndpointType{ID: 14, Value: RemoteEndpointTypeSMTP, Enabled: reConf.SMTPEnabled},
 	}
 }
 

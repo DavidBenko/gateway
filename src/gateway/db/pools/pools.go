@@ -12,12 +12,13 @@ import (
 // Pools handles concurrent access to databases with connection pools.
 type Pools struct {
 	// Pools must remain threadsafe!
-	sqlsPool  *sqlPool
-	pqPool    *sqlPool
-	mySqlPool *sqlPool
-	hanaPool  *sqlPool
-	mongoPool *mongoPool
-	redisPool *redisPool
+	sqlsPool   *sqlPool
+	pqPool     *sqlPool
+	mySqlPool  *sqlPool
+	hanaPool   *sqlPool
+	oraclePool *sqlPool
+	mongoPool  *mongoPool
+	redisPool  *redisPool
 }
 
 // poolForSpec returns the correct pool for the given db.Specifier.
@@ -31,6 +32,8 @@ func (p *Pools) poolForSpec(spec db.Specifier) (ServerPool, error) {
 		return p.mySqlPool, nil
 	case *sql.HanaSpec:
 		return p.hanaPool, nil
+	case *sql.OracleSpec:
+		return p.oraclePool, nil
 	case *mongo.Spec:
 		return p.mongoPool, nil
 	case *redis.Spec:
@@ -59,12 +62,13 @@ type ServerPool interface {
 // MakePools returns a new Pools with initialized sub-pools.
 func MakePools() *Pools {
 	return &Pools{
-		sqlsPool:  makeSqlPool(),
-		pqPool:    makeSqlPool(),
-		mySqlPool: makeSqlPool(),
-		hanaPool:  makeSqlPool(),
-		mongoPool: makeMongoPool(),
-		redisPool: makeRedisPool(),
+		sqlsPool:   makeSqlPool(),
+		pqPool:     makeSqlPool(),
+		mySqlPool:  makeSqlPool(),
+		hanaPool:   makeSqlPool(),
+		oraclePool: makeSqlPool(),
+		mongoPool:  makeMongoPool(),
+		redisPool:  makeRedisPool(),
 	}
 }
 
