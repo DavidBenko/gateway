@@ -1240,3 +1240,34 @@ AP.Redis.Request = function() {
 AP.Redis.Request.prototype.execute = function(stmt) {
   this.executeStatement = stmt;
 }
+
+/**
+ * Smtp holds helper classes for SMTP related tasks
+ *
+ * @namespace
+ */
+ 
+AP.Smtp = AP.Smtp || {};
+
+/**
+ * Creates a new SMTP request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+ AP.Smtp.Request = function() {
+   this.address = null;
+   this.body = null;
+   
+   if (arguments.length == 1) {
+     var request = arguments[0];
+     this.address = _.clone(request.address);
+     this.body = _.clone(request.body);
+   }
+ }
+ 
+ AP.Smtp.Request.prototype.send = function(address, body) {
+   this.address = address;
+   this.body = body;
+ }

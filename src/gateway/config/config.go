@@ -102,6 +102,7 @@ type RemoteEndpoint struct {
 	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
 	OracleEnabled     bool `flag:"remote-endpoint-oracle-enabled" default:"true"`
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
+	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

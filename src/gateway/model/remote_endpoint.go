@@ -130,6 +130,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateLDAP(errors)
 	case RemoteEndpointTypePush:
 		e.ValidatePush(errors)
+	case RemoteEndpointTypeSMTP:
+		e.ValidateSMTP(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -307,6 +309,19 @@ func (e *RemoteEndpoint) ValidatePush(errors aperrors.Errors) {
 			errs.MoveAllToName("push_platforms")
 			errors.AddAll(errs)
 		}
+	}
+}
+
+func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
+	smtp := &re.Smtp{}
+
+	if err := json.Unmarshal(e.Data, smtp); err != nil {
+		errors.Add("smtp", fmt.Sprintf("error in smtp config: %s", err))
+	}
+
+	if errs := smtp.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
 	}
 }
 
