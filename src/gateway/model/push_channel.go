@@ -21,6 +21,11 @@ type PushChannel struct {
 	Data             types.JsonText `json:"-" db:"data"`
 }
 
+type MQTTPushChannel struct {
+	PushChannel
+	QOS int64 `json:"qos"`
+}
+
 func (c *PushChannel) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.Name == "" || strings.TrimSpace(c.Name) == "" {
@@ -50,8 +55,8 @@ func (c *PushChannel) All(db *apsql.DB) ([]*PushChannel, error) {
 	return channels, nil
 }
 
-func (c *PushChannel) AllForDeviceToken(db *apsql.DB, token string) ([]*PushChannel, error) {
-	channels := []*PushChannel{}
+func (c *PushChannel) AllForDeviceToken(db *apsql.DB, token string) ([]*MQTTPushChannel, error) {
+	channels := []*MQTTPushChannel{}
 	err := db.Select(&channels, db.SQL("push_channels/all_for_device"), c.AccountID, token)
 	if err != nil {
 		return nil, err

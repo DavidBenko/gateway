@@ -287,6 +287,7 @@ func (t *dbSessionTopics) AddTopic(topic string, qos byte) error {
 		if err != nil {
 			device.Type = re.PushTypeMQTT
 			device.Expires = expires
+			device.QOS = int64(qos)
 			err = device.Insert(tx)
 			if err != nil {
 				return err
@@ -297,6 +298,7 @@ func (t *dbSessionTopics) AddTopic(topic string, qos byte) error {
 		if update {
 			dev.PushChannelID = channel.ID
 			dev.Expires = expires
+			dev.QOS = int64(qos)
 			err := dev.Update(tx)
 			if err != nil {
 				return err
@@ -352,6 +354,7 @@ func (t *dbSessionTopics) Topics() (topics []string, qoss []byte, err error) {
 
 	for _, channel := range channels {
 		topics = append(topics, fmt.Sprintf("/%v", channel.Name))
+		qoss = append(qoss, byte(channel.QOS))
 	}
 
 	return
