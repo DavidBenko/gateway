@@ -288,6 +288,8 @@ func (s *SQLSuite) setup(c *gc.C) {
 	sqliteDB, err := sqlx.Open("sqlite3", ":memory:")
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sqliteDB.Ping(), jc.ErrorIsNil)
+	s.sqlite = sqliteDB
+	s.teardownSqlite(c)
 	c.Assert(sql.Migrate(sqliteDB, sql.SQLite3), jc.ErrorIsNil)
 
 	c.Logf("    >>DB: Connecting to pq using connection string %q", pgConnString)
@@ -295,35 +297,53 @@ func (s *SQLSuite) setup(c *gc.C) {
 	pgDB, err := sqlx.Open("postgres", pgConnString)
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pgDB.Ping(), jc.ErrorIsNil)
+	s.postgres = pgDB
+	s.teardownPostgres(c)
 	c.Assert(sql.Migrate(pgDB, sql.Postgres), jc.ErrorIsNil)
-
-	s.sqlite, s.postgres = sqliteDB, pgDB
 }
 
 func (s *SQLSuite) teardown(c *gc.C) {
-	c.Log("    >>DB: Cleaning up Postgres database")
+	s.teardownPostgres(c)
+	s.teardownSqlite(c)
+	if s.sqlite != nil {
+		c.Log("    >>DB: Closing sqlite3 connection")
+		c.Assert(s.sqlite.Close(), jc.ErrorIsNil)
+	}
+
+	if s.postgres != nil {
+		c.Log("    >>DB: Closing postgres connection")
+		c.Assert(s.postgres.Close(), jc.ErrorIsNil)
+	}
+}
+
+func (s *SQLSuite) teardownPostgres(c *gc.C) {
 	for _, table := range []string{
 		"stats",
 		"stats_schema",
 	} {
-		c.Logf("    >>DB: dropping Postgres table %q", table)
-		_, err := s.postgres.Exec(fmt.Sprintf(
-			"DROP TABLE IF EXISTS %s;", table,
-		))
+		if s.postgres != nil {
+			c.Logf("    >>DB: dropping Postgres table %q", table)
+			_, err := s.postgres.Exec(fmt.Sprintf(
+				"DROP TABLE IF EXISTS %s;", table,
+			))
 
-		c.Assert(err, jc.ErrorIsNil)
-
-		c.Logf("    >>DB: dropping SQLite3 table %q", table)
-		_, err = s.sqlite.Exec(fmt.Sprintf(
-			"DROP TABLE IF EXISTS %s;", table,
-		))
-
-		c.Assert(err, jc.ErrorIsNil)
+			c.Assert(err, jc.ErrorIsNil)
+		}
 	}
+}
 
-	c.Log("    >>DB: Closing sqlite3 connection")
-	c.Assert(s.sqlite.Close(), jc.ErrorIsNil)
+func (s *SQLSuite) teardownSqlite(c *gc.C) {
+	for _, table := range []string{
+		"stats",
+		"stats_schema",
+	} {
+		if s.sqlite != nil {
+			c.Logf("    >>DB: dropping SQLite3 table %q", table)
+			_, err := s.sqlite.Exec(fmt.Sprintf(
+				"DROP TABLE IF EXISTS %s;", table,
+			))
 
-	c.Log("    >>DB: Closing postgres connection")
-	c.Assert(s.postgres.Close(), jc.ErrorIsNil)
+			c.Assert(err, jc.ErrorIsNil)
+		}
+	}
 }
