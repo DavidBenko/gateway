@@ -139,6 +139,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidatePush(errors)
 	case RemoteEndpointTypeSMTP:
 		e.ValidateSMTP(errors)
+	case RemoteEndpointTypeDocker:
+		e.ValidateDocker(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -327,6 +329,20 @@ func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
 	}
 
 	if errs := smtp.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
+	}
+}
+
+// Validate Docker endpoint configuration
+func (e *RemoteEndpoint) ValidateDocker(errors aperrors.Errors) {
+	docker := &re.Docker{}
+
+	if err := json.Unmarshal(e.Data, docker); err != nil {
+		errors.Add("docker", fmt.Sprintf("error in docker config: %s", err))
+	}
+
+	if errs := docker.Validate(); errs != nil {
 		errors.AddAll(errs)
 		return
 	}
