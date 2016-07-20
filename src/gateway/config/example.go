@@ -219,6 +219,9 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not Oracle remote endpoints are enabled, default is true.
 # oracleEnabled =
 
+# Whether or not Docker remote endpoints are enabled, default is true.
+# dockerEnabled =
+
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
 # soapClientHost = ''
