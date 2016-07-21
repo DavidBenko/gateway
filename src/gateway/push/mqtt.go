@@ -17,9 +17,9 @@ import (
 	apsql "gateway/sql"
 
 	"github.com/AnyPresence/surgemq/auth"
+	"github.com/AnyPresence/surgemq/message"
 	"github.com/AnyPresence/surgemq/service"
 	"github.com/AnyPresence/surgemq/sessions"
-	"github.com/surgemq/message"
 )
 
 type MQTTPusher struct {
@@ -237,7 +237,6 @@ type dbSessionTopics struct {
 }
 
 func (t *dbSessionTopics) InitTopics(msg *message.ConnectMessage) error {
-	//TODO: check for clean session and delete topics if true
 	return nil
 }
 
@@ -285,7 +284,7 @@ func (t *dbSessionTopics) AddTopic(topic string, qos byte) error {
 	err = t.context.DB.DoInTransaction(func(tx *apsql.Tx) error {
 		update := false
 		if err != nil {
-			device.Type = re.PushTypeMQTT
+			device.Type = t.context.PushPlatformCodename
 			device.Expires = expires
 			device.QOS = int64(qos)
 			err = device.Insert(tx)
@@ -376,20 +375,81 @@ func (t *dbProvider) New(id string) (*sessions.Session, error) {
 }
 
 func (t *dbProvider) Get(id string) (*sessions.Session, error) {
-	session := &sessions.Session{Id: id, SessionTopics: &dbSessionTopics{id: id, context: t.context}}
-	return session, nil
+	session := &model.MQTTSession{
+		AccountID:        t.context.RemoteEndpoint.AccountID,
+		APIID:            t.context.RemoteEndpoint.APIID,
+		RemoteEndpointID: t.context.RemoteEndpoint.ID,
+		Type:             t.context.PushPlatformCodename,
+		ClientID:         id,
+	}
+	session, err := session.Find(t.context.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	sess := &sessions.Session{Id: id, SessionTopics: &dbSessionTopics{id: id, context: t.context}}
+	err = json.Unmarshal(session.Data, sess)
+	if err != nil {
+		return nil, err
+	}
+
+	return sess, nil
 }
 
 func (t *dbProvider) Del(id string) {
+	sessionTopics := &dbSessionTopics{id: id, context: t.context}
+	topics, _, _ := sessionTopics.Topics()
+	for _, topic := range topics {
+		sessionTopics.RemoveTopic(topic)
+	}
 
+	session := &model.MQTTSession{
+		AccountID:        t.context.RemoteEndpoint.AccountID,
+		APIID:            t.context.RemoteEndpoint.APIID,
+		RemoteEndpointID: t.context.RemoteEndpoint.ID,
+		Type:             t.context.PushPlatformCodename,
+		ClientID:         id,
+	}
+	t.context.DB.DoInTransaction(func(tx *apsql.Tx) error {
+		return session.Delete(tx)
+	})
 }
 
-func (t *dbProvider) Save(id string) error {
-	return nil
+func (t *dbProvider) Save(id string, sess *sessions.Session) error {
+	data, err := json.Marshal(sess)
+	if err != nil {
+		return err
+	}
+	session := &model.MQTTSession{
+		AccountID:        t.context.RemoteEndpoint.AccountID,
+		APIID:            t.context.RemoteEndpoint.APIID,
+		RemoteEndpointID: t.context.RemoteEndpoint.ID,
+		Type:             t.context.PushPlatformCodename,
+		ClientID:         id,
+		Data:             data,
+	}
+	_, err = session.Find(t.context.DB)
+	if err == nil {
+		err = t.context.DB.DoInTransaction(func(tx *apsql.Tx) error {
+			return session.Update(tx)
+		})
+	} else {
+		err = t.context.DB.DoInTransaction(func(tx *apsql.Tx) error {
+			return session.Insert(tx)
+		})
+	}
+
+	return err
 }
 
 func (t *dbProvider) Count() int {
-	return 0
+	session := &model.MQTTSession{
+		AccountID:        t.context.RemoteEndpoint.AccountID,
+		APIID:            t.context.RemoteEndpoint.APIID,
+		RemoteEndpointID: t.context.RemoteEndpoint.ID,
+		Type:             t.context.PushPlatformCodename,
+	}
+	return session.Count(t.context.DB)
 }
 
 func (t *dbProvider) Close() error {
