@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	apsql "gateway/sql"
 
 	"github.com/AnyPresence/surgemq/auth"
+	"github.com/AnyPresence/surgemq/log"
 	"github.com/AnyPresence/surgemq/message"
 	"github.com/AnyPresence/surgemq/service"
 	"github.com/AnyPresence/surgemq/sessions"
@@ -79,6 +79,14 @@ func (p *MQTTPusher) Push(channel *model.PushChannel, device *model.PushDevice, 
 }
 
 func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
+	log.Infof = func(fmt string, v ...interface{}) {
+		logreport.Printf("[mqtt] "+fmt, v...)
+	}
+	log.Errorf = func(fmt string, v ...interface{}) {
+		logreport.Printf("[mqtt] "+fmt, v...)
+	}
+	log.Debugf = func(fmt string, v ...interface{}) {}
+
 	server := &service.Server{
 		KeepAlive:        300,
 		ConnectTimeout:   2,
@@ -105,7 +113,7 @@ func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
 		var err error
 		mqtt.Broker, err = mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.XPub(), conf.XSub())
 		if err != nil {
-			log.Fatal(err)
+			logreport.Fatal(err)
 		}
 	}
 
@@ -131,7 +139,7 @@ func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
 			push := &PushMessage{}
 			err := json.Unmarshal(msg, push)
 			if err != nil {
-				log.Fatal(err)
+				logreport.Fatal(err)
 			}
 			endpoint, err := model.FindRemoteEndpointForAPIIDAndAccountID(db, push.Channel.RemoteEndpointID,
 				push.Channel.APIID, push.Channel.AccountID)
@@ -147,7 +155,7 @@ func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
 			pubmsg.SetQoS(0)
 			payload, err := json.Marshal(push.Data)
 			if err != nil {
-				log.Fatal(err)
+				logreport.Fatal(err)
 			}
 			pubmsg.SetPayload(payload)
 			err = server.Publish(context, pubmsg, nil, push.Device.Token)
