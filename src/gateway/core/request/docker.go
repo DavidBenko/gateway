@@ -1,7 +1,6 @@
 package request
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -14,18 +13,9 @@ import (
 
 // DockerRequest is a request to a Docker container
 type DockerRequest struct {
-	Endpoint  string `json:"endpoint"`
-	Image     string `json:"image"`
-	Command   string `json:"command"`
-	UseTLS    bool   `json:"use_tls"`
-	TLSConfig DockerTLS
-}
-
-// DockerTLS configuration for a TLS Docker request
-type DockerTLS struct {
-	CA          string `json:"ca"`
-	Certificate string `json:"certificate"`
-	PrivateKey  string `json:"private_key"`
+	Image     string   `json:"image"`
+	Command   string   `json:"command"`
+	Arguments []string `json:"arguments"`
 }
 
 // DockerResponse is a response from a Docker container
@@ -68,42 +58,20 @@ func NewDockerRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (*D
 }
 
 func (dr *DockerRequest) updateWith(other *DockerRequest) {
-	if other.Endpoint != "" {
-		dr.Endpoint = other.Endpoint
-	}
 	if other.Image != "" {
 		dr.Image = other.Image
 	}
 	if other.Command != "" {
 		dr.Command = other.Command
 	}
-	if other.UseTLS && !dr.UseTLS {
-		dr.UseTLS = true
-	}
-	if other.TLSConfig.CA != "" {
-		dr.TLSConfig.CA = other.TLSConfig.CA
-	}
-	if other.TLSConfig.Certificate != "" {
-		dr.TLSConfig.Certificate = other.TLSConfig.Certificate
-	}
-	if other.TLSConfig.PrivateKey != "" {
-		dr.TLSConfig.PrivateKey = other.TLSConfig.PrivateKey
+	if areNotEqual(other.Arguments, dr.Arguments) {
+		dr.Arguments = other.Arguments
 	}
 }
 
 // Log satisfies request.Request's Log method
 func (dr *DockerRequest) Log(devMode bool) string {
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("%s %s %s", dr.Command, dr.Endpoint, dr.Image))
-	if devMode {
-		buffer.WriteString("\nTLS CONFIG:\n")
-		if dr.UseTLS {
-			buffer.WriteString(fmt.Sprintf("CA:\n%s\nCERT:\n%s\nPK:\n%s\n", dr.TLSConfig.CA, dr.TLSConfig.Certificate, dr.TLSConfig.PrivateKey))
-		} else {
-			buffer.WriteString("UseTLS is set to false.")
-		}
-	}
-	return buffer.String()
+	return fmt.Sprintf("%s %s %v", dr.Image, dr.Command, dr.Arguments)
 }
 
 // JSON satisfies request.Request's JSON method
@@ -113,14 +81,8 @@ func (dr *DockerRequest) JSON() ([]byte, error) {
 
 // Perform satisfies request.Request's Perform method
 func (dr *DockerRequest) Perform() Response {
-	var cl *docker.Client
-	if dr.UseTLS {
-		cl, _ = docker.NewTLSClient(dr.Endpoint, dr.TLSConfig.Certificate, dr.TLSConfig.PrivateKey, dr.TLSConfig.CA)
-	} else {
-		cl, _ = docker.NewClient(dr.Endpoint)
-	}
-
-	d := dexec.Docker{cl}
+	client, _ := docker.NewClientFromEnv()
+	d := dexec.Docker{client}
 	m, _ := dexec.ByCreatingContainer(docker.CreateContainerOptions{Config: &docker.Config{Image: dr.Image}})
 
 	cmd := d.Command(m, dr.Command)
@@ -129,4 +91,31 @@ func (dr *DockerRequest) Perform() Response {
 		return NewErrorResponse(aperrors.NewWrapped("[docker] Error running command", err))
 	}
 	return &DockerResponse{Output: output}
+}
+
+// areNotEqual checks the given slices for equality and returns true iff a and b are NOT equal
+func areNotEqual(a, b []string) bool {
+	return !areEqual(a, b)
+}
+
+// areEqual checks the given slices for equality and returns true iff a equals b
+func areEqual(a, b []string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
