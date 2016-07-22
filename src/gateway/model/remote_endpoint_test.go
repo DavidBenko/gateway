@@ -188,10 +188,9 @@ func data() map[string]interface{} {
 		},
 		"docker-simple": map[string]interface{}{
 			"config": map[string]interface{}{
-				"endpoint": "unix:///var/run/docker.sock",
-				"image":    "busybox",
-				"command":  "ls",
-				"use_tls":  false,
+				"image":     "busybox",
+				"command":   "ls",
+				"arguments": []string{"-a", "-l", "-h"},
 			},
 		},
 	}
