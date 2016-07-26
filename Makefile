@@ -239,7 +239,9 @@ vendor_get: vendor_clean
 	github.com/sideshow/apns2 \
 	github.com/alexjlockwood/gcm \
 	github.com/mattn/go-oci8 \
-	github.com/garyburd/redigo
+	github.com/garyburd/redigo \
+	github.com/AnyPresence/surgemq \
+	github.com/surge/glog
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
