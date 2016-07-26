@@ -149,4 +149,6 @@ var usageStrings = map[string]string{
 	"push-broker-pub-port":  "The port of the push broker pub",
 	"push-broker-sub-port":  "The port of the push broker sub",
 	"push-broker-transport": "The push broker transport",
+	"push-connect-timeout":  "The connect timeout for MQTT",
+	"push-mqtt-uri":         "The URI for the MQTT server",
 }

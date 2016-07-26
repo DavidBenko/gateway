@@ -89,7 +89,7 @@ func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
 
 	server := &service.Server{
 		KeepAlive:        300,
-		ConnectTimeout:   2,
+		ConnectTimeout:   int(conf.ConnectTimeout),
 		SessionsProvider: "gateway",
 		Authenticator:    "gateway",
 		TopicsProvider:   "mem",
@@ -104,7 +104,7 @@ func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
 	sessions.Register("gateway", NewDBProvider)
 
 	go func() {
-		if err := server.ListenAndServe("tcp://:1883"); err != nil {
+		if err := server.ListenAndServe(conf.MQTTURI); err != nil {
 			logreport.Fatal(err)
 		}
 	}()

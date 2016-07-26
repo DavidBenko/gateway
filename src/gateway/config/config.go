@@ -178,6 +178,8 @@ type Push struct {
 	BrokerPubPort   string `flag:"push-broker-pub-port" default:"5557"`
 	BrokerSubPort   string `flag:"push-broker-sub-port" default:"5558"`
 	BrokerTransport string `flag:"push-broker-transport" default:"tcp"`
+	ConnectTimeout  int64  `flag:"push-connect-timeout" default:"2"`
+	MQTTURI         string `flag:"push-mqtt-uri" default:"tcp://:1883"`
 }
 
 const envPrefix = "APGATEWAY_"
