@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"gateway/config"
-	"gateway/core/crypto"
+	"gateway/core/ottocrypto"
 	"gateway/core/request"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
@@ -100,7 +100,8 @@ var shared = func() *otto.Otto {
 		"http/response.js",
 	}
 
-	OttoCrypto.IncludeHashing(vm)
+	ottocrypto.IncludeHashing(vm)
+	ottocrypto.IncludeSigning(vm)
 
 	for _, filename := range files {
 		fileJS, err := Asset(filename)

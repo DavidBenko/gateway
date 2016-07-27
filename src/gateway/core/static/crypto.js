@@ -14,3 +14,9 @@ delete _hashPassword;
 
 AP.Crypto.hash = _hash;
 delete _hash;
+
+AP.Crypto.hashHmac = _hashHmac
+delete _hashHmac
+
+AP.Crypto.sign = _sign;
+delete _sign;
