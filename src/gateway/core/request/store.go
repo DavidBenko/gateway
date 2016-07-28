@@ -26,9 +26,11 @@ func storeOperationInsert(request *StoreRequest) ([]map[string]interface{}, erro
 	if !valid {
 		return nil, errors.New("collection is not a string")
 	}
-	object, valid := request.Arguments["2"].(interface{})
-	if !valid {
-		return nil, errors.New("object is not an Object")
+	object := request.Arguments["2"]
+	_, isObject := object.(interface{})
+	_, isArray := object.([]interface{})
+	if !(isObject || isArray) {
+		return nil, errors.New("object is not an Object or Array")
 	}
 	results, err := request.Store.Insert(request.AccountID, collection, object)
 	if err != nil {
