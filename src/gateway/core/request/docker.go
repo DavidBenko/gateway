@@ -16,6 +16,13 @@ type DockerRequest struct {
 	Image     string   `json:"image"`
 	Command   string   `json:"command"`
 	Arguments []string `json:"arguments"`
+	Advanced  bool     `json:"advanced"`
+	Config    struct {
+		Repository string `json:"repository,omitempty"`
+		Tag        string `json:"tag,omitempty"`
+		Username   string `json:"username,omitempty"`
+		Password   string `json:"password,omitempty"`
+	} `json:"config,omitempty"`
 }
 
 // DockerResponse is a response from a Docker container
@@ -67,11 +74,26 @@ func (dr *DockerRequest) updateWith(other *DockerRequest) {
 	if areNotEqual(other.Arguments, dr.Arguments) {
 		dr.Arguments = other.Arguments
 	}
+	if dr.Advanced != other.Advanced {
+		dr.Advanced = other.Advanced
+		if dr.Config.Repository != other.Config.Repository {
+			dr.Config.Repository = other.Config.Repository
+		}
+		if dr.Config.Tag != other.Config.Tag {
+			dr.Config.Tag = other.Config.Tag
+		}
+		if dr.Config.Username != other.Config.Username {
+			dr.Config.Username = other.Config.Username
+		}
+		if dr.Config.Password != other.Config.Password {
+			dr.Config.Password = other.Config.Password
+		}
+	}
 }
 
 // Log satisfies request.Request's Log method
 func (dr *DockerRequest) Log(devMode bool) string {
-	return fmt.Sprintf("%s %s %v", dr.Image, dr.Command, dr.Arguments)
+	return fmt.Sprintf("Image: %s Command: %s Args: %v Advanced: %v Config: %+v", dr.Image, dr.Command, dr.Arguments, dr.Advanced, dr.Config)
 }
 
 // JSON satisfies request.Request's JSON method
@@ -81,11 +103,43 @@ func (dr *DockerRequest) JSON() ([]byte, error) {
 
 // Perform satisfies request.Request's Perform method
 func (dr *DockerRequest) Perform() Response {
+	if dr.Advanced {
+		return performAdvanced(dr)
+	}
+	return performSimple(dr)
+}
+
+func performSimple(dr *DockerRequest) Response {
 	client, _ := docker.NewClientFromEnv()
 	d := dexec.Docker{client}
 	m, _ := dexec.ByCreatingContainer(docker.CreateContainerOptions{Config: &docker.Config{Image: dr.Image}})
 
-	cmd := d.Command(m, dr.Command)
+	cmd := d.Command(m, dr.Command, dr.Arguments...)
+	output, err := cmd.Output()
+	if err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[docker] Error running command", err))
+	}
+	return &DockerResponse{Output: output}
+}
+
+func performAdvanced(dr *DockerRequest) Response {
+	client, _ := docker.NewClientFromEnv()
+	d := dexec.Docker{client}
+	perr := client.PullImage(docker.PullImageOptions{
+		Repository: dr.Config.Repository,
+		Tag:        dr.Config.Tag,
+	}, docker.AuthConfiguration{
+		Username:      dr.Config.Username,
+		Password:      dr.Config.Password,
+		ServerAddress: dr.Config.Repository,
+	})
+	if perr != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[docker] Error pulling image", perr))
+	}
+
+	m, _ := dexec.ByCreatingContainer(docker.CreateContainerOptions{Config: &docker.Config{Image: dr.Image}})
+
+	cmd := d.Command(m, dr.Command, dr.Arguments...)
 	output, err := cmd.Output()
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[docker] Error running command", err))
