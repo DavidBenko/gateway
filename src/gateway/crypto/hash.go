@@ -1,76 +1,82 @@
 package crypto
 
 import (
+	"crypto"
 	"crypto/hmac"
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"encoding/base64"
 	"errors"
-	"hash"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SupportedAlgorithm is a supported hashing algorithm
-type SupportedAlgorithm int
-
-const (
-	MD5 = iota
-	SHA1
-	SHA256
-	SHA512
-)
-
 // Hash hashes the data using the supplied SupportedAlgorithm and returns
 // the result as a base64 encoded string.
-func Hash(data string, algo SupportedAlgorithm) (string, error) {
-	a := Algorithm(algo)()
+func Hash(data string, algo string) (string, error) {
+	a, err := GetSupportedAlgorithm(algo)
 
-	if a == nil {
-		return "", errors.New("unsupported hashing algorithm")
+	if err != nil {
+		return "", err
 	}
 
-	a.Write([]byte(data))
-	val := a.Sum(nil)
+	algorithm := a.New()
+
+	algorithm.Write([]byte(data))
+	val := algorithm.Sum(nil)
 	return base64.StdEncoding.EncodeToString(val), nil
 }
 
 // HashHmac hashes the data using the supplied SupportedAlgorithm and returns
-// the result as a base64 encoded string. The supplied tag is used as the hmac
+// the result as a base64 encoded string. The supplied tag is used as the HMAC
 // key.
-func HashHmac(data string, tag string, algo SupportedAlgorithm) (string, error) {
-	a := Algorithm(algo)
+func HashHmac(data string, tag string, algo string) (string, error) {
+	a, err := GetSupportedAlgorithm(algo)
 
-	if a == nil {
-		return "", errors.New("unsupported hashing algorithm")
+	if err != nil {
+		return "", err
 	}
 
-	h := hmac.New(a, []byte(tag))
+	h := hmac.New(a.New, []byte(tag))
 	h.Write([]byte(data))
 	val := h.Sum(nil)
 
 	return base64.StdEncoding.EncodeToString(val), nil
 }
 
-// HashPassword hashes a given password using bcrypt
+// HashPassword hashes a given password using bcrypt.
 func HashPassword(password []byte, iterations int) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(password, iterations)
 }
 
-// Algorithm returns the proper Hash interface for the supplied algorithm type.
-func Algorithm(a SupportedAlgorithm) func() hash.Hash {
-	switch a {
-	case MD5:
-		return md5.New
-	case SHA1:
-		return sha1.New
-	case SHA256:
-		return sha256.New
-	case SHA512:
-		return sha512.New
+// GetSupportedAlgorithm returns the SupportedAlgorithm corresponding to the
+// string representation supplied in the javascript.
+func GetSupportedAlgorithm(algorithm string) (crypto.Hash, error) {
+	name := strings.ToLower(algorithm)
+
+	switch name {
+	case "md5":
+		return crypto.MD5, nil
+	case "sha1":
+		return crypto.SHA1, nil
+	case "sha256":
+		return crypto.SHA256, nil
+	case "sha512":
+		return crypto.SHA512, nil
+	case "sha384":
+		return crypto.SHA384, nil
+	case "md5sha1":
+		return crypto.MD5SHA1, nil
+	case "sha512_256":
+		return crypto.SHA512_256, nil
+	case "sha3_224":
+		return crypto.SHA3_224, nil
+	case "sha3_256":
+		return crypto.SHA3_256, nil
+	case "sha3_384":
+		return crypto.SHA3_384, nil
+	case "sha3_512":
+		return crypto.SHA3_512, nil
 	default:
-		return nil
+		return crypto.MD5, errors.New("unsupported hashing algorithm")
 	}
 }

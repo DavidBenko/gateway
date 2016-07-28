@@ -5,7 +5,6 @@ import (
 	"errors"
 	"gateway/crypto"
 	"gateway/logreport"
-	"strings"
 
 	"github.com/robertkrimen/otto"
 )
@@ -19,7 +18,7 @@ const (
 	ottoInteger
 )
 
-// IncludeHashing extends the Otto VM and adds a hashing function.
+// IncludeHashing adds the _hash, _hashPassword & _hashHmac functions to the otto VM.
 func IncludeHashing(vm *otto.Otto) {
 	setHashPassword(vm)
 	setHash(vm)
@@ -76,14 +75,12 @@ func setHash(vm *otto.Otto) {
 			return undefined
 		}
 
-		supportedAlgorithmType, err := GetSupportedAlgorithmType(algorithm.(string))
-
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		result, err := crypto.Hash(data.(string), supportedAlgorithmType)
+		result, err := crypto.Hash(data.(string), algorithm.(string))
 
 		if err != nil {
 			logreport.Print(err)
@@ -124,14 +121,12 @@ func setHashHmac(vm *otto.Otto) {
 			return undefined
 		}
 
-		supportedAlgorithm, err := GetSupportedAlgorithmType(algorithm.(string))
-
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		result, err := crypto.HashHmac(data.(string), tag.(string), supportedAlgorithm)
+		result, err := crypto.HashHmac(data.(string), tag.(string), algorithm.(string))
 
 		if err != nil {
 			logreport.Print(err)
@@ -170,24 +165,5 @@ func getArgument(call otto.FunctionCall, index int, t OttoValueType) (interface{
 		return v, nil
 	default:
 		return nil, errors.New("unknown otto value type")
-	}
-}
-
-// GetSupportedAlgorithmType returns the SupportedAlgorithm corresponding to the
-// string representation supplied in the javascript.
-func GetSupportedAlgorithmType(algorithm string) (crypto.SupportedAlgorithm, error) {
-	name := strings.ToLower(algorithm)
-
-	switch name {
-	case "md5":
-		return crypto.MD5, nil
-	case "sha1":
-		return crypto.SHA1, nil
-	case "sha256":
-		return crypto.SHA256, nil
-	case "sha512":
-		return crypto.SHA512, nil
-	default:
-		return crypto.MD5, errors.New("unsupported hashing algorithm")
 	}
 }
