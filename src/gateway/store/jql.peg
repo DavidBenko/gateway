@@ -19,7 +19,7 @@ expression <- path op value2
             / boolean sp
 op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
 path <- word ('.' word)* sp
-word <- [[a-z0-9]]+
+word <- [[a-z0-9_]]+
 value1 <- ( placeholder / whole ) sp
 value2 <- ( placeholder / string / number / boolean / null ) sp
 placeholder <- '$' [0-9]+
