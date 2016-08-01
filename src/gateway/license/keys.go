@@ -20,14 +20,10 @@ const defaultLicenseFileLocation = "license"
 
 var DeveloperVersion = false
 var developerVersionAccounts,
-	developerVersionUsers,
-	developerVersionAPIs,
-	developerVersionProxyEndpoints string
+	developerVersionUsers string
 var (
-	DeveloperVersionAccounts       = 1
-	DeveloperVersionUsers          = 1
-	DeveloperVersionAPIs           = 1
-	DeveloperVersionProxyEndpoints = 20
+	DeveloperVersionAccounts = 1
+	DeveloperVersionUsers    = 1
 )
 
 func init() {
@@ -36,12 +32,6 @@ func init() {
 	}
 	if value, err := strconv.Atoi(developerVersionUsers); err == nil {
 		DeveloperVersionUsers = value
-	}
-	if value, err := strconv.Atoi(developerVersionAPIs); err == nil {
-		DeveloperVersionAPIs = value
-	}
-	if value, err := strconv.Atoi(developerVersionProxyEndpoints); err == nil {
-		DeveloperVersionProxyEndpoints = value
 	}
 }
 
