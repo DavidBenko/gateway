@@ -10,6 +10,12 @@ def download_url
 end
 
 def os
+  # Allow override of detected OS.
+  if ARGV[2] || ENV['HOST_OS']
+    @os = (ARGV[2] || ENV['HOST_OS']).to_sym
+    puts "Using #{ARGV[2]} as OS type passed from commandline."
+    return @os
+  end
   @os ||= (
     host_os = RbConfig::CONFIG['host_os']
     case host_os
@@ -28,6 +34,11 @@ def os
 end
 
 def architecture
+  # Allow override of detected architecture.
+  if ARGV[3] || ENV['HOST_ARCH']
+    puts "Using #{ARGV[3]} as architecture type passed from commandline."
+    return (ARGV[3] || ENV['HOST_ARCH']).to_i
+  end
   1.size * 8
 end
 
@@ -58,6 +69,8 @@ if os == :osx
   do_install('dylib')
 elsif os == :linux
   do_install('so')
+elsif os == :windows
+  do_install('dll')
 else
   raise "Please implement me for #{os}!"
 end
