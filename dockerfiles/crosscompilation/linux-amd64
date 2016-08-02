@@ -1,0 +1,6 @@
+# anypresence/gateway:cross-compilation-linux-amd64
+# version 5.1.0
+FROM anypresence/gateway:cross-compilation-base-5.1.0
+MAINTAINER Jeff Bozek, jbozek@anypresence.com
+
+ENTRYPOINT /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc HOST_OS=linux HOST_ARCH=64 make docker_release && mv ./build/gateway ./build/gateway-linux-amd64"
