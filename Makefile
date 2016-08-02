@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet soapclient
+.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet soapclient cross_compile release docker_release docker_clean_bin install_vet docker_cross_compile
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -48,6 +48,10 @@ admin:
 	cd admin; bundle install; npm install; bower install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
 	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
 
+docker_admin:
+	cd admin; bundle install; npm rebuild; bower install; node_modules/ember-cli/bin/ember build -output-path ../src/gateway/admin/static/ --environment production
+	./scripts/templatize-admin.rb src/gateway/admin/static/index.html
+
 assets: install_bindata soapclient
 	go-bindata -o src/gateway/admin/bindata.go -pkg admin $(BINDATA_DEBUG) -prefix "src/gateway/admin/static/" src/gateway/admin/static/...
 	go-bindata -o src/gateway/core/bindata.go -pkg core $(BINDATA_DEBUG) -prefix "src/gateway/core/static/" src/gateway/core/static/...
@@ -60,44 +64,41 @@ assets: install_bindata soapclient
 generate: install_goimports install_peg
 	go generate gateway/...
 
-DeveloperVersionAccounts = 1
-DeveloperVersionUsers = 1
-DeveloperVersionAPIs = 1
-DeveloperVersionProxyEndpoints = 20
-
-LDFLAGS = -ldflags "-X gateway/license.developerVersionAccounts=$(DeveloperVersionAccounts)\
- -X gateway/license.developerVersionUsers=$(DeveloperVersionUsers)\
- -X gateway/license.developerVersionAPIs=$(DeveloperVersionAPIs)\
- -X gateway/license.developerVersionProxyEndpoints=$(DeveloperVersionProxyEndpoints)"
-
 build: vet assets generate install_oracle_client
-	go build $(LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
+	go build -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
 	docker build -t anypresence/justapis-ldap test/ldap
 
 build_race: vet assets generate
-	go build $(LDFLAGS) -race -o ./bin/gateway ./src/gateway/main.go
+	go build -race -o ./bin/gateway ./src/gateway/main.go
 
 build_tail:
 	go build -o ./bin/tail ./src/tail/main.go
 
 debug: vet assets generate
-	go build $(DEBUG_LDFLAGS) -o ./bin/gateway ./src/gateway/main.go
+	go build -o ./bin/gateway ./src/gateway/main.go
 	dlv exec ./bin/gateway -- -config=./test/gateway.conf -db-migrate
 
-package: vet admin assets generate
+package: vet admin assets generate install_oracle_client
 	go build -o ./build/gateway ./src/gateway/main.go
 
-release: vet admin assets generate
+release: vet admin assets generate install_oracle_client
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
+
+docker_release: vet docker_admin assets generate install_oracle_client
+	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
+
+docker_clean_bin:
+	rm -rf _vendor/bin
+
+docker_cross_compile:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-linux-amd64
+
+cross_compile: docker_clean_bin docker_cross_compile docker_clean_bin
 
 keygen:
 	go build -o ./bin/keygen keygen
-
-# Prior package for building for multiple architectures
-# package: vet assets
-# 	gox -output="build/binaries/{{.Dir}}_{{.OS}}_{{.Arch}}" -parallel=1 gateway
 
 jsdoc:
 	jsdoc -c ./jsdoc.conf -r
@@ -129,8 +130,8 @@ test_api_sqlite_fast: build_tail
 	  -db-migrate \
 	  -db-conn-string="./tmp/gateway_test.db" \
 	  -proxy-domain="example.com" \
-	  -proxy-domain="example.com" \
-	  -server="true" > ./tmp/gateway_log.txt & \
+	  -server="true" \
+		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
 	  echo "$$!" > ./tmp/server.pid
 
 	# Sleep until we see "Server listening" or time out
@@ -151,7 +152,8 @@ test_api_postgres_fast: build_tail
 	  -db-driver=postgres \
 	  -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" \
 	  -proxy-domain="example.com" \
-	  -server="true" > ./tmp/gateway_log.txt & \
+	  -server="true" \
+		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
 	  echo "$$!" > ./tmp/server.pid
 
 	# Sleep until we see "Server listening" or time out
@@ -256,9 +258,12 @@ install_goimports:
 install_peg:
 	if hash peg 2>/dev/null; then : ; else go install github.com/pointlander/peg; fi;
 
+install_vet:
+	if hash peg 2>/dev/null; then : ; else go get golang.org/x/tools/cmd/vet; fi;
+
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet
-vet:
+vet: install_vet
 	./scripts/make-hooks
 	./scripts/hooks/pre-commit
 
