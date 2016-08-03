@@ -1,6 +1,6 @@
 # Many thanks to: http://zduck.com/2014/go-project-structure-and-dependencies/
 
-.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet soapclient cross_compile release docker_release docker_clean_bin install_vet docker_cross_compile
+.PHONY: admin assets build fmt godoc gateway jsdoc keygen package run test vendor_clean vendor_get vendor_update install_bindata install_goimports vet soapclient cross_compile release docker_full_release docker_clean_bin install_vet docker_cross_compile docker_compilation_prep docker_compile_only
 
 # Prepend our _vendor directory to the system GOPATH
 # so that import path resolution will prioritize
@@ -24,7 +24,7 @@ ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
 
-ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release))
+ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release docker_compilation_prep))
 	BINDATA_DEBUG = -debug
 endif
 
@@ -86,16 +86,46 @@ package: vet admin assets generate install_oracle_client
 release: vet admin assets generate install_oracle_client
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
 
-docker_release: vet docker_admin assets generate install_oracle_client
-	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
-
 docker_clean_bin:
 	rm -rf _vendor/bin
 
-docker_cross_compile:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-linux-amd64
+docker_compilation_prep: docker_clean_bin vet docker_admin assets generate
 
-cross_compile: docker_clean_bin docker_cross_compile docker_clean_bin
+docker_binary_release: install_oracle_client docker_compile_only
+
+docker_compile_only:
+	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
+
+docker_build_admin:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && make docker_admin"
+
+docker_build_prereqs:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && make docker_compilation_prep"
+
+docker_build_linux_amd64_full: docker_build_prereqs docker_build_linux_amd64 docker_pack_executables
+
+docker_build_linux_amd64:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc HOST_OS=linux HOST_ARCH=64 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-amd64"
+
+docker_build_linux_386_full: docker_build_prereqs docker_build_linux_386 docker_pack_executables
+
+docker_build_linux_386:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=386 CGO_ENABLED=1 CC=gcc HOST_OS=linux HOST_ARCH=32 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-386"
+
+docker_build_windows_amd64_full: docker_build_prereqs docker_build_windows_amd64 docker_pack_executables
+
+docker_build_windows_amd64:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=\"x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" HOST_OS=windows HOST_ARCH=64 make docker_binary_release && mv ./build/gateway ./build/gateway-windows-amd64.exe"
+
+docker_build_windows_386_full: docker_build_prereqs docker_build_windows_386 docker_pack_executables
+
+docker_build_windows_386:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=\"i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" HOST_OS=windows HOST_ARCH=32 make docker_binary_release && mv ./build/gateway ./build/gateway-windows-386.exe"
+
+docker_pack_executables:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
+
+docker_build_all: docker_build_prereqs docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_pack_executables docker_clean_bin
 
 keygen:
 	go build -o ./bin/keygen keygen

@@ -13,7 +13,7 @@ def os
   # Allow override of detected OS.
   if ARGV[2] || ENV['HOST_OS']
     @os = (ARGV[2] || ENV['HOST_OS']).to_sym
-    puts "Using #{ARGV[2]} as OS type passed from commandline."
+    puts "Using #{ARGV[2] || ENV['HOST_OS']} as OS type passed from commandline."
     return @os
   end
   @os ||= (
@@ -36,7 +36,7 @@ end
 def architecture
   # Allow override of detected architecture.
   if ARGV[3] || ENV['HOST_ARCH']
-    puts "Using #{ARGV[3]} as architecture type passed from commandline."
+    puts "Using #{ARGV[3] || ENV['HOST_ARCH']} as architecture type passed from commandline."
     return (ARGV[3] || ENV['HOST_ARCH']).to_i
   end
   1.size * 8
@@ -59,7 +59,11 @@ def do_install(extension)
     raise "Failed to download client from #{download_url} into #{INSTANT_CLIENT_DIR}" unless $?.success?
     prefix = "prefix=#{INSTANT_CLIENT_DIR}"
     oci8_pc = File.join(INSTANT_CLIENT_DIR,'oci8.pc')
-    create_config(ARGV[1], prefix, oci8_pc)
+    if (ENV['HOST_OS'] && ENV['HOST_OS'].eql?("windows"))
+      create_config("#{ARGV[1]}.windows", prefix, oci8_pc)
+    else
+      create_config(ARGV[1], prefix, oci8_pc)
+    end
     `cd #{INSTANT_CLIENT_DIR} && ln -s libclntsh.#{extension}.12.1 libclntsh.#{extension}`
     raise "Failed to create a symbolic link!" unless $?.success?
   end

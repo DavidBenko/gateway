@@ -1,4 +1,4 @@
-# anypresence/gateway:deployment
+# anypresence/gateway:deploy
 # version 5.1.0
 FROM debian:jessie
 MAINTAINER Jeff Bozek, jbozek@anypresence.com

@@ -1,4 +1,4 @@
-# anypresence/gateway:cross-compilation-base
+# anypresence/gateway:compile
 # version 5.1.0
 FROM golang:1.6.3
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
