@@ -42,8 +42,10 @@ var RESOURCE_MAP = map[string]string{
 	"users":                     "user",
 	"proxy_endpoint_components": "shared-component",
 	"push_channels":             "push-channel",
-	"push_devices":              "push-channel-push-device",
-	"push_messages":             "push-channel-push-device-push-message",
+	"push_channels_devices":     "push-channel-device",
+	"push_channel_messages":     "push-channel-message",
+	"push_messages":             "push-channel-device-message",
+	"push_devices":              "push-device",
 }
 
 var ACTION_MAP = [...]string{

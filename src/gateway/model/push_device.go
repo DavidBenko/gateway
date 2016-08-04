@@ -106,13 +106,13 @@ func (d *PushDevice) Delete(tx *apsql.Tx) error {
 	if d.PushChannelID > 0 {
 		err = d.DeleteFromChannel(tx)
 	} else {
-		err = tx.DeleteOne(tx.SQL("push_devices/delete"), d.ID,
-			d.RemoteEndpointID, d.AccountID)
+		err = tx.DeleteOne(tx.SQL("push_devices/delete"), d.ID, d.AccountID)
+		if err != nil {
+			return err
+		}
+		err = tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Delete)
 	}
-	if err != nil {
-		return err
-	}
-	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Delete)
+	return err
 }
 
 func (d *PushDevice) DeleteFromChannel(tx *apsql.Tx) error {
@@ -121,7 +121,7 @@ func (d *PushDevice) DeleteFromChannel(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return tx.Notify("push_channels_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Delete)
 }
 
 func (d *PushDevice) Insert(tx *apsql.Tx) error {
@@ -151,11 +151,11 @@ func (d *PushDevice) Insert(tx *apsql.Tx) error {
 			return errors.New("push_channel_id required")
 		}
 	}
-	err = d.UpsertChannelMappings(tx)
+	err = tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Insert)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Insert)
+	return d.UpsertChannelMappings(tx)
 }
 
 func (d *PushDevice) Update(tx *apsql.Tx) error {
@@ -164,14 +164,22 @@ func (d *PushDevice) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	err = tx.UpdateOne(tx.SQL("push_devices/update"), d.Name, d.Type, d.Token, data,
-		d.ID, d.PushChannelID, d.AccountID)
-	if err != nil {
-		return err
-	}
-	err = d.UpsertChannelMappings(tx)
-	if err != nil {
-		return err
+	if d.PushChannelID > 0 {
+		err = tx.UpdateOne(tx.SQL("push_devices/update_by_channel"), d.Name, d.Type, d.Token, data,
+			d.ID, d.PushChannelID, d.AccountID)
+		if err != nil {
+			return err
+		}
+		err = d.UpsertChannelMappings(tx)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = tx.UpdateOne(tx.SQL("push_devices/update"), d.Name, d.Type, d.Token, data,
+			d.ID, d.AccountID)
+		if err != nil {
+			return err
+		}
 	}
 	return tx.Notify("push_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Update)
 }
@@ -185,8 +193,16 @@ func (d *PushDevice) UpsertChannelMappings(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
+		err = tx.Notify("push_channels_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Insert)
+		if err != nil {
+			return err
+		}
 	} else {
 		err = tx.UpdateOne(tx.SQL("push_devices/update_channel_mapping"), d.Expires, d.ID, d.PushChannelID, d.AccountID)
+		if err != nil {
+			return err
+		}
+		err = tx.Notify("push_channels_devices", d.AccountID, d.UserID, 0, 0, d.ID, apsql.Update)
 		if err != nil {
 			return err
 		}
