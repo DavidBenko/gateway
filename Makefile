@@ -132,6 +132,11 @@ docker_run:
 	mkdir -p ./build/docker
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -p 5000:5000 -it anypresence/gateway:run-5.1.0 ./build/gateway-linux-amd64 -bleve-logging-file=/tmp/logs.bleve -store-conn-string=/tmp/store.db -db-conn-string=./build/docker/gateway.db -proxy-host=0.0.0.0
 
+docker_test:
+	- docker rm -f gateway-test-docker
+	docker run --privileged --name gateway-test-docker -d docker:dind
+	docker run --rm --link gateway-test-docker:docker -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:test-5.1.0 /bin/bash -c ". /root/.bashrc && export DOCKER_HOST='tcp://docker:2375' && make test_all"
+
 keygen:
 	go build -o ./bin/keygen keygen
 
