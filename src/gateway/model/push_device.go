@@ -16,7 +16,7 @@ type PushDevice struct {
 	ID               int64          `json:"id,omitempty" path:"id"`
 	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	PushChannelID    int64          `json:"push_channel_id" path:"pushChannelID"`
-	Expires          int64          `json:"expires"`
+	Expires          int64          `json:"expires,omitempty"`
 	Name             string         `json:"name"`
 	Type             string         `json:"type"`
 	Token            string         `json:"token"`
