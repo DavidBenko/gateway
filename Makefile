@@ -127,6 +127,11 @@ docker_pack_executables:
 
 docker_build_all: docker_build_prereqs docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_pack_executables docker_clean_bin
 
+docker_run:
+	# Make sure docker_build_linux_amd64_full or docker_build_linux_amd64 has been run prior or there will be no binary to run within the container.
+	mkdir -p ./build/docker
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -p 5000:5000 -it anypresence/gateway:run-5.1.0 ./build/gateway-linux-amd64 -bleve-logging-file=/tmp/logs.bleve -store-conn-string=/tmp/store.db -db-conn-string=./build/docker/gateway.db -proxy-host=0.0.0.0
+
 keygen:
 	go build -o ./bin/keygen keygen
 
