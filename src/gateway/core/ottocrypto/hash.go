@@ -1,7 +1,6 @@
 package ottocrypto
 
 import (
-	"encoding/base64"
 	"errors"
 	"gateway/crypto"
 	"gateway/logreport"
@@ -21,6 +20,7 @@ const (
 // IncludeHashing adds the _hash, _hashPassword & _hashHmac functions to the otto VM.
 func IncludeHashing(vm *otto.Otto) {
 	setHashPassword(vm)
+	setCompareHashAndPassword(vm)
 	setHash(vm)
 	setHashHmac(vm)
 }
@@ -41,15 +41,45 @@ func setHashPassword(vm *otto.Otto) {
 			return undefined
 		}
 
-		result, err := crypto.HashPassword([]byte(password.(string)), int(iterations.(int64)))
+		result, err := crypto.HashPassword(password.(string), int(iterations.(int64)))
 
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		val, err := vm.ToValue(base64.StdEncoding.EncodeToString(result))
+		val, err := vm.ToValue(result)
 
+		if err != nil {
+			logreport.Print(err)
+			return undefined
+		}
+
+		return val
+	})
+}
+
+func setCompareHashAndPassword(vm *otto.Otto) {
+	vm.Set("_compareHashAndPassword", func(call otto.FunctionCall) otto.Value {
+		hash, err := getArgument(call, 0, ottoString)
+		if err != nil {
+			logreport.Print(err)
+			return undefined
+		}
+
+		password, err := getArgument(call, 1, ottoString)
+		if err != nil {
+			logreport.Print(err)
+			return undefined
+		}
+
+		result, err := crypto.CompareHashAndPassword(hash.(string), password.(string))
+		if err != nil {
+			logreport.Print(err)
+			return undefined
+		}
+
+		val, err := vm.ToValue(result)
 		if err != nil {
 			logreport.Print(err)
 			return undefined

@@ -44,8 +44,25 @@ func HashHmac(data string, tag string, algo string) (string, error) {
 }
 
 // HashPassword hashes a given password using bcrypt.
-func HashPassword(password []byte, iterations int) ([]byte, error) {
-	return bcrypt.GenerateFromPassword(password, iterations)
+func HashPassword(password string, iterations int) (string, error) {
+	result, err := bcrypt.GenerateFromPassword([]byte(password), iterations)
+
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(result), nil
+}
+
+func CompareHashAndPassword(hash, password string) (bool, error) {
+	decoded, err := base64.StdEncoding.DecodeString(hash)
+	if err != nil {
+		return false, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(decoded), []byte(password))
+
+	return err == nil, err
 }
 
 // GetSupportedAlgorithm returns the SupportedAlgorithm corresponding to the
@@ -64,8 +81,6 @@ func GetSupportedAlgorithm(algorithm string) (crypto.Hash, error) {
 		return crypto.SHA512, nil
 	case "sha384":
 		return crypto.SHA384, nil
-	case "md5sha1":
-		return crypto.MD5SHA1, nil
 	case "sha512_256":
 		return crypto.SHA512_256, nil
 	case "sha3_224":
