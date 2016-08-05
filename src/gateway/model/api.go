@@ -1,10 +1,8 @@
 package model
 
 import (
-	"errors"
 	"fmt"
 	aperrors "gateway/errors"
-	"gateway/license"
 	"gateway/logreport"
 	apsql "gateway/sql"
 )
@@ -188,14 +186,6 @@ func DeleteAPIForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 
 // Insert inserts the api into the database as a new row.
 func (a *API) Insert(tx *apsql.Tx) (err error) {
-	if license.DeveloperVersion {
-		var count int
-		tx.Get(&count, tx.SQL("apis/count"), a.AccountID)
-		if count >= license.DeveloperVersionAPIs {
-			return errors.New(fmt.Sprintf("Developer version allows %v api(s).", license.DeveloperVersionAPIs))
-		}
-	}
-
 	if a.Export != "" {
 		tx.PushTag(apsql.NotificationTagImport)
 		defer tx.PopTag()
