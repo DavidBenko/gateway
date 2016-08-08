@@ -15,8 +15,9 @@ import (
 )
 
 type EcdsaSignature struct {
-	R *big.Int
-	S *big.Int
+	R         *big.Int
+	S         *big.Int
+	Signature string
 }
 
 type RsaSignature struct {
@@ -64,7 +65,10 @@ func Sign(data []byte, privKey interface{}, algorithmName string, padding string
 			return nil, err
 		}
 
-		sig := &EcdsaSignature{R: r, S: s}
+		signature := r.Bytes()
+		signature = append(signature, s.Bytes()...)
+
+		sig := &EcdsaSignature{R: r, S: s, Signature: base64.StdEncoding.EncodeToString(signature)}
 		return sig, nil
 	default:
 		return nil, errors.New(fmt.Sprintf("invalid or unsupported private key type: %T", privKey))
