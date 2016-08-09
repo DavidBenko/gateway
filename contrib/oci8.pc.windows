@@ -1,0 +1,10 @@
+
+libdir=${prefix}
+includedir=${prefix}/sdk/include
+
+Name: oci8
+Description: Oracle database engine
+Version: 12.1
+Libs: -L${libdir} -loci
+Libs.private:
+Cflags: -I${includedir}

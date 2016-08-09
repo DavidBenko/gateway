@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"gateway/logreport"
+	"gateway/model"
 	re "gateway/model/remote_endpoint"
 
 	apns "github.com/sideshow/apns2"
@@ -49,9 +50,9 @@ func NewApplePusher(platform *re.PushPlatform) *ApplePusher {
 	}
 }
 
-func (p *ApplePusher) Push(token string, data interface{}) error {
+func (p *ApplePusher) Push(channel *model.PushChannel, device *model.PushDevice, data interface{}) error {
 	notification := &apns.Notification{}
-	notification.DeviceToken = token
+	notification.DeviceToken = device.Token
 	notification.Topic = p.topic
 	payload, err := json.Marshal(data)
 	if err != nil {
