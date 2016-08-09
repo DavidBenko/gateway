@@ -36,6 +36,7 @@ type Configuration struct {
 	Store          Store
 	RemoteEndpoint RemoteEndpoint
 	SMTP           SMTP
+	Push           Push
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -170,6 +171,17 @@ type SMTP struct {
 	EmailPort   int64  `flag:"smtp-email-port" default:"0"`
 }
 
+// Push specifies the configuration for the push subsystem
+type Push struct {
+	EnableBroker    bool   `flag:"enable-push-broker" default:"true"`
+	Broker          string `flag:"push-broker" default:"localhost"`
+	BrokerPubPort   string `flag:"push-broker-pub-port" default:"5557"`
+	BrokerSubPort   string `flag:"push-broker-sub-port" default:"5558"`
+	BrokerTransport string `flag:"push-broker-transport" default:"tcp"`
+	ConnectTimeout  int64  `flag:"push-connect-timeout" default:"2"`
+	MQTTURI         string `flag:"push-mqtt-uri" default:"tcp://:1883"`
+}
+
 const envPrefix = "APGATEWAY_"
 
 // Parse all configuration.
@@ -269,6 +281,18 @@ func (config *ProxyAdmin) XPub() string {
 }
 
 func (config *ProxyAdmin) XSub() string {
+	return config.BrokerTransport + "://" +
+		config.Broker + ":" +
+		config.BrokerSubPort
+}
+
+func (config *Push) XPub() string {
+	return config.BrokerTransport + "://" +
+		config.Broker + ":" +
+		config.BrokerPubPort
+}
+
+func (config *Push) XSub() string {
 	return config.BrokerTransport + "://" +
 		config.Broker + ":" +
 		config.BrokerSubPort

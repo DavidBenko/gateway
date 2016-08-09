@@ -17,6 +17,7 @@ type PushDevice struct {
 	RemoteEndpointID int64          `json:"remote_endpoint_id" db:"remote_endpoint_id"`
 	PushChannelID    int64          `json:"push_channel_id" path:"pushChannelID"`
 	Expires          int64          `json:"expires"`
+	QOS              int64          `json:"qos"`
 	Name             string         `json:"name"`
 	Type             string         `json:"type"`
 	Token            string         `json:"token"`
@@ -28,6 +29,7 @@ type PushChannelPushDevice struct {
 	PushDevicelID int64 `json:"push_device_id" db:"push_device_id" path:"pushDeviceID"`
 	PushChannelID int64 `json:"push_channel_id" db:"push_channel_id" path:"pushChannelID"`
 	Expires       int64 `json:"expires"`
+	QOS           int64 `json:"qos"`
 }
 
 func (d *PushDevice) Validate(isInsert bool) aperrors.Errors {
@@ -181,12 +183,12 @@ func (d *PushDevice) UpsertChannelMappings(tx *apsql.Tx) error {
 	err := tx.DB.Get(&pushChannelPushDevice, tx.DB.SQL("push_devices/find_channel_mapping"), d.ID,
 		d.PushChannelID, d.AccountID)
 	if err != nil {
-		_, err = tx.InsertOne(tx.SQL("push_devices/insert_channel_mapping"), d.ID, d.PushChannelID, d.AccountID, d.Expires)
+		_, err = tx.InsertOne(tx.SQL("push_devices/insert_channel_mapping"), d.ID, d.PushChannelID, d.AccountID, d.Expires, d.QOS)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = tx.UpdateOne(tx.SQL("push_devices/update_channel_mapping"), d.Expires, d.ID, d.PushChannelID, d.AccountID)
+		err = tx.UpdateOne(tx.SQL("push_devices/update_channel_mapping"), d.Expires, d.QOS, d.ID, d.PushChannelID, d.AccountID)
 		if err != nil {
 			return err
 		}
