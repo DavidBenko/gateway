@@ -40,18 +40,11 @@ delete _hashHmac;
 AP.Crypto.sign = _sign;
 delete _sign;
 
-AP.Crypto.verify = function() {
-    // 4 arguments is an ECDSA verification:
-    // data, r, s, key, algorithm
-    if (arguments.length === 4) {
-        return _verifyEcdsa.apply(this, arguments);
-    }
+AP.Crypto.verify = _verify;
+delete _verify;
 
-    // 5 arguments is an RSA verification:
-    // data, signature, key, algorithm, padding
-    if (arguments.length === 5) {
-        return _verifyRsa.apply(this, arguments);
-    }
+AP.Crypto.encrypt = _encrypt;
+delete _encrypt;
 
-    return undefined;
-}
+AP.Crypto.decrypt = _decrypt;
+delete _decrypt;

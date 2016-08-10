@@ -10,13 +10,6 @@ import (
 
 var undefined = otto.Value{}
 
-type OttoValueType int
-
-const (
-	ottoString = iota
-	ottoInteger
-)
-
 // IncludeHashing adds the _hash, _hashPassword & _hashHmac functions to the otto VM.
 func IncludeHashing(vm *otto.Otto) {
 	setHashPassword(vm)
@@ -27,14 +20,14 @@ func IncludeHashing(vm *otto.Otto) {
 
 func setHashPassword(vm *otto.Otto) {
 	vm.Set("_hashPassword", func(call otto.FunctionCall) otto.Value {
-		password, err := getArgument(call, 0, ottoString)
+		password, err := getArgument(call, 0)
 
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		iterations, err := getArgument(call, 1, ottoInteger)
+		iterations, err := getArgument(call, 1)
 
 		if err != nil {
 			logreport.Print(err)
@@ -61,13 +54,13 @@ func setHashPassword(vm *otto.Otto) {
 
 func setCompareHashAndPassword(vm *otto.Otto) {
 	vm.Set("_compareHashAndPassword", func(call otto.FunctionCall) otto.Value {
-		hash, err := getArgument(call, 0, ottoString)
+		hash, err := getArgument(call, 0)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		password, err := getArgument(call, 1, ottoString)
+		password, err := getArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
@@ -91,14 +84,14 @@ func setCompareHashAndPassword(vm *otto.Otto) {
 
 func setHash(vm *otto.Otto) {
 	vm.Set("_hash", func(call otto.FunctionCall) otto.Value {
-		data, err := getArgument(call, 0, ottoString)
+		data, err := getArgument(call, 0)
 
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 1, ottoString)
+		algorithm, err := getArgument(call, 1)
 
 		if err != nil {
 			logreport.Print(err)
@@ -130,21 +123,21 @@ func setHash(vm *otto.Otto) {
 
 func setHashHmac(vm *otto.Otto) {
 	vm.Set("_hashHmac", func(call otto.FunctionCall) otto.Value {
-		data, err := getArgument(call, 0, ottoString)
+		data, err := getArgument(call, 0)
 
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		tag, err := getArgument(call, 1, ottoString)
+		tag, err := getArgument(call, 1)
 
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 2, ottoString)
+		algorithm, err := getArgument(call, 2)
 
 		if err != nil {
 			logreport.Print(err)
@@ -174,26 +167,11 @@ func setHashHmac(vm *otto.Otto) {
 	})
 }
 
-func getArgument(call otto.FunctionCall, index int, t OttoValueType) (interface{}, error) {
+func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	arg := call.Argument(index)
 	if arg == undefined {
 		return nil, errors.New("undefined argument")
 	}
 
-	switch t {
-	case ottoString:
-		v, err := arg.ToString()
-		if err != nil {
-			return nil, err
-		}
-		return v, nil
-	case ottoInteger:
-		v, err := arg.ToInteger()
-		if err != nil {
-			return nil, err
-		}
-		return v, nil
-	default:
-		return nil, errors.New("unknown otto value type")
-	}
+	return arg.Export()
 }

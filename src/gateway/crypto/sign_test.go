@@ -14,13 +14,13 @@ import (
 
 func TestSign(t *testing.T) { gc.TestingT(t) }
 
-type CryptoSuite struct{}
+type SignSuite struct{}
 
-var _ = gc.Suite(&CryptoSuite{})
+var _ = gc.Suite(&SignSuite{})
 
 var data = "some secret data"
 
-func (s *CryptoSuite) TestSignAndVerifyRsa(c *gc.C) {
+func (s *SignSuite) TestSignAndVerifyRsa(c *gc.C) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	c.Assert(err, jc.ErrorIsNil)
 
@@ -110,15 +110,16 @@ func (s *CryptoSuite) TestSignAndVerifyRsa(c *gc.C) {
 		c.Assert(err, jc.ErrorIsNil)
 		c.Assert(result, gc.NotNil)
 
-		valid, err := gCrypto.Verify(t.given, result, t.key.Public(), t.algo, t.padding)
+		sig := result.(*gCrypto.RsaSignature)
+
+		valid, err := gCrypto.Verify(t.given, sig.Signature, t.key.Public(), t.algo, t.padding)
 
 		c.Assert(err, jc.ErrorIsNil)
 		c.Assert(valid, jc.IsTrue)
 	}
 }
-func (s *CryptoSuite) TestSignAndVerifyEcdsa(c *gc.C) {
+func (s *SignSuite) TestSignAndVerifyEcdsa(c *gc.C) {
 	curve := elliptic.P256()
-	privateKey := new(ecdsa.PrivateKey)
 	privateKey, err := ecdsa.GenerateKey(curve, rand.Reader)
 
 	c.Assert(err, jc.ErrorIsNil)
@@ -195,7 +196,7 @@ func (s *CryptoSuite) TestSignAndVerifyEcdsa(c *gc.C) {
 
 		c.Assert(signature.Signature, gc.Not(gc.Equals), "")
 
-		valid, err := gCrypto.Verify(t.given, result, t.key.Public(), t.algo, "")
+		valid, err := gCrypto.Verify(t.given, signature.Signature, t.key.Public(), t.algo, "")
 
 		c.Assert(err, jc.ErrorIsNil)
 		c.Assert(valid, jc.IsTrue)

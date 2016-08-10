@@ -15,13 +15,13 @@ import (
 )
 
 type EcdsaSignature struct {
-	R         *big.Int
-	S         *big.Int
-	Signature string
+	R         *big.Int `json:"r"`
+	S         *big.Int `json:"s"`
+	Signature string   `json:"signature"`
 }
 
 type RsaSignature struct {
-	Signature string
+	Signature string `json:"signature"`
 }
 
 // Sign signs the data using the privKey and algorithm.
@@ -59,15 +59,15 @@ func Sign(data []byte, privKey interface{}, algorithmName string, padding string
 			return nil, errors.New("invalid padding scheme")
 		}
 	case *ecdsa.PrivateKey:
-		// ECDSA does not support/require a padding scheme.
 		r, s, err := ecdsa.Sign(rand.Reader, privKey.(*ecdsa.PrivateKey), hashed[:])
 		if err != nil {
 			return nil, err
 		}
 
+		// Append the S bytes to the R bytes and encode using base64 to create a signature. This is the
+		// NSA recommended way to create an elliptic curve signature.
 		signature := r.Bytes()
 		signature = append(signature, s.Bytes()...)
-
 		sig := &EcdsaSignature{R: r, S: s, Signature: base64.StdEncoding.EncodeToString(signature)}
 		return sig, nil
 	default:
@@ -75,7 +75,7 @@ func Sign(data []byte, privKey interface{}, algorithmName string, padding string
 	}
 }
 
-func Verify(data []byte, signature interface{}, publicKey interface{}, algorithmName string, padding string) (bool, error) {
+func Verify(data []byte, signature string, publicKey interface{}, algorithmName string, padding string) (bool, error) {
 	hash, err := GetSupportedAlgorithm(algorithmName)
 
 	if err != nil {
@@ -90,8 +90,7 @@ func Verify(data []byte, signature interface{}, publicKey interface{}, algorithm
 	case *rsa.PublicKey:
 		switch strings.ToLower(padding) {
 		case "pkcs1v15":
-			sig := signature.(*RsaSignature)
-			decodedSignature, err := base64.StdEncoding.DecodeString(sig.Signature)
+			decodedSignature, err := base64.StdEncoding.DecodeString(signature)
 
 			if err != nil {
 				return false, err
@@ -100,8 +99,7 @@ func Verify(data []byte, signature interface{}, publicKey interface{}, algorithm
 			err = rsa.VerifyPKCS1v15(publicKey.(*rsa.PublicKey), hash, hashed[:], decodedSignature)
 			return err == nil, err
 		case "pss":
-			sig := signature.(*RsaSignature)
-			decodedSignature, err := base64.StdEncoding.DecodeString(sig.Signature)
+			decodedSignature, err := base64.StdEncoding.DecodeString(signature)
 
 			if err != nil {
 				return false, err
@@ -113,9 +111,24 @@ func Verify(data []byte, signature interface{}, publicKey interface{}, algorithm
 			return false, errors.New("invalid or unsupported padding scheme")
 		}
 	case *ecdsa.PublicKey:
-		// ECDSA does not support/require a padding scheme.
-		sig := signature.(*EcdsaSignature)
-		valid := ecdsa.Verify(publicKey.(*ecdsa.PublicKey), hashed, sig.R, sig.S)
+		// Break the signature into R and S ints.
+		decodedSignature, err := base64.StdEncoding.DecodeString(signature)
+		if err != nil {
+			return false, err
+		}
+
+		// The signature is the R and S value mashed together and then encoded using base64, so half
+		// the signature's bits are the R and the remaining half are the S.
+		size := len(decodedSignature) / 2
+
+		rBytes := decodedSignature[:size]
+		sBytes := decodedSignature[size:]
+
+		// Create new big ints and set the bytes to the R and S slices.
+		R := big.NewInt(0).SetBytes(rBytes)
+		S := big.NewInt(0).SetBytes(sBytes)
+
+		valid := ecdsa.Verify(publicKey.(*ecdsa.PublicKey), hashed, R, S)
 		return valid, nil
 	default:
 		return false, errors.New(fmt.Sprintf("invalid or unsupported public key type: %T", publicKey))

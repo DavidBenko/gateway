@@ -14,7 +14,7 @@ type HashSuite struct{}
 
 var _ = gc.Suite(&HashSuite{})
 
-func (s *CryptoSuite) TestHash(c *gc.C) {
+func (s *HashSuite) TestHash(c *gc.C) {
 	for i, t := range []struct {
 		should      string
 		given       string
@@ -89,7 +89,7 @@ func (s *CryptoSuite) TestHash(c *gc.C) {
 	}
 }
 
-func (s *CryptoSuite) TestHashHmac(c *gc.C) {
+func (s *HashSuite) TestHashHmac(c *gc.C) {
 	for i, t := range []struct {
 		should      string
 		given       string
@@ -166,7 +166,7 @@ func (s *CryptoSuite) TestHashHmac(c *gc.C) {
 	}
 }
 
-func (s *CryptoSuite) TestHashAndComparePassword(c *gc.C) {
+func (s *HashSuite) TestHashAndComparePassword(c *gc.C) {
 	for i, t := range []struct {
 		should     string
 		given      string
@@ -182,7 +182,7 @@ func (s *CryptoSuite) TestHashAndComparePassword(c *gc.C) {
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
-		result, err := gCrypto.HashPassword([]byte(t.given), t.iterations)
+		result, err := gCrypto.HashPassword(t.given, t.iterations)
 
 		c.Assert(err, jc.ErrorIsNil)
 		c.Check(result, gc.Not(gc.Equals), "")

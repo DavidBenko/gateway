@@ -11,16 +11,18 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+// Default padding scheme used if nothing is supplied in the options.
+var defaultPaddingScheme = "pkcs1v15"
+
 // IncludeSigning adds the _sign function to the otto VM.
 func IncludeSigning(vm *otto.Otto) {
 	setSign(vm)
 	setVerify(vm)
-	setVerifyEcdsa(vm)
 }
 
 func setSign(vm *otto.Otto) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0, ottoString)
+		d, err := getArgument(call, 0)
 
 		if err != nil {
 			logreport.Print(err)
@@ -29,30 +31,30 @@ func setSign(vm *otto.Otto) {
 
 		data := []byte(d.(string))
 
-		keyName, err := getArgument(call, 1, ottoString)
-
+		o, err := getArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 2, ottoString)
+		options := o.(map[string]interface{})
 
-		if err != nil {
-			logreport.Print(err)
-			return undefined
+		var key interface{}
+		if k, ok := options["key"]; ok {
+			key = privateKey(k.(string))
 		}
 
-		key := privateKey(keyName.(string))
-
-		padding, err := getArgument(call, 3, ottoString)
-
-		if err != nil {
-			logreport.Print(err)
-			return undefined
+		algorithm := defaultHashAlgorithm
+		if a, ok := options["algorithm"]; ok {
+			algorithm = a.(string)
 		}
 
-		results, err := crypto.Sign(data, key, algorithm.(string), padding.(string))
+		padding := defaultPaddingScheme
+		if p, ok := options["padding"]; ok {
+			padding = p.(string)
+		}
+
+		results, err := crypto.Sign(data, key, algorithm, padding)
 
 		if err != nil {
 			logreport.Print(err)
@@ -92,38 +94,9 @@ func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
 
 }
 
-func setVerifyEcdsa(vm *otto.Otto) {
-	vm.Set("_verifyEcdsa", func(call otto.FunctionCall) otto.Value {
-		/*d, err := getArgument(call, 0, ottoString)*/
-
-		//if err != nil {
-		//logreport.Print(err)
-		//return undefined
-		//}
-
-		//data := []byte(d.(string))
-
-		//s, err := getArgument(call, 1, ottoString)
-
-		//if err != nil {
-		//logreport.Print(err)
-		//return undefined
-		//}
-
-		//r, err := getArgument(call, 2, ottoString)
-
-		//if err != nil {
-		//logreport.Print(err)
-		//return undefined
-		/*}*/
-
-		return undefined
-	})
-}
-
 func setVerify(vm *otto.Otto) {
-	vm.Set("_verifyRsa", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0, ottoString)
+	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
+		d, err := getArgument(call, 0)
 
 		if err != nil {
 			logreport.Print(err)
@@ -132,40 +105,36 @@ func setVerify(vm *otto.Otto) {
 
 		data := []byte(d.(string))
 
-		s, err := getArgument(call, 1, ottoString)
-
+		signature, err := getArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		signature := &crypto.RsaSignature{Signature: s.(string)}
-
-		keyName, err := getArgument(call, 2, ottoString)
-
+		o, err := getArgument(call, 2)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 3, ottoString)
+		options := o.(map[string]interface{})
 
-		if err != nil {
-			logreport.Print(err)
-			return undefined
+		var key interface{}
+		if k, ok := options["key"]; ok {
+			key = publicKey(k.(string))
 		}
 
-		privateKey := privateKey(keyName.(string))
-		publicKey := &privateKey.(*rsa.PrivateKey).PublicKey
-
-		padding, err := getArgument(call, 4, ottoString)
-
-		if err != nil {
-			logreport.Print(err)
-			return undefined
+		algorithm := defaultHashAlgorithm
+		if a, ok := options["algorithm"]; ok {
+			algorithm = a.(string)
 		}
 
-		results, err := crypto.Verify(data, signature, publicKey, algorithm.(string), padding.(string))
+		padding := defaultPaddingScheme
+		if p, ok := options["padding"]; ok {
+			padding = p.(string)
+		}
+
+		results, err := crypto.Verify(data, signature.(string), key, algorithm, padding)
 
 		if err != nil {
 			logreport.Print(err)
@@ -182,23 +151,34 @@ func setVerify(vm *otto.Otto) {
 	})
 }
 
+// All this stuff will disappear when the actual key/cert stuff is completed.
 var _privateKey *rsa.PrivateKey
 var generated bool
+
+func generate() {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		logreport.Print(err)
+	} else {
+		_privateKey = key
+		generated = true
+	}
+}
 
 func privateKey(name string) interface{} {
 	// TODO: Needs to be completed with key store, for now just generate
 	// 	 a random one.
 	if !generated {
-		// generate a new one
-		logreport.Println("Generating new RSA key")
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		if err != nil {
-			logreport.Print(err)
-			return nil
-		}
-		_privateKey = key
-		generated = true
+		generate()
 	}
 
 	return _privateKey
+}
+
+func publicKey(name string) interface{} {
+	if !generated {
+		generate()
+	}
+
+	return _privateKey.Public()
 }

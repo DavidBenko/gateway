@@ -102,6 +102,7 @@ var shared = func() *otto.Otto {
 
 	ottocrypto.IncludeHashing(vm)
 	ottocrypto.IncludeSigning(vm)
+	ottocrypto.IncludeEncryption(vm)
 
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
