@@ -22,6 +22,11 @@ before_insert = false
 before_update = false
 before_delete = false
 before_validate = false
+allow_list = true
+allow_show = true
+allow_create = true
+allow_update = true
+allow_delete = true
 OptionParser.new do |opts|
   opts.banner = "Usage: example.rb [options]"
 
@@ -73,6 +78,21 @@ OptionParser.new do |opts|
   opts.on("--after-find-hook", "Does controller have a find hook?") do |value|
     after_find = value
   end
+  opts.on("--allow-list AllowList", "Does controller have a list function?") do |value|
+    allow_list = value.eql?("false") ? false : true
+  end
+  opts.on("--allow-show AllowShow", "Does controller have a show function?") do |value|
+    allow_show = value.eql?("false") ? false : true
+  end
+  opts.on("--allow-create AllowCreate", "Does controller have a create function?") do |value|
+    allow_create = value.eql?("false") ? false : true
+  end
+  opts.on("--allow-update AllowUpdate", "Does controller have a update function?") do |value|
+    allow_update = value.eql?("false") ? false : true
+  end
+  opts.on("--allow-delete AllowDelete", "Does controller have a delete function?") do |value|
+    allow_delete = value.eql?("false") ? false : true
+  end
 end.parse!
 
 plural = singular.pluralize
@@ -118,6 +138,7 @@ type <%= controller %> struct {
   BaseController
 }
 
+<% if allow_list %>
 // List lists the <%= plural %>.
 func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
@@ -151,13 +172,28 @@ func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
 
   return c.serializeCollection(<%= local_plural %>, w)
 }
+<% else %>
+func (c *<%= controller %>) List(w http.ResponseWriter, r *http.Request,
+  db *apsql.DB) aphttp.Error {
+    return c.forbidden()
+}
+<% end %>
 
+<% if allow_create %>
 // Create creates the <%= singular %>.
 func (c *<%= controller %>) Create(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx) aphttp.Error {
   return c.insertOrUpdate(w, r, tx, true)
 }
+<% else %>
+// Create creates the <%= singular %>.
+func (c *<%= controller %>) Create(w http.ResponseWriter, r *http.Request,
+  tx *apsql.Tx) aphttp.Error {
+    return c.forbidden()
+}
+<% end %>
 
+<% if allow_show %>
 // Show shows the <%= singular %>.
 func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
   db *apsql.DB) aphttp.Error {
@@ -190,14 +226,31 @@ func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
 
   return c.serializeInstance(<%= local %>, w)
 }
+<% else %>
+// Show shows the <%= singular %>.
+func (c *<%= controller %>) Show(w http.ResponseWriter, r *http.Request,
+  db *apsql.DB) aphttp.Error {
+    return c.forbidden()
+}
+<% end %>
 
+<% if allow_update %>
 // Update updates the <%= singular %>.
 func (c *<%= controller %>) Update(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx) aphttp.Error {
 
   return c.insertOrUpdate(w, r, tx, false)
 }
+<% else %>
+// Update updates the <%= singular %>.
+func (c *<%= controller %>) Update(w http.ResponseWriter, r *http.Request,
+  tx *apsql.Tx) aphttp.Error {
 
+  return c.forbidden()
+}
+<% end %>
+
+<% if allow_delete %>
 // Delete deletes the <%= singular %>.
 func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx) aphttp.Error {
@@ -272,7 +325,15 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
   w.WriteHeader(http.StatusOK)
   return nil
 }
+<% else %>
+// Delete deletes the <%= singular %>.
+func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
+  tx *apsql.Tx) aphttp.Error {
+    return c.forbidden()
+}
+<% end %>
 
+<% if allow_create || allow_update %>
 func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Request,
   tx *apsql.Tx, isInsert bool) aphttp.Error {
 
@@ -370,6 +431,7 @@ func (c *<%= controller %>) insertOrUpdate(w http.ResponseWriter, r *http.Reques
 
   return c.serializeInstance(<%= local %>, w)
 }
+<% end %>
 
 func (c *<%= controller %>) mapFields(r *http.Request, object *model.<%= singular %>) {
   if c.accountID != nil {
@@ -383,6 +445,10 @@ func (c *<%= controller %>) mapFields(r *http.Request, object *model.<%= singula
 
 func (c *<%= controller %>) notFound() aphttp.Error {
   return aphttp.NewError(errors.New("No <%= pretty %> matches"), 404)
+}
+
+func (c *<%= controller %>) forbidden() aphttp.Error {
+  return aphttp.NewError(errors.New("Forbidden"), 403)
 }
 
 func (c *<%= controller %>) deserializeInstance(file io.Reader) (*model.<%= singular %>,

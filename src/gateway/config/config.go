@@ -148,6 +148,11 @@ type ProxyAdmin struct {
 	DefaultAPIAccessScheme string `flag:"admin-default-api-access-scheme" default:"http://{{hosts.[0]}}:5000"`
 
 	GoogleAnalyticsTrackingId string `flag:"admin-google-analytics-tracking-id" default:""`
+
+	// Stripe related configuration
+	StripeSecretKey      string `flag:"stripe-secret-key" default:""`
+	StripePublishableKey string `flag:"stripe-publishable-key" default:""`
+	StripeFallbackPlan   string `flag:"stripe-fallback-plan" default:""`
 }
 
 type ElasticLogging struct {

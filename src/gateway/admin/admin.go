@@ -39,7 +39,8 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 		RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
 		RouteResource(&UsersController{BaseController{accountID: accountIDFromPath, userID: userIDDummy,
 			auth: aphttp.AuthTypeSite}}, "/accounts/{accountID}/users", siteAdmin, db, conf)
-
+		// plans allow users to see plans when registering
+		RouteResource(&PlansController{}, "/plans", admin, db, conf)
 		// sessions are unprotected to allow users to authenticate
 		RouteSessions("/sessions", admin, db, conf)
 	}

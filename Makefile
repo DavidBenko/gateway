@@ -283,7 +283,8 @@ vendor_get: vendor_clean
 	github.com/mattn/go-oci8 \
 	github.com/garyburd/redigo \
 	github.com/AnyPresence/surgemq \
-	github.com/surge/glog
+	github.com/surge/glog \
+	github.com/stripe/stripe-go
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \

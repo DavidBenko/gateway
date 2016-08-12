@@ -156,6 +156,15 @@ const ExampleConfigurationFile = `##############################################
 # A Google Analytics Tracking ID to be used by the rendered Admin UI.
 # googleAnalyticsTrackingId = ''
 
+# Stripe API Secret Key
+# stripeSecretKey = ''
+
+# Stripe API Publishable Key
+# stripePublishableKey = ''
+
+# Stripe fallback plan
+# stripeFallbackPlan = ''
+
 ## ---------- Proxy ------------
 [proxy]
 # Whether or not to cache API data when serving proxy calls, default is false.
