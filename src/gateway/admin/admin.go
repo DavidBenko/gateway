@@ -12,8 +12,8 @@ import (
 	//"gateway/model"
 	sql "gateway/sql"
 	"gateway/store"
-
 	"github.com/gorilla/mux"
+	"github.com/stripe/stripe-go"
 )
 
 var (
@@ -88,6 +88,9 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)
 	RoutePasswordResetCheck(&PasswordResetCheckController{base}, "/password_reset_check", admin, db, conf)
 	RoutePasswordResetConfirmation(&PasswordResetConfirmationController{base}, "/password_reset_confirmation", admin, db, conf)
+	if stripe.Key != "" {
+		RouteSubscriptions(&SubscriptionsController{base}, "/subscriptions", admin, db, conf)
+	}
 
 	apisController := &APIsController{base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)

@@ -14,12 +14,13 @@ import (
 
 // Account represents a single tenant in multi-tenant deployment.
 type Account struct {
-	ID                   int64          `json:"id"`
-	Name                 string         `json:"name"`
-	PlanID               sql.NullInt64  `json:"plan_id,omitempty" db:"plan_id"`
-	StripeToken          string         `json:"stripe_token,omitempty" db:"-"`
-	StripeCustomerID     sql.NullString `json:"-" db:"stripe_customer_id"`
-	StripeSubscriptionID sql.NullString `json:"-" db:"stripe_subscription_id"`
+	ID                        int64          `json:"id"`
+	Name                      string         `json:"name"`
+	PlanID                    sql.NullInt64  `json:"plan_id,omitempty" db:"plan_id"`
+	StripeToken               string         `json:"stripe_token,omitempty" db:"-"`
+	StripeCustomerID          sql.NullString `json:"-" db:"stripe_customer_id"`
+	StripeSubscriptionID      sql.NullString `json:"-" db:"stripe_subscription_id"`
+	StripePaymentRetryAttempt int64          `json:"-" db:"stripe_payment_retry_attempt"`
 }
 
 // Validate validates the model.
@@ -57,6 +58,36 @@ func AllAccounts(db *sql.DB) ([]*Account, error) {
 	return accounts, err
 }
 
+// AllAccountsWithoutStripeCustomer returns all accounts without corresponding Stripe customer IDs in default order.
+func AllAccountsWithoutStripeCustomer(db *sql.DB) ([]*Account, error) {
+	accounts := []*Account{}
+	err := db.Select(&accounts, db.SQL("accounts/all_without_stripe_customer"))
+	return accounts, err
+}
+
+// MigrateAccountsToStripe creates corresponding customers in Stripe for every account in the database without a stripe_customer_id.
+func MigrateAccountsToStripe(db *sql.DB, planName string) error {
+	accounts, err := AllAccountsWithoutStripeCustomer(db)
+	if err != nil {
+		return err
+	}
+	defaultPlan, err := FindPlanByName(db, planName)
+	if err != nil {
+		return err
+	}
+	for _, account := range accounts {
+		account.PlanID.Int64 = defaultPlan.ID
+		account.PlanID.Valid = true
+		err = db.DoInTransaction(func(tx *sql.Tx) error {
+			return account.Update(tx)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
 // FirstAccount returns the first account found.
 func FirstAccount(db *sql.DB) (*Account, error) {
 	account := Account{}
@@ -68,6 +99,13 @@ func FirstAccount(db *sql.DB) (*Account, error) {
 func FindAccount(db *sql.DB, id int64) (*Account, error) {
 	account := Account{}
 	err := db.Get(&account, db.SQL("accounts/find"), id)
+	return &account, err
+}
+
+// FindAccountByStripeCustomer returns the account with the matching StripeCustomerID.
+func FindAccountByStripeCustomer(db *sql.DB, customerID string) (*Account, error) {
+	account := Account{}
+	err := db.Get(&account, db.SQL("accounts/find_by_stripe_customer_id"), customerID)
 	return &account, err
 }
 
@@ -149,13 +187,13 @@ func (a *Account) Update(tx *sql.Tx) error {
 		if a.StripeToken != "" {
 			customerParams := &stripe.CustomerParams{}
 			customerParams.SetSource(a.StripeToken)
-			_, err = customer.Update(a.StripeCustomerID.String, customerParams)
+			_, err = customer.Update(currentAccount.StripeCustomerID.String, customerParams)
 			if err != nil {
 				return err
 			}
 		}
 		if a.PlanID.Int64 != currentAccount.PlanID.Int64 {
-			_, err = sub.Update(a.StripeSubscriptionID.String,
+			_, err = sub.Update(currentAccount.StripeSubscriptionID.String,
 				&stripe.SubParams{
 					Plan: plan.StripeName,
 				},
@@ -167,4 +205,10 @@ func (a *Account) Update(tx *sql.Tx) error {
 		return tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
 	}
 	return tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
+}
+
+// SetStripePaymentRetryAttempt updates the account in the database with a new StripePaymentRetryAttempt value.
+func (a *Account) SetStripePaymentRetryAttempt(tx *sql.Tx, retry int64) error {
+	a.StripePaymentRetryAttempt = retry
+	return tx.UpdateOne(tx.SQL("accounts/update_stripe_payment_retry_attempt"), retry, a.ID)
 }

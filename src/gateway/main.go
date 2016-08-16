@@ -122,6 +122,15 @@ func main() {
 			if conf.Admin.StripeSecretKey != "" && conf.Admin.StripePublishableKey != "" {
 				logreport.Printf("Setting up Stripe client.")
 				stripe.Key = conf.Admin.StripeSecretKey
+				if conf.Admin.StripeFallbackPlan == "" {
+					logreport.Fatalf("A Stripe fallback plan is required when Stripe is configured.")
+				}
+				if conf.Admin.StripeMigrateAccounts {
+					err = model.MigrateAccountsToStripe(db, conf.Admin.StripeFallbackPlan)
+					if err != nil {
+						logreport.Fatal(err)
+					}
+				}
 			}
 		}
 	}

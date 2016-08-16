@@ -122,9 +122,11 @@ var usageStrings = map[string]string{
 
 	"admin-google-analytics-tracking-id": "A Google Analytics Tracking ID to be used by the rendered Admin UI.",
 
-	"stripe-secret-key":      "Stripe API Secret Key",
-	"stripe-publishable-key": "Stripe API Publishable Key",
-	"stripe-fallback-plan":   "Stripe plan to fallback on when subscription billing fails",
+	"stripe-secret-key":             "Stripe API Secret Key",
+	"stripe-publishable-key":        "Stripe API Publishable Key",
+	"stripe-fallback-plan":          "Stripe plan to fallback on when subscription billing fails (this uses the internal Gateway plan name)",
+	"stripe-payment-retry-attempts": "Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.",
+	"stripe-migrate-accounts":       "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
 
 	"elastic-logging-url":          "The url of the elastic server",
 	"elastic-logging-delete-after": "How long in days to keep logs",

@@ -150,9 +150,11 @@ type ProxyAdmin struct {
 	GoogleAnalyticsTrackingId string `flag:"admin-google-analytics-tracking-id" default:""`
 
 	// Stripe related configuration
-	StripeSecretKey      string `flag:"stripe-secret-key" default:""`
-	StripePublishableKey string `flag:"stripe-publishable-key" default:""`
-	StripeFallbackPlan   string `flag:"stripe-fallback-plan" default:""`
+	StripeSecretKey            string `flag:"stripe-secret-key" default:""`
+	StripePublishableKey       string `flag:"stripe-publishable-key" default:""`
+	StripeFallbackPlan         string `flag:"stripe-fallback-plan" default:""`
+	StripePaymentRetryAttempts int64  `flag:"stripe-payment-retry-attempts" default:"3"`
+	StripeMigrateAccounts      bool   `flag:"stripe-migrate-accounts"     default:"false"`
 }
 
 type ElasticLogging struct {

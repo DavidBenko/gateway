@@ -17,6 +17,7 @@ CREATE TABLE `accounts` (
   `plan_id` INTEGER,
   `stripe_customer_id` TEXT,
   `stripe_subscription_id` TEXT,
+  `stripe_payment_retry_attempt` INTEGER DEFAULT 0,
   UNIQUE (`stripe_customer_id`) ON CONFLICT FAIL,
   UNIQUE (`stripe_subscription_id`) ON CONFLICT FAIL,
   FOREIGN KEY(`plan_id`) REFERENCES `plans`(`id`) ON DELETE SET NULL

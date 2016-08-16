@@ -59,6 +59,13 @@ func FindPlan(db *sql.DB, id int64) (*Plan, error) {
 	return &plan, err
 }
 
+// FindPlanByName returns the plan with the name specified.
+func FindPlanByName(db *sql.DB, name string) (*Plan, error) {
+	plan := Plan{}
+	err := db.Get(&plan, db.SQL("plans/find_by_name"), name)
+	return &plan, err
+}
+
 // Insert the plan into the database as a new row.
 func (p *Plan) Insert(tx *sql.Tx) (err error) {
 	p.ID, err = tx.InsertOne(tx.SQL("plans/insert"), p.Name, p.StripeName, p.MaxUsers, p.JavascriptTimeout, p.Price)
