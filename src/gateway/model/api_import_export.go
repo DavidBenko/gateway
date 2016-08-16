@@ -123,14 +123,16 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 
 	// Very much room for optimization
 	proxyEndpointsIndexMap := make(map[int64]int)
-	api.ProxyEndpoints, err = AllProxyEndpointsForAPIIDAndAccountID(db, id, accountID)
+	proxyEndpoint := ProxyEndpoint{
+		AccountID: accountID,
+		APIID:     id,
+	}
+	api.ProxyEndpoints, err = proxyEndpoint.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoints", err)
 	}
 	for i, ep := range api.ProxyEndpoints {
-		endpoint, err := FindProxyEndpointForAPIIDAndAccountID(
-			db, ep.ID, id, accountID,
-		)
+		endpoint, err := ep.Find(db)
 		if err != nil {
 			return nil, aperrors.NewWrapped("Fetching proxy endpoint", err)
 		}

@@ -42,7 +42,12 @@ type TestResults struct {
 func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
 	accountID, apiID, endpointID, testID := c.accountID(r), apiIDFromPath(r), endpointIDFromPath(r), testIDFromPath(r)
 
-	endpoint, err := model.FindProxyEndpointForAPIIDAndAccountID(db, endpointID, apiID, accountID)
+	proxyEndpoint := model.ProxyEndpoint{
+		AccountID: accountID,
+		APIID:     apiID,
+		ID:        endpointID,
+	}
+	endpoint, err := proxyEndpoint.Find(db)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}

@@ -14,11 +14,11 @@ import (
 type ProxyEndpoint struct {
 	AccountID       int64  `json:"-"`
 	UserID          int64  `json:"-"`
-	APIID           int64  `json:"api_id,omitempty" db:"api_id"`
+	APIID           int64  `json:"api_id,omitempty" db:"api_id" path:"apiID"`
 	EndpointGroupID *int64 `json:"endpoint_group_id,omitempty" db:"endpoint_group_id"`
 	EnvironmentID   int64  `json:"environment_id,omitempty" db:"environment_id"`
 
-	ID          int64          `json:"id,omitempty"`
+	ID          int64          `json:"id,omitempty" path:"id"`
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Active      bool           `json:"active"`
@@ -91,10 +91,15 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 	return errors
 }
 
-// AllProxyEndpointsForAPIIDAndAccountID returns all proxyEndpoints on the Account's API in default order.
-func AllProxyEndpointsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*ProxyEndpoint, error) {
+// All returns all proxyEndpoints on the Account's API in default order.
+func (e *ProxyEndpoint) All(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all"), apiID, accountID)
+	err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all"), e.APIID, e.AccountID)
+	for _, endpoint := range proxyEndpoints {
+		endpoint.AccountID = e.AccountID
+		endpoint.UserID = e.UserID
+		endpoint.APIID = e.APIID
+	}
 	return proxyEndpoints, err
 }
 
@@ -114,22 +119,26 @@ func AllProxyEndpointsForRoutingForAPIID(db *apsql.DB, apiID int64) ([]*ProxyEnd
 	return proxyEndpoints, err
 }
 
-// FindProxyEndpointForAPIIDAndAccountID returns the proxyEndpoint with the id, api id, and account_id specified.
-func FindProxyEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*ProxyEndpoint, error) {
-	proxyEndpoint := ProxyEndpoint{}
-	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find"), id, apiID, accountID)
+// Find returns the proxyEndpoint with the id, api id, and account_id specified.
+func (e *ProxyEndpoint) Find(db *apsql.DB) (*ProxyEndpoint, error) {
+	proxyEndpoint := ProxyEndpoint{
+		AccountID: e.AccountID,
+		UserID:    e.UserID,
+		APIID:     e.APIID,
+	}
+	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find"), e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return nil, err
 	}
 
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
-		db, apiID, proxyEndpoint.EnvironmentID, id,
+		db, e.APIID, proxyEndpoint.EnvironmentID, e.ID,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, id)
+	proxyEndpoint.Tests, err = AllProxyEndpointTestsForEndpointID(db, e.ID)
 	return &proxyEndpoint, err
 }
 
@@ -175,13 +184,13 @@ func FindProxyEndpointForProxy(db *apsql.DB, id int64) (*ProxyEndpoint, error) {
 	return &proxyEndpoint, nil
 }
 
-// DeleteProxyEndpointForAPIIDAndAccountID deletes the proxyEndpoint with the id, api_id and account_id specified.
-func DeleteProxyEndpointForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID int64) error {
-	err := tx.DeleteOne(tx.SQL("proxy_endpoints/delete"), id, apiID, accountID)
+// Delete deletes the proxyEndpoint with the id, api_id and account_id specified.
+func (e *ProxyEndpoint) Delete(tx *apsql.Tx) error {
+	err := tx.DeleteOne(tx.SQL("proxy_endpoints/delete"), e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoints", accountID, userID, apiID, 0, id, apsql.Delete)
+	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
