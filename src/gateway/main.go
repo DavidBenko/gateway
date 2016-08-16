@@ -23,6 +23,7 @@ import (
 	"gateway/model"
 	"gateway/osslicenses"
 	"gateway/proxy"
+	"gateway/push"
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
@@ -97,18 +98,6 @@ func main() {
 			if count > license.DeveloperVersionUsers {
 				logreport.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
 			}
-
-			apis, _ := model.AllAPIsForAccountID(db, account.ID)
-			if len(apis) > license.DeveloperVersionAPIs {
-				logreport.Fatalf("Developer version allows %v api(s).", license.DeveloperVersionAPIs)
-			}
-			for _, api := range apis {
-				var count int
-				db.Get(&count, db.SQL("proxy_endpoints/count_active"), api.ID)
-				if count > license.DeveloperVersionProxyEndpoints {
-					logreport.Fatalf("Developer version allows %v active proxy endpoint(s).", license.DeveloperVersionProxyEndpoints)
-				}
-			}
 		}
 	}
 
@@ -148,6 +137,10 @@ func main() {
 		} else {
 			logreport.Fatal("Dev account doesn't exist")
 		}
+	} else {
+		if license.DeveloperVersion {
+			logreport.Fatalf("Developer version does not allow running in server mode.")
+		}
 	}
 
 	service.ElasticLoggingService(conf)
@@ -157,6 +150,8 @@ func main() {
 	service.PushDeletionService(conf, db)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
+
+	push.SetupMQTT(db, conf.Push)
 
 	// Write script remote endpoints to tmp fireLifecycleHooks
 	err = model.WriteAllScriptFiles(db)

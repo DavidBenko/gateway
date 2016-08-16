@@ -511,6 +511,7 @@ def fixtures
       type: "test-gcm",
       token: "cqvkjqoUL9A:APA91bEFS9knUbRH_X9_4UzuCdIpUp7iXQUCvmQ8zf1OepQBOEpPKkDNkjslVIqiehRN8WVi2R3hyUmK5FZ14qHMMkPQBq1pEPH2aokuFk4jAIwPEiQSCjcqvkjqoUL9A:APA91bEFS9knUbRH_X9_4UzuCdIpUp7iXQUCvmQ8zf1OepQBOEpPKkDNkjslVIqiehRN8WVi2R3hyUmK5FZ14qHMMkPQBq1pEPH2aokuFk4jAIwPEiQSCj",
       expires: Time.now.to_i + 86400,
+      qos: 0,
     },
   }
 

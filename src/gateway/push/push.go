@@ -6,14 +6,17 @@ import (
 	"sync"
 	"time"
 
+	"gateway/config"
 	"gateway/logreport"
 	"gateway/model"
 	re "gateway/model/remote_endpoint"
+	"gateway/queue"
+	"gateway/queue/mangos"
 	apsql "gateway/sql"
 )
 
 type Pusher interface {
-	Push(token string, data interface{}) error
+	Push(channel *model.PushChannel, device *model.PushDevice, data interface{}) error
 }
 
 type PushPoolEntry struct {
@@ -25,11 +28,34 @@ type PushPoolEntry struct {
 type PushPool struct {
 	sync.RWMutex
 	pool map[string]*PushPoolEntry
+	push queue.Publisher
 }
 
-func NewPushPool() *PushPool {
+type PushMessage struct {
+	Channel *model.PushChannel `json:"channel"`
+	Device  *model.PushDevice  `json:"device"`
+	Data    interface{}        `json:"data"`
+}
+
+func NewPushPool(conf config.Push) *PushPool {
+	push, err := queue.Publish(
+		conf.XSub(),
+		mangos.Pub(true),
+		mangos.PubTCP,
+	)
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	_, errs := push.Channels()
+	go func() {
+		for err := range errs {
+			logreport.Printf("[logging] %v", err)
+		}
+	}()
+
 	pool := &PushPool{
 		pool: make(map[string]*PushPoolEntry),
+		push: push,
 	}
 	deleteTicker := time.NewTicker(time.Hour)
 	go func() {
@@ -72,6 +98,8 @@ func (p *PushPool) Connection(platform *re.PushPlatform) Pusher {
 		pusher = NewApplePusher(platform)
 	case re.PushTypeGCM:
 		pusher = NewGooglePusher(platform)
+	case re.PushTypeMQTT:
+		pusher = NewMQTTPusher(p, platform)
 	}
 	p.Lock()
 	defer p.Unlock()
@@ -130,7 +158,7 @@ func (p *PushPool) Push(platforms *re.Push, tx *apsql.Tx, accountID, apiID, remo
 				if !ok {
 					_payload = payload["default"]
 				}
-				err = pusher.Push(device.Token, _payload)
+				err = pusher.Push(channel, device, _payload)
 				break
 			}
 		}

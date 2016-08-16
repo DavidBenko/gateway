@@ -1,6 +1,7 @@
 package push
 
 import (
+	"gateway/model"
 	re "gateway/model/remote_endpoint"
 
 	"github.com/alexjlockwood/gcm"
@@ -18,8 +19,8 @@ func NewGooglePusher(platform *re.PushPlatform) *GooglePusher {
 	}
 }
 
-func (p *GooglePusher) Push(token string, data interface{}) error {
-	message := gcm.NewMessage(data.(map[string]interface{}), token)
+func (p *GooglePusher) Push(channel *model.PushChannel, device *model.PushDevice, data interface{}) error {
+	message := gcm.NewMessage(data.(map[string]interface{}), device.Token)
 	_, err := p.connection.Send(message, 3)
 	return err
 }
