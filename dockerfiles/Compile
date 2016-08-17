@@ -1,6 +1,6 @@
 # anypresence/gateway:compile
 # version 5.1.0
-FROM golang:1.6.3
+FROM golang:1.7.0
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
 # Install dependencies
@@ -14,7 +14,7 @@ RUN echo "deb http://http.debian.net/debian unstable main" >> /etc/apt/sources.l
     apt-get install oracle-java8-installer -y && \
     apt-get clean && \
     apt-get -y install build-essential zlib1g-dev libssl-dev \
-    libreadline6 libreadline6-dev libyaml-dev curl openssl git \
+    libreadline6 libreadline6-dev libyaml-dev openssl git \
     chrpath git-core libfontconfig1-dev libffi6 libffi-dev libaio1 upx &&  \
     curl https://raw.githubusercontent.com/creationix/nvm/v0.31.3/install.sh | bash && \
     . /root/.bashrc && nvm install 4.4.7 && nvm alias default 4.4.7 && npm -g install bower && echo '{ "allow_root": true }' > /root/.bowerrc && \
