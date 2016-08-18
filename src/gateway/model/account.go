@@ -160,7 +160,10 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 	} else {
 		a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name, nil, nil, nil)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Insert)
 }
 
 // Update updates the account in the database.
@@ -202,9 +205,13 @@ func (a *Account) Update(tx *sql.Tx) error {
 				return err
 			}
 		}
-		return tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
+		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
 	}
-	return tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
+	err := tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Update)
 }
 
 // SetStripePaymentRetryAttempt updates the account in the database with a new StripePaymentRetryAttempt value.
