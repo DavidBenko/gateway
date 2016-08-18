@@ -18,6 +18,7 @@ import (
 	"gateway/version"
 
 	"github.com/gorilla/mux"
+	"github.com/stripe/stripe-go"
 )
 
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
@@ -30,6 +31,8 @@ var goosRegex = regexp.MustCompile(`GO_OS`)
 var remoteEndpointTypesEnabledRegex = regexp.MustCompile(`REMOTE_ENDPOINT_TYPES_ENABLED`)
 var registrationEnabledRegex = regexp.MustCompile(`REGISTRATION_ENABLED`)
 var googleAnalyticsTrackingId = regexp.MustCompile(`GOOGLE_ANALYTICS_TRACKING_ID`)
+var stripeEnabled = regexp.MustCompile(`ENABLE_PLAN_SUBSCRIPTIONS`)
+var stripePublishableKey = regexp.MustCompile(`STRIPE_PUBLISHABLE_KEY`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -117,6 +120,13 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 			interpolatedValues[registrationEnabledRegex] = fmt.Sprintf("%t", conf.EnableRegistration)
 			interpolatedValues[brokerHostRegex] = conf.BrokerWs
 			interpolatedValues[googleAnalyticsTrackingId] = conf.GoogleAnalyticsTrackingId
+			if stripe.Key != "" && conf.StripePublishableKey != "" {
+				interpolatedValues[stripeEnabled] = "true"
+				interpolatedValues[stripePublishableKey] = conf.StripePublishableKey
+			} else {
+				interpolatedValues[stripeEnabled] = "false"
+				interpolatedValues[stripePublishableKey] = ""
+			}
 
 			for k, v := range interpolatedValues {
 				input = k.ReplaceAllLiteralString(input, v)
