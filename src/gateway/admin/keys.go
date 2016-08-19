@@ -30,6 +30,11 @@ func RouteKeys(controller *KeysController, path string,
 		"DELETE": write(db, controller.Delete),
 	}
 
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
+		instanceRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"DELETE"})
+	}
+
 	router.Handle(path, handlers.MethodHandler(routes))
 	router.Handle(path+"/{id}",
 		handlers.HTTPMethodOverrideHandler(handlers.MethodHandler(instanceRoutes)))
