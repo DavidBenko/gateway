@@ -38,7 +38,7 @@ func (k *Key) Validate(isInsert bool) aperrors.Errors {
 
 func (k *Key) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "keys", "name") {
+	if apsql.IsUniqueConstraint(err, "keys", "account_id", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
