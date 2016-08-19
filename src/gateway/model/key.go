@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"errors"
 	aperrors "gateway/errors"
-	"gateway/logreport"
 	apsql "gateway/sql"
 	"strings"
 )
@@ -34,8 +33,6 @@ func (k *Key) Validate(isInsert bool) aperrors.Errors {
 		errors.Add("key", err.Error())
 		return errors
 	}
-	logreport.Printf("Public: %t", isPublic)
-	logreport.Printf("Type: %T", key)
 	return errors
 }
 
