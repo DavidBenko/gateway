@@ -72,10 +72,9 @@ func consume(
 	errCh chan<- error,
 ) {
 	var (
-		ps  []stats.Point
-		buf []stats.Point
+		ps     []stats.Point
+		buffer []stats.Point
 
-		// Note 'buf' is shadowed.
 		writeBuffer = func(buf []stats.Point) {
 			// Order may not be perfect, but should be good enough
 			// to help an ORDER BY in the Sampler.
@@ -92,13 +91,13 @@ func consume(
 			close(errCh)
 			return
 		case <-tick:
-			if buf != nil {
-				go writeBuffer(buf)
+			if buffer != nil {
+				go writeBuffer(buffer)
 			}
 
-			buf = nil
+			buffer = nil
 		case ps = <-buffCh:
-			buf = append(buf, ps...)
+			buffer = append(buffer, ps...)
 		}
 	}
 }
