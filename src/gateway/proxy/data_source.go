@@ -23,7 +23,7 @@ func newPassthroughProxyDataSource(db *apsql.DB) *endpointPassthrough {
 }
 
 func (c *endpointPassthrough) Endpoint(id int64) (*model.ProxyEndpoint, error) {
-	return model.FindProxyEndpointForProxy(c.db, id)
+	return model.FindProxyEndpointForProxy(c.db, id, model.ProxyEndpointTypeHTTP)
 }
 
 func (c *endpointPassthrough) Libraries(apiID int64) ([]*model.Library, error) {
@@ -60,7 +60,7 @@ func (c *endpointCache) Endpoint(id int64) (*model.ProxyEndpoint, error) {
 		return endpoint, nil
 	}
 
-	endpoint, err := model.FindProxyEndpointForProxy(c.db, id)
+	endpoint, err := model.FindProxyEndpointForProxy(c.db, id, model.ProxyEndpointTypeHTTP)
 	if err != nil {
 		return nil, err
 	}

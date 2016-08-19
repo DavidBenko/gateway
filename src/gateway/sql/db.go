@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 14
+const currentVersion = 17
 
 type driverType string
 
@@ -80,6 +80,9 @@ func (db *DB) Migrate() error {
 		migrateToV12,
 		migrateToV13,
 		migrateToV14,
+		func(db *DB) error { return nil },
+		func(db *DB) error { return nil },
+		migrateToV17,
 	}
 
 	for i := version; i < currentVersion; i++ {

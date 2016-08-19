@@ -9,4 +9,5 @@ SELECT
   cors_enabled,
   routes
 FROM proxy_endpoints
-WHERE id = ?;
+WHERE id = ?
+  AND type = ?;

@@ -46,6 +46,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 		AccountID: accountID,
 		APIID:     apiID,
 		ID:        endpointID,
+		Type:      model.ProxyEndpointTypeHTTP,
 	}
 	endpoint, err := proxyEndpoint.Find(db)
 	if err != nil {

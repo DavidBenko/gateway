@@ -116,6 +116,7 @@ import (
 // <%= controller %> manages <%= plural %>.
 type <%= controller %> struct {
   BaseController
+  Type string
 }
 
 // List lists the <%= plural %>.
@@ -377,6 +378,9 @@ func (c *<%= controller %>) mapFields(r *http.Request, object *model.<%= singula
   }
   if c.userID != nil {
     mapUserID(c.userID(r), object)
+  }
+  if typed, ok := interface{}(object).(model.Typed); ok {
+    typed.SetType(c.Type)
   }
   mapFromPath(r, object)
 }
