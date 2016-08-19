@@ -10,10 +10,9 @@ import (
 )
 
 type Key struct {
-	ID    int64  `json:"id,omitempty" path:"id"`
-	APIID int64  `json:"-" db:"api_id"`
-	Name  string `json:"name" db:"name"`
-	Key   []byte `json:"-"`
+	ID   int64  `json:"id,omitempty" path:"id"`
+	Name string `json:"name" db:"name"`
+	Key  []byte `json:"-"`
 }
 
 func (k *Key) Validate(isInsert bool) aperrors.Errors {
@@ -28,7 +27,7 @@ func (k *Key) Validate(isInsert bool) aperrors.Errors {
 		return errors
 	}
 
-	key, isPublic, err := ParseToKey(block)
+	_, _, err = ParseToKey(block)
 	if err != nil {
 		errors.Add("key", err.Error())
 		return errors
@@ -44,23 +43,30 @@ func (k *Key) ValidateFromDatabaseError(err error) aperrors.Errors {
 	return errors
 }
 
-func FindKeysForAPI(db *apsql.DB, APIID int64) ([]*Key, error) {
+func FindKeys(db *apsql.DB) ([]*Key, error) {
 	keys := []*Key{}
-	err := db.Select(&keys, db.SQL("keys/find_for_api"), APIID)
+	err := db.Select(&keys, db.SQL("keys/find_all"))
 	if err != nil {
 		return nil, err
 	}
 	return keys, nil
 }
 
-func (k *Key) Insert(tx *apsql.Tx) (err error) {
-	k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.APIID, k.Name, k.Key)
+func (k *Key) Insert(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
+	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key); err != nil {
+		return
+	}
+	err = afterInsert(k, accountID, userID, apiID, tx)
 	return
 }
 
 func (k *Key) Delete(tx *apsql.Tx) (err error) {
-	err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID, k.APIID)
+	err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID)
 	return
+}
+
+func afterInsert(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
+	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Insert, key.ID)
 }
 
 // data should be a single pem block, i.e. from the opening

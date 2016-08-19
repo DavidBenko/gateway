@@ -41,10 +41,9 @@ func RouteKeys(controller *KeysController, path string,
 }
 
 func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
-	keys, err := model.FindKeysForAPI(db, apiIDFromPath(r))
+	keys, err := model.FindKeys(db)
 	if err != nil {
-		logreport.Println(err)
-		return aphttp.NewError(errors.New("No keys found"), 404)
+		aphttp.NewError(errors.New("No push channel matches"), 404)
 	}
 
 	return serializeCollection(keys, w)
@@ -53,26 +52,27 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
 	file, _, err := r.FormFile("key")
 	if err != nil {
-		logreport.Println(err)
 		return aphttp.NewError(errors.New("invalid file"), 400)
 	}
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		logreport.Println(err)
 		return aphttp.NewError(errors.New("unable to read file"), 400)
 	}
 
 	name := r.FormValue("name")
-	APIID := apiIDFromPath(r)
 
-	key := &model.Key{APIID: APIID, Name: name, Key: data}
+	accountID := k.accountID(r)
+	userID := k.userID(r)
+
+	key := &model.Key{Name: name, Key: data}
 
 	if validationErrors := key.Validate(true); !validationErrors.Empty() {
 		return SerializableValidationErrors{validationErrors}
 	}
 
-	if err = key.Insert(tx); err != nil {
+	if err = key.Insert(accountID, userID, 0, tx); err != nil {
+		logreport.Println(err)
 		validationErrors := key.ValidateFromDatabaseError(err)
 		return SerializableValidationErrors{validationErrors}
 	}
@@ -81,10 +81,9 @@ func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsq
 }
 
 func (k *KeysController) Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
-	APIID := apiIDFromPath(r)
 	keyID := parseKeyID(r)
 
-	key := &model.Key{APIID: APIID, ID: keyID}
+	key := &model.Key{ID: keyID}
 
 	err := key.Delete(tx)
 	if err != nil {

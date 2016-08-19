@@ -1,2 +1,2 @@
-INSERT INTO keys (api_id, name, key)
-VALUES (?, ?, ?)
+INSERT INTO keys (name, key)
+VALUES (?, ?)

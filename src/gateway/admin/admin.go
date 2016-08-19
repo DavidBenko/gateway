@@ -95,7 +95,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	testController := &TestController{base, psconf}
 	RouteTest(testController, "/apis/{apiID}/proxy_endpoints/{endpointID}/tests/{testID}/test", authAdmin, db, conf)
 
-	RouteKeys(&KeysController{base}, "/apis/{apiID}/keys", authAdmin, db, conf)
+	RouteKeys(&KeysController{base}, "/keys", authAdmin, db, conf)
 	RouteResource(&HostsController{base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
 	RouteResource(&EnvironmentsController{base}, "/apis/{apiID}/environments", authAdmin, db, conf)
 	RouteResource(&LibrariesController{base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
