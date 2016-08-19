@@ -156,6 +156,21 @@ const ExampleConfigurationFile = `##############################################
 # A Google Analytics Tracking ID to be used by the rendered Admin UI.
 # googleAnalyticsTrackingId = ''
 
+# Stripe API Secret Key
+# stripeSecretKey = ''
+
+# Stripe API Publishable Key
+# stripePublishableKey = ''
+
+# Stripe fallback plan (this uses the internal Gateway plan name).
+# stripeFallbackPlan = ''
+
+# Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.
+# stripePaymentRetryAttempts = ''
+
+# If the gateway should attempt to migrate non-stripe accounts to Stripe on startup.
+# stripeMigrateAccounts = false
+
 ## ---------- Proxy ------------
 [proxy]
 # Whether or not to cache API data when serving proxy calls, default is false.

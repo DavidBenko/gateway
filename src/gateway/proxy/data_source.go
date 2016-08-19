@@ -12,6 +12,7 @@ import (
 type proxyDataSource interface {
 	Endpoint(id int64) (*model.ProxyEndpoint, error)
 	Libraries(apiID int64) ([]*model.Library, error)
+	Plan(accountID int64) (*model.Plan, error)
 }
 
 type endpointPassthrough struct {
@@ -30,6 +31,10 @@ func (c *endpointPassthrough) Libraries(apiID int64) ([]*model.Library, error) {
 	return model.AllLibrariesForProxy(c.db, apiID)
 }
 
+func (c *endpointPassthrough) Plan(accountID int64) (*model.Plan, error) {
+	return model.FindPlanByAccountID(c.db, accountID)
+}
+
 type endpointCache struct {
 	db *apsql.DB
 
@@ -38,6 +43,8 @@ type endpointCache struct {
 	endpointIDs map[int64][]int64              //      apiID -> []endpointID
 	endpoints   map[int64]*model.ProxyEndpoint // endpointID -> endpoint
 	libraries   map[int64][]*model.Library     //      apiID -> []library
+	plans       map[int64]*model.Plan          // accountID -> plan
+	accountIDs  map[int64][]int64              //      planID -> []accountID
 }
 
 func newCachingProxyDataSource(db *apsql.DB) *endpointCache {
@@ -46,6 +53,8 @@ func newCachingProxyDataSource(db *apsql.DB) *endpointCache {
 		endpointIDs: make(map[int64][]int64),
 		endpoints:   make(map[int64]*model.ProxyEndpoint),
 		libraries:   make(map[int64][]*model.Library),
+		plans:       make(map[int64]*model.Plan),
+		accountIDs:  make(map[int64][]int64),
 	}
 
 	db.RegisterListener(cache)
@@ -93,6 +102,27 @@ func (c *endpointCache) Libraries(apiID int64) ([]*model.Library, error) {
 	return libraries, nil
 }
 
+func (c *endpointCache) Plan(accountID int64) (*model.Plan, error) {
+	c.mutex.RLock()
+	plan := c.plans[accountID]
+	c.mutex.RUnlock()
+	if plan != nil {
+		return plan, nil
+	}
+
+	plan, err := model.FindPlanByAccountID(c.db, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	c.mutex.Lock()
+	c.plans[accountID] = plan
+	c.accountIDs[plan.ID] = append(c.accountIDs[plan.ID], accountID)
+	c.mutex.Unlock()
+
+	return plan, nil
+}
+
 func (c *endpointCache) clearAPI(apiID int64) {
 	logreport.Printf("%s Clearing API %d cache", config.System, apiID)
 
@@ -121,6 +151,52 @@ func (c *endpointCache) clearAPI(apiID int64) {
 	c.mutex.Unlock()
 }
 
+func (c *endpointCache) clearAccount(accountID int64) {
+	logreport.Printf("%s Clearing Account %d cache", config.System, accountID)
+
+	del := false
+	c.mutex.RLock()
+	plan, del := c.plans[accountID]
+	c.mutex.RUnlock()
+	if !del {
+		return
+	}
+
+	c.mutex.Lock()
+
+	for index, id := range c.accountIDs[plan.ID] {
+		if id == accountID {
+			c.accountIDs[plan.ID][index] = c.accountIDs[plan.ID][len(c.accountIDs[plan.ID])-1]
+			c.accountIDs[plan.ID] = c.accountIDs[plan.ID][:len(c.accountIDs[plan.ID])-1]
+		}
+	}
+	delete(c.plans, accountID)
+
+	c.mutex.Unlock()
+}
+
+func (c *endpointCache) clearPlan(planID int64) {
+	logreport.Printf("%s Clearing Plan %d cache", config.System, planID)
+
+	del := false
+	c.mutex.RLock()
+	accountIDs, del := c.accountIDs[planID]
+	c.mutex.RUnlock()
+	if !del {
+		return
+	}
+
+	c.mutex.Lock()
+	if accountIDs != nil {
+		for _, accountID := range accountIDs {
+			delete(c.plans, accountID)
+		}
+	}
+	delete(c.accountIDs, planID)
+
+	c.mutex.Unlock()
+}
+
 func (c *endpointCache) clearAll() {
 	logreport.Printf("%s Clearing all API caches", config.System)
 
@@ -130,10 +206,16 @@ func (c *endpointCache) clearAll() {
 	c.endpointIDs = make(map[int64][]int64)
 	c.endpoints = make(map[int64]*model.ProxyEndpoint)
 	c.libraries = make(map[int64][]*model.Library)
+	c.plans = make(map[int64]*model.Plan)
+	c.accountIDs = make(map[int64][]int64)
 }
 
 func (c *endpointCache) Notify(n *apsql.Notification) {
 	switch {
+	case n.Table == "accounts":
+		go c.clearAccount(n.AccountID)
+	case n.Table == "plans":
+		go c.clearPlan(n.ID)
 	case n.Table == "apis" && n.Event == apsql.Delete:
 		fallthrough
 	case n.Table == "environments" && (n.Event == apsql.Update || n.Event == apsql.Delete):

@@ -1,0 +1,26 @@
+# anypresence/gateway:run
+# version 5.1.0
+FROM debian:jessie
+MAINTAINER Jeff Bozek, jbozek@anypresence.com
+
+### Add Oracle and Java ###
+
+RUN echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee /etc/apt/sources.list.d/webupd8team-java.list && \
+    echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee -a /etc/apt/sources.list.d/webupd8team-java.list && \
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EEA14886 && \
+    apt-get update && \
+    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
+    apt-get install -y oracle-java8-installer libaio1 alien && \
+    apt-get clean && \
+    curl -O https://s3.amazonaws.com/anypresence-generators/api/oracle-instantclient12.1-basic-12.1.0.1.0-1.x86_64.rpm && \
+    curl -O https://s3.amazonaws.com/anypresence-generators/api/oracle-instantclient12.1-sqlplus-12.1.0.1.0-1.x86_64.rpm && \
+    curl -O https://s3.amazonaws.com/anypresence-generators/api/oracle-instantclient12.1-devel-12.1.0.1.0-1.x86_64.rpm && \
+    alien -i oracle-instantclient*-basic-*.rpm && alien -i oracle-instantclient*-sqlplus-*.rpm && alien -i oracle-instantclient*-devel-*.rpm && \
+    rm -f oracle-instantclient*.rpm && echo '/usr/lib/oracle/12.1/client64/lib' > /etc/ld.so.conf.d/oracle.conf && ldconfig
+
+ENV ORACLE_HOME /usr/lib/oracle/12.1/client64
+ENV PATH $PATH:$ORACLE_HOME/bin
+
+ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
+
+EXPOSE 5000 5555 5556

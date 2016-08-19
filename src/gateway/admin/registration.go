@@ -12,6 +12,7 @@ import (
 	apsql "gateway/sql"
 
 	"github.com/gorilla/handlers"
+	"github.com/stripe/stripe-go"
 )
 
 type RegistrationController struct {
@@ -24,6 +25,8 @@ type Registration struct {
 	Password             string `json:"password"`
 	PasswordConfirmation string `json:"password_confirmation"`
 	Organization         string `json:"organization"`
+	PlanID               int64  `json:"plan_id"`
+	StripeToken          string `json:"stripe_token"`
 }
 
 func RouteRegistration(controller *RegistrationController, path string,
@@ -57,6 +60,19 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 	if registration.Password != registration.PasswordConfirmation {
 		verrors.Add("password_confirmation", "must match password")
 	}
+	if stripe.Key != "" {
+		if registration.PlanID < 1 {
+			verrors.Add("plan_id", "must not be blank")
+			return SerializableValidationErrors{verrors}
+		}
+		plan, err := model.FindPlan(tx.DB, registration.PlanID)
+		if err != nil {
+			verrors.Add("plan_id", "not found")
+		}
+		if plan.Price > 0 && registration.StripeToken == "" {
+			verrors.Add("stripe_token", "must not be blank")
+		}
+	}
 	if !verrors.Empty() {
 		return SerializableValidationErrors{verrors}
 	}
@@ -83,7 +99,7 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 		return nil
 	}
 
-	account := &model.Account{Name: name}
+	account := &model.Account{Name: name, PlanID: apsql.MakeNullInt64(registration.PlanID), StripeToken: registration.StripeToken}
 	err := account.Insert(tx)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
