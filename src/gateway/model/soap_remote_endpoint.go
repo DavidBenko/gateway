@@ -390,16 +390,8 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		return err
 	}
 
-	// invoke wsimport
-	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", e.ID))
-	err = soap.Wsimport(filename, outputfile)
-	if err != nil {
-		logreport.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
-		return err
-	}
-
-	// update the DB with the generated jars bytes!
-	bytes, err := ioutil.ReadFile(outputfile)
+	// update the DB with the wsdl
+	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		logreport.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		return err
