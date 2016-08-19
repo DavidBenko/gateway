@@ -1,4 +1,3 @@
-PRAGMA foreign_keys = OFF;
 CREATE TABLE IF NOT EXISTS `_proxy_endpoints` (
   `id` INTEGER PRIMARY KEY AUTOINCREMENT,
   `api_id` INTEGER NOT NULL,
@@ -21,4 +20,3 @@ SELECT id, api_id, 'http' as type, endpoint_group_id, environment_id, name, desc
 
 DROP TABLE proxy_endpoints;
 ALTER TABLE _proxy_endpoints RENAME TO proxy_endpoints;
-PRAGMA foreign_keys = ON;
