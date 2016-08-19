@@ -19,8 +19,7 @@ type Logger struct {
 // synchronously.
 func (l *Logger) Log(ps ...stats.Point) error {
 	l.Lock()
-	defer l.Unlock()
-
 	l.Buffer = append(l.Buffer, ps...)
+	l.Unlock()
 	return l.Error
 }
