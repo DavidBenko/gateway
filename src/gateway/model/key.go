@@ -10,9 +10,10 @@ import (
 )
 
 type Key struct {
-	ID   int64  `json:"id,omitempty" path:"id"`
-	Name string `json:"name" db:"name"`
-	Key  []byte `json:"-"`
+	ID        int64  `json:"id,omitempty" path:"id"`
+	AccountID int64  `json:"account_id" db:"account_id"`
+	Name      string `json:"name" db:"name"`
+	Key       []byte `json:"-"`
 }
 
 func (k *Key) Validate(isInsert bool) aperrors.Errors {
@@ -37,15 +38,15 @@ func (k *Key) Validate(isInsert bool) aperrors.Errors {
 
 func (k *Key) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "keys", "api_id", "name") {
+	if apsql.IsUniqueConstraint(err, "keys", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
 }
 
-func FindKeys(db *apsql.DB) ([]*Key, error) {
+func FindKeysForAccount(accountID int64, db *apsql.DB) ([]*Key, error) {
 	keys := []*Key{}
-	err := db.Select(&keys, db.SQL("keys/find_all"))
+	err := db.Select(&keys, db.SQL("keys/find_all_for_account"), accountID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,15 +54,15 @@ func FindKeys(db *apsql.DB) ([]*Key, error) {
 }
 
 func (k *Key) Insert(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
-	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key); err != nil {
+	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key, k.AccountID); err != nil {
 		return
 	}
 	err = afterInsert(k, accountID, userID, apiID, tx)
 	return
 }
 
-func (k *Key) Delete(tx *apsql.Tx) (err error) {
-	err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID)
+func (k *Key) Delete(accountID int64, tx *apsql.Tx) (err error) {
+	err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID, accountID)
 	return
 }
 

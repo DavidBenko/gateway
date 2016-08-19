@@ -41,7 +41,8 @@ func RouteKeys(controller *KeysController, path string,
 }
 
 func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
-	keys, err := model.FindKeys(db)
+	accountID := k.accountID(r)
+	keys, err := model.FindKeysForAccount(accountID, db)
 	if err != nil {
 		aphttp.NewError(errors.New("No push channel matches"), 404)
 	}
@@ -65,14 +66,13 @@ func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsq
 	accountID := k.accountID(r)
 	userID := k.userID(r)
 
-	key := &model.Key{Name: name, Key: data}
+	key := &model.Key{Name: name, Key: data, AccountID: accountID}
 
 	if validationErrors := key.Validate(true); !validationErrors.Empty() {
 		return SerializableValidationErrors{validationErrors}
 	}
 
 	if err = key.Insert(accountID, userID, 0, tx); err != nil {
-		logreport.Println(err)
 		validationErrors := key.ValidateFromDatabaseError(err)
 		return SerializableValidationErrors{validationErrors}
 	}
@@ -84,8 +84,9 @@ func (k *KeysController) Delete(w http.ResponseWriter, r *http.Request, tx *apsq
 	keyID := parseKeyID(r)
 
 	key := &model.Key{ID: keyID}
+	accountID := k.accountID(r)
 
-	err := key.Delete(tx)
+	err := key.Delete(accountID, tx)
 	if err != nil {
 		logreport.Print(err)
 		return aphttp.NewError(errors.New("failed to delete key"), 500)

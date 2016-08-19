@@ -1,2 +1,2 @@
-INSERT INTO keys (name, key)
-VALUES (?, ?)
+INSERT INTO keys (name, key, account_id)
+VALUES (?, ?, ?)
