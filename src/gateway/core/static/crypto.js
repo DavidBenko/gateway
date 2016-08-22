@@ -37,14 +37,14 @@ delete _hash;
 AP.Crypto.hashHmac = _hashHmac
 delete _hashHmac;
 
-AP.Crypto.sign = _sign;
-delete _sign;
+//AP.Crypto.sign = _sign;
+//delete _sign;
 
-AP.Crypto.verify = _verify;
-delete _verify;
+//AP.Crypto.verify = _verify;
+//delete _verify;
 
-AP.Crypto.encrypt = _encrypt;
-delete _encrypt;
+//AP.Crypto.encrypt = _encrypt;
+//delete _encrypt;
 
-AP.Crypto.decrypt = _decrypt;
-delete _decrypt;
+//AP.Crypto.decrypt = _decrypt;
+//delete _decrypt;

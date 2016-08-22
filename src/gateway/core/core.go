@@ -9,6 +9,7 @@ import (
 	"gateway/config"
 	"gateway/core/ottocrypto"
 	"gateway/core/request"
+	"gateway/crypto"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
 	"gateway/logreport"
@@ -32,6 +33,7 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
+	KeyStore   *crypto.KeyStore
 }
 
 func (s *Core) PrepareRequest(
@@ -84,8 +86,12 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy() *otto.Otto {
-	return shared.Copy()
+func VMCopy(accountID int64, keyStore *crypto.KeyStore) *otto.Otto {
+	logreport.Printf("\n\n%+v\n\n", keyStore)
+	vm := shared.Copy()
+	ottocrypto.IncludeSigning(vm, accountID)
+	ottocrypto.IncludeEncryption(vm, accountID)
+	return vm
 }
 
 var shared = func() *otto.Otto {
@@ -101,8 +107,6 @@ var shared = func() *otto.Otto {
 	}
 
 	ottocrypto.IncludeHashing(vm)
-	ottocrypto.IncludeSigning(vm)
-	ottocrypto.IncludeEncryption(vm)
 
 	for _, filename := range files {
 		fileJS, err := Asset(filename)

@@ -11,12 +11,21 @@ import (
 // Default hashing algorithm used if nothing is supplied in the options.
 var defaultHashAlgorithm = "sha256"
 
-func IncludeEncryption(vm *otto.Otto) {
-	setEncrypt(vm)
-	setDecrypt(vm)
+func IncludeEncryption(vm *otto.Otto, accountID int64) {
+	setEncrypt(vm, accountID)
+	setDecrypt(vm, accountID)
+
+	scripts := []string{
+		"AP.Crypto.encrypt = _encrypt; delete _encrypt;",
+		"AP.Crypto.decrypt = _decrypt; delete _decrypt;",
+	}
+
+	for _, s := range scripts {
+		vm.Run(s)
+	}
 }
 
-func setEncrypt(vm *otto.Otto) {
+func setEncrypt(vm *otto.Otto, accountID int64) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
 		data, err := getArgument(call, 0)
 		if err != nil {
@@ -64,7 +73,7 @@ func setEncrypt(vm *otto.Otto) {
 	})
 }
 
-func setDecrypt(vm *otto.Otto) {
+func setDecrypt(vm *otto.Otto, accountID int64) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 		if err != nil {

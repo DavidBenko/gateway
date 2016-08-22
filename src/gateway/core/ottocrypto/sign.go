@@ -15,12 +15,21 @@ import (
 var defaultPaddingScheme = "pkcs1v15"
 
 // IncludeSigning adds the _sign function to the otto VM.
-func IncludeSigning(vm *otto.Otto) {
-	setSign(vm)
-	setVerify(vm)
+func IncludeSigning(vm *otto.Otto, accountID int64) {
+	setSign(vm, accountID)
+	setVerify(vm, accountID)
+
+	scripts := []string{
+		"AP.Crypto.sign = _sign; delete _sign;",
+		"AP.Crypto.verify = _verify; delete _verify;",
+	}
+
+	for _, s := range scripts {
+		vm.Run(s)
+	}
 }
 
-func setSign(vm *otto.Otto) {
+func setSign(vm *otto.Otto, accountID int64) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 
@@ -78,23 +87,7 @@ func setSign(vm *otto.Otto) {
 	})
 }
 
-func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
-	obj, err := vm.Object(fmt.Sprintf("(%s)", string(s)))
-
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	result, err := vm.ToValue(obj)
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	return result
-
-}
-
-func setVerify(vm *otto.Otto) {
+func setVerify(vm *otto.Otto, accountID int64) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 
@@ -149,6 +142,22 @@ func setVerify(vm *otto.Otto) {
 
 		return val
 	})
+}
+
+func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
+	obj, err := vm.Object(fmt.Sprintf("(%s)", string(s)))
+
+	if err != nil {
+		logreport.Print(err)
+		return undefined
+	}
+	result, err := vm.ToValue(obj)
+	if err != nil {
+		logreport.Print(err)
+		return undefined
+	}
+	return result
+
 }
 
 // All this stuff will disappear when the actual key/cert stuff is completed.

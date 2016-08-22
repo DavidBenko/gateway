@@ -12,6 +12,7 @@ import (
 
 	"gateway/config"
 	"gateway/core"
+	"gateway/crypto"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
@@ -55,10 +56,10 @@ func NewVM(
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
 	timeout int64,
+	keyStore *crypto.KeyStore,
 ) (*ProxyVM, error) {
-
 	vm := &ProxyVM{
-		Otto:                    core.VMCopy(),
+		Otto:                    core.VMCopy(proxyEndpoint.AccountID, keyStore),
 		conf:                    conf,
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
