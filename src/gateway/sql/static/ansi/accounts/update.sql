@@ -1,3 +1,3 @@
 UPDATE accounts
-SET name = ?
+SET name = ?, plan_id = ?
 WHERE id = ?;

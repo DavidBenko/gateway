@@ -41,6 +41,7 @@ type ProxyVM struct {
 	sessionStore *sessions.CookieStore
 	serverStore  *ServerStore
 	db           *sql.DB
+	timeout      int64
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
@@ -53,6 +54,7 @@ func NewVM(
 	db *sql.DB,
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
+	timeout int64,
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
@@ -61,9 +63,10 @@ func NewVM(
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
 		ProxiedRequestsDuration: 0,
-		w:  w,
-		r:  r,
-		db: db,
+		w:       w,
+		r:       r,
+		db:      db,
+		timeout: timeout,
 	}
 
 	var scripts = make([]interface{}, 0)
@@ -99,6 +102,12 @@ func NewVM(
 
 // Run runs the given script, preventing infinite loops and very slow JS
 func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
+	codeTimeout := int64(0)
+	if p.timeout < 1 || p.timeout > p.conf.CodeTimeout {
+		codeTimeout = p.conf.CodeTimeout
+	} else {
+		codeTimeout = p.timeout
+	}
 	defer func() {
 		if caught := recover(); caught != nil {
 			if caught == errCodeTimeout {
@@ -114,7 +123,7 @@ func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
 		p.Otto.Interrupt = timeoutChannel
 
 		go func() {
-			time.Sleep(time.Duration(p.conf.CodeTimeout) * time.Second)
+			time.Sleep(time.Duration(codeTimeout) * time.Second)
 			timeoutChannel <- func() { panic(errCodeTimeout) }
 		}()
 	}

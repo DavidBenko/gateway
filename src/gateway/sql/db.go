@@ -80,6 +80,7 @@ func (db *DB) Migrate() error {
 		migrateToV12,
 		migrateToV13,
 		migrateToV14,
+		migrateToV15,
 		migrateToV16,
 	}
 
