@@ -11,7 +11,7 @@ import (
 
 type Key struct {
 	ID        int64  `json:"id,omitempty" path:"id"`
-	AccountID int64  `json:"account_id" db:"account_id"`
+	AccountID int64  `json:"-" db:"account_id"`
 	Name      string `json:"name" db:"name"`
 	Key       []byte `json:"-"`
 }
