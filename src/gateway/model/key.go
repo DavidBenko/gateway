@@ -78,7 +78,7 @@ func parsePem(data []byte) (*pem.Block, error) {
 		return nil, errors.New("invalid format")
 	}
 	if len(remainder) > 0 {
-		return nil, errors.New("additional information in pem")
+		return nil, errors.New("additional information in pem, file should contain a single public or private key")
 	}
 	return block, nil
 }
