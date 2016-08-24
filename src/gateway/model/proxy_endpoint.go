@@ -44,6 +44,10 @@ type ProxyEndpoint struct {
 	Schema      *ProxyEndpointSchema `json:"-"`
 }
 
+type Job struct {
+	ProxyEndpoint
+}
+
 func (e *ProxyEndpoint) GetType() string {
 	return e.Type
 }
