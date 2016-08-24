@@ -2,32 +2,30 @@ package request
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-
+	"gateway/docker"
 	aperrors "gateway/errors"
 	"gateway/model"
-
-	"github.com/ahmetalpbalkan/dexec"
-	docker "github.com/fsouza/go-dockerclient"
 )
 
 // DockerRequest is a request to a Docker container
 type DockerRequest struct {
-	Image     string   `json:"image"`
-	Command   string   `json:"command"`
-	Arguments []string `json:"arguments"`
-	Advanced  bool     `json:"advanced"`
-	Config    struct {
-		Repository string `json:"repository,omitempty"`
-		Tag        string `json:"tag,omitempty"`
-		Username   string `json:"username,omitempty"`
-		Password   string `json:"password,omitempty"`
-	} `json:"config,omitempty"`
+	Repository  string   `json:"repository"`
+	Tag         string   `json:"tag"`
+	Command     string   `json:"command"`
+	Arguments   []string `json:"arguments"`
+	Environment []string `json:"environment"`
+	Username    string   `json:"username,omitempty"`
+	Password    string   `json:"password,omitempty"`
+	Registry    string   `json:"registry,omitempty"`
 }
 
 // DockerResponse is a response from a Docker container
 type DockerResponse struct {
-	Output []byte `json:"output"`
+	Stdout string `json:"stdout"`
+	Stderr string `json:"stderr"`
+	Error  bool   `json:"error"`
 }
 
 // JSON marshals a DockerResponse to JSON
@@ -37,7 +35,7 @@ func (dr *DockerResponse) JSON() ([]byte, error) {
 
 // Log formats the response's output
 func (dr *DockerResponse) Log() string {
-	return fmt.Sprintf("Output: %s", dr.Output)
+	return fmt.Sprintf("Stdout: %s, Stderr: %s, Error: %t", dr.Stdout, dr.Stderr, dr.Error)
 }
 
 // NewDockerRequest creates a new Docker request
@@ -65,35 +63,33 @@ func NewDockerRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage) (*D
 }
 
 func (dr *DockerRequest) updateWith(other *DockerRequest) {
-	if other.Image != "" {
-		dr.Image = other.Image
+	if other.Repository != "" {
+		dr.Repository = other.Repository
+	}
+	if other.Tag != "" {
+		dr.Tag = other.Tag
 	}
 	if other.Command != "" {
 		dr.Command = other.Command
 	}
-	if areNotEqual(other.Arguments, dr.Arguments) {
+	if len(other.Arguments) > 0 {
 		dr.Arguments = other.Arguments
 	}
-	if dr.Advanced != other.Advanced {
-		dr.Advanced = other.Advanced
-		if dr.Config.Repository != other.Config.Repository {
-			dr.Config.Repository = other.Config.Repository
-		}
-		if dr.Config.Tag != other.Config.Tag {
-			dr.Config.Tag = other.Config.Tag
-		}
-		if dr.Config.Username != other.Config.Username {
-			dr.Config.Username = other.Config.Username
-		}
-		if dr.Config.Password != other.Config.Password {
-			dr.Config.Password = other.Config.Password
-		}
+	if len(other.Environment) > 0 {
+		dr.Environment = other.Environment
+	}
+	if other.Username != "" && other.Password != "" {
+		dr.Username = other.Username
+		dr.Password = other.Password
+	}
+	if other.Registry != "" {
+		dr.Registry = other.Registry
 	}
 }
 
 // Log satisfies request.Request's Log method
 func (dr *DockerRequest) Log(devMode bool) string {
-	return fmt.Sprintf("Image: %s Command: %s Args: %v Advanced: %v Config: %+v", dr.Image, dr.Command, dr.Arguments, dr.Advanced, dr.Config)
+	return fmt.Sprintf("Repository: %s Tag: %s Command: %s Args: %v", dr.Repository, dr.Tag, dr.Command, dr.Arguments)
 }
 
 // JSON satisfies request.Request's JSON method
@@ -103,73 +99,13 @@ func (dr *DockerRequest) JSON() ([]byte, error) {
 
 // Perform satisfies request.Request's Perform method
 func (dr *DockerRequest) Perform() Response {
-	if dr.Advanced {
-		return performAdvanced(dr)
+	if dr.Command == "" {
+		return NewErrorResponse(errors.New("blank or nil commands are invalid"))
 	}
-	return performSimple(dr)
-}
-
-func performSimple(dr *DockerRequest) Response {
-	client, _ := docker.NewClientFromEnv()
-	d := dexec.Docker{client}
-	m, _ := dexec.ByCreatingContainer(docker.CreateContainerOptions{Config: &docker.Config{Image: dr.Image}})
-
-	cmd := d.Command(m, dr.Command, dr.Arguments...)
-	output, err := cmd.Output()
+	dc := &docker.DockerConfig{Repository: dr.Repository, Tag: dr.Tag, Username: dr.Username, Password: dr.Password, Registry: dr.Registry}
+	runOutput, err := dc.Execute(dr.Command, dr.Arguments, dr.Environment)
 	if err != nil {
-		return NewErrorResponse(aperrors.NewWrapped("[docker] Error running command", err))
+		return NewErrorResponse(aperrors.NewWrapped("[docker] Error executing command in docker conatiner", err))
 	}
-	return &DockerResponse{Output: output}
-}
-
-func performAdvanced(dr *DockerRequest) Response {
-	client, _ := docker.NewClientFromEnv()
-	d := dexec.Docker{client}
-	perr := client.PullImage(docker.PullImageOptions{
-		Repository: dr.Config.Repository,
-		Tag:        dr.Config.Tag,
-	}, docker.AuthConfiguration{
-		Username:      dr.Config.Username,
-		Password:      dr.Config.Password,
-		ServerAddress: dr.Config.Repository,
-	})
-	if perr != nil {
-		return NewErrorResponse(aperrors.NewWrapped("[docker] Error pulling image", perr))
-	}
-
-	m, _ := dexec.ByCreatingContainer(docker.CreateContainerOptions{Config: &docker.Config{Image: dr.Image}})
-
-	cmd := d.Command(m, dr.Command, dr.Arguments...)
-	output, err := cmd.Output()
-	if err != nil {
-		return NewErrorResponse(aperrors.NewWrapped("[docker] Error running command", err))
-	}
-	return &DockerResponse{Output: output}
-}
-
-// areNotEqual checks the given slices for equality and returns true iff a and b are NOT equal
-func areNotEqual(a, b []string) bool {
-	return !areEqual(a, b)
-}
-
-// areEqual checks the given slices for equality and returns true iff a equals b
-func areEqual(a, b []string) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
+	return &DockerResponse{Stdout: runOutput.Stdout, Stderr: runOutput.Stderr, Error: runOutput.Error}
 }

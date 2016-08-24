@@ -78,6 +78,8 @@ func (s *Core) PrepareRequest(
 		return request.NewRedisRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeSMTP:
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
+	case model.RemoteEndpointTypeDocker:
+		return request.NewDockerRequest(endpoint, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}
