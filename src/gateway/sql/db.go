@@ -80,7 +80,7 @@ func (db *DB) Migrate() error {
 		migrateToV12,
 		migrateToV13,
 		migrateToV14,
-		func(db *DB) error { return nil },
+		migrateToV15,
 		func(db *DB) error { return nil },
 		migrateToV17,
 	}

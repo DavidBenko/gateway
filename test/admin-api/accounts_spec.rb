@@ -49,7 +49,6 @@ describe "accounts" do
         clear_db!
         post "/accounts", account: fixtures[:accounts][:lulz]
       end
-
       it_behaves_like "a valid account"
       it { expect_json("account.name", "LulzCorp") }
     end

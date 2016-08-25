@@ -1246,7 +1246,7 @@ AP.Redis.Request.prototype.execute = function(stmt) {
  *
  * @namespace
  */
- 
+
 AP.Smtp = AP.Smtp || {};
 
 /**
@@ -1259,15 +1259,72 @@ AP.Smtp = AP.Smtp || {};
  AP.Smtp.Request = function() {
    this.address = null;
    this.body = null;
-   
+
    if (arguments.length == 1) {
      var request = arguments[0];
      this.address = _.clone(request.address);
      this.body = _.clone(request.body);
    }
  }
- 
+
  AP.Smtp.Request.prototype.send = function(address, body) {
    this.address = address;
    this.body = body;
+ }
+
+ /**
+  * Docker holds helper classes for Docker related tasks
+  *
+  * @namespace
+  */
+ AP.Docker = AP.Docker || {};
+
+ /**
+  * Creates a new Docker request.
+  *
+  * @class
+  * @constructor
+  * @param [request] - An incoming request to copy the command, arguments, and environment from.
+  */
+ AP.Docker.Request = function() {
+
+   /**
+    * The request's command to execute within the docker container.
+    * @type {string}
+    */
+   this.command = null;
+
+   /**
+    * The request's arguments to pass to the docker container's command.
+    * @type {Array.<string>}
+    */
+   this.arguments = [];
+
+   /**
+    * The request's environment variables to use when setting up the docker container.
+    * @type {object}
+    */
+   this.environment = {};
+
+   if (arguments.length == 1) {
+     var request = arguments[0];
+     this.command = _.clone(request.command);
+     this.arguments = _.clone(request.arguments);
+     this.environment = _.clone(request.environment);
+   }
+ }
+
+ AP.Docker.Request.prototype.execute = function(cmd, args, env) {
+   this.command = cmd;
+   if (typeof args === 'undefined' || args === null) {
+     this.arguments = [];
+   } else {
+     this.arguments = args;
+   }
+
+   if (typeof env === 'undefined' || env === null) {
+     this.environment = {};
+   } else {
+     this.environment = env;
+   }
  }

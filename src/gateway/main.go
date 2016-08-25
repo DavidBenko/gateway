@@ -29,6 +29,7 @@ import (
 	"gateway/sql"
 	"gateway/store"
 	"gateway/version"
+	"github.com/stripe/stripe-go"
 )
 
 func init() {
@@ -113,6 +114,27 @@ func main() {
 		}
 	}
 
+	if !conf.DevMode() {
+		if license.DeveloperVersion {
+			logreport.Fatalf("Developer version does not allow running in server mode.")
+		} else {
+			// if Stripe API keys are set and we are in server mode, let's setup the Stripe client.
+			if conf.Admin.StripeSecretKey != "" && conf.Admin.StripePublishableKey != "" {
+				logreport.Printf("Setting up Stripe client.")
+				stripe.Key = conf.Admin.StripeSecretKey
+				if conf.Admin.StripeFallbackPlan == "" {
+					logreport.Fatalf("A Stripe fallback plan is required when Stripe is configured.")
+				}
+				if conf.Admin.StripeMigrateAccounts {
+					err = model.MigrateAccountsToStripe(db, conf.Admin.StripeFallbackPlan)
+					if err != nil {
+						logreport.Fatal(err)
+					}
+				}
+			}
+		}
+	}
+
 	commands := config.Commands()
 	if len(commands) > 0 {
 		processCommands(commands, conf, db)
@@ -136,10 +158,6 @@ func main() {
 			}
 		} else {
 			logreport.Fatal("Dev account doesn't exist")
-		}
-	} else {
-		if license.DeveloperVersion {
-			logreport.Fatalf("Developer version does not allow running in server mode.")
 		}
 	}
 
@@ -172,6 +190,11 @@ func main() {
 
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
+
+	if conf.RemoteEndpoint.DockerEnabled {
+		// Listen to docker remote endpoint changes.
+		model.StartDockerEndpointUpdateListener(db)
+	}
 
 	// Configure the object store
 	objectStore, err := store.Configure(conf.Store)
@@ -298,6 +321,7 @@ var commands = map[string]Command{
 	"accounts:create": {
 		[]Parameter{
 			{"name", true},
+			{"plan_id", false},
 		},
 		"accounts:create name:\"<name>\"",
 		accountsCreate,
@@ -306,6 +330,7 @@ var commands = map[string]Command{
 		[]Parameter{
 			{"id", true},
 			{"name", false},
+			{"plan_id", false},
 		},
 		"accounts:update <id> [name:\"<name>\"]",
 		accountsUpdate,
@@ -354,6 +379,41 @@ var commands = map[string]Command{
 		},
 		"users:destroy <id>",
 		usersDestroy,
+	},
+	"plans": {
+		[]Parameter{},
+		"plans",
+		plans,
+	},
+	"plans:create": {
+		[]Parameter{
+			{"name", true},
+			{"stripe_name", true},
+			{"max_users", true},
+			{"javascript_timeout", true},
+			{"price", true},
+		},
+		"plans:create name:\"<name>\" stripe_name:<stripe_name> max_users:<max_users> javascript_timeout:<javascript_timeout> price:<price>",
+		plansCreate,
+	},
+	"plans:update": {
+		[]Parameter{
+			{"id", true},
+			{"name", false},
+			{"stripe_name", false},
+			{"max_users", false},
+			{"javascript_timeout", false},
+			{"price", false},
+		},
+		"plans:update <id> [name:\"<name>\"] [email:<email>] [stripe_name:<stripe_name>] [max_users:<max_users>] [javascript_timeout:<javascript_timeout>] [price:<price>]",
+		plansUpdate,
+	},
+	"plans:destroy": {
+		[]Parameter{
+			{"id", true},
+		},
+		"plans:destroy <id>",
+		plansDestroy,
 	},
 }
 
@@ -414,13 +474,20 @@ func accounts(params map[string]string, conf config.Configuration, db *sql.DB) {
 	}
 	fmt.Println("=== Accounts")
 	for _, account := range accounts {
-		fmt.Printf("%v %v\n", account.ID, account.Name)
+		fmt.Printf("%v %v %v\n", account.ID, account.Name, account.PlanID.Int64)
 	}
 }
 
 func accountsCreate(params map[string]string, conf config.Configuration, db *sql.DB) {
 	account := &model.Account{
 		Name: params["name"],
+	}
+	if params["plan_id"] != "" {
+		planID, err := strconv.Atoi(params["plan_id"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		account.PlanID = sql.MakeNullInt64(int64(planID))
 	}
 	err := db.DoInTransaction(func(tx *sql.Tx) error {
 		return account.Insert(tx)
@@ -435,6 +502,13 @@ func accountsUpdate(params map[string]string, conf config.Configuration, db *sql
 	account := getAccount(params, db)
 	if params["name"] != "" {
 		account.Name = params["name"]
+	}
+	if params["plan_id"] != "" {
+		planID, err := strconv.Atoi(params["plan_id"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		account.PlanID = sql.MakeNullInt64(int64(planID))
 	}
 	err := db.DoInTransaction(func(tx *sql.Tx) error {
 		return account.Update(tx)
@@ -615,6 +689,131 @@ func usersDestroy(params map[string]string, conf config.Configuration, db *sql.D
 	}
 	fmt.Printf("Destroyed user %v %v on account %v %v\n", user.ID, user.Email,
 		account.ID, account.Name)
+}
+
+func getPlan(params map[string]string, db *sql.DB) *model.Plan {
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	plan, err := model.FindPlan(db, int64(id))
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	return plan
+}
+
+func plans(params map[string]string, conf config.Configuration, db *sql.DB) {
+	plans, err := model.AllPlans(db)
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	fmt.Println("=== Plans")
+	for _, plan := range plans {
+		fmt.Printf("%v %v %v %v %v %v\n", plan.ID, plan.Name, plan.StripeName, plan.MaxUsers, plan.JavascriptTimeout, plan.Price)
+	}
+}
+
+func plansCreate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	maxUsers, err := strconv.Atoi(params["max_users"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	javascriptTimeout, err := strconv.Atoi(params["javascript_timeout"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	price, err := strconv.Atoi(params["price"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	plan := &model.Plan{
+		Name:              params["name"],
+		StripeName:        params["stripe_name"],
+		MaxUsers:          int64(maxUsers),
+		JavascriptTimeout: int64(javascriptTimeout),
+		Price:             int64(price),
+	}
+	err = db.DoInTransaction(func(tx *sql.Tx) error {
+		return plan.Insert(tx)
+	})
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	fmt.Printf("Create plan %v %v %v %v %v %v\n", plan.ID, plan.Name, plan.StripeName, plan.MaxUsers, plan.JavascriptTimeout, plan.Price)
+}
+
+func plansUpdate(params map[string]string, conf config.Configuration, db *sql.DB) {
+	plan := getPlan(params, db)
+	if params["name"] != "" {
+		plan.Name = params["name"]
+	}
+	if params["stripe_name"] != "" {
+		plan.StripeName = params["stripe_name"]
+	}
+	if params["max_users"] != "" {
+		maxUsers, err := strconv.Atoi(params["max_users"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		plan.MaxUsers = int64(maxUsers)
+	}
+	if params["javascript_timeout"] != "" {
+		javascripTimeout, err := strconv.Atoi(params["javascript_timeout"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		plan.JavascriptTimeout = int64(javascripTimeout)
+	}
+	if params["price"] != "" {
+		price, err := strconv.Atoi(params["price"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		plan.Price = int64(price)
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		return plan.Update(tx)
+	})
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	fmt.Printf("Updated plan %v %v %v %v %v %v\n", plan.ID, plan.Name, plan.StripeName, plan.MaxUsers, plan.JavascriptTimeout, plan.Price)
+}
+
+func plansDestroy(params map[string]string, conf config.Configuration, db *sql.DB) {
+	plan := getPlan(params, db)
+	fmt.Printf("delete plan: %v %v?\n", plan.ID, plan.Name)
+	fmt.Printf("enter id (%v):", plan.ID)
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	enteredId, err := strconv.Atoi(response)
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	if plan.ID != int64(enteredId) {
+		logreport.Fatal("the entered id doesn't match")
+	}
+	fmt.Printf("enter name (%v):", plan.Name)
+	response, err = reader.ReadString('\n')
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	response = strings.Trim(response, "\n")
+	if plan.Name != response {
+		logreport.Fatal("the entered name doesn't match")
+	}
+	err = db.DoInTransaction(func(tx *sql.Tx) error {
+		return model.DeletePlan(tx, plan.ID)
+	})
+	if err != nil {
+		logreport.Fatal(err)
+	}
+	fmt.Printf("Destroyed plan %v %v %v %v %v %v\n", plan.ID, plan.Name, plan.StripeName, plan.MaxUsers, plan.JavascriptTimeout, plan.Price)
 }
 
 func processCommands(cmds []string, conf config.Configuration, db *sql.DB) {

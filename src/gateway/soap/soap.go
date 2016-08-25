@@ -37,7 +37,7 @@ var (
 	wsimportAvailable = false
 	soapAvailable     = false
 
-	javaVersionRegex = regexp.MustCompile("^java version \"1\\.(\\d+)\\..+\"")
+	javaVersionRegex = regexp.MustCompile("^(java|openjdk) version \"1\\.(\\d+)\\..+\"")
 
 	jvmCmd *exec.Cmd
 )
@@ -79,8 +79,8 @@ func Configure(soap config.Soap, devMode bool) error {
 	var match *string
 	for _, line := range lines {
 		matches := javaVersionRegex.FindStringSubmatch(line)
-		if len(matches) == 2 {
-			match = &matches[1]
+		if len(matches) == 3 {
+			match = &matches[2]
 			break
 		}
 	}

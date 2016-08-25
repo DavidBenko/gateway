@@ -186,6 +186,13 @@ func data() map[string]interface{} {
 				"sender":   "admin@mail.server.com",
 			},
 		},
+		"docker-simple": map[string]interface{}{
+			"config": map[string]interface{}{
+				"image":     "busybox",
+				"command":   "ls",
+				"arguments": []string{"-a", "-l", "-h"},
+			},
+		},
 	}
 }
 
@@ -205,6 +212,7 @@ func specs() map[string]db.Specifier {
 		{"hana-simple", model.RemoteEndpointTypeHana},
 		{"redis-simple", model.RemoteEndpointTypeRedis},
 		{"smtp-simple", model.RemoteEndpointTypeSMTP},
+		{"docker-simple", model.RemoteEndpointTypeDocker},
 	} {
 		d := data()[which.name].(map[string]interface{})
 		js, err := json.Marshal(d)
@@ -275,6 +283,12 @@ func specs() map[string]db.Specifier {
 			)
 		case model.RemoteEndpointTypeSMTP:
 			var conf re.Smtp
+			err = json.Unmarshal(js, &conf)
+			if err != nil {
+				panic(err)
+			}
+		case model.RemoteEndpointTypeDocker:
+			var conf re.Docker
 			err = json.Unmarshal(js, &conf)
 			if err != nil {
 				panic(err)
