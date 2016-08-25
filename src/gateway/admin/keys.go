@@ -44,7 +44,8 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 	accountID := k.accountID(r)
 	keys, err := model.FindKeysForAccount(accountID, db)
 	if err != nil {
-		aphttp.NewError(errors.New("No push channel matches"), 404)
+		logreport.Printf("%s Error listing keys: %v\n%v", config.Admin, err, r)
+		aphttp.NewError(errors.New("no keys found"), http.StatusNotFound)
 	}
 
 	return serializeCollection(keys, w)
@@ -53,12 +54,14 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
 	file, _, err := r.FormFile("key")
 	if err != nil {
-		return aphttp.NewError(errors.New("invalid file"), 400)
+		logreport.Printf("%s Error getting form file: %v\n%v", config.Admin, err, r)
+		return aphttp.NewError(errors.New("invalid file"), http.StatusBadRequest)
 	}
 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		return aphttp.NewError(errors.New("unable to read file"), 400)
+		logreport.Printf("%s Error reading form file: %v\n%v", config.Admin, err, r)
+		return aphttp.NewError(errors.New("unable to read file"), http.StatusBadRequest)
 	}
 
 	name := r.FormValue("name")
@@ -85,11 +88,12 @@ func (k *KeysController) Delete(w http.ResponseWriter, r *http.Request, tx *apsq
 
 	key := &model.Key{ID: keyID}
 	accountID := k.accountID(r)
+	userID := k.userID(r)
 
-	err := key.Delete(accountID, tx)
+	err := key.Delete(accountID, userID, 0, tx)
 	if err != nil {
-		logreport.Print(err)
-		return aphttp.NewError(errors.New("failed to delete key"), 500)
+		logreport.Printf("%s Error deleting key: %v\n%v", config.Admin, err, r)
+		return aphttp.NewError(errors.New("failed to delete key"), http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(http.StatusOK)

@@ -53,21 +53,45 @@ func FindKeysForAccount(accountID int64, db *apsql.DB) ([]*Key, error) {
 	return keys, nil
 }
 
+func FindKeyByAccountIdAndName(accountID int64, name string, db *apsql.DB) (*Key, error) {
+	key := Key{}
+	if err := db.Get(&key, db.SQL("keys/find_by_account_name"), name, accountID); err != nil {
+		return nil, err
+	}
+	return &key, nil
+}
+
 func (k *Key) Insert(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
 	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key, k.AccountID); err != nil {
 		return
 	}
-	err = afterInsert(k, accountID, userID, apiID, tx)
+	err = afterKeyInsert(k, accountID, userID, apiID, tx)
 	return
 }
 
-func (k *Key) Delete(accountID int64, tx *apsql.Tx) (err error) {
-	err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID, accountID)
+func (k *Key) Delete(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
+	if err = tx.DeleteOne(tx.SQL("keys/delete"), k.ID, accountID); err != nil {
+		return
+	}
+	err = afterKeyDelete(k, accountID, userID, apiID, tx)
 	return
 }
 
-func afterInsert(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
-	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Insert, key.ID)
+func afterKeyInsert(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
+	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Insert, key.ID, key.Name)
+}
+
+func afterKeyDelete(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
+	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Delete, key.ID)
+}
+
+func (k *Key) GetParsedKey() (interface{}, error) {
+	block, err := parsePem(k.Key)
+	if err != nil {
+		return nil, err
+	}
+	key, _, err := ParseToKey(block)
+	return key, err
 }
 
 // data should be a single pem block, i.e. from the opening

@@ -14,7 +14,6 @@ import (
 	"gateway/admin"
 	"gateway/config"
 	"gateway/core"
-	"gateway/crypto"
 	"gateway/db/pools"
 	aphttp "gateway/http"
 	"gateway/logreport"
@@ -56,6 +55,9 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 		source = newPassthroughProxyDataSource(ownDb)
 	}
 
+	keyStore := core.NewKeyStore(ownDb)
+	ownDb.RegisterListener(keyStore)
+
 	pools := pools.MakePools()
 	ownDb.RegisterListener(pools)
 
@@ -68,7 +70,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			Store:      s,
 			Push:       push.NewPushPool(conf.Push),
 			Smtp:       smtp.NewSmtpPool(),
-			KeyStore:   &crypto.KeyStore{},
+			KeyStore:   keyStore,
 		},
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,

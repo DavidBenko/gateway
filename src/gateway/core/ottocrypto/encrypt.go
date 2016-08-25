@@ -8,12 +8,16 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+type KeyDataSource interface {
+	GetKey(int64, string) (interface{}, bool)
+}
+
 // Default hashing algorithm used if nothing is supplied in the options.
 var defaultHashAlgorithm = "sha256"
 
-func IncludeEncryption(vm *otto.Otto, accountID int64) {
-	setEncrypt(vm, accountID)
-	setDecrypt(vm, accountID)
+func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+	setEncrypt(vm, accountID, keySource)
+	setDecrypt(vm, accountID, keySource)
 
 	scripts := []string{
 		"AP.Crypto.encrypt = _encrypt; delete _encrypt;",
@@ -25,7 +29,7 @@ func IncludeEncryption(vm *otto.Otto, accountID int64) {
 	}
 }
 
-func setEncrypt(vm *otto.Otto, accountID int64) {
+func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
 		data, err := getArgument(call, 0)
 		if err != nil {
@@ -42,8 +46,10 @@ func setEncrypt(vm *otto.Otto, accountID int64) {
 		options := o.(map[string]interface{})
 
 		var key interface{}
-		if k, ok := options["key"]; ok {
-			key = publicKey(k.(string))
+		if keyName, ok := options["key"]; ok {
+			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
+				key = k
+			}
 		}
 
 		tag := ""
@@ -73,7 +79,7 @@ func setEncrypt(vm *otto.Otto, accountID int64) {
 	})
 }
 
-func setDecrypt(vm *otto.Otto, accountID int64) {
+func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 		if err != nil {
@@ -90,8 +96,10 @@ func setDecrypt(vm *otto.Otto, accountID int64) {
 		options := o.(map[string]interface{})
 
 		var key interface{}
-		if k, ok := options["key"]; ok {
-			key = privateKey(k.(string))
+		if keyName, ok := options["key"]; ok {
+			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
+				key = k
+			}
 		}
 
 		tag := ""

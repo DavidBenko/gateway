@@ -9,7 +9,6 @@ import (
 	"gateway/config"
 	"gateway/core/ottocrypto"
 	"gateway/core/request"
-	"gateway/crypto"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
 	"gateway/logreport"
@@ -33,7 +32,7 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
-	KeyStore   *crypto.KeyStore
+	KeyStore   *KeyStore
 }
 
 func (s *Core) PrepareRequest(
@@ -86,11 +85,10 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy(accountID int64, keyStore *crypto.KeyStore) *otto.Otto {
-	logreport.Printf("\n\n%+v\n\n", keyStore)
+func VMCopy(accountID int64, keySource ottocrypto.KeyDataSource) *otto.Otto {
 	vm := shared.Copy()
-	ottocrypto.IncludeSigning(vm, accountID)
-	ottocrypto.IncludeEncryption(vm, accountID)
+	ottocrypto.IncludeSigning(vm, accountID, keySource)
+	ottocrypto.IncludeEncryption(vm, accountID, keySource)
 	return vm
 }
 

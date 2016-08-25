@@ -1,8 +1,6 @@
 package ottocrypto
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"gateway/crypto"
@@ -15,9 +13,9 @@ import (
 var defaultPaddingScheme = "pkcs1v15"
 
 // IncludeSigning adds the _sign function to the otto VM.
-func IncludeSigning(vm *otto.Otto, accountID int64) {
-	setSign(vm, accountID)
-	setVerify(vm, accountID)
+func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+	setSign(vm, accountID, keySource)
+	setVerify(vm, accountID, keySource)
 
 	scripts := []string{
 		"AP.Crypto.sign = _sign; delete _sign;",
@@ -29,7 +27,7 @@ func IncludeSigning(vm *otto.Otto, accountID int64) {
 	}
 }
 
-func setSign(vm *otto.Otto, accountID int64) {
+func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 
@@ -49,8 +47,10 @@ func setSign(vm *otto.Otto, accountID int64) {
 		options := o.(map[string]interface{})
 
 		var key interface{}
-		if k, ok := options["key"]; ok {
-			key = privateKey(k.(string))
+		if keyName, ok := options["key"]; ok {
+			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
+				key = k
+			}
 		}
 
 		algorithm := defaultHashAlgorithm
@@ -87,7 +87,7 @@ func setSign(vm *otto.Otto, accountID int64) {
 	})
 }
 
-func setVerify(vm *otto.Otto, accountID int64) {
+func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
 		d, err := getArgument(call, 0)
 
@@ -113,8 +113,10 @@ func setVerify(vm *otto.Otto, accountID int64) {
 		options := o.(map[string]interface{})
 
 		var key interface{}
-		if k, ok := options["key"]; ok {
-			key = publicKey(k.(string))
+		if keyName, ok := options["key"]; ok {
+			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
+				key = k
+			}
 		}
 
 		algorithm := defaultHashAlgorithm
@@ -158,36 +160,4 @@ func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
 	}
 	return result
 
-}
-
-// All this stuff will disappear when the actual key/cert stuff is completed.
-var _privateKey *rsa.PrivateKey
-var generated bool
-
-func generate() {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		logreport.Print(err)
-	} else {
-		_privateKey = key
-		generated = true
-	}
-}
-
-func privateKey(name string) interface{} {
-	// TODO: Needs to be completed with key store, for now just generate
-	// 	 a random one.
-	if !generated {
-		generate()
-	}
-
-	return _privateKey
-}
-
-func publicKey(name string) interface{} {
-	if !generated {
-		generate()
-	}
-
-	return _privateKey.Public()
 }
