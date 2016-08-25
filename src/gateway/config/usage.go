@@ -128,6 +128,8 @@ var usageStrings = map[string]string{
 	"stripe-payment-retry-attempts": "Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.",
 	"stripe-migrate-accounts":       "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
 
+	"admin-api-host": "The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.",
+
 	"elastic-logging-url":          "The url of the elastic server",
 	"elastic-logging-delete-after": "How long in days to keep logs",
 

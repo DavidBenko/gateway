@@ -155,6 +155,8 @@ type ProxyAdmin struct {
 	StripeFallbackPlan         string `flag:"stripe-fallback-plan" default:""`
 	StripePaymentRetryAttempts int64  `flag:"stripe-payment-retry-attempts" default:"3"`
 	StripeMigrateAccounts      bool   `flag:"stripe-migrate-accounts"     default:"false"`
+
+	APIHost string `flag:"admin-api-host"        default:""`
 }
 
 type ElasticLogging struct {
