@@ -82,13 +82,20 @@ func collectionIDFromPath(r *http.Request) int64 {
 }
 
 func mapFromPath(r *http.Request, object interface{}) {
-	value := reflect.Indirect(reflect.ValueOf(object))
-	typ3 := value.Type()
-	for i := 0; i < typ3.NumField(); i++ {
-		if path := typ3.Field(i).Tag.Get("path"); path != "" {
-			value.Field(i).SetInt(parseID(mux.Vars(r)[path]))
+	var set func(value reflect.Value)
+	set = func(value reflect.Value) {
+		value = reflect.Indirect(value)
+		typ3 := value.Type()
+		for i := 0; i < typ3.NumField(); i++ {
+			field := typ3.Field(i)
+			if field.Type.Kind() == reflect.Struct {
+				set(value.Field(i))
+			} else if path := field.Tag.Get("path"); path != "" {
+				value.Field(i).SetInt(parseID(mux.Vars(r)[path]))
+			}
 		}
 	}
+	set(reflect.ValueOf(object))
 }
 
 func mapAccountID(id int64, object interface{}) {
