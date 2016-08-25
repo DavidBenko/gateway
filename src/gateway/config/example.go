@@ -171,6 +171,9 @@ const ExampleConfigurationFile = `##############################################
 # If the gateway should attempt to migrate non-stripe accounts to Stripe on startup.
 # stripeMigrateAccounts = false
 
+# The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.
+# apiHost = ''
+
 ## ---------- Proxy ------------
 [proxy]
 # Whether or not to cache API data when serving proxy calls, default is false.
