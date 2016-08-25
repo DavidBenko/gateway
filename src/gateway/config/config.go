@@ -37,6 +37,7 @@ type Configuration struct {
 	RemoteEndpoint RemoteEndpoint
 	SMTP           SMTP
 	Push           Push
+	Docker         Docker
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -69,6 +70,12 @@ type Store struct {
 	Type             string `flag:"store-type"        default:"boltdb"`
 	ConnectionString string `flag:"store-conn-string" default:"store.db"`
 	MaxConnections   int64  `flag:"store-max-connections" default:"50"`
+}
+
+// Docker specifies configuration options for docker remote endpoints
+type Docker struct {
+	Memory    int64 `flag:"docker-memory" default:"128"`
+	CPUShares int64 `flag:"docker-cpu-shares" default:"1024"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

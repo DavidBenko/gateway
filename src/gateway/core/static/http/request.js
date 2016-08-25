@@ -1302,9 +1302,9 @@ AP.Smtp = AP.Smtp || {};
 
    /**
     * The request's environment variables to use when setting up the docker container.
-    * @type {Array.<string>}
+    * @type {object}
     */
-   this.environment = [];
+   this.environment = {};
 
    if (arguments.length == 1) {
      var request = arguments[0];
@@ -1323,7 +1323,7 @@ AP.Smtp = AP.Smtp || {};
    }
 
    if (typeof env === 'undefined' || env === null) {
-     this.environment = [];
+     this.environment = {};
    } else {
      this.environment = env;
    }

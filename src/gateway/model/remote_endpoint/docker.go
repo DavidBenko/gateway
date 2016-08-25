@@ -7,14 +7,14 @@ import (
 
 // Docker represents a configuration for a remote Docker endpoint
 type Docker struct {
-	Repository  string   `json:"repository"`
-	Tag         string   `json:"tag"`
-	Command     string   `json:"command"`
-	Arguments   []string `json:"arguments"`
-	Environment []string `json:"environment"`
-	Username    string   `json:"username,omitempty"`
-	Password    string   `json:"password,omitempty"`
-	Registry    string   `json:"registry,omitempty"`
+	Repository  string            `json:"repository"`
+	Tag         string            `json:"tag"`
+	Command     string            `json:"command"`
+	Arguments   []string          `json:"arguments"`
+	Environment map[string]string `json:"environment"`
+	Username    string            `json:"username,omitempty"`
+	Password    string            `json:"password,omitempty"`
+	Registry    string            `json:"registry,omitempty"`
 }
 
 // Validate validates the existence of an image and a command

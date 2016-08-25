@@ -64,6 +64,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			DBPools:    pools,
 			OwnDb:      ownDb,
 			SoapConf:   conf.Soap,
+			DockerConf: conf.Docker,
 			Store:      s,
 			Push:       push.NewPushPool(conf.Push),
 			Smtp:       smtp.NewSmtpPool(),

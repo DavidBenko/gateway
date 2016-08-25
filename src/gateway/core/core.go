@@ -28,6 +28,7 @@ type Core struct {
 	DBPools    *pools.Pools
 	OwnDb      *sql.DB // in-application datastore
 	SoapConf   config.Soap
+	DockerConf config.Docker
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
@@ -79,7 +80,7 @@ func (s *Core) PrepareRequest(
 	case model.RemoteEndpointTypeSMTP:
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
 	case model.RemoteEndpointTypeDocker:
-		return request.NewDockerRequest(endpoint, data)
+		return request.NewDockerRequest(endpoint, data, s.DockerConf)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

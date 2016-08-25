@@ -3,6 +3,7 @@ package docker
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/ahmetalpbalkan/dexec"
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
@@ -13,6 +14,8 @@ type DockerConfig struct {
 	Username   string `json:"username,omitempty"`
 	Password   string `json:"password,omitempty"`
 	Registry   string `json:"registry,omitempty"`
+	Memory     int64  `json:"-"`
+	CPUShares  int64  `json:"-"`
 }
 
 type RunOutput struct {
@@ -96,8 +99,12 @@ func (dc *DockerConfig) ImageExists() (bool, error) {
 	return true, nil
 }
 
-func (dc *DockerConfig) Execute(command string, arguments []string, environment []string) (*RunOutput, error) {
+func (dc *DockerConfig) Execute(command string, arguments []string, environmentVars map[string]string) (*RunOutput, error) {
 	client, err := dockerclient.NewClientFromEnv()
+	var environment []string
+	for k, v := range environmentVars {
+		environment = append(environment, fmt.Sprintf("%s=%s", k, v))
+	}
 	output := new(RunOutput)
 	if err != nil {
 		return output, err
@@ -123,8 +130,8 @@ func (dc *DockerConfig) Execute(command string, arguments []string, environment 
 		Config: &dockerclient.Config{
 			Image:     dc.Image(),
 			Env:       environment,
-			Memory:    128 * 1024 * 1024,
-			CPUShares: 1024,
+			Memory:    dc.Memory * 1024 * 1024,
+			CPUShares: dc.CPUShares,
 		},
 	})
 	if err != nil {

@@ -256,6 +256,13 @@ const ExampleConfigurationFile = `##############################################
 # The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request), defaults to 0.
 # threadPoolSize =
 
+[docker]
+# The amount of memory MB to allocate to each running docker container.
+# memory = 128
+
+# The CPU share weight to allocate to each running docker container
+# cpuShares = 1024
+
 ## ---------- Logging ------------
 [bleve]
 # Number of days to keep the logs, default is 30
