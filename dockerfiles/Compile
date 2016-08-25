@@ -15,7 +15,7 @@ RUN echo "deb http://http.debian.net/debian unstable main" >> /etc/apt/sources.l
     apt-get clean && \
     apt-get -y install build-essential zlib1g-dev libssl-dev \
     libreadline6 libreadline6-dev libyaml-dev openssl git \
-    chrpath git-core libfontconfig1-dev libffi6 libffi-dev libaio1 upx &&  \
+    chrpath git-core libfontconfig1-dev libffi6 libffi-dev upx &&  \
     curl https://raw.githubusercontent.com/creationix/nvm/v0.31.3/install.sh | bash && \
     . /root/.bashrc && nvm install 4.4.7 && nvm alias default 4.4.7 && npm -g install bower && echo '{ "allow_root": true }' > /root/.bowerrc && \
     gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 && \

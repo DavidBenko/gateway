@@ -10,16 +10,6 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-# This path has to be ${HOME}/lib on El Capitan
-ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
-
-PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
-export PKG_CONFIG_PATH
-
-# This must be done for OCI8 to work on Linux
-LD_LIBRARY_PATH := ${LD_LIBRARY_PATH}:$(PKG_CONFIG_PATH)
-export LD_LIBRARY_PATH
-
 ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
@@ -64,7 +54,7 @@ assets: install_bindata soapclient
 generate: install_goimports install_peg
 	go generate gateway/...
 
-build: vet assets generate install_oracle_client
+build: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
@@ -80,10 +70,10 @@ debug: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 	dlv exec ./bin/gateway -- -config=./test/gateway.conf -db-migrate
 
-package: vet admin assets generate install_oracle_client
+package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
 
-release: vet admin assets generate install_oracle_client
+release: vet admin assets generate
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
 
 docker_clean_bin:
@@ -91,7 +81,7 @@ docker_clean_bin:
 
 docker_compilation_prep: docker_clean_bin vet docker_admin assets generate
 
-docker_binary_release: install_oracle_client docker_compile_only
+docker_binary_release: docker_compile_only
 
 docker_compile_only:
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
@@ -310,13 +300,3 @@ install_vet:
 vet: install_vet
 	./scripts/make-hooks
 	./scripts/hooks/pre-commit
-
-install_oracle_client:
-	#first argument is directory to save instant client, second is the package config file source
-	#which is processed and saved as oci8.pc in the same argument directory
-	./scripts/install_oracle_instant_client.rb $(ORACLE_INSTANT_CLIENT_DIR) contrib/oci8.pc
-
-start_oracle:
-	# Starts the docker container named 'orcl' running Oracle 12c on a machine named oracle
-	# DB named 'ORCL' on port 1521 with login system/manager
-	./scripts/start_oracle.sh

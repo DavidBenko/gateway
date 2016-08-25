@@ -234,9 +234,6 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not the SAP Hana remote endpoints are enabled, default is true.
 # hanaEnabled =
 
-# Whether or not Oracle remote endpoints are enabled, default is true.
-# oracleEnabled =
-
 # Whether or not Docker remote endpoints are enabled, default is true.
 # dockerEnabled =
 
