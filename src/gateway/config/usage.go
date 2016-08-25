@@ -90,6 +90,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-oracle-enabled":     "Whether or not Oracle remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to true.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
@@ -159,4 +160,7 @@ var usageStrings = map[string]string{
 	"push-broker-transport": "The push broker transport",
 	"push-connect-timeout":  "The connect timeout for MQTT",
 	"push-mqtt-uri":         "The URI for the MQTT server",
+
+	"docker-memory":     "The amount of memory MB to allocate to each running docker container",
+	"docker-cpu-shares": "The CPU share weight to allocate to each running docker container",
 }

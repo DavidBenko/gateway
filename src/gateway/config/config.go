@@ -37,6 +37,7 @@ type Configuration struct {
 	RemoteEndpoint RemoteEndpoint
 	SMTP           SMTP
 	Push           Push
+	Docker         Docker
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -71,6 +72,12 @@ type Store struct {
 	MaxConnections   int64  `flag:"store-max-connections" default:"50"`
 }
 
+// Docker specifies configuration options for docker remote endpoints
+type Docker struct {
+	Memory    int64 `flag:"docker-memory" default:"128"`
+	CPUShares int64 `flag:"docker-cpu-shares" default:"1024"`
+}
+
 // ProxyServer specifies configuration options that apply to the proxy.
 type ProxyServer struct {
 	Domain string `flag:"proxy-domain" default:"lvh.me"`
@@ -103,6 +110,7 @@ type RemoteEndpoint struct {
 	OracleEnabled     bool `flag:"remote-endpoint-oracle-enabled" default:"true"`
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
+	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"true"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

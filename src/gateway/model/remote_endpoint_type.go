@@ -45,6 +45,8 @@ const (
 	RemoteEndpointTypeRedis = "redis"
 	// RemoteEndpointTypeSMTP denotes that a remote endpoint is an SMTP service
 	RemoteEndpointTypeSMTP = "smtp"
+	// RemoteEndpointTypeDocker denotes that a remote endpoint is a docker endpoint
+	RemoteEndpointTypeDocker = "docker"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -66,6 +68,7 @@ func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 		RemoteEndpointTypeOracle:    &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeOracle, Enabled: reConf.OracleEnabled},
 		RemoteEndpointTypeRedis:     &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
 		RemoteEndpointTypeSMTP:      &RemoteEndpointType{ID: 14, Value: RemoteEndpointTypeSMTP, Enabled: reConf.SMTPEnabled},
+		RemoteEndpointTypeDocker:    &RemoteEndpointType{ID: 15, Value: RemoteEndpointTypeDocker, Enabled: reConf.DockerEnabled},
 	}
 }
 

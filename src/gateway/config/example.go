@@ -237,6 +237,9 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not Oracle remote endpoints are enabled, default is true.
 # oracleEnabled =
 
+# Whether or not Docker remote endpoints are enabled, default is true.
+# dockerEnabled =
+
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
 # soapClientHost = ''
@@ -252,6 +255,13 @@ const ExampleConfigurationFile = `##############################################
 
 # The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request), defaults to 0.
 # threadPoolSize =
+
+[docker]
+# The amount of memory MB to allocate to each running docker container.
+# memory = 128
+
+# The CPU share weight to allocate to each running docker container
+# cpuShares = 1024
 
 ## ---------- Logging ------------
 [bleve]

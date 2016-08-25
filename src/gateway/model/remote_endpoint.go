@@ -132,6 +132,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidatePush(errors)
 	case RemoteEndpointTypeSMTP:
 		e.ValidateSMTP(errors)
+	case RemoteEndpointTypeDocker:
+		e.ValidateDocker(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -320,6 +322,20 @@ func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
 	}
 
 	if errs := smtp.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
+	}
+}
+
+// Validate Docker endpoint configuration
+func (e *RemoteEndpoint) ValidateDocker(errors aperrors.Errors) {
+	docker := &re.Docker{}
+
+	if err := json.Unmarshal(e.Data, docker); err != nil {
+		errors.Add("docker", fmt.Sprintf("error in docker config: %s", err))
+	}
+
+	if errs := docker.Validate(); errs != nil {
 		errors.AddAll(errs)
 		return
 	}
@@ -764,6 +780,10 @@ func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText,
 }
 
 func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
+	if e.Type == RemoteEndpointTypeDocker {
+		e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+		return nil
+	}
 	if e.Type != RemoteEndpointTypeSoap {
 		return nil
 	}
@@ -880,7 +900,10 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 
 	e.Status = existingRemoteEndpoint.Status
 	e.StatusMessage = existingRemoteEndpoint.StatusMessage
-
+	if e.Type == RemoteEndpointTypeDocker {
+		e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+		e.StatusMessage = apsql.MakeNullStringNull()
+	}
 	if e.Type != RemoteEndpointTypeSoap {
 		return nil
 	}
@@ -919,13 +942,25 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	return e.update(tx, true)
 }
 
+// UpdateStatus updates only the status and status message in the database.
+func (e *RemoteEndpoint) UpdateStatus(tx *apsql.Tx) error {
+	return tx.UpdateOne(
+		`UPDATE remote_endpoints
+		SET status = ?, status_message = ?
+		WHERE remote_endpoints.id = ?
+			AND remote_endpoints.api_id IN
+				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
+		e.Status, e.StatusMessage, e.ID, e.APIID, e.AccountID)
+}
+
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
 	if e.Type != RemoteEndpointTypeHTTP &&
 		e.Type != RemoteEndpointTypeSoap &&
 		e.Type != RemoteEndpointTypeLDAP &&
-		e.Type != RemoteEndpointTypePush {
+		e.Type != RemoteEndpointTypePush &&
+		e.Type != RemoteEndpointTypeDocker {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:
