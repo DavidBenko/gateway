@@ -5,6 +5,7 @@ SELECT
   push_devices.type as type,
   push_devices.token as token,
   push_channels_push_devices.expires as expires,
+  push_channels_push_devices.qos as qos,
   push_devices.data as data
 FROM push_devices, push_channels_push_devices, push_channels
 WHERE push_devices.token = ?

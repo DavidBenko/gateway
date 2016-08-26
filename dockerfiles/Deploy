@@ -1,0 +1,70 @@
+# anypresence/gateway:deploy
+# version 5.1.0
+FROM anypresence/gateway:run-5.1.0
+MAINTAINER Jeff Bozek, jbozek@anypresence.com
+
+ADD build/gateway-linux-amd64 /gateway/gateway
+WORKDIR /gateway
+
+ENV SERVER false
+ENV DB_MIGRATE true
+ENV CACHE_APIS false
+ENV DB_DRIVER sqlite3
+ENV DB_MAX_CONN 1
+ENV DB_CONN "gateway.db"
+ENV STORE_TYPE boltdb
+ENV STORE_MIGRATE true
+ENV STORE_MAX_CONN 1
+ENV STORE_CONN "store.db"
+ENV ADMIN_SESSION_AUTH_KEY please-change-me
+ENV ADMIN_PATH /admin/
+ENV PROXY_HOST 0.0.0.0
+ENV ADMIN_HOST 0.0.0.0
+ENV PROXY_DOMAIN localhost
+ENV PROXY_ENABLE_OS_ENV false
+ENV ENABLE_BROKER true
+ENV BROKER_HOST localhost
+ENV BROKER_WS localhost:5000
+ENV BROKER_PUB_PORT 5555
+ENV BROKER_SUB_PORT 5556
+ENV SCRIPT_ENABLED false
+ENV STORE_ENABLED true
+ENV ADMIN_SESSION_COOKIE_DOMAIN 0.0.0.0
+ENV BLEVE_LOGGING_FILE ""
+ENV BLEVE_LOGGING_DELETE_AFTER 30
+ENV ELASTIC_LOGGING_URL ""
+ENV ELASTIC_LOGGING_DELETE_AFTER 30
+ENV JOBS true
+ENV LICENSE_CONTENT ""
+ENV AIRBRAKE_API_KEY ""
+ENV AIRBRAKE_ENVIRONMENT ""
+ENV AIRBRAKE_PROJECT_ID 1
+ENV SMTP_USER ""
+ENV SMTP_PASSWORD ""
+ENV SMTP_SENDER ""
+ENV SMTP_SERVER ""
+ENV SMTP_PORT 25
+ENV ADMIN_ENABLE_REGISTRATION true
+ENV ADMIN_SHOW_VERSION true
+ENV EMAIL_SCHEME http
+ENV EMAIL_HOST localhost
+ENV EMAIL_PORT 5000
+ENV PROXY_CODE_TIMEOUT 5
+ENV PROXY_HTTP_TIMEOUT 60
+ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts.[0]}}:5000"
+ENV GOOGLE_ANALYTICS_TRACKING_ID ""
+
+# Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
+ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STORE_MIGRATE -proxy-cache-apis=$CACHE_APIS \
+  -proxy-host=$PROXY_HOST  -proxy-domain=$PROXY_DOMAIN -proxy-enable-os-env=$PROXY_ENABLE_OS_ENV \
+  -admin-host=$ADMIN_HOST -admin-enable-registration=$ADMIN_ENABLE_REGISTRATION -admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY -admin-path-prefix=$ADMIN_PATH -admin-session-cookie-domain=$ADMIN_SESSION_COOKIE_DOMAIN -admin-show-version=$ADMIN_SHOW_VERSION \
+  -enable-broker=$ENABLE_BROKER -broker=$BROKER_HOST -broker-pub-port=$BROKER_PUB_PORT -broker-sub-port=$BROKER_SUB_PORT -broker-ws=$BROKER_WS \
+  -bleve-logging-file=$BLEVE_LOGGING_FILE -bleve-logging-delete-after=$BLEVE_LOGGING_DELETE_AFTER -elastic-logging-url="$ELASTIC_LOGGING_URL" -elastic-logging-delete-after=$ELASTIC_LOGGING_DELETE_AFTER -jobs=$JOBS \
+  -remote-endpoint-script-enabled=$SCRIPT_ENABLED -remote-endpoint-store-enabled=$STORE_ENABLED \
+  -airbrake-api-key="$AIRBRAKE_API_KEY" -airbrake-environment="$AIRBRAKE_ENVIRONMENT" -airbrake-project-id="$AIRBRAKE_PROJECT_ID" \
+  -smtp-user="$SMTP_USER" -smtp-password="$SMTP_PASSWORD" -smtp-sender="$SMTP_SENDER" -smtp-server="$SMTP_SERVER" -smtp-port=$SMTP_PORT -smtp-email-scheme=$EMAIL_SCHEME -smtp-email-host="$EMAIL_HOST" -smtp-email-port=$EMAIL_PORT \
+  -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT \
+  -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
+  -license-content="$LICENSE_CONTENT" \
+  -admin-google-analytics-tracking-id="$GOOGLE_ANALYTICS_TRACKING_ID" \
+  -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN" -db-max-connections=$DB_MAX_CONN -store-type=$STORE_TYPE -store-conn-string="$STORE_CONN" -store-max-connections=$STORE_MAX_CONN

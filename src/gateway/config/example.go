@@ -156,6 +156,24 @@ const ExampleConfigurationFile = `##############################################
 # A Google Analytics Tracking ID to be used by the rendered Admin UI.
 # googleAnalyticsTrackingId = ''
 
+# Stripe API Secret Key
+# stripeSecretKey = ''
+
+# Stripe API Publishable Key
+# stripePublishableKey = ''
+
+# Stripe fallback plan (this uses the internal Gateway plan name).
+# stripeFallbackPlan = ''
+
+# Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.
+# stripePaymentRetryAttempts = ''
+
+# If the gateway should attempt to migrate non-stripe accounts to Stripe on startup.
+# stripeMigrateAccounts = false
+
+# The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.
+# apiHost = ''
+
 ## ---------- Proxy ------------
 [proxy]
 # Whether or not to cache API data when serving proxy calls, default is false.
@@ -216,8 +234,8 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not the SAP Hana remote endpoints are enabled, default is true.
 # hanaEnabled =
 
-# Whether or not Oracle remote endpoints are enabled, default is true.
-# oracleEnabled =
+# Whether or not Docker remote endpoints are enabled, default is true.
+# dockerEnabled =
 
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
@@ -234,6 +252,13 @@ const ExampleConfigurationFile = `##############################################
 
 # The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request), defaults to 0.
 # threadPoolSize =
+
+[docker]
+# The amount of memory MB to allocate to each running docker container.
+# memory = 128
+
+# The CPU share weight to allocate to each running docker container
+# cpuShares = 1024
 
 ## ---------- Logging ------------
 [bleve]

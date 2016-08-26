@@ -28,6 +28,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
+	"github.com/stripe/stripe-go"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -63,8 +64,9 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			DBPools:    pools,
 			OwnDb:      ownDb,
 			SoapConf:   conf.Soap,
+			DockerConf: conf.Docker,
 			Store:      s,
-			Push:       push.NewPushPool(),
+			Push:       push.NewPushPool(conf.Push),
 			Smtp:       smtp.NewSmtpPool(),
 		},
 		devMode:   conf.DevMode(),
@@ -124,6 +126,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	match := context.Get(r, aphttp.ContextMatchKey).(*mux.RouteMatch)
 	requestID := context.Get(r, aphttp.ContextRequestIDKey).(string)
 	logPrefix := context.Get(r, aphttp.ContextLogPrefixKey).(string)
+	accountID := context.Get(r, aphttp.ContextAccountIDKey).(int64)
 
 	logs = &bytes.Buffer{}
 	logPrint := logreport.PrintfCopier(logs)
@@ -151,6 +154,18 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
+	}
+
+	codeTimeout := s.proxyConf.CodeTimeout
+	if stripe.Key != "" {
+		plan, err := s.proxyData.Plan(accountID)
+		if err != nil {
+			httpErr = s.httpError(err)
+			return
+		}
+		if plan.JavascriptTimeout < codeTimeout {
+			codeTimeout = plan.JavascriptTimeout
+		}
 	}
 
 	logPrint("%s [route] %s", logPrefix, proxyEndpoint.Name)
@@ -188,7 +203,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries)
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
@@ -214,6 +229,9 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+		if err.Error() == "JavaScript took too long to execute" {
+			logPrint("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, codeTimeout)
+		}
 		httpErr = s.httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}

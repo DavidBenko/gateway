@@ -575,3 +575,35 @@ func TestSelect(t *testing.T) {
 		t.Fatal("there should be 3 objects")
 	}
 }
+
+func TestSelectUnderscore(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	test :=
+		`{
+			"_name_": {
+				"_first_": "John",
+				"_last_": "Doe"
+			},
+			"_age_": 25
+		}`
+	var parsed interface{}
+	err := json.Unmarshal([]byte(test), &parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = s.Insert(0, "_people_", parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	objects, err := s.Select(0, "_people_", "_age_ >= 21 order numeric(_age_) asc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 1 {
+		t.Fatal("there should be 1 object")
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"gateway/license"
 	apsql "gateway/sql"
 
+	"github.com/stripe/stripe-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -107,6 +108,16 @@ func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	err := db.Get(&user,
 		`SELECT id, name, email, admin, confirmed FROM users
 		 WHERE account_id = ? ORDER BY id LIMIT 1;`,
+		accountID)
+	return &user, err
+}
+
+// FindAdminUserForAccountID returns the first admin user with the account_id specified.
+func FindAdminUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
+	user := User{}
+	err := db.Get(&user,
+		`SELECT id, name, email, admin, confirmed FROM users
+		 WHERE account_id = ? AND admin = 1 ORDER BY id LIMIT 1;`,
 		accountID)
 	return &user, err
 }
@@ -246,6 +257,20 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	if license.DeveloperVersion {
 		if count >= license.DeveloperVersionUsers {
 			return errors.New(fmt.Sprintf("Developer version allows %v user(s).", license.DeveloperVersionUsers))
+		}
+	}
+
+	if stripe.Key != "" {
+		account, err := FindAccount(tx.DB, u.AccountID)
+		if err != nil {
+			return err
+		}
+		plan, err := FindPlan(tx.DB, account.PlanID.Int64)
+		if err != nil {
+			return err
+		}
+		if int64(count) >= plan.MaxUsers {
+			return errors.New(fmt.Sprintf("Plan only allows %v user(s).", plan.MaxUsers))
 		}
 	}
 

@@ -87,13 +87,6 @@ type RemoteEndpointEnvironmentData struct {
 	ExportEnvironmentIndex int `json:"environment_index,omitempty"`
 }
 
-func (e *RemoteEndpointEnvironmentData) AddLinks(apiID int64) {
-	e.Links = &RemoteEndpointEnvironmentDataLinks{
-		ScratchPads: fmt.Sprintf("/apis/%v/remote_endpoints/%v/environment_data/%v/scratch_pads",
-			apiID, e.RemoteEndpointID, e.ID),
-	}
-}
-
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
 	Method  string                 `json:"method"`
@@ -128,7 +121,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateScript(errors)
 	case RemoteEndpointTypeMySQL, RemoteEndpointTypeSQLServer,
 		RemoteEndpointTypePostgres, RemoteEndpointTypeMongo, RemoteEndpointTypeHana,
-		RemoteEndpointTypeRedis, RemoteEndpointTypeOracle:
+		RemoteEndpointTypeRedis:
 		_, err := e.DBConfig()
 		if err != nil {
 			errors.Add("base", fmt.Sprintf("error in database config: %s", err))
@@ -139,6 +132,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidatePush(errors)
 	case RemoteEndpointTypeSMTP:
 		e.ValidateSMTP(errors)
+	case RemoteEndpointTypeDocker:
+		e.ValidateDocker(errors)
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -332,6 +327,20 @@ func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
 	}
 }
 
+// Validate Docker endpoint configuration
+func (e *RemoteEndpoint) ValidateDocker(errors aperrors.Errors) {
+	docker := &re.Docker{}
+
+	if err := json.Unmarshal(e.Data, docker); err != nil {
+		errors.Add("docker", fmt.Sprintf("error in docker config: %s", err))
+	}
+
+	if errs := docker.Validate(); errs != nil {
+		errors.AddAll(errs)
+		return
+	}
+}
+
 // ValidateFromDatabaseError translates possible database constraint errors
 // into validation errors.
 func (e *RemoteEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
@@ -492,6 +501,36 @@ func FindRemoteEndpointForCodenameAndAPIIDAndAccountID(db *apsql.DB, codename st
 	return endpoints[0], nil
 }
 
+func FindRemoteEndpointForCodenameAndAPINameAndAccountID(db *apsql.DB, codename, apiName string, accountID int64) ([]*RemoteEndpoint, error) {
+	query := `SELECT apis.account_id as account_id,
+		remote_endpoints.api_id as api_id,
+	  remote_endpoints.id as id,
+	  remote_endpoints.name as name,
+		remote_endpoints.codename as codename,
+	  remote_endpoints.description as description,
+	  remote_endpoints.type as type,
+		remote_endpoints.data as data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id,
+		soap_remote_endpoints.wsdl as wsdl
+	FROM remote_endpoints
+	JOIN apis ON remote_endpoints.api_id = apis.id AND apis.name = ?
+	JOIN accounts ON apis.account_id = accounts.id AND accounts.id = ?
+	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
+	WHERE remote_endpoints.codename = ?
+	ORDER BY remote_endpoints.name ASC, remote_endpoints.id ASC;`
+
+	remoteEndpoints, err := mapRemoteEndpoints(db, query, apiName, accountID, codename)
+	if err != nil {
+		return nil, err
+	}
+
+	err = addEnvironmentData(db, remoteEndpoints)
+
+	return remoteEndpoints, err
+}
+
 func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64) ([]*RemoteEndpoint, error) {
 	args := []interface{}{}
 	query := `SELECT`
@@ -540,8 +579,15 @@ func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64)
 	if err != nil {
 		return nil, err
 	}
+
+	err = addEnvironmentData(db, remoteEndpoints)
+
+	return remoteEndpoints, err
+}
+
+func addEnvironmentData(db *apsql.DB, remoteEndpoints []*RemoteEndpoint) error {
 	if len(remoteEndpoints) == 0 {
-		return remoteEndpoints, nil
+		return nil
 	}
 
 	var endpointIDs []interface{}
@@ -550,7 +596,7 @@ func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64)
 	}
 	idQuery := apsql.NQs(len(remoteEndpoints))
 	environmentData := []*RemoteEndpointEnvironmentData{}
-	err = db.Select(&environmentData,
+	err := db.Select(&environmentData,
 		`SELECT
 			remote_endpoint_environment_data.id as id,
 			remote_endpoint_environment_data.remote_endpoint_id as remote_endpoint_id,
@@ -567,8 +613,9 @@ func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64)
 			environments.name ASC;`,
 		endpointIDs...)
 	if err != nil {
-		return nil, err
+		return err
 	}
+
 	var endpointIndex int64
 	for _, envData := range environmentData {
 		for remoteEndpoints[endpointIndex].ID != envData.RemoteEndpointID {
@@ -576,10 +623,10 @@ func _remoteEndpoints(db *apsql.DB, codename string, id, apiID, accountID int64)
 		}
 		endpoint := remoteEndpoints[endpointIndex]
 		envData.Type = endpoint.Type
-		envData.AddLinks(apiID)
 		endpoint.EnvironmentData = append(endpoint.EnvironmentData, envData)
 	}
-	return remoteEndpoints, err
+
+	return nil
 }
 
 // CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
@@ -708,8 +755,6 @@ func (e *RemoteEndpoint) DBConfig() (db.Specifier, error) {
 		return re.HanaConfig(e.Data)
 	case RemoteEndpointTypeRedis:
 		return re.RedisConfig(e.Data)
-	case RemoteEndpointTypeOracle:
-		return re.OracleConfig(e.Data)
 	default:
 		return nil, fmt.Errorf("unknown database endpoint type %q", e.Type)
 	}
@@ -733,6 +778,10 @@ func removeJSONField(jsonText types.JsonText, fieldName string) (types.JsonText,
 }
 
 func (e *RemoteEndpoint) beforeInsert(tx *apsql.Tx) error {
+	if e.Type == RemoteEndpointTypeDocker {
+		e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+		return nil
+	}
 	if e.Type != RemoteEndpointTypeSoap {
 		return nil
 	}
@@ -814,7 +863,6 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 		if err != nil {
 			return err
 		}
-		envData.AddLinks(e.APIID)
 	}
 
 	if err := e.WriteScript(); err != nil {
@@ -850,7 +898,10 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 
 	e.Status = existingRemoteEndpoint.Status
 	e.StatusMessage = existingRemoteEndpoint.StatusMessage
-
+	if e.Type == RemoteEndpointTypeDocker {
+		e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)
+		e.StatusMessage = apsql.MakeNullStringNull()
+	}
 	if e.Type != RemoteEndpointTypeSoap {
 		return nil
 	}
@@ -889,13 +940,25 @@ func (e *RemoteEndpoint) Update(tx *apsql.Tx) error {
 	return e.update(tx, true)
 }
 
+// UpdateStatus updates only the status and status message in the database.
+func (e *RemoteEndpoint) UpdateStatus(tx *apsql.Tx) error {
+	return tx.UpdateOne(
+		`UPDATE remote_endpoints
+		SET status = ?, status_message = ?
+		WHERE remote_endpoints.id = ?
+			AND remote_endpoints.api_id IN
+				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,
+		e.Status, e.StatusMessage, e.ID, e.APIID, e.AccountID)
+}
+
 func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 	// Get any database config for Flushing if needed.
 	var msg interface{}
 	if e.Type != RemoteEndpointTypeHTTP &&
 		e.Type != RemoteEndpointTypeSoap &&
 		e.Type != RemoteEndpointTypeLDAP &&
-		e.Type != RemoteEndpointTypePush {
+		e.Type != RemoteEndpointTypePush &&
+		e.Type != RemoteEndpointTypeDocker {
 		conf, err := e.DBConfig()
 		switch err {
 		case nil:
@@ -969,7 +1032,6 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 				return err
 			}
 		}
-		envData.AddLinks(e.APIID)
 	}
 
 	done := func() error {
