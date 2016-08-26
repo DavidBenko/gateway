@@ -4,23 +4,17 @@ FROM golang:1.7.0
 MAINTAINER Jeff Bozek, jbozek@anypresence.com
 
 # Install dependencies
-RUN echo "deb http://http.debian.net/debian unstable main" >> /etc/apt/sources.list && \
+RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources.list && \
+    echo "deb http://http.debian.net/debian jessie-backports main" >> /etc/apt/sources.list && \
     dpkg --add-architecture armhf && \
-    echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee /etc/apt/sources.list.d/webupd8team-java.list && \
-    echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee -a /etc/apt/sources.list.d/webupd8team-java.list && \
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EEA14886 && \
-    apt-get -y update && apt-get -y upgrade && \
-    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
-    apt-get install oracle-java8-installer -y && \
-    apt-get clean && \
-    apt-get -y install build-essential zlib1g-dev libssl-dev \
-    libreadline6 libreadline6-dev libyaml-dev openssl git \
-    chrpath git-core libfontconfig1-dev libffi6 libffi-dev upx &&  \
-    curl https://raw.githubusercontent.com/creationix/nvm/v0.31.3/install.sh | bash && \
-    . /root/.bashrc && nvm install 4.4.7 && nvm alias default 4.4.7 && npm -g install bower && echo '{ "allow_root": true }' > /root/.bowerrc && \
-    gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 && \
-    curl -sSL https://get.rvm.io | bash -s stable --ruby && /bin/bash -l -c "gem install bundler --no-ri --no-rdoc" && echo "source /usr/local/rvm/scripts/rvm" >> /root/.bashrc && \
-    apt-get -y install g++-5-multilib gcc-mingw-w64 libc6-dev-i386 gcc-arm-linux-gnueabihf gcc-5-aarch64-linux-gnu && \
+    dpkg --add-architecture i386 && \
+    apt-get clean && apt-get -y update && apt-get -y upgrade && \
+    curl -sL https://deb.nodesource.com/setup_4.x | bash - && \
+    apt-get -y --force-yes install build-essential zlib1g-dev libssl-dev openjdk-8-jre-headless openjdk-8-jdk openssl upx ruby ruby-dev nodejs \
+    gcc-mingw-w64 libc6-dev-i386 gcc-multilib rpm libstdc++6:i386 libgcc1:i386 zlib1g:i386 libncurses5:i386 && \
+    apt-get -y --force-yes install crossbuild-essential-armhf && \
+    npm -g install bower && echo '{ "allow_root": true }' > /root/.bowerrc && \
+    gem install bundler --no-rdoc --no-ri && \
     ln -s /usr/include/asm-generic /usr/include/asm
 
-ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
+ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64
