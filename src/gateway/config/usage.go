@@ -87,9 +87,9 @@ var usageStrings = map[string]string{
 	"remote-endpoint-ldap-enabled":       "Whether or not LDAP remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-hana-enabled":       "Whether or not SAP Hana remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
-	"remote-endpoint-oracle-enabled":     "Whether or not Oracle remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to true.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
@@ -128,6 +128,8 @@ var usageStrings = map[string]string{
 	"stripe-payment-retry-attempts": "Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.",
 	"stripe-migrate-accounts":       "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
 
+	"admin-api-host": "The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.",
+
 	"elastic-logging-url":          "The url of the elastic server",
 	"elastic-logging-delete-after": "How long in days to keep logs",
 
@@ -157,4 +159,7 @@ var usageStrings = map[string]string{
 	"push-broker-transport": "The push broker transport",
 	"push-connect-timeout":  "The connect timeout for MQTT",
 	"push-mqtt-uri":         "The URI for the MQTT server",
+
+	"docker-memory":     "The amount of memory MB to allocate to each running docker container",
+	"docker-cpu-shares": "The CPU share weight to allocate to each running docker container",
 }

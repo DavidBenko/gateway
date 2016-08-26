@@ -191,6 +191,11 @@ func main() {
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 
+	if conf.RemoteEndpoint.DockerEnabled {
+		// Listen to docker remote endpoint changes.
+		model.StartDockerEndpointUpdateListener(db)
+	}
+
 	// Configure the object store
 	objectStore, err := store.Configure(conf.Store)
 	if err != nil {

@@ -29,6 +29,7 @@ type Core struct {
 	DBPools    *pools.Pools
 	OwnDb      *sql.DB // in-application datastore
 	SoapConf   config.Soap
+	DockerConf config.Docker
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
@@ -74,12 +75,12 @@ func (s *Core) PrepareRequest(
 		return request.NewPushRequest(endpoint, data, s.Push, s.OwnDb)
 	case model.RemoteEndpointTypeHana:
 		return request.NewHanaRequest(s.DBPools, endpoint, data)
-	case model.RemoteEndpointTypeOracle:
-		return request.NewOracleRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeRedis:
 		return request.NewRedisRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeSMTP:
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
+	case model.RemoteEndpointTypeDocker:
+		return request.NewDockerRequest(endpoint, data, s.DockerConf)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

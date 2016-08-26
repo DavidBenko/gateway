@@ -1124,97 +1124,6 @@ AP.Push.Request.prototype.unsubscribe = function(platform, channel, token) {
 }
 
 /**
- * Oracle holds helper classes for Oracle DB related tasks
- *
- * @namespace
- */
-AP.Oracle = AP.Oracle || {};
-
-/**
- * Creates a new Oracle request.
- *
- * @class
- * @constructor
- * @param [request] - An incoming request to copy the statement and parameters
- */
-AP.Oracle.Request = function() {
-
-  /**
-   * The request's SQL statement to be executed.  Must be a query that does
-   * not modify data
-   * @type {string}
-   */
-  this.queryStatement = null;
-
-  /**
-   * The request's SQL statement to be executed.  Must be an update that modifies
-   * data.
-   * @type {string}
-   */
-  this.executeStatement = null;
-
-  /**
-   * The result types expected by the query.  The keys represent the column
-   * names of the result set, and the values represent a conversion object
-   * such as Int or Float.
-   * @type {object}
-   */
-   this.resultTypes = null;
-
-  /**
-   * The request's parameters to the SQL statement.
-   * @type {Array.<object>}
-   */
-  this.parameters = [];
-
-  if (arguments.length == 1) {
-    var request = arguments[0];
-    this.query = _.clone(request.queryStatement);
-    this.execute = _.clone(request.executeStatement);
-    this.parameters = _.clone(request.parameters);
-    this.resultTypes = _.clone(request.resultTypes);
-  }
-}
-
-AP.Oracle.Request.prototype.execute = function(stmt, params) {
-  this.executeStatement = stmt;
-  if (typeof params === 'undefined' || params === null) {
-    this.parameters = [];
-  } else {
-    this.parameters = params;
-  }
-
-  if (typeof resultTypes === 'undefined' || resultTypes === null) {
-    this.resultTypes = {};
-  } else {
-    this.resultTypes = resultTypes;
-  }
-}
-
-AP.Oracle.Request.prototype.query = function(stmt, params, resultTypes) {
-  this.queryStatement = stmt;
-  if (typeof params === 'undefined' || params === null) {
-    this.parameters = [];
-  } else {
-    this.parameters = params;
-  }
-
-  if (typeof resultTypes === 'undefined' || resultTypes === null) {
-    this.resultTypes = {};
-  } else {
-    this.resultTypes = resultTypes;
-  }
-
-  var newResultTypes = {};
-  _.each(_.pairs(this.resultTypes), function(pair) {
-    var k = pair[0];
-    var v = pair[1];
-    newResultTypes[k] = v(null);
-  });
-  this.resultTypes = newResultTypes;
-}
-
-/**
  * Redis holds helper classes for Redis related tasks
  *
  * @namespace
@@ -1246,7 +1155,7 @@ AP.Redis.Request.prototype.execute = function(stmt) {
  *
  * @namespace
  */
- 
+
 AP.Smtp = AP.Smtp || {};
 
 /**
@@ -1259,15 +1168,72 @@ AP.Smtp = AP.Smtp || {};
  AP.Smtp.Request = function() {
    this.address = null;
    this.body = null;
-   
+
    if (arguments.length == 1) {
      var request = arguments[0];
      this.address = _.clone(request.address);
      this.body = _.clone(request.body);
    }
  }
- 
+
  AP.Smtp.Request.prototype.send = function(address, body) {
    this.address = address;
    this.body = body;
+ }
+
+ /**
+  * Docker holds helper classes for Docker related tasks
+  *
+  * @namespace
+  */
+ AP.Docker = AP.Docker || {};
+
+ /**
+  * Creates a new Docker request.
+  *
+  * @class
+  * @constructor
+  * @param [request] - An incoming request to copy the command, arguments, and environment from.
+  */
+ AP.Docker.Request = function() {
+
+   /**
+    * The request's command to execute within the docker container.
+    * @type {string}
+    */
+   this.command = null;
+
+   /**
+    * The request's arguments to pass to the docker container's command.
+    * @type {Array.<string>}
+    */
+   this.arguments = [];
+
+   /**
+    * The request's environment variables to use when setting up the docker container.
+    * @type {object}
+    */
+   this.environment = {};
+
+   if (arguments.length == 1) {
+     var request = arguments[0];
+     this.command = _.clone(request.command);
+     this.arguments = _.clone(request.arguments);
+     this.environment = _.clone(request.environment);
+   }
+ }
+
+ AP.Docker.Request.prototype.execute = function(cmd, args, env) {
+   this.command = cmd;
+   if (typeof args === 'undefined' || args === null) {
+     this.arguments = [];
+   } else {
+     this.arguments = args;
+   }
+
+   if (typeof env === 'undefined' || env === null) {
+     this.environment = {};
+   } else {
+     this.environment = env;
+   }
  }

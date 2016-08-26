@@ -1,0 +1,11 @@
+http://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.5.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.4.6.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.3.6.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v4.x/linux-4.1.19.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.18.28.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.14.65.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.12.56.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.10.101.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.4.110.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v3.x/linux-3.2.78.tar.xz
+http://cdn.kernel.org/pub/linux/kernel/v2.6/longterm/v2.6.32/linux-2.6.32.71.tar.xz

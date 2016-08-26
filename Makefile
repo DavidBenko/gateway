@@ -10,16 +10,6 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-# This path has to be ${HOME}/lib on El Capitan
-ORACLE_INSTANT_CLIENT_DIR = ${HOME}/lib
-
-PKG_CONFIG_PATH := $(ORACLE_INSTANT_CLIENT_DIR)
-export PKG_CONFIG_PATH
-
-# This must be done for OCI8 to work on Linux
-LD_LIBRARY_PATH := ${LD_LIBRARY_PATH}:$(PKG_CONFIG_PATH)
-export LD_LIBRARY_PATH
-
 ifndef LICENSE_PUBLIC_KEY
 	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
 endif
@@ -28,7 +18,7 @@ ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release docker_compilat
 	BINDATA_DEBUG = -debug
 endif
 
-ifeq ($(MAKECMDGOALS), release)
+ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),release docker_binary_release))
 	LICENSE_PUBLIC_KEY = "public_keys/production"
 endif
 
@@ -64,7 +54,7 @@ assets: install_bindata soapclient
 generate: install_goimports install_peg
 	go generate gateway/...
 
-build: vet assets generate install_oracle_client
+build: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 
 build_integration_images:
@@ -80,10 +70,10 @@ debug: vet assets generate
 	go build -o ./bin/gateway ./src/gateway/main.go
 	dlv exec ./bin/gateway -- -config=./test/gateway.conf -db-migrate
 
-package: vet admin assets generate install_oracle_client
+package: vet admin assets generate
 	go build -o ./build/gateway ./src/gateway/main.go
 
-release: vet admin assets generate install_oracle_client
+release: vet admin assets generate
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
 
 docker_clean_bin:
@@ -91,10 +81,10 @@ docker_clean_bin:
 
 docker_compilation_prep: docker_clean_bin vet docker_admin assets generate
 
-docker_binary_release: install_oracle_client docker_compile_only
+docker_binary_release: docker_compile_only
 
 docker_compile_only:
-	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
+	go build -ldflags="-s -w" -v -o ./build/gateway ./src/gateway/main.go
 
 docker_build_admin:
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && make docker_admin"
@@ -105,27 +95,49 @@ docker_build_prereqs:
 docker_build_linux_amd64_full: docker_build_prereqs docker_build_linux_amd64 docker_pack_executables
 
 docker_build_linux_amd64:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc HOST_OS=linux HOST_ARCH=64 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-amd64"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-amd64"
 
 docker_build_linux_386_full: docker_build_prereqs docker_build_linux_386 docker_pack_executables
 
 docker_build_linux_386:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=386 CGO_ENABLED=1 CC=gcc HOST_OS=linux HOST_ARCH=32 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-386"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=386 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-386"
 
 docker_build_windows_amd64_full: docker_build_prereqs docker_build_windows_amd64 docker_pack_executables
 
 docker_build_windows_amd64:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=\"x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" HOST_OS=windows HOST_ARCH=64 make docker_binary_release && mv ./build/gateway ./build/gateway-windows-amd64.exe"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=\"x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-amd64.exe"
 
 docker_build_windows_386_full: docker_build_prereqs docker_build_windows_386 docker_pack_executables
 
 docker_build_windows_386:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=\"i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" HOST_OS=windows HOST_ARCH=32 make docker_binary_release && mv ./build/gateway ./build/gateway-windows-386.exe"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=\"i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-386.exe"
+
+docker_build_armv5_full: docker_build_prereqs docker_build_armv5 docker_pack_executables
+
+docker_build_armv5:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv5"
+
+docker_build_armv6_full: docker_build_prereqs docker_build_armv6 docker_pack_executables
+
+docker_build_armv6:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv6"
+
+docker_build_armv7_full: docker_build_prereqs docker_build_armv7 docker_pack_executables
+
+docker_build_armv7:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv7"
+
+docker_build_arm64_full: docker_build_prereqs docker_build_arm64 docker_pack_executables
+
+docker_build_arm64:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc-5 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-arm64"
 
 docker_pack_executables:
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
 
-docker_build_all: docker_build_prereqs docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_pack_executables docker_clean_bin
+docker_build_all_full: docker_build_prereqs docker_build_all docker_clean_bin
+
+docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7 docker_build_arm64 docker_pack_executables
 
 docker_run:
 	# Make sure docker_build_linux_amd64_full or docker_build_linux_amd64 has been run prior or there will be no binary to run within the container.
@@ -280,8 +292,8 @@ vendor_get: vendor_clean
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
 	github.com/alexjlockwood/gcm \
-	github.com/mattn/go-oci8 \
 	github.com/garyburd/redigo \
+	github.com/ahmetalpbalkan/go-dexec \
 	github.com/AnyPresence/surgemq \
 	github.com/surge/glog \
 	github.com/stripe/stripe-go
@@ -309,13 +321,3 @@ install_vet:
 vet: install_vet
 	./scripts/make-hooks
 	./scripts/hooks/pre-commit
-
-install_oracle_client:
-	#first argument is directory to save instant client, second is the package config file source
-	#which is processed and saved as oci8.pc in the same argument directory
-	./scripts/install_oracle_instant_client.rb $(ORACLE_INSTANT_CLIENT_DIR) contrib/oci8.pc
-
-start_oracle:
-	# Starts the docker container named 'orcl' running Oracle 12c on a machine named oracle
-	# DB named 'ORCL' on port 1521 with login system/manager
-	./scripts/start_oracle.sh
