@@ -20,7 +20,6 @@ const (
 	mssql    driver = "mssql"
 	mysql    driver = "mysql"
 	hana     driver = "hdb"
-	oracle   driver = "oci8"
 )
 
 var knownDrivers = map[driver]bool{
@@ -28,7 +27,6 @@ var knownDrivers = map[driver]bool{
 	mssql:    true,
 	mysql:    true,
 	hana:     true,
-	oracle:   true,
 }
 
 // sqlSpec defines the extra methods a db.Specifier for SQL must implement.
@@ -226,10 +224,6 @@ func validateSqlSpec(s sqlSpec) error {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
 	case *HanaSpec:
-		if tS == nil {
-			return errors.New("cannot create SQL Connection with nil Specifier")
-		}
-	case *OracleSpec:
 		if tS == nil {
 			return errors.New("cannot create SQL Connection with nil Specifier")
 		}
