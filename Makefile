@@ -292,7 +292,6 @@ vendor_get: vendor_clean
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
 	github.com/alexjlockwood/gcm \
-	github.com/mattn/go-oci8 \
 	github.com/garyburd/redigo \
 	github.com/ahmetalpbalkan/go-dexec \
 	github.com/AnyPresence/surgemq \
