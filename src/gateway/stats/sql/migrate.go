@@ -23,14 +23,11 @@ func Migrate(s *sqlx.DB, driver Driver) (e error) {
 
 	var version int64
 
-	err := s.Get(&version, `SELECT version FROM schema LIMIT 1;`)
-	if err != nil {
-		s.MustExec(`CREATE TABLE stats_schema (version INTEGER);`)
-	}
-
 	tx := s.MustBegin()
-	defer tx.Commit()
+	tx.MustExec(`CREATE TABLE IF NOT EXISTS stats_schema (version INTEGER);`)
+	tx.Commit()
 
+	tx = s.MustBegin()
 	for v := version; v < Version; v++ {
 		tx.MustExec(string(MustAsset(fmt.Sprintf(
 			"static/migrations/%s/v%d.sql", driver, v+1,
@@ -39,6 +36,6 @@ func Migrate(s *sqlx.DB, driver Driver) (e error) {
 			"UPDATE stats_schema SET version = %d;", v,
 		))
 	}
-
+	tx.Commit()
 	return nil
 }
