@@ -93,6 +93,22 @@ func (db *DB) Migrate() error {
 	return nil
 }
 
+// DisableSqliteTriggers disables sqlite triggers
+func (db *DB) DisableSqliteTriggers() {
+	if db.Driver != Sqlite3 {
+		return
+	}
+	db.MustExec(`PRAGMA foreign_keys = OFF;`)
+}
+
+// EnableSqliteTriggers enables sqlite triggers
+func (db *DB) EnableSqliteTriggers() {
+	if db.Driver != Sqlite3 {
+		return
+	}
+	db.MustExec(`PRAGMA foreign_keys = ON;`)
+}
+
 // Begin creates a new sqlx transaction wrapped in our own code
 func (db *DB) Begin() (*Tx, error) {
 	tx, err := db.DB.Beginx()
