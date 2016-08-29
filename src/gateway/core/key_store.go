@@ -85,6 +85,7 @@ func (k *KeyStore) Notify(n *apsql.Notification) {
 			for k, key := range accountKeys {
 				if key.ID == keyID {
 					delete(accountKeys, k)
+					break
 				}
 			}
 		}
