@@ -7,16 +7,21 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vincent-petithory/dataurl"
 )
 
 type KeysController struct {
 	BaseController
+}
+
+type KeyPayload struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
 }
 
 func RouteKeys(controller *KeysController, path string,
@@ -52,30 +57,29 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 }
 
 func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
-	file, _, err := r.FormFile("key")
+	payload := KeyPayload{}
+	if err := deserialize(&payload, r.Body); err != nil {
+		return err
+	}
+
+	data, err := dataurl.DecodeString(payload.Key)
 	if err != nil {
 		logreport.Printf("%s Error getting form file: %v\n%v", config.Admin, err, r)
 		return aphttp.NewError(errors.New("invalid file"), http.StatusBadRequest)
 	}
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		logreport.Printf("%s Error reading form file: %v\n%v", config.Admin, err, r)
-		return aphttp.NewError(errors.New("unable to read file"), http.StatusBadRequest)
-	}
-
-	name := r.FormValue("name")
+	key := &model.Key{Name: payload.Name, Key: data.Data}
 
 	accountID := k.accountID(r)
 	userID := k.userID(r)
 
-	key := &model.Key{Name: name, Key: data, AccountID: accountID}
+	key.AccountID = accountID
 
 	if validationErrors := key.Validate(true); !validationErrors.Empty() {
 		return SerializableValidationErrors{validationErrors}
 	}
 
-	if err = key.Insert(accountID, userID, 0, tx); err != nil {
+	if err := key.Insert(accountID, userID, 0, tx); err != nil {
 		validationErrors := key.ValidateFromDatabaseError(err)
 		return SerializableValidationErrors{validationErrors}
 	}
