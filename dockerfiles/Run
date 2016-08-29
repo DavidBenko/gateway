@@ -12,4 +12,4 @@ RUN echo "deb http://http.debian.net/debian jessie-backports main" >> /etc/apt/s
 
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64
 
-EXPOSE 5000 5555 5556 1883
+EXPOSE 5000 5555 5556 5557 5558 1883
