@@ -27,66 +27,27 @@ func (t *TickerSuite) TestLog(c *gc.C) {
 
 	for i, t := range []struct {
 		should           string
-		given            [][]stats.Point
-		givenNext        [][]stats.Point
-		givenFreq        time.Duration
 		givenBackend     *statst.Logger
-		expectLogged     []stats.Point
-		expectLoggedNext []stats.Point
+		points           []stats.Point
 		expectBackendErr string
 	}{{
-		should:           "send any backend error down the channel",
-		given:            [][]stats.Point{{{}}},
+		should:           "send any backend error back",
 		givenBackend:     &statst.Logger{Error: errors.New("oops")},
 		expectBackendErr: "oops",
 	}, {
-		should:       "log a single point after ticking",
-		given:        [][]stats.Point{{{Timestamp: tNow}}},
+		should:       "log a single point",
 		givenBackend: &statst.Logger{},
-		expectLogged: []stats.Point{{Timestamp: tNow}},
-	}, {
-		should: "log a single point, tick, and log another",
-		given:  [][]stats.Point{{{Timestamp: tNow}}},
-		givenNext: [][]stats.Point{{
-			{Timestamp: tNow.Add(1 * time.Second)},
-		}},
-		givenBackend: &statst.Logger{},
-		expectLogged: []stats.Point{{Timestamp: tNow}},
-		expectLoggedNext: []stats.Point{
+		points: []stats.Point{
 			{Timestamp: tNow},
 			{Timestamp: tNow.Add(1 * time.Second)},
 		},
 	}, {
-		should: "log a few points and order them",
-		given: [][]stats.Point{{
-			{Timestamp: tNow.Add(2 * time.Second)},
-			{Timestamp: tNow},
-			{Timestamp: tNow.Add(1 * time.Second)},
-		}},
+		should:       "log a few points and order them",
 		givenBackend: &statst.Logger{},
-		expectLogged: []stats.Point{
-			{Timestamp: tNow},
-			{Timestamp: tNow.Add(1 * time.Second)},
-			{Timestamp: tNow.Add(2 * time.Second)},
-		},
 	}, {
-		should: "log a few points, tick, and log another few",
-		given: [][]stats.Point{{
-			{Timestamp: tNow.Add(2 * time.Second)},
-			{Timestamp: tNow},
-			{Timestamp: tNow.Add(1 * time.Second)},
-		}},
-		givenNext: [][]stats.Point{{
-			{Timestamp: tNow.Add(4 * time.Second)},
-			{Timestamp: tNow},
-			{Timestamp: tNow.Add(1 * time.Second)}}},
+		should:       "log another few",
 		givenBackend: &statst.Logger{},
-		expectLogged: []stats.Point{
-			{Timestamp: tNow},
-			{Timestamp: tNow.Add(1 * time.Second)},
-			{Timestamp: tNow.Add(2 * time.Second)},
-		},
-		expectLoggedNext: []stats.Point{
+		points: []stats.Point{
 			{Timestamp: tNow},
 			{Timestamp: tNow.Add(1 * time.Second)},
 			{Timestamp: tNow.Add(2 * time.Second)},
@@ -98,18 +59,12 @@ func (t *TickerSuite) TestLog(c *gc.C) {
 		c.Logf("test %d: should %s", i, t.should)
 
 		tkr := ticker.Make(t.givenBackend)
-		ctrl, BEErr := make(chan time.Time), make(chan error)
-		die := make(chan struct{})
-		tkr.Start(die, ctrl, BEErr)
+		result := tkr.Log(t.points...)
+		if t.expectBackendErr == "" {
+			c.Assert(result, gc.IsNil)
+		} else {
+			c.Check(result, gc.ErrorMatches, t.expectBackendErr)
+		}
 
-		testLog(
-			c,
-			tkr,
-			die, ctrl, BEErr,
-			t.givenBackend,
-			t.given, t.givenNext,
-			t.expectBackendErr,
-			t.expectLogged, t.expectLoggedNext,
-		)
 	}
 }
