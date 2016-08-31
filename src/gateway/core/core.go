@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"gateway/config"
+	"gateway/core/conversion"
 	"gateway/core/request"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
@@ -90,6 +91,8 @@ func VMCopy() *otto.Otto {
 
 var shared = func() *otto.Otto {
 	vm := otto.New()
+
+	conversion.IncludeConversion(vm)
 
 	var files = []string{
 		"gateway.js",
