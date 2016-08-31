@@ -204,7 +204,7 @@ func (s *SQLSuite) TestLog(c *gc.C) {
 			s.sqlite, s.postgres,
 		} {
 			c.Logf("  testing with driver %q", db.DriverName())
-			sq := &sql.SQL{ID: t.node, DB: db}
+			sq := &sql.SQL{NAME: t.node, DB: db}
 
 			result, err := testLog(
 				sq,
@@ -269,9 +269,9 @@ func testLog(
 		return nil, gwerr.NewWrapped("failed to log", err)
 	}
 
-	ID := "global"
-	if s.ID != "" {
-		ID = s.ID
+	NAME := "global"
+	if s.NAME != "" {
+		NAME = s.NAME
 	}
 
 	rows, err := s.Queryx(fmt.Sprintf(`
@@ -298,7 +298,7 @@ SELECT
   , response_time
   , timestamp
 FROM stats
-WHERE node = %s`[1:], s.Parameters(1)[0]), ID)
+WHERE node = %s`[1:], s.Parameters(1)[0]), NAME)
 
 	switch {
 	case err != nil:

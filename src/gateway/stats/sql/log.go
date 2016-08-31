@@ -41,24 +41,24 @@ INSERT INTO stats (
 }
 
 // getArgs retrieves the args for the INSERT given the slice of stats.Point's.
-func getArgs(node string, ps ...stats.Point) ([]interface{}, error) {
-	if len(ps) < 1 {
+func getArgs(node string, points ...stats.Point) ([]interface{}, error) {
+	if len(points) < 1 {
 		return nil, errors.New("must pass at least one stats.Point")
 	}
 
-	args := make([]interface{}, len(ps)*rowLength)
-	errs := make([]error, len(ps))
+	args := make([]interface{}, len(points)*rowLength)
+	errs := make([]error, len(points))
 
 	var wg sync.WaitGroup
 
-	for i, p := range ps {
+	for i, point := range points {
 		wg.Add(1)
 		// concurrent safe slice mutation via re-slice.  This could be
 		// made more efficient by using a set of workers as in Sample.
 		go func(n int, p stats.Point, args []interface{}) {
 			defer wg.Done()
 			errs[n] = setPointArgs(p, node, args)
-		}(i, p, args[i*rowLength:(i+1)*rowLength])
+		}(i, point, args[i*rowLength:(i+1)*rowLength])
 	}
 
 	wg.Wait()
@@ -101,8 +101,8 @@ func setPointArgs(p stats.Point, node string, args []interface{}) error {
 // all measurement values populated, or an error will be returned.
 func (s *SQL) Log(ps ...stats.Point) error {
 	node := "global"
-	if s.ID != "" {
-		node = s.ID
+	if s.NAME != "" {
+		node = s.NAME
 	}
 
 	// get the args we'll use as interpolation values in the INSERT.
@@ -120,9 +120,16 @@ func (s *SQL) Log(ps ...stats.Point) error {
 	)
 
 	// Execute the query.
-	_, err = s.Exec(query, args...)
+	tx, txerr := s.Begin()
+	if txerr != nil {
+		return gwerr.NewWrapped("failed to start transaction", txerr)
+	}
+	_, err = tx.Exec(query, args...)
 	if err != nil {
+		tx.Rollback()
 		return gwerr.NewWrapped("failed to exec stats query", err)
+	} else {
+		tx.Commit()
 	}
 
 	return nil
