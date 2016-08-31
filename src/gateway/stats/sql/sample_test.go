@@ -296,22 +296,18 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		c.Logf("test %d: should %s", i, test.should)
 		sq := &sql.SQL{DB: test.driver}
 
-		_, err := sq.Exec(`DELETE FROM stats`)
-		c.Assert(err, gc.IsNil)
+		_, er := sq.Exec(`DELETE FROM stats`)
+		c.Assert(er, gc.IsNil)
 
-		oldID := sq.ID
+		oldNAME := sq.NAME
 		for node, points := range test.given {
-			sq.ID = node
-			c.Check(sq.Log(points...), gc.IsNil)
-			if c.Failed() {
-				continue
-			}
+			sq.NAME = node
+			c.Assert(sq.Log(points...), gc.IsNil)
 		}
-		sq.ID = oldID
+		sq.NAME = oldNAME
 
 		got, err := sq.Sample(
 			test.givenConstraints,
-			make(chan struct{}), // termination channel
 			test.givenMeasurements...,
 		)
 
@@ -329,5 +325,6 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 				spew.Sdump(test.expect),
 			)
 		}
+
 	}
 }

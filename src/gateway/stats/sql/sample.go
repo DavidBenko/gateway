@@ -3,7 +3,6 @@ package sql
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"strings"
 	"time"
 
@@ -58,7 +57,6 @@ ORDER BY timestamp, node`[1:],
 // return an error.  All vars must be valid measurements or sample names.
 func (s *SQL) Sample(
 	constraints []stats.Constraint,
-	terminate <-chan struct{},
 	vars ...string,
 ) (stats.Result, error) {
 	if len(vars) < 1 {
@@ -103,141 +101,29 @@ func (s *SQL) Sample(
 
 	// If rows initialized, close when finished.
 	defer rows.Close()
-
-	// Get the max procs without changing the setting.
-	procs := runtime.GOMAXPROCS(-1)
-	var (
-		// numRows will determine the size of the stats.Result workers
-		// will write to.
-		numRows = 0
-
-		inCh       = make(chan ithSQLRow, procs)
-		ready, die = make(chan struct{}), make(chan struct{})
-		outCh      = make(chan ithStatsRow, procs)
-	)
-
-	// If user already requested terminate, stop now.
-	select {
-	case <-terminate:
-		return nil, errors.New("Sample terminated")
-	default:
-	}
-
-	// Make a worker for each proc which will receive sql.Row's and make
-	// them into stats.Row's.  If terminate is closed, the workers will
-	// return.
-	for i := 0; i < procs; i++ {
-		go receiveRows(
-			ready, terminate, die,
-			inCh, outCh,
-			wantsNode, wantsTimestamp,
-			desiredValues,
-		)
-	}
-
-	// Iterate over rows, sending them via channel to workers.
+	results := make(stats.Result, 0)
+	// Iterate over rows.
 	for i := 0; rows.Next(); i++ {
 		row := new(Row)
 		if err = rows.StructScan(row); err != nil {
 			return nil, aperrors.NewWrapped("failed to scan", err)
 		}
-
-		select {
-		case <-terminate:
-			return nil, errors.New("Sample terminated")
-		case inCh <- ithSQLRow{i: i, row: row}:
-			numRows++
-		}
+		results = append(results, *convertRow(row, wantsNode, wantsTimestamp, desiredValues))
 	}
 
 	if err = rows.Err(); err != nil {
-		// terminate is used externally, die is used internally to stop
-		// workers.
-		close(die)
 		return nil, aperrors.NewWrapped("sql stats rows had error", err)
 	}
 
-	// Let our workers know they can start sending values.
-	close(ready)
-
-	result := make(stats.Result, numRows)
-
-	for i := 0; i < numRows; i++ {
-		select {
-		case row := <-outCh:
-			// Note results won't be received in order.
-			result[row.i] = *row.row
-		case <-terminate:
-			// If a send from a worker to outCh was blocking, it
-			// will select its terminate case.
-			return nil, errors.New("Sample terminated")
-		}
-	}
-
-	// Not necessary to stop workers, they've all finished looping and
-	// returned by now.
-	return result, nil
+	return results, nil
 }
 
-// Note that a SQLRow is not the same as a stats.Row.
-type ithSQLRow struct {
-	i   int
-	row *Row
-}
-
-type ithStatsRow struct {
-	i   int
-	row *stats.Row
-}
-
-// receiveRows is a worker function which receives sql.Row's and uses getRow to
-// turn them into stats.Row's.
-func receiveRows(
-	ready, terminate, die <-chan struct{},
-	inCh <-chan ithSQLRow, outCh chan<- ithStatsRow,
-	wantsNode, wantsTimestamp bool,
-	desiredValues []string,
-) {
-	// Buffer received values in received.
-	var received []ithStatsRow
-
-receiveAll:
-	for {
-		select {
-		case in := <-inCh:
-			received = append(received, ithStatsRow{
-				i: in.i,
-				row: getRow(
-					in.row,
-					wantsNode,
-					wantsTimestamp,
-					desiredValues,
-				),
-			})
-		case <-terminate:
-			return
-		case <-die:
-			return
-		case <-ready:
-			// start sending
-			break receiveAll
-		}
-	}
-
-	for _, ithRow := range received {
-		select {
-		case <-terminate:
-			return
-		case outCh <- ithRow:
-		}
-	}
-}
-
-// getRow makes a stats.Row out of a sql.Row given the vars the user requested
+// convertRow makes a stats.Row out of a sql.Row given the vars the user requested
 // and whether to get the node and timestamp.
-func getRow(
+func convertRow(
 	row *Row,
-	wantsNode, wantsTimestamp bool,
+	wantsNode bool,
+	wantsTimestamp bool,
 	desiredValues []string,
 ) *stats.Row {
 	var (
