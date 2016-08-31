@@ -30,12 +30,9 @@ type Result []Row
 // concurrency-safe.
 type Sampler interface {
 	// Sample gets the logged values using the given constraints, given a
-	// slice of measurements to return for result values.  Sample may be
-	// terminated (since sampling a great many points may take a long time)
-	// at any point by closing the given channel.
+	// slice of measurements to return for result values.
 	Sample(
 		[]Constraint,
-		<-chan struct{},
 		...string,
 	) (Result, error)
 }

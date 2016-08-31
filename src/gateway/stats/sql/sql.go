@@ -33,8 +33,8 @@ func dayMillis(t time.Time) int64 {
 
 // SQL implements stats.Logger and stats.Sampler on a SQL backend.
 type SQL struct {
-	// ID is the name of the given node.
-	ID string
+	// NAME is the name of the given node.
+	NAME string
 	*sqlx.DB
 }
 
