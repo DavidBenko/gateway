@@ -97,6 +97,8 @@ var shared = func() *otto.Otto {
 		"call.js",
 		"http/request.js",
 		"http/response.js",
+		"conversion/json.js",
+		"conversion/xml.js",
 	}
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
