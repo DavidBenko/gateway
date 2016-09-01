@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	gwerr "gateway/errors"
 	"gateway/stats"
@@ -49,19 +48,9 @@ func getArgs(node string, points ...stats.Point) ([]interface{}, error) {
 	args := make([]interface{}, len(points)*rowLength)
 	errs := make([]error, len(points))
 
-	var wg sync.WaitGroup
-
 	for i, point := range points {
-		wg.Add(1)
-		// concurrent safe slice mutation via re-slice.  This could be
-		// made more efficient by using a set of workers as in Sample.
-		go func(n int, p stats.Point, args []interface{}) {
-			defer wg.Done()
-			errs[n] = setPointArgs(p, node, args)
-		}(i, point, args[i*rowLength:(i+1)*rowLength])
+		errs[i] = setPointArgs(point, node, args[i*rowLength:(i+1)*rowLength])
 	}
-
-	wg.Wait()
 
 	for _, err := range errs {
 		if err != nil {
@@ -93,7 +82,6 @@ func setPointArgs(p stats.Point, node string, args []interface{}) error {
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -128,9 +116,7 @@ func (s *SQL) Log(ps ...stats.Point) error {
 	if err != nil {
 		tx.Rollback()
 		return gwerr.NewWrapped("failed to exec stats query", err)
-	} else {
-		tx.Commit()
 	}
-
+	tx.Commit()
 	return nil
 }
