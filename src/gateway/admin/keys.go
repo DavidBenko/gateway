@@ -7,6 +7,7 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -19,9 +20,33 @@ type KeysController struct {
 	BaseController
 }
 
-type KeyPayload struct {
-	Name string `json:"name"`
-	Key  string `json:"key"`
+func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
+	type payloadKey struct {
+		Key  string
+		Name string
+	}
+
+	type wrapped struct {
+		Key *payloadKey
+	}
+
+	w := &wrapped{}
+	if err := deserialize(&w, file); err != nil {
+		return nil, err
+	}
+	if w.Key == nil {
+		return nil, aphttp.NewError(errors.New("Could not deserialize key from JSON"), http.StatusBadRequest)
+	}
+
+	data, err := dataurl.DecodeString(w.Key.Key)
+	if err != nil {
+		logreport.Printf("%s Error getting form file: %v\n", config.Admin, err)
+		return nil, aphttp.NewError(errors.New("invalid file"), http.StatusBadRequest)
+	}
+
+	key := &model.Key{Name: w.Key.Name, Key: data.Data}
+
+	return key, nil
 }
 
 func RouteKeys(controller *KeysController, path string,
@@ -57,18 +82,10 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 }
 
 func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
-	payload := KeyPayload{}
-	if err := deserialize(&payload, r.Body); err != nil {
+	key, err := deserializeInstance(r.Body)
+	if err != nil {
 		return err
 	}
-
-	data, err := dataurl.DecodeString(payload.Key)
-	if err != nil {
-		logreport.Printf("%s Error getting form file: %v\n%v", config.Admin, err, r)
-		return aphttp.NewError(errors.New("invalid file"), http.StatusBadRequest)
-	}
-
-	key := &model.Key{Name: payload.Name, Key: data.Data}
 
 	accountID := k.accountID(r)
 	userID := k.userID(r)
