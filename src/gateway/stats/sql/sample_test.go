@@ -6,7 +6,6 @@ import (
 	"gateway/stats"
 	"gateway/stats/sql"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/jmoiron/sqlx"
 	gc "gopkg.in/check.v1"
 )
@@ -168,18 +167,18 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		expect:            stats.Result{{Node: "global"}},
 	}, {
 		should: "group and order correctly",
-		driver: s.sqlite,
+		driver: s.postgres,
 		given: map[string][]stats.Point{
 			"global": {
-				samplePoint("simple", tNow.Add(-1*time.Second)),
-				samplePoint("simple", tNow),
-				samplePoint("simple", tNow.Add(1*time.Second)),
+				samplePoint("simple", tNow.Add(-1*time.Second).UTC()),
+				samplePoint("simple", tNow.UTC()),
+				samplePoint("simple", tNow.Add(1*time.Second).UTC()),
 			},
-			"node1": {samplePoint("simple", tNow)},
+			"node1": {samplePoint("simple", tNow.UTC())},
 		},
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
-			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
+			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second).UTC()},
+			{"timestamp", stats.LT, tNow.Add(2 * time.Second).UTC()},
 		},
 		givenMeasurements: []string{"node", "timestamp"},
 		expect: stats.Result{
@@ -190,7 +189,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		},
 	}, {
 		should: "group, order, and sample values correctly",
-		driver: s.sqlite,
+		driver: s.postgres,
 		given: map[string][]stats.Point{
 			"global": {
 				samplePoint("simple", tNow.Add(-3*time.Second)),
@@ -254,7 +253,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		}},
 	}, {
 		should: "restrict results correctly using stats.Constraints",
-		driver: s.sqlite,
+		driver: s.postgres,
 		given: map[string][]stats.Point{
 			"global": {
 				samplePoint("simple", tNow.Add(-1*time.Second)),
@@ -294,14 +293,15 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		}},
 	}} {
 		c.Logf("test %d: should %s", i, test.should)
-		sq := &sql.SQL{DB: test.driver}
+		sq := &sql.SQL{DB: s.postgres}
 
 		_, er := sq.Exec(`DELETE FROM stats`)
 		c.Assert(er, gc.IsNil)
 
 		oldNAME := sq.NAME
-		for node, points := range test.given {
-			sq.NAME = node
+
+		for name, points := range test.given {
+			sq.NAME = name
 			c.Assert(sq.Log(points...), gc.IsNil)
 		}
 		sq.NAME = oldNAME
@@ -318,13 +318,14 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 
 		c.Assert(err, gc.IsNil)
 
-		c.Check(got, gc.DeepEquals, test.expect)
-		if c.Failed() {
-			c.Logf("got: %s\nexpected: %s",
-				spew.Sdump(got),
-				spew.Sdump(test.expect),
-			)
-		}
+		c.Assert(len(got), gc.Equals, len(test.expect))
 
+		for index, pointBack := range got {
+			pointExpected := test.expect[index]
+			c.Assert(pointBack.Node, gc.Equals, pointExpected.Node)
+			c.Assert(pointBack.Err, gc.Equals, pointExpected.Err)
+			c.Assert(pointBack.Timestamp.Format(time.RFC3339), gc.Equals, pointExpected.Timestamp.Format(time.RFC3339))
+			c.Assert(pointBack.Values, gc.DeepEquals, pointExpected.Values)
+		}
 	}
 }
