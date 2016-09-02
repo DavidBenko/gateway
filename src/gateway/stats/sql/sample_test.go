@@ -293,7 +293,7 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 		}},
 	}} {
 		c.Logf("test %d: should %s", i, test.should)
-		sq := &sql.SQL{DB: s.postgres}
+		sq := &sql.SQL{DB: test.driver}
 
 		_, er := sq.Exec(`DELETE FROM stats`)
 		c.Assert(er, gc.IsNil)
