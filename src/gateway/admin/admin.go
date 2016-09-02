@@ -12,8 +12,9 @@ import (
 	"gateway/model"
 	sql "gateway/sql"
 	"gateway/store"
+
 	"github.com/gorilla/mux"
-	"github.com/stripe/stripe-go"
+	stripe "github.com/stripe/stripe-go"
 )
 
 var (
@@ -118,6 +119,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&PushDevicesController{BaseController: base}, "/push_devices", authAdmin, db, conf)
 	RouteResource(&PushChannelMessagesController{BaseController: base}, "/push_channel_messages", authAdmin, db, conf)
 	RouteResource(&SharedComponentsController{BaseController: base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
+	RouteResource(&TimersController{BaseController: base}, "/timers", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)

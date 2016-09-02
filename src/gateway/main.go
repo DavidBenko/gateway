@@ -29,7 +29,8 @@ import (
 	"gateway/sql"
 	"gateway/store"
 	"gateway/version"
-	"github.com/stripe/stripe-go"
+
+	stripe "github.com/stripe/stripe-go"
 )
 
 func init() {
@@ -166,6 +167,7 @@ func main() {
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
+	service.JobsService(conf, db)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 
