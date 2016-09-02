@@ -111,5 +111,5 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -remote-endpoint-docker-enabled=$DOCKER_ENABLED -docker-memory=$DOCKER_MEMORY -docker-cpu-shares=$DOCKER_CPU_SHARES \
   -remote-endpoint-smtp-enabled=$SMTP_ENABLED \
   -admin-api-host=$ADMIN_API_HOST \
-  -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key"$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-payment-retry-attempts="$STRIPE_PAYMENT_RETRY_ATTEMPTS" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
+  -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-payment-retry-attempts="$STRIPE_PAYMENT_RETRY_ATTEMPTS" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
   -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI
