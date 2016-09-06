@@ -38,6 +38,13 @@ type ResourceController interface {
 	Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
 }
 
+type SingularResourceController interface {
+	Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
+	Show(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error
+	Update(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
+	Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error
+}
+
 type BaseController struct {
 	conf      config.ProxyAdmin
 	accountID func(r *http.Request) int64
