@@ -16,6 +16,23 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func RouteSingularResource(controller SingularResourceController, path string,
+	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
+
+	singularRoutes := map[string]http.Handler{
+		"GET":    read(db, controller.Show),
+		"PUT":    write(db, controller.Update),
+		"POST":   write(db, controller.Create),
+		"DELETE": write(db, controller.Delete),
+	}
+
+	if conf.CORSEnabled {
+		singularRoutes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "PUT", "OPTIONS"})
+	}
+
+	router.Handle(path, handlers.MethodHandler(singularRoutes))
+}
+
 func RouteResource(controller ResourceController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 

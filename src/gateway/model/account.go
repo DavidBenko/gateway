@@ -192,11 +192,13 @@ func (a *Account) Update(tx *sql.Tx) error {
 			a.StripeCustomerID.Valid = true
 			a.StripeSubscriptionID.String = c.Subs.Values[0].ID
 			a.StripeSubscriptionID.Valid = true
+			a.PlanID.Int64 = plan.ID
 			currentAccount.StripeCustomerID.String = c.ID
 			currentAccount.StripeCustomerID.Valid = true
 			currentAccount.StripeSubscriptionID.String = c.Subs.Values[0].ID
 			currentAccount.StripeSubscriptionID.Valid = true
-			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.ID)
+			currentAccount.PlanID.Int64 = plan.ID
+			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.PlanID.Int64, a.ID)
 			if err != nil {
 				return err
 			}
