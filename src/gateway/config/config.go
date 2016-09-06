@@ -133,7 +133,7 @@ type ProxyAdmin struct {
 	CORSOrigin  string `flag:"admin-cors-origin" default:"*"`
 
 	Username string `flag:"admin-username" default:"admin"`
-	Password string `flag:"admin-password" default:""`
+	Password string `flag:"admin-password" default:"admin"`
 	Realm    string `flag:"admin-realm"    default:""`
 
 	ShowVersion bool `flag:"admin-show-version" default:"true"`

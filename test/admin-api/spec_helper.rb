@@ -1,7 +1,7 @@
 require 'airborne'
 
 Airborne.configure do |config|
-  config.base_url = "http://localhost:5000/admin"
+  config.base_url = "http://admin:admin@localhost:5000/admin"
 end
 
 # Add the 'except' method to get a hash less one of its keys.

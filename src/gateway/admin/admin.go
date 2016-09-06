@@ -80,6 +80,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteLogSearch(search, "/apis/{apiID}/logs", authAdmin, db, conf)
 	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
 
+	RouteSingularResource(&AccountController{base}, "/account", authAdminUser, db, conf)
 	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
 	if conf.EnableRegistration {
 		RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
