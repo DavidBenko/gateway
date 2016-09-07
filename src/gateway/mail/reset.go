@@ -14,7 +14,7 @@ func SendResetEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin con
 	}
 
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
-	context.Subject = "JustAPIs Password Reset"
+	context.Subject = "Nanoscale.io Password Reset"
 	context.Token = token
 	err = Send("reset.html", context, _smtp, user, async)
 	if err != nil {

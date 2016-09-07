@@ -2,10 +2,10 @@ package config
 
 // ExampleConfigurationFile outputs gateway.conf file contents
 const ExampleConfigurationFile = `##################################################
-### Example JustAPIs server configuration file
-### Copyright (c) 2016 AnyPresence Inc.
-### Documentation: http://devhub.justapis.com
-### Support: http://support.anypresence.com, support@anypresence.com
+### Example Nanoscale.io server configuration file
+### Copyright (c) 2016 Nanoscale.io.
+### Documentation: http://devhub.nanoscale.io
+### Support: support@nanoscale.io
 ##################################################
 
 ## ---------- General ------------

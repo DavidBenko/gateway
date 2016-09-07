@@ -19,7 +19,7 @@ func SendConfirmEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin c
 	}
 
 	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
-	context.Subject = "JustAPIs Email Confirmation"
+	context.Subject = "Nanoscale.io Email Confirmation"
 	context.Token = token
 	context.Resend = resend
 	err := Send("confirm.html", context, _smtp, user, async)

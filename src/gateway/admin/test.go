@@ -114,7 +114,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 				}
 			}
 
-			testUrl := fmt.Sprintf("http://%v:%v/justapis/test%v",
+			testUrl := fmt.Sprintf("http://%v:%v/nanoscale/test%v",
 				selectedHost, c.ProxyServer.Port, route.String())
 			for _, method := range methods {
 				client, values := &http.Client{}, url.Values{}

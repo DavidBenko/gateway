@@ -241,7 +241,7 @@ func addProxyEndpointRoutes(endpoint *model.ProxyEndpoint, router *mux.Router,
 			addRoute(proxyRoute, "")
 		}
 		/*the testing interface*/
-		addRoute(proxyRoute, "/justapis/test").MatcherFunc(isTest)
+		addRoute(proxyRoute, "/nanoscale/test").MatcherFunc(isTest)
 	}
 
 	return nil
