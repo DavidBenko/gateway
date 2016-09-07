@@ -769,10 +769,66 @@ func TestClone(t *testing.T) {
 
 func Test_debugger(t *testing.T) {
 	tt(t, func() {
-		test, _ := test()
+		called := false
 
-		test(`
-            debugger;
-        `, "undefined")
+		vm := New()
+		vm.SetDebuggerHandler(func(o *Otto) {
+			is(o, vm)
+			called = true
+		})
+
+		_, err := vm.Run(`debugger`)
+		is(err, nil)
+		is(called, true)
+	})
+
+	tt(t, func() {
+		called := false
+
+		vm := New()
+		vm.SetDebuggerHandler(func(o *Otto) {
+			is(o, vm)
+			called = true
+		})
+
+		_, err := vm.Run(`null`)
+		is(err, nil)
+		is(called, false)
+	})
+
+	tt(t, func() {
+		vm := New()
+
+		_, err := vm.Run(`debugger`)
+		is(err, nil)
+	})
+}
+
+func Test_random(t *testing.T) {
+	tt(t, func() {
+		vm := New()
+		vm.SetRandomSource(func() float64 { return 1 })
+
+		r, err := vm.Run(`Math.random()`)
+		is(err, nil)
+		f, err := r.ToFloat()
+		is(err, nil)
+		is(f, 1)
+	})
+
+	tt(t, func() {
+		vm := New()
+
+		r1, err := vm.Run(`Math.random()`)
+		is(err, nil)
+		f1, err := r1.ToFloat()
+		is(err, nil)
+
+		r2, err := vm.Run(`Math.random()`)
+		is(err, nil)
+		f2, err := r2.ToFloat()
+		is(err, nil)
+
+		is(f1 == f2, false)
 	})
 }

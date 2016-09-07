@@ -284,7 +284,7 @@ func createDevUser(db *sql.DB) error {
 	user := &model.User{
 		AccountID:   account.ID,
 		Name:        "developer",
-		Email:       "developer@justapis.com",
+		Email:       "developer@example.net",
 		NewPassword: randomPassword(),
 		Confirmed:   true,
 	}
