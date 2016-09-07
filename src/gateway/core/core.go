@@ -24,6 +24,7 @@ import (
 )
 
 type Core struct {
+	DevMode    bool
 	HTTPClient *http.Client
 	DBPools    *pools.Pools
 	OwnDb      *sql.DB // in-application datastore

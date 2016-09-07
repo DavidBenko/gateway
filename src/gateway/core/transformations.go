@@ -1,12 +1,16 @@
-package proxy
+package core
 
 import (
 	"fmt"
+	"strconv"
+
+	"gateway/core/vm"
 	"gateway/model"
-	"gateway/proxy/vm"
+
+	"github.com/jmoiron/sqlx/types"
 )
 
-func (s *Server) runTransformations(vm *vm.ProxyVM,
+func (s *Core) runTransformations(vm *vm.CoreVM,
 	transformations []*model.ProxyEndpointTransformation) error {
 
 	for _, t := range transformations {
@@ -23,7 +27,16 @@ func (s *Server) runTransformations(vm *vm.ProxyVM,
 	return nil
 }
 
-func (s *Server) runJSTransformation(vm *vm.ProxyVM,
+func (s *Core) runJSTransformation(vm *vm.CoreVM,
 	transformation *model.ProxyEndpointTransformation) error {
 	return s.runStoredJSONScript(vm, transformation.Data)
+}
+
+func (s *Core) runStoredJSONScript(vm *vm.CoreVM, jsonScript types.JsonText) error {
+	script, err := strconv.Unquote(string(jsonScript))
+	if err != nil || script == "" {
+		return err
+	}
+	_, err = vm.Run(script)
+	return err
 }

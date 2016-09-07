@@ -26,9 +26,8 @@ import (
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
-	"github.com/stripe/stripe-go"
+	stripe "github.com/stripe/stripe-go"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -60,6 +59,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 
 	return &Server{
 		Core: &core.Core{
+			DevMode:    conf.DevMode(),
 			HTTPClient: &http.Client{Timeout: httpTimeout},
 			DBPools:    pools,
 			OwnDb:      ownDb,
@@ -228,7 +228,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
-	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+	if err = s.RunComponents(&vm.CoreVM, proxyEndpoint.Components); err != nil {
 		if err.Error() == "JavaScript took too long to execute" {
 			logPrint("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, codeTimeout)
 		}
@@ -372,15 +372,6 @@ func (s *Server) accessLoggingNotFoundHandler() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 		}))
-}
-
-func (s *Server) runStoredJSONScript(vm *apvm.ProxyVM, jsonScript types.JsonText) error {
-	script, err := strconv.Unquote(string(jsonScript))
-	if err != nil || script == "" {
-		return err
-	}
-	_, err = vm.Run(script)
-	return err
 }
 
 func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,

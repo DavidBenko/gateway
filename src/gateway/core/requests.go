@@ -1,4 +1,4 @@
-package proxy
+package core
 
 import (
 	"errors"
@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"gateway/core/request"
+	"gateway/core/vm"
 	"gateway/model"
-	"gateway/proxy/vm"
 )
 
 // getRequests takes a slice of call names and a slice of
 // *model.ProxyEndpointCalls, and gets a slice of request.Request.
-func (s *Server) getRequests(
-	vm *vm.ProxyVM,
+func (s *Core) getRequests(
+	vm *vm.CoreVM,
 	callNames []string,
 	endpointCalls []*model.ProxyEndpointCall,
 	connections map[int64]io.Closer,
@@ -43,7 +43,7 @@ type responsePayload struct {
 	response request.Response
 }
 
-func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []request.Request) ([]request.Response, error) {
+func (s *Core) makeRequests(vm *vm.CoreVM, proxyRequests []request.Request) ([]request.Response, error) {
 	start := time.Now()
 	defer func() {
 		vm.ProxiedRequestsDuration += time.Since(start)
@@ -69,7 +69,7 @@ func (s *Server) makeRequests(vm *vm.ProxyVM, proxyRequests []request.Request) (
 
 	for i, req := range proxyRequests {
 		vm.LogPrint("%s [request] %s %s (%v)", vm.LogPrefix,
-			req.Log(s.devMode), responses[i].Log(), requestDurations[i])
+			req.Log(s.DevMode), responses[i].Log(), requestDurations[i])
 	}
 
 	return responses, nil

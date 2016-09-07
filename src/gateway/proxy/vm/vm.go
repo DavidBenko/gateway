@@ -1,47 +1,32 @@
 package vm
 
 import (
-	"bytes"
 	"errors"
-	"fmt"
 	"net/http"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 
 	"gateway/config"
 	"gateway/core"
+	"gateway/core/vm"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
 
 	"github.com/gorilla/sessions"
-	"github.com/jmoiron/sqlx/types"
-
-	"github.com/robertkrimen/otto"
 
 	// Add underscore.js functionality to our VMs
-	_ "github.com/robertkrimen/otto/underscore"
+	"github.com/robertkrimen/otto"
 )
 
 var errCodeTimeout = errors.New("JavaScript took too long to execute")
 
 // ProxyVM is an Otto VM with some helper data stored alongside it.
 type ProxyVM struct {
-	*otto.Otto
-	conf                    config.ProxyServer
-	LogPrint                logreport.Logf
-	LogPrefix               string
-	Log                     bytes.Buffer
-	ProxiedRequestsDuration time.Duration
-
+	vm.CoreVM
 	w            http.ResponseWriter
 	r            *http.Request
 	sessionStore *sessions.CookieStore
 	serverStore  *ServerStore
 	db           *sql.DB
-	timeout      int64
 }
 
 // NewVM returns a new Otto VM initialized with Gateway JavaScript libraries.
@@ -58,129 +43,21 @@ func NewVM(
 ) (*ProxyVM, error) {
 
 	vm := &ProxyVM{
-		Otto:                    core.VMCopy(),
-		conf:                    conf,
-		LogPrint:                logPrint,
-		LogPrefix:               logPrefix,
-		ProxiedRequestsDuration: 0,
-		w:       w,
-		r:       r,
-		db:      db,
-		timeout: timeout,
+		w:  w,
+		r:  r,
+		db: db,
 	}
-
-	var scripts = make([]interface{}, 0)
-
-	for _, library := range libraries {
-		libraryCode, err := scriptFromJSONScript(library.Data)
-		if err != nil {
-			return nil, err
-		}
-		if libraryCode != "" {
-			scripts = append(scripts, libraryCode)
-		}
-	}
-
-	injectEnvironment := fmt.Sprintf("var env = %s;", string(proxyEndpoint.Environment.Data))
-	scripts = append(scripts, injectEnvironment)
-	if conf.EnableOSEnv {
-		scripts = append(scripts, osEnvironmentScript())
-	}
+	vm.InitCoreVM(core.VMCopy(), logPrint, logPrefix, conf, proxyEndpoint, libraries, timeout)
 
 	if err := vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
-		return nil, err
-	}
-
-	vm.Set("log", vm.log)
-
-	if _, err := vm.RunAll(scripts); err != nil {
 		return nil, err
 	}
 
 	return vm, nil
 }
 
-// Run runs the given script, preventing infinite loops and very slow JS
-func (p *ProxyVM) Run(script interface{}) (value otto.Value, err error) {
-	codeTimeout := int64(0)
-	if p.timeout < 1 || p.timeout > p.conf.CodeTimeout {
-		codeTimeout = p.conf.CodeTimeout
-	} else {
-		codeTimeout = p.timeout
-	}
-	defer func() {
-		if caught := recover(); caught != nil {
-			if caught == errCodeTimeout {
-				err = errCodeTimeout
-				return
-			}
-			panic(caught)
-		}
-	}()
-
-	if p.Otto.Interrupt == nil {
-		timeoutChannel := make(chan func(), 1)
-		p.Otto.Interrupt = timeoutChannel
-
-		go func() {
-			time.Sleep(time.Duration(codeTimeout) * time.Second)
-			timeoutChannel <- func() { panic(errCodeTimeout) }
-		}()
-	}
-
-	value, err = p.Otto.Run(script)
-	if err != nil {
-		return value, &jsError{err, script, p.conf.NumErrorLines}
-	}
-	return
-}
-
-// RunAll runs all the given scripts
-func (p *ProxyVM) RunAll(scripts []interface{}) (value otto.Value, err error) {
-	for _, script := range scripts {
-		value, err = p.Run(script)
-		if err != nil {
-			return
-		}
-	}
-	return
-}
-
-func (p *ProxyVM) log(call otto.FunctionCall) otto.Value {
-	line := call.Argument(0).String()
-	p.LogPrint("%s [user] %v", p.LogPrefix, line)
-	p.Log.WriteString(line + "\n")
-	return otto.Value{}
-}
-
 // Panics with otto.Value are caught as runtime errors.
 func runtimeError(err string) {
 	errValue, _ := otto.ToValue(err)
 	panic(errValue)
-}
-
-func (p *ProxyVM) runStoredJSONScript(jsonScript types.JsonText) error {
-	script, err := scriptFromJSONScript(jsonScript)
-	if err != nil || script == "" {
-		return err
-	}
-	_, err = p.Run(script)
-	return err
-}
-
-func scriptFromJSONScript(jsonScript types.JsonText) (string, error) {
-	return strconv.Unquote(string(jsonScript))
-}
-
-func osEnvironmentScript() string {
-	var keypairs []string
-	for _, envPair := range os.Environ() {
-		kv := strings.Split(envPair, "=")
-		keypairs = append(keypairs, fmt.Sprintf("%s:%s",
-			strconv.Quote(kv[0]), strconv.Quote(kv[1])))
-	}
-
-	script := fmt.Sprintf("env = _.extend({%s}, env);",
-		strings.Join(keypairs, ",\n"))
-	return script
 }

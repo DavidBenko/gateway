@@ -29,11 +29,11 @@ func init() {
 //
 // TODO(binary132): bring all known AP funcs into this.
 // TODO(binary132): measure performance impact of regex
-func (p *ProxyVM) makeCall(fn apFunc, args []string) (otto.Value, error) {
+func (c *CoreVM) makeCall(fn apFunc, args []string) (otto.Value, error) {
 	if !knownFuncs.MatchString(string(fn)) {
 		return otto.UndefinedValue(), fmt.Errorf("No such AP function %q", fn)
 	}
 	script := fmt.Sprintf("AP.%s(%s);", fn, strings.Join(args, ","))
 
-	return p.Run(script)
+	return c.Run(script)
 }

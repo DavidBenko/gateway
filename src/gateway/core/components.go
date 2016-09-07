@@ -1,4 +1,4 @@
-package proxy
+package core
 
 import (
 	"encoding/json"
@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gateway/core/vm"
 	"gateway/model"
-	"gateway/proxy/vm"
 )
 
 /**
@@ -25,7 +25,7 @@ import (
 * that helpful.
  */
 
-func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpointComponent) error {
+func (s *Core) RunComponents(vm *vm.CoreVM, components []*model.ProxyEndpointComponent) error {
 	connections := make(map[int64]io.Closer)
 
 	for _, c := range components {
@@ -46,7 +46,7 @@ func (s *Server) runComponents(vm *vm.ProxyVM, components []*model.ProxyEndpoint
 	return nil
 }
 
-func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
+func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
 	run, err := s.evaluateComponentConditional(vm, component)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (s *Server) runComponent(vm *vm.ProxyVM, component *model.ProxyEndpointComp
 	return nil
 }
 
-func (s *Server) runJSComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+func (s *Core) runJSComponentCore(vm *vm.CoreVM, component *model.ProxyEndpointComponent) error {
 	script, err := strconv.Unquote(string(component.Data))
 	if err != nil || script == "" {
 		return err
@@ -100,7 +100,7 @@ func (s *Server) runJSComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpoi
 	return err
 }
 
-func (s *Server) runCallComponentSetup(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {
+func (s *Core) runCallComponentSetup(vm *vm.CoreVM, component *model.ProxyEndpointComponent) error {
 	script := ""
 	for _, c := range component.AllCalls() {
 		name, err := c.Name()
@@ -114,7 +114,7 @@ func (s *Server) runCallComponentSetup(vm *vm.ProxyVM, component *model.ProxyEnd
 	return err
 }
 
-func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
+func (s *Core) runCallComponentCore(vm *vm.CoreVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
 	var activeCalls []*model.ProxyEndpointCall
 
 	for _, call := range component.AllCalls() {
@@ -176,15 +176,15 @@ func (s *Server) runCallComponentCore(vm *vm.ProxyVM, component *model.ProxyEndp
 	return nil
 }
 
-func (s *Server) evaluateComponentConditional(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) (bool, error) {
+func (s *Core) evaluateComponentConditional(vm *vm.CoreVM, component *model.ProxyEndpointComponent) (bool, error) {
 	return s.evaluateConditional(vm, component.Conditional, component.ConditionalPositive)
 }
 
-func (s *Server) evaluateCallConditional(vm *vm.ProxyVM, call *model.ProxyEndpointCall) (bool, error) {
+func (s *Core) evaluateCallConditional(vm *vm.CoreVM, call *model.ProxyEndpointCall) (bool, error) {
 	return s.evaluateConditional(vm, call.Conditional, call.ConditionalPositive)
 }
 
-func (s *Server) evaluateConditional(vm *vm.ProxyVM, conditional string, expected bool) (bool, error) {
+func (s *Core) evaluateConditional(vm *vm.CoreVM, conditional string, expected bool) (bool, error) {
 	trimmedConditional := strings.TrimSpace(conditional)
 	if trimmedConditional == "" {
 		return true, nil
