@@ -127,17 +127,12 @@ docker_build_armv7_full: docker_build_prereqs docker_build_armv7 docker_pack_exe
 docker_build_armv7:
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv7"
 
-docker_build_arm64_full: docker_build_prereqs docker_build_arm64 docker_pack_executables
-
-docker_build_arm64:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc-5 make docker_binary_release && mv ./build/gateway ./build/gateway-linux-arm64"
-
 docker_pack_executables:
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:compile-5.1.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
 
 docker_build_all_full: docker_build_prereqs docker_build_all docker_clean_bin
 
-docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7 docker_build_arm64 docker_pack_executables
+docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7 docker_pack_executables
 
 docker_run:
 	# Make sure docker_build_linux_amd64_full or docker_build_linux_amd64 has been run prior or there will be no binary to run within the container.

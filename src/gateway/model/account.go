@@ -178,6 +178,31 @@ func (a *Account) Update(tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
+		if a.StripeCustomerID.String == "" {
+			customerParams := &stripe.CustomerParams{}
+			if a.StripeToken != "" {
+				customerParams.SetSource(a.StripeToken)
+			}
+			customerParams.Plan = plan.StripeName
+			c, err := customer.New(customerParams)
+			if err != nil {
+				return err
+			}
+			a.StripeCustomerID.String = c.ID
+			a.StripeCustomerID.Valid = true
+			a.StripeSubscriptionID.String = c.Subs.Values[0].ID
+			a.StripeSubscriptionID.Valid = true
+			a.PlanID.Int64 = plan.ID
+			currentAccount.StripeCustomerID.String = c.ID
+			currentAccount.StripeCustomerID.Valid = true
+			currentAccount.StripeSubscriptionID.String = c.Subs.Values[0].ID
+			currentAccount.StripeSubscriptionID.Valid = true
+			currentAccount.PlanID.Int64 = plan.ID
+			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.PlanID.Int64, a.ID)
+			if err != nil {
+				return err
+			}
+		}
 		if a.PlanID.Int64 != currentAccount.PlanID.Int64 && plan.Price > 0 {
 			c, err := customer.Get(currentAccount.StripeCustomerID.String, nil)
 			if err != nil {

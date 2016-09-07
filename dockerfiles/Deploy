@@ -6,59 +6,103 @@ MAINTAINER Jeff Bozek, jbozek@anypresence.com
 ADD build/gateway-linux-amd64 /gateway/gateway
 WORKDIR /gateway
 
+# SERVER MODE
 ENV SERVER false
+ENV LICENSE_CONTENT ""
+
+# DATABASE CONFIG
 ENV DB_MIGRATE true
-ENV CACHE_APIS false
 ENV DB_DRIVER sqlite3
 ENV DB_MAX_CONN 1
 ENV DB_CONN "gateway.db"
+
+# ADMIN CONFIG
+ENV ADMIN_SESSION_AUTH_KEY please-change-me
+ENV ADMIN_PATH /admin/
+ENV ADMIN_HOST 0.0.0.0
+ENV ADMIN_ENABLE_REGISTRATION true
+ENV ADMIN_SHOW_VERSION true
+ENV ADMIN_SESSION_COOKIE_DOMAIN 0.0.0.0
+ENV JOBS true
+ENV GOOGLE_ANALYTICS_TRACKING_ID ""
+ENV ADMIN_API_HOST ""
+ENV ADMIN_CORS_ENABLED true
+ENV ADMIN_CORS_ORIGIN "*"
+ENV ADMIN_BASIC_AUTH_USER "admin"
+ENV ADMIN_BASIC_AUTH_PASSWORD "admin"
+
+# PROXY CONFIG
+ENV PROXY_HOST 0.0.0.0
+ENV PROXY_DOMAIN localhost
+ENV PROXY_ENABLE_OS_ENV false
+ENV PROXY_CODE_TIMEOUT 5
+ENV PROXY_HTTP_TIMEOUT 60
+ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts.[0]}}:5000"
+ENV CACHE_APIS false
+
+# LOCAL STORE CONFIG
 ENV STORE_TYPE boltdb
 ENV STORE_MIGRATE true
 ENV STORE_MAX_CONN 1
 ENV STORE_CONN "store.db"
-ENV ADMIN_SESSION_AUTH_KEY please-change-me
-ENV ADMIN_PATH /admin/
-ENV PROXY_HOST 0.0.0.0
-ENV ADMIN_HOST 0.0.0.0
-ENV PROXY_DOMAIN localhost
-ENV PROXY_ENABLE_OS_ENV false
-ENV ENABLE_BROKER true
-ENV BROKER_HOST localhost
-ENV BROKER_WS localhost:5000
-ENV BROKER_PUB_PORT 5555
-ENV BROKER_SUB_PORT 5556
-ENV SCRIPT_ENABLED false
-ENV STORE_ENABLED true
-ENV ADMIN_SESSION_COOKIE_DOMAIN 0.0.0.0
+
+# LOGGING CONFIG
+ENV ENABLE_LOGGING_BROKER true
+ENV LOGGING_BROKER_HOST localhost
+ENV LOGGING_BROKER_WS localhost:5000
+ENV LOGGING_BROKER_PUB_PORT 5555
+ENV LOGGING_BROKER_SUB_PORT 5556
 ENV BLEVE_LOGGING_FILE ""
 ENV BLEVE_LOGGING_DELETE_AFTER 30
 ENV ELASTIC_LOGGING_URL ""
 ENV ELASTIC_LOGGING_DELETE_AFTER 30
-ENV JOBS true
-ENV LICENSE_CONTENT ""
-ENV AIRBRAKE_API_KEY ""
-ENV AIRBRAKE_ENVIRONMENT ""
-ENV AIRBRAKE_PROJECT_ID 1
+
+# SMTP CONFIG
 ENV SMTP_USER ""
 ENV SMTP_PASSWORD ""
 ENV SMTP_SENDER ""
 ENV SMTP_SERVER ""
 ENV SMTP_PORT 25
-ENV ADMIN_ENABLE_REGISTRATION true
-ENV ADMIN_SHOW_VERSION true
 ENV EMAIL_SCHEME http
 ENV EMAIL_HOST localhost
 ENV EMAIL_PORT 5000
-ENV PROXY_CODE_TIMEOUT 5
-ENV PROXY_HTTP_TIMEOUT 60
-ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts.[0]}}:5000"
-ENV GOOGLE_ANALYTICS_TRACKING_ID ""
+
+# ERROR REPORTING
+ENV AIRBRAKE_API_KEY ""
+ENV AIRBRAKE_ENVIRONMENT ""
+ENV AIRBRAKE_PROJECT_ID 1
+
+# REMOTE ENDPOINTS
+ENV SCRIPT_ENABLED false
+ENV STORE_ENABLED true
+ENV DOCKER_ENABLED false
+ENV SMTP_ENABLED true
+
+# PUSH CONFIG
+ENV ENABLE_PUSH_BROKER true
+ENV PUSH_BROKER_HOST "localhost
+ENV PUSH_BROKER_PUB_PORT "5557"
+ENV PUSH_BROKER_SUB_PORT "5558"
+ENV PUSH_BROKER_TRANSPORT "tcp"
+ENV PUSH_CONNECTION_TIMEOUT 2
+ENV PUSH_MQTT_URI "tcp://:1883"
+
+# DOCKER CONFIG
+ENV DOCKER_MEMORY 128
+ENV DOCKER_CPU_SHARES 1024
+
+# STRIPE CONFIG
+ENV STRIPE_SECRET_KEY ""
+ENV STRIPE_PUBLISHABLE_KEY ""
+ENV STRIPE_FALLBACK_PLAN ""
+ENV STRIPE_PAYMENT_RETRY_ATTEMPTS 3
+ENV STRIPE_MIGRATE_ACCOUNTS false
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
 ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STORE_MIGRATE -proxy-cache-apis=$CACHE_APIS \
   -proxy-host=$PROXY_HOST  -proxy-domain=$PROXY_DOMAIN -proxy-enable-os-env=$PROXY_ENABLE_OS_ENV \
   -admin-host=$ADMIN_HOST -admin-enable-registration=$ADMIN_ENABLE_REGISTRATION -admin-session-auth-key=$ADMIN_SESSION_AUTH_KEY -admin-path-prefix=$ADMIN_PATH -admin-session-cookie-domain=$ADMIN_SESSION_COOKIE_DOMAIN -admin-show-version=$ADMIN_SHOW_VERSION \
-  -enable-broker=$ENABLE_BROKER -broker=$BROKER_HOST -broker-pub-port=$BROKER_PUB_PORT -broker-sub-port=$BROKER_SUB_PORT -broker-ws=$BROKER_WS \
+  -enable-broker=$ENABLE_LOGGING_BROKER -broker=$LOGGING_BROKER_HOST -broker-pub-port=$LOGGING_BROKER_PUB_PORT -broker-sub-port=$LOGGING_BROKER_SUB_PORT -broker-ws=$LOGGING_BROKER_WS \
   -bleve-logging-file=$BLEVE_LOGGING_FILE -bleve-logging-delete-after=$BLEVE_LOGGING_DELETE_AFTER -elastic-logging-url="$ELASTIC_LOGGING_URL" -elastic-logging-delete-after=$ELASTIC_LOGGING_DELETE_AFTER -jobs=$JOBS \
   -remote-endpoint-script-enabled=$SCRIPT_ENABLED -remote-endpoint-store-enabled=$STORE_ENABLED \
   -airbrake-api-key="$AIRBRAKE_API_KEY" -airbrake-environment="$AIRBRAKE_ENVIRONMENT" -airbrake-project-id="$AIRBRAKE_PROJECT_ID" \
@@ -67,4 +111,9 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
   -license-content="$LICENSE_CONTENT" \
   -admin-google-analytics-tracking-id="$GOOGLE_ANALYTICS_TRACKING_ID" \
-  -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN" -db-max-connections=$DB_MAX_CONN -store-type=$STORE_TYPE -store-conn-string="$STORE_CONN" -store-max-connections=$STORE_MAX_CONN
+  -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN" -db-max-connections=$DB_MAX_CONN -store-type=$STORE_TYPE -store-conn-string="$STORE_CONN" -store-max-connections=$STORE_MAX_CONN \
+  -remote-endpoint-docker-enabled=$DOCKER_ENABLED -docker-memory=$DOCKER_MEMORY -docker-cpu-shares=$DOCKER_CPU_SHARES \
+  -remote-endpoint-smtp-enabled=$SMTP_ENABLED \
+  -admin-api-host=$ADMIN_API_HOST -admin-cors-enabled=$ADMIN_CORS_ENABLED -admin-cors-origin="$ADMIN_CORS_ORIGIN" -admin-username="$ADMIN_BASIC_AUTH_USER" -admin-password="$ADMIN_BASIC_AUTH_PASSWORD" \
+  -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-payment-retry-attempts="$STRIPE_PAYMENT_RETRY_ATTEMPTS" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
+  -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI
