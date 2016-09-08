@@ -12,7 +12,8 @@ import (
 // Default padding scheme used if nothing is supplied in the options.
 var defaultPaddingScheme = "pkcs1v15"
 
-// IncludeSigning adds the _sign function to the otto VM.
+// IncludeSigning create the AP.Crypto.sign and AP.Crypto.verify helper functions in the
+// supplied Otto VM.
 func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	setSign(vm, accountID, keySource)
 	setVerify(vm, accountID, keySource)

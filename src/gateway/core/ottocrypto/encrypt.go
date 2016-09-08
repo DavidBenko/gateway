@@ -15,6 +15,8 @@ type KeyDataSource interface {
 // Default hashing algorithm used if nothing is supplied in the options.
 var defaultHashAlgorithm = "sha256"
 
+// IncludeEncryption adds the AP.Crypto.encrypt and AP.Crypto.decrypt functions in
+// the supplied Otto VM.
 func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	setEncrypt(vm, accountID, keySource)
 	setDecrypt(vm, accountID, keySource)

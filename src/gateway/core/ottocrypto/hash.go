@@ -10,7 +10,8 @@ import (
 
 var undefined = otto.Value{}
 
-// IncludeHashing adds the _hash, _hashPassword & _hashHmac functions to the otto VM.
+// IncludeHashing creates the _hashPassword, _compareHashAndPassword, hash and
+// hashHmac functions in the supplied Otto VM.
 func IncludeHashing(vm *otto.Otto) {
 	setHashPassword(vm)
 	setCompareHashAndPassword(vm)
