@@ -174,17 +174,18 @@ func (s *saveSession) save(outStream io.Writer) error {
 
 	if len(reposLegacy) > 0 {
 		reposFile := filepath.Join(tempDir, legacyRepositoriesFileName)
-		f, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		rf, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
-			f.Close()
 			return err
 		}
-		if err := json.NewEncoder(f).Encode(reposLegacy); err != nil {
+
+		if err := json.NewEncoder(rf).Encode(reposLegacy); err != nil {
+			rf.Close()
 			return err
 		}
-		if err := f.Close(); err != nil {
-			return err
-		}
+
+		rf.Close()
+
 		if err := system.Chtimes(reposFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return err
 		}
@@ -193,15 +194,16 @@ func (s *saveSession) save(outStream io.Writer) error {
 	manifestFileName := filepath.Join(tempDir, manifestFileName)
 	f, err := os.OpenFile(manifestFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
+		return err
+	}
+
+	if err := json.NewEncoder(f).Encode(manifest); err != nil {
 		f.Close()
 		return err
 	}
-	if err := json.NewEncoder(f).Encode(manifest); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
+
+	f.Close()
+
 	if err := system.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 		return err
 	}
@@ -307,7 +309,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 	defer layer.ReleaseAndLog(s.ls, l)
 
 	if oldPath, exists := s.diffIDPaths[l.DiffID()]; exists {
-		relPath, err := filepath.Rel(layerPath, oldPath)
+		relPath, err := filepath.Rel(outDir, oldPath)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}

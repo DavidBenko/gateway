@@ -10,10 +10,9 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/bundlefile"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/swarm"
 )
 
 const (
@@ -50,6 +49,14 @@ func runDeploy(dockerCli *client.DockerCli, opts deployOptions) error {
 	bundle, err := loadBundlefile(dockerCli.Err(), opts.namespace, opts.bundlefile)
 	if err != nil {
 		return err
+	}
+
+	info, err := dockerCli.Client().Info(context.Background())
+	if err != nil {
+		return err
+	}
+	if !info.Swarm.ControlAvailable {
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 
 	networks := getUniqueNetworkNames(bundle.Services)
@@ -97,8 +104,6 @@ func updateNetworks(
 	createOpts := types.NetworkCreate{
 		Labels: getStackLabels(namespace, nil),
 		Driver: defaultNetworkDriver,
-		// TODO: remove when engine-api uses omitempty for IPAM
-		IPAM: network.IPAM{Driver: "default"},
 	}
 
 	for _, internalName := range networks {
@@ -168,6 +173,10 @@ func deployServices(
 					Command: service.Command,
 					Args:    service.Args,
 					Env:     service.Env,
+					// Service Labels will not be copied to Containers
+					// automatically during the deployment so we apply
+					// it here.
+					Labels: getStackLabels(namespace, nil),
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{

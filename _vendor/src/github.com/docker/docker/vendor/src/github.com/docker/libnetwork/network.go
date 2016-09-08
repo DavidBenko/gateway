@@ -702,12 +702,13 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	}
 
 	c := n.getController()
+	isAgent := c.isAgent()
 	n.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.isAgent() || n.dynamic {
+	if isAgent || n.dynamic {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
@@ -1105,8 +1106,12 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	}
 
 	var recs []etchosts.Record
-	sr, _ := n.ctrlr.svcRecords[n.id]
+
 	epName := ep.Name()
+
+	n.ctrlr.Lock()
+	defer n.ctrlr.Unlock()
+	sr, _ := n.ctrlr.svcRecords[n.id]
 
 	for h, ip := range sr.svcMap {
 		if strings.Split(h, ".")[0] == epName {
@@ -1178,7 +1183,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}
 
 		// If the network belongs to global scope or the pool was
-		// explicitely chosen or it is invalid, do not perform the overlap check.
+		// explicitly chosen or it is invalid, do not perform the overlap check.
 		if n.Scope() == datastore.GlobalScope || preferredPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
@@ -1202,7 +1207,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}()
 
 		// If this is a preferred pool request and the network
-		// is local scope and there is a overlap, we fail the
+		// is local scope and there is an overlap, we fail the
 		// network creation right here. The pool will be
 		// released in the defer.
 		if preferredPool != "" {

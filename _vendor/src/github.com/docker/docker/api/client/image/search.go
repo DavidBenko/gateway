@@ -9,12 +9,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ type searchOptions struct {
 	automated bool
 }
 
-// NewSearchCommand create a new `docker search` command
+// NewSearchCommand creates a new `docker search` command
 func NewSearchCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts searchOptions
 
@@ -109,8 +109,8 @@ func runSearch(dockerCli *client.DockerCli, opts searchOptions) error {
 		}
 		desc := strings.Replace(res.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !opts.noTrunc && len(desc) > 45 {
-			desc = stringutils.Truncate(desc, 42) + "..."
+		if !opts.noTrunc {
+			desc = stringutils.Ellipsis(desc, 45)
 		}
 		fmt.Fprintf(w, "%s\t%s\t%d\t", res.Name, desc, res.StarCount)
 		if res.IsOfficial {

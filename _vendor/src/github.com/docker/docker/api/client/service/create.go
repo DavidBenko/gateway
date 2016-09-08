@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -30,6 +30,7 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
+	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
 	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
 	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
 	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")

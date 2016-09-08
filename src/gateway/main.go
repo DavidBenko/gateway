@@ -15,6 +15,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/docker"
 	"gateway/errors/report"
 	"gateway/http"
 	"gateway/license"
@@ -177,10 +178,34 @@ func main() {
 		logreport.Printf("%s Unable to write script files due to error: %v", config.System, err)
 	}
 
+	// Configure Docker
+	if conf.RemoteEndpoint.DockerEnabled {
+		logreport.Printf("Configuring Docker remote endpoint support...")
+		err = docker.ConfigureDockerClientFromEnv()
+		if err != nil {
+			conf.RemoteEndpoint.DockerEnabled = false
+			logreport.Printf("Unable to configure Docker due to error: %v.  Docker remote endpoints will not be enabled.", err)
+		} else {
+			info, err := docker.DockerClientInfo()
+			if err != nil {
+				conf.RemoteEndpoint.DockerEnabled = false
+				logreport.Printf("Unable to connect to Docker host to get info: %v.  Docker remote endpoints will not be enabled.", err)
+			} else {
+				logreport.Println("Docker remote endpoint support configured:\n", info)
+			}
+		}
+	}
+
 	// Configure SOAP
-	err = soap.Configure(conf.Soap, conf.DevMode())
-	if err != nil {
-		logreport.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+	if conf.RemoteEndpoint.SoapEnabled {
+		logreport.Printf("Configuring SOAP remote endpoint support...")
+		err = soap.Configure(conf.Soap, conf.DevMode())
+		if err != nil {
+			conf.RemoteEndpoint.SoapEnabled = false
+			logreport.Printf("%s Unable to configure SOAP due to error: %v.  SOAP services will not be available.", config.System, err)
+		} else {
+			logreport.Printf("SOAP remote endpoint support configured.")
+		}
 	}
 
 	// Cache all Jar files locally for quick access

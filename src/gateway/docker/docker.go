@@ -2,11 +2,14 @@ package docker
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"github.com/ahmetalpbalkan/dexec"
-	dockerclient "github.com/fsouza/go-dockerclient"
+	dockerEngine "github.com/docker/docker"
+	"sync"
 )
+
+var once sync.Once
+var client *dockerclient.Client
 
 type DockerConfig struct {
 	Repository string `json:"repository"`
@@ -24,12 +27,27 @@ type RunOutput struct {
 	Error  bool   `json:"error"`
 }
 
+func ConfigureDockerClientFromEnv() error {
+	if client != nil {
+		panic("Docker client has already been configured!")
+	}
+
+	var err error
+	once.Do(func() {
+		client, err = dockerclient.NewClientFromEnv()
+	})
+
+	return err
+}
+
+func DockerClientInfo() (string, error) {
+	info, err := client.Info()
+	prettyInfo, _ := json.MarshalIndent(info, "", "    ")
+	return string(prettyInfo), err
+}
+
 // Pull pulls the image from the repository
 func (dc *DockerConfig) PullOrRefresh() error {
-	client, err := dockerclient.NewClientFromEnv()
-	if err != nil {
-		return errors.New("cannot initialize docker client.")
-	}
 	var perr error
 	if dc.Tag == "latest" {
 		perr = dc.PullImage(client)
@@ -75,11 +93,8 @@ func (dc *DockerConfig) PullImage(client *dockerclient.Client) error {
 }
 
 func (dc *DockerConfig) ImageExists() (bool, error) {
-	client, err := dockerclient.NewClientFromEnv()
-	if err != nil {
-		return false, errors.New("cannot initialize docker client.")
-	}
 	var images []dockerclient.APIImageSearch
+	var err error
 	if dc.Username != "" && dc.Password != "" || dc.Registry != "" {
 		authConfig := dockerclient.AuthConfiguration{
 			Username:      dc.Username,
@@ -100,14 +115,9 @@ func (dc *DockerConfig) ImageExists() (bool, error) {
 }
 
 func (dc *DockerConfig) Execute(command string, arguments []string, environmentVars map[string]string) (*RunOutput, error) {
-	client, err := dockerclient.NewClientFromEnv()
 	var environment []string
 	for k, v := range environmentVars {
 		environment = append(environment, fmt.Sprintf("%s=%s", k, v))
-	}
-	output := new(RunOutput)
-	if err != nil {
-		return output, err
 	}
 
 	d := dexec.Docker{Client: client}
@@ -138,17 +148,10 @@ func (dc *DockerConfig) Execute(command string, arguments []string, environmentV
 		return nil, err
 	}
 
-	var stdout, stderr bytes.Buffer
 	cmd := d.Command(m, command, arguments...)
-	cmdErr := false
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err = cmd.Run()
+	output, err := cmd.Output()
 	if err != nil {
-		cmdErr = true
-		if stderr.Len() < 1 {
-			return &RunOutput{Stdout: stdout.String(), Stderr: err.Error(), Error: cmdErr}, err
-		}
+		return &RunOutput{Stdout: string(output[:]), Stderr: err.Error(), Error: true}, err
 	}
-	return &RunOutput{Stdout: stdout.String(), Stderr: stderr.String(), Error: cmdErr}, nil
+	return &RunOutput{Stdout: string(output[:]), Error: false}, nil
 }

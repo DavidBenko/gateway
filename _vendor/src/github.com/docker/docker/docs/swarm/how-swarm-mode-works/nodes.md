@@ -6,7 +6,6 @@ aliases = [
 title = "How nodes work"
 description = "How swarm nodes work"
 keywords = ["docker, container, cluster, swarm mode, node"]
-advisory = "rc"
 [menu.main]
 identifier="how-nodes-work"
 parent="how-swarm-works"
@@ -43,12 +42,12 @@ manager. If the manager in a single-manager swarm fails, your services will
 continue to run, but you will need to create a new cluster to recover.
 
 To take advantage of swarm mode's fault-tolerance features, Docker recommends
-you implement an odd number of nodes nodes according to your organization's
+you implement an odd number of nodes according to your organization's
 high-availability requirements. When you have multiple managers you can recover
 from the failure of a manager node without downtime.
 
 * A three-manager swarm tolerates a maximum loss of one manager.
-* A five-manager swarm tolerates a maximum simultaneous loss two
+* A five-manager swarm tolerates a maximum simultaneous loss of two
 manager nodes.
 * An `N` manager cluster will tolerate the loss of at most
 `(N-1)/2` managers.
@@ -86,8 +85,8 @@ take a manager node offline for maintenance. See [node promote](../../reference/
 You can also demote a manager node to a worker node. See
 [node demote](../../reference/commandline/node_demote.md).
 
-<!-- TODO For when How services work guide is ready
-## What's Next
+
+## Learn More
 
 * Read about how swarm mode [services](services.md) work.
--->
+* Learn how [PKI](pki.md) works in swarm mode

@@ -7,6 +7,9 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	pblkiodev "github.com/docker/docker/api/types/blkiodev"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
@@ -14,9 +17,6 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/engine-api/types"
-	pblkiodev "github.com/docker/engine-api/types/blkiodev"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
@@ -101,33 +101,33 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	// TODO Windows: Add more validation of resource settings not supported on Windows
 
 	if resources.BlkioWeight > 0 {
-		warnings = append(warnings, "Windows does not support Block I/O weight. Weight discarded.")
-		logrus.Warn("Windows does not support Block I/O weight. --blkio-weight discarded.")
+		warnings = append(warnings, "Windows does not support Block I/O weight. Block I/O weight discarded.")
+		logrus.Warn("Windows does not support Block I/O weight. Block I/O weight discarded.")
 		resources.BlkioWeight = 0
 	}
 	if len(resources.BlkioWeightDevice) > 0 {
-		warnings = append(warnings, "Windows does not support Block I/O weight_device.")
-		logrus.Warn("Windows does not support Block I/O weight_device. --blkio-weight-device discarded.")
+		warnings = append(warnings, "Windows does not support Block I/O weight-device. Weight-device discarded.")
+		logrus.Warn("Windows does not support Block I/O weight-device. Weight-device discarded.")
 		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
 	}
 	if len(resources.BlkioDeviceReadBps) > 0 {
-		warnings = append(warnings, "Windows does not support Block read limit in bytes per second.")
-		logrus.Warn("Windows does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		warnings = append(warnings, "Windows does not support Block read limit in bytes per second. Device read bps discarded.")
+		logrus.Warn("Windows does not support Block I/O read limit in bytes per second. Device read bps discarded.")
 		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteBps) > 0 {
-		warnings = append(warnings, "Windows does not support Block write limit in bytes per second.")
-		logrus.Warn("Windows does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		warnings = append(warnings, "Windows does not support Block write limit in bytes per second. Device write bps discarded.")
+		logrus.Warn("Windows does not support Block I/O write limit in bytes per second. Device write bps discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 {
-		warnings = append(warnings, "Windows does not support Block read limit in IO per second.")
-		logrus.Warn("Windows does not support Block I/O read limit in IO per second. -device-read-iops discarded.")
+		warnings = append(warnings, "Windows does not support Block read limit in IO per second. Device read iops discarded.")
+		logrus.Warn("Windows does not support Block I/O read limit in IO per second. Device read iops discarded.")
 		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteIOps) > 0 {
-		warnings = append(warnings, "Windows does not support Block write limit in IO per second.")
-		logrus.Warn("Windows does not support Block I/O write limit in IO per second. --device-write-iops discarded.")
+		warnings = append(warnings, "Windows does not support Block write limit in IO per second. Device write iops discarded.")
+		logrus.Warn("Windows does not support Block I/O write limit in IO per second. Device write iops discarded.")
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	return warnings, nil
@@ -426,12 +426,18 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		layers = append(layers, l.String())
 	}
 	return types.RootFS{
-		Type:      rootfs.Type,
-		Layers:    layers,
-		BaseLayer: rootfs.BaseLayer,
+		Type:   rootfs.Type,
+		Layers: layers,
 	}
 }
 
 func setupDaemonProcess(config *Config) error {
+	return nil
+}
+
+// verifyVolumesInfo is a no-op on windows.
+// This is called during daemon initialization to migrate volumes from pre-1.7.
+// volumes were not supported on windows pre-1.7
+func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	return nil
 }

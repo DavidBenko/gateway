@@ -1,16 +1,21 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
+)
+
+var (
+	errNoRoleChange = errors.New("role was already set to the requested value")
 )
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -27,7 +32,6 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
-	flags.StringVar(&nodeOpts.membership, flagMembership, "", "Membership of the node (accepted/rejected)")
 	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
 	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
 	labelKeys := opts.NewListOpts(nil)
@@ -54,6 +58,9 @@ func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(nod
 
 		err = mergeNode(&node)
 		if err != nil {
+			if err == errNoRoleChange {
+				continue
+			}
 			return err
 		}
 		err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
@@ -75,13 +82,6 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 				return err
 			}
 			spec.Role = swarm.NodeRole(str)
-		}
-		if flags.Changed(flagMembership) {
-			str, err := flags.GetString(flagMembership)
-			if err != nil {
-				return err
-			}
-			spec.Membership = swarm.NodeMembership(str)
 		}
 		if flags.Changed(flagAvailability) {
 			str, err := flags.GetString(flagAvailability)
@@ -115,7 +115,6 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 
 const (
 	flagRole         = "role"
-	flagMembership   = "membership"
 	flagAvailability = "availability"
 	flagLabelAdd     = "label-add"
 	flagLabelRemove  = "label-rm"

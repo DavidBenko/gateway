@@ -97,6 +97,13 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
+
+		if request.Rotation.RotateWorkerToken {
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
+		}
+		if request.Rotation.RotateManagerToken {
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
+		}
 		return store.UpdateCluster(tx, cluster)
 	})
 	if err != nil {
@@ -179,7 +186,7 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 }
 
 // redactClusters is a method that enforces a whitelist of fields that are ok to be
-// returned in the Cluster object. It should filter out all senstive information.
+// returned in the Cluster object. It should filter out all sensitive information.
 func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	var redactedClusters []*api.Cluster
 	// Only add public fields to the new clusters
@@ -193,6 +200,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			RootCA: api.RootCA{
 				CACert:     cluster.RootCA.CACert,
 				CACertHash: cluster.RootCA.CACertHash,
+				JoinTokens: cluster.RootCA.JoinTokens,
 			},
 		}
 

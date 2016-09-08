@@ -22,13 +22,13 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/passphrase"
@@ -132,7 +132,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 		return nil, err
 	}
 
-	var cfg = tlsconfig.ClientDefault
+	var cfg = tlsconfig.ClientDefault()
 	cfg.InsecureSkipVerify = !repoInfo.Index.Secure
 
 	// Get certificate base directory
@@ -142,7 +142,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 	logrus.Debugf("reading certificate directory: %s", certDir)
 
-	if err := registry.ReadCertsDirectory(&cfg, certDir); err != nil {
+	if err := registry.ReadCertsDirectory(cfg, certDir); err != nil {
 		return nil, err
 	}
 
@@ -154,7 +154,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 			DualStack: true,
 		}).Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &cfg,
+		TLSClientConfig:     cfg,
 		DisableKeepAlives:   true,
 	}
 

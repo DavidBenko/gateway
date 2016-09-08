@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ type removeOptions struct {
 	noPrune bool
 }
 
-// NewRemoveCommand create a new `docker remove` command
+// NewRemoveCommand creates a new `docker remove` command
 func NewRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts removeOptions
 

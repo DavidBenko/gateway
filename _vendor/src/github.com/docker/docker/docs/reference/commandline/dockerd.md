@@ -56,7 +56,7 @@ Options:
       --ipv6                                 Enable IPv6 networking
       -l, --log-level=info                   Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --live-restore                         Enable live restore of docker when containers are still running
+      --live-restore                         Enables keeping containers alive during daemon downtime
       --log-driver=json-file                 Default driver for container logs
       --log-opt=map[]                        Default log driver options for containers
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
@@ -69,6 +69,7 @@ Options:
       -s, --storage-driver                   Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Storage driver options
+      --swarm-default-advertise-addr         Set default address or interface for swarm advertised address
       --tls                                  Use TLS; implied by --tlsverify
       --tlscacert=~/.docker/ca.pem           Trust certs signed only by this CA
       --tlscert=~/.docker/cert.pem           Path to TLS certificate file
@@ -551,6 +552,22 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     $ dockerd --storage-opt dm.min_free_space=10%
     ```
 
+*  `dm.xfs_nospace_max_retries`
+
+    Specifies the maximum number of retries XFS should attempt to complete
+    IO when ENOSPC (no space) error is returned by underlying storage device.
+
+    By default XFS retries infinitely for IO to finish and this can result
+    in unkillable process. To change this behavior one can set
+    xfs_nospace_max_retries to say 0 and XFS will not retry IO after getting
+    ENOSPC and will shutdown filesystem.
+
+    Example use:
+
+    ```bash
+    $ dockerd --storage-opt dm.xfs_nospace_max_retries=0
+    ```
+
 #### ZFS options
 
 * `zfs.fsname`
@@ -573,7 +590,7 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     **size** cannot be smaller than **btrfs.min_space**.
 
     Example use:
-        $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
+        $ dockerd -s btrfs --storage-opt btrfs.min_space=10G
 
 #### Overlay2 options
 
@@ -589,9 +606,17 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 ## Docker runtime execution options
 
 The Docker daemon relies on a
-[OCI](https://github.com/opencontainers/specs) compliant runtime
+[OCI](https://github.com/opencontainers/runtime-spec) compliant runtime
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
+
+By default, the Docker daemon automatically starts `containerd`. If you want to
+control `containerd` startup, manually start `containerd` and pass the path to
+the `containerd` socket using the `--containerd` flag. For example:
+
+```bash
+$ dockerd --containerd /var/run/dev/docker-containerd.sock
+```
 
 Runtimes can be registered with the daemon either via the
 configuration file or using the `--add-runtime` command line argument.
@@ -1002,14 +1027,14 @@ via flags. The docker daemon fails to start if an option is duplicated between
 the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
-in the configuration file and also set daemon labels via the `--label` flag. 
+in the configuration file and also set daemon labels via the `--label` flag.
 Options that are not present in the file are ignored when the daemon starts.
 
 ### Linux configuration file
 
-The default location of the configuration file on Linux is 
+The default location of the configuration file on Linux is
 `/etc/docker/daemon.json`. The `--config-file` flag can be used to specify a
- non-default location. 
+ non-default location.
 
 This is a full example of the allowed configuration options on Linux:
 
@@ -1024,8 +1049,9 @@ This is a full example of the allowed configuration options on Linux:
 	"storage-driver": "",
 	"storage-opts": [],
 	"labels": [],
+	"live-restore": true,
 	"log-driver": "",
-	"log-opts": [],
+	"log-opts": {},
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
@@ -1042,6 +1068,7 @@ This is a full example of the allowed configuration options on Linux:
 	"tlscacert": "",
 	"tlscert": "",
 	"tlskey": "",
+	"swarm-default-advertise-addr": "",
 	"api-cors-header": "",
 	"selinux-enabled": false,
 	"userns-remap": "",
@@ -1085,7 +1112,7 @@ This is a full example of the allowed configuration options on Linux:
 
 The default location of the configuration file on Windows is
  `%programdata%\docker\config\daemon.json`. The `--config-file` flag can be
- used to specify a non-default location. 
+ used to specify a non-default location.
 
 This is a full example of the allowed configuration options on Windows:
 
@@ -1099,7 +1126,8 @@ This is a full example of the allowed configuration options on Windows:
     "storage-driver": "",
     "storage-opts": [],
     "labels": [],
-    "log-driver": "", 
+    "live-restore": true,
+    "log-driver": "",
     "mtu": 0,
     "pidfile": "",
     "graph": "",
@@ -1112,6 +1140,7 @@ This is a full example of the allowed configuration options on Windows:
     "tlscacert": "",
     "tlscert": "",
     "tlskey": "",
+    "swarm-default-advertise-addr": "",
     "group": "",
     "default-ulimits": {},
     "bridge": "",
@@ -1139,6 +1168,7 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `live-restore`: Enables [keeping containers alive during daemon downtime](../../admin/live-restore.md).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
 - `default-runtime`: it updates the runtime to be used if not is
@@ -1146,6 +1176,7 @@ The list of currently supported options that can be reconfigured is this:
   the runtime shipped with the official docker packages.
 - `runtimes`: it updates the list of available OCI runtimes that can
   be used to run containers
+- `authorization-plugin`: specifies the authorization plugins to use.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
@@ -1206,7 +1237,7 @@ The `--tls*` options enable use of specific certificates for individual daemons.
 Example script for a separate “bootstrap” instance of the Docker daemon without network:
 
 ```bash
-$ docker daemon \
+$ dockerd \
         -H unix:///var/run/docker-bootstrap.sock \
         -p /var/run/docker-bootstrap.pid \
         --iptables=false \

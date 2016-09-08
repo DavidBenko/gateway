@@ -12,7 +12,7 @@ parent = "smn_networking_def"
 
 The information in this section explains how to customize the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.  
 
-**Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
+**Note**: The [Docker networks feature](../index.md) allows you to create user-defined networks in addition to the default bridge network.
 
 By default, the Docker server creates and configures the host system's `docker0` interface as an _Ethernet bridge_ inside the Linux kernel that can pass packets back and forth between other physical or virtual network interfaces so that they behave as a single Ethernet network.
 
@@ -20,7 +20,7 @@ Docker configures `docker0` with an IP address, netmask and IP allocation range.
 
 - `--bip=CIDR` -- supply a specific IP address and netmask for the `docker0` bridge, using standard CIDR notation like `192.168.1.5/24`.
 
-- `--fixed-cidr=CIDR` -- restrict the IP range from the `docker0` subnet, using the standard CIDR notation like `172.167.1.0/28`. This range must be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset of the bridge IP range (`docker0` or set using `--bridge`). For example with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen from the first half of `192.168.1.0/24` subnet.
+- `--fixed-cidr=CIDR` -- restrict the IP range from the `docker0` subnet, using the standard CIDR notation like `172.16.1.0/28`. This range must be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset of the bridge IP range (`docker0` or set using `--bridge`). For example with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen from the first half of `192.168.1.0/24` subnet.
 
 - `--mtu=BYTES` -- override the maximum packet length on `docker0`.
 

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/engine-api/types"
-	networktypes "github.com/docker/engine-api/types/network"
-	"github.com/docker/engine-api/types/versions"
-	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
@@ -167,7 +167,10 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 	contJSONBase.GraphDriver.Name = container.Driver
 
 	graphDriverData, err := container.RWLayer.Metadata()
-	if err != nil {
+	// If container is marked as Dead, the container's graphdriver metadata
+	// could have been removed, it will cause error if we try to get the metadata,
+	// we can ignore the error if the container is dead.
+	if err != nil && !container.Dead {
 		return nil, err
 	}
 	contJSONBase.GraphDriver.Data = graphDriverData

@@ -7,11 +7,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/utils/templates"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ func NewVersionCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version [OPTIONS]",
 		Short: "Show the Docker version information",
-		Args:  cli.ExactArgs(0),
+		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runVersion(dockerCli, &opts)
 		},

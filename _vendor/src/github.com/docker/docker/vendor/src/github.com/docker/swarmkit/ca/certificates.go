@@ -37,13 +37,14 @@ import (
 const (
 	// Security Strength Equivalence
 	//-----------------------------------
-	//| Key-type |  ECC  |  DH/DSA/RSA  |
-	//|   Node   |  256  |     3072     |
-	//|   Root   |  384  |     7680     |
+	//| ECC  |  DH/DSA/RSA  |
+	//| 256  |     3072     |
+	//| 384  |     7680     |
 	//-----------------------------------
 
 	// RootKeySize is the default size of the root CA key
-	RootKeySize = 384
+	// It would be ideal for the root key to use P-384, but in P-384 is not optimized in go yet :(
+	RootKeySize = 256
 	// RootKeyAlgo defines the default algorithm for the root CA Key
 	RootKeyAlgo = "ecdsa"
 	// PassphraseENVVar defines the environment variable to look for the
@@ -57,19 +58,17 @@ const (
 	RootCAExpiration = "630720000s"
 	// DefaultNodeCertExpiration represents the default expiration for node certificates (3 months)
 	DefaultNodeCertExpiration = 2160 * time.Hour
+	// CertBackdate represents the amount of time each certificate is backdated to try to avoid
+	// clock drift issues.
+	CertBackdate = 1 * time.Hour
 	// CertLowerRotationRange represents the minimum fraction of time that we will wait when randomly
 	// choosing our next certificate rotation
 	CertLowerRotationRange = 0.5
 	// CertUpperRotationRange represents the maximum fraction of time that we will wait when randomly
 	// choosing our next certificate rotation
 	CertUpperRotationRange = 0.8
-	// MinNodeCertExpiration represents the minimum expiration for node certificates (25 + 5 minutes)
-	// X - 5 > CertUpperRotationRange * X <=> X < 5/(1 - CertUpperRotationRange)
-	// Since we're issuing certificates 5 minutes in the past to get around clock drifts, and
-	// we're selecting a random rotation distribution range from CertLowerRotationRange to
-	// CertUpperRotationRange, we need to ensure that we don't accept an expiration time that will
-	// make a node able to randomly choose the next rotation after the expiration of the certificate.
-	MinNodeCertExpiration = 30 * time.Minute
+	// MinNodeCertExpiration represents the minimum expiration for node certificates
+	MinNodeCertExpiration = 1 * time.Hour
 )
 
 // ErrNoLocalRootCA is an error type used to indicate that the local root CA
@@ -156,7 +155,7 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
 // available, or by requesting them from the remote server at remoteAddr.
-func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, role, secret string, picker *picker.Picker, transport credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
+func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, token string, picker *picker.Picker, transport credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
 	// Create a new key/pair and CSR for the new manager
 	// Write the new CSR and the new key to a temporary location so we can survive crashes on rotation
 	tempPaths := genTempPaths(paths)
@@ -171,7 +170,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	// responding properly (for example, it may have just been demoted).
 	var signedCert []byte
 	for i := 0; i != 5; i++ {
-		signedCert, err = GetRemoteSignedCertificate(ctx, csr, role, secret, rca.Pool, picker, transport, nodeInfo)
+		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, picker, transport, nodeInfo)
 		if err == nil {
 			break
 		}
@@ -207,7 +206,9 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
-	log.Infof("Downloaded new TLS credentials with role: %s.", role)
+	if len(X509Cert.Subject.OrganizationalUnit) != 0 {
+		log.Infof("Downloaded new TLS credentials with role: %s.", X509Cert.Subject.OrganizationalUnit[0])
+	}
 
 	// Ensure directory exists
 	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
@@ -233,7 +234,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 func PrepareCSR(csrBytes []byte, cn, ou, org string) cfsigner.SignRequest {
 	// All managers get added the subject-alt-name of CA, so they can be
 	// used for cert issuance.
-	hosts := []string{ou}
+	hosts := []string{ou, cn}
 	if ou == ManagerRole {
 		hosts = append(hosts, CARole)
 	}
@@ -480,7 +481,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, picker *picker.Picker) (R
 		return RootCA{}, fmt.Errorf("failed to append certificate to cert pool")
 	}
 
-	return RootCA{Cert: response.Certificate, Pool: pool}, nil
+	return RootCA{Cert: response.Certificate, Digest: digest.FromBytes(response.Certificate), Pool: pool}, nil
 }
 
 // CreateAndWriteRootCA creates a Certificate authority for a new Swarm Cluster, potentially
@@ -595,9 +596,10 @@ func GenerateAndWriteNewKey(paths CertPaths) (csr, key []byte, err error) {
 	return
 }
 
-// GetRemoteSignedCertificate submits a CSR together with the intended role to a remote CA server address
-// available through a picker, and that is part of a CA identified by a specific certificate pool.
-func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret string, rootCAPool *x509.CertPool, picker *picker.Picker, creds credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
+// GetRemoteSignedCertificate submits a CSR to a remote CA server address
+// available through a picker, and that is part of a CA identified by a
+// specific certificate pool.
+func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, picker *picker.Picker, creds credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
 	if rootCAPool == nil {
 		return nil, fmt.Errorf("valid root CA pool required")
 	}
@@ -630,14 +632,8 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret st
 	// Create a CAClient to retrieve a new Certificate
 	caClient := api.NewNodeCAClient(conn)
 
-	// Convert our internal string roles into an API role
-	apiRole, err := FormatRole(role)
-	if err != nil {
-		return nil, err
-	}
-
 	// Send the Request and retrieve the request token
-	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Role: apiRole, Secret: secret}
+	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Token: token}
 	issueResponse, err := caClient.IssueNodeCertificate(ctx, issueRequest)
 	if err != nil {
 		return nil, err

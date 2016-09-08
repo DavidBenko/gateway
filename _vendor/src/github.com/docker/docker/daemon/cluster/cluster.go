@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,17 +14,17 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
+	apitypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
-	apitypes "github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	types "github.com/docker/engine-api/types/swarm"
 	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
 	"golang.org/x/net/context"
@@ -42,16 +43,16 @@ const (
 )
 
 // ErrNoSwarm is returned on leaving a cluster that was never initialized
-var ErrNoSwarm = fmt.Errorf("This node is not part of Swarm")
+var ErrNoSwarm = fmt.Errorf("This node is not part of a swarm")
 
 // ErrSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var ErrSwarmExists = fmt.Errorf("This node is already part of a Swarm cluster. Use \"docker swarm leave\" to leave this cluster and join another one.")
+var ErrSwarmExists = fmt.Errorf("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
 
 // ErrPendingSwarmExists is returned on initialize or join request for a cluster that is already processing a similar request but has not succeeded yet.
 var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join request that has not succeeded yet. Use \"docker swarm leave\" to cancel the current request.")
 
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. Attempt to join the cluster will continue in the background. Use \"docker info\" command to see the current Swarm status of your node.")
+var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
 // defaultSpec contains some sane defaults if cluster options are missing on init
 var defaultSpec = types.Spec{
@@ -66,7 +67,7 @@ var defaultSpec = types.Spec{
 		NodeCertExpiry: 90 * 24 * time.Hour,
 	},
 	Dispatcher: types.DispatcherConfig{
-		HeartbeatPeriod: uint64((5 * time.Second).Nanoseconds()),
+		HeartbeatPeriod: 5 * time.Second,
 	},
 	Orchestration: types.OrchestrationConfig{
 		TaskHistoryRetentionLimit: 10,
@@ -74,14 +75,38 @@ var defaultSpec = types.Spec{
 }
 
 type state struct {
+	// LocalAddr is this machine's local IP or hostname, if specified.
+	LocalAddr string
+	// RemoteAddr is the address that was given to "swarm join. It is used
+	// to find LocalAddr if necessary.
+	RemoteAddr string
+	// ListenAddr is the address we bind to, including a port.
 	ListenAddr string
+	// AdvertiseAddr is the address other nodes should connect to,
+	// including a port.
+	AdvertiseAddr string
+}
+
+// NetworkSubnetsProvider exposes functions for retrieving the subnets
+// of networks managed by Docker, so they can be filtered.
+type NetworkSubnetsProvider interface {
+	V4Subnets() []net.IPNet
+	V6Subnets() []net.IPNet
 }
 
 // Config provides values for Cluster.
 type Config struct {
-	Root    string
-	Name    string
-	Backend executorpkg.Backend
+	Root                   string
+	Name                   string
+	Backend                executorpkg.Backend
+	NetworkSubnetsProvider NetworkSubnetsProvider
+
+	// DefaultAdvertiseAddr is the default host/IP or network interface to use
+	// if no AdvertiseAddr value is specified.
+	DefaultAdvertiseAddr string
+
+	// path to store runtime state, such as the swarm control socket
+	RuntimeRoot string
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -89,13 +114,18 @@ type Config struct {
 type Cluster struct {
 	sync.RWMutex
 	*node
-	root        string
-	config      Config
-	configEvent chan struct{} // todo: make this array and goroutine safe
-	listenAddr  string
-	stop        bool
-	err         error
-	cancelDelay func()
+	root            string
+	runtimeRoot     string
+	config          Config
+	configEvent     chan struct{} // todo: make this array and goroutine safe
+	localAddr       string
+	actualLocalAddr string // after resolution, not persisted
+	remoteAddr      string
+	listenAddr      string
+	advertiseAddr   string
+	stop            bool
+	err             error
+	cancelDelay     func()
 }
 
 type node struct {
@@ -113,10 +143,17 @@ func New(config Config) (*Cluster, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
+	if config.RuntimeRoot == "" {
+		config.RuntimeRoot = root
+	}
+	if err := os.MkdirAll(config.RuntimeRoot, 0700); err != nil {
+		return nil, err
+	}
 	c := &Cluster{
 		root:        root,
 		config:      config,
 		configEvent: make(chan struct{}, 10),
+		runtimeRoot: config.RuntimeRoot,
 	}
 
 	st, err := c.loadState()
@@ -127,7 +164,7 @@ func New(config Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	n, err := c.startNewNode(false, st.ListenAddr, "", "", "", false)
+	n, err := c.startNewNode(false, st.LocalAddr, st.RemoteAddr, st.ListenAddr, st.AdvertiseAddr, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +200,12 @@ func (c *Cluster) loadState() (*state, error) {
 }
 
 func (c *Cluster) saveState() error {
-	dt, err := json.Marshal(state{ListenAddr: c.listenAddr})
+	dt, err := json.Marshal(state{
+		LocalAddr:     c.localAddr,
+		RemoteAddr:    c.remoteAddr,
+		ListenAddr:    c.listenAddr,
+		AdvertiseAddr: c.advertiseAddr,
+	})
 	if err != nil {
 		return err
 	}
@@ -196,7 +238,7 @@ func (c *Cluster) reconnectOnFailure(n *node) {
 			return
 		}
 		var err error
-		n, err = c.startNewNode(false, c.listenAddr, c.getRemoteAddress(), "", "", false)
+		n, err = c.startNewNode(false, c.localAddr, c.getRemoteAddress(), c.listenAddr, c.advertiseAddr, c.getRemoteAddress(), "")
 		if err != nil {
 			c.err = err
 			close(n.done)
@@ -205,26 +247,55 @@ func (c *Cluster) reconnectOnFailure(n *node) {
 	}
 }
 
-func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secret, cahash string, ismanager bool) (*node, error) {
+func (c *Cluster) startNewNode(forceNewCluster bool, localAddr, remoteAddr, listenAddr, advertiseAddr, joinAddr, joinToken string) (*node, error) {
 	if err := c.config.Backend.IsSwarmCompatible(); err != nil {
 		return nil, err
 	}
+
+	actualLocalAddr := localAddr
+	if actualLocalAddr == "" {
+		// If localAddr was not specified, resolve it automatically
+		// based on the route to joinAddr. localAddr can only be left
+		// empty on "join".
+		listenHost, _, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse listen address: %v", err)
+		}
+
+		listenAddrIP := net.ParseIP(listenHost)
+		if listenAddrIP == nil || !listenAddrIP.IsUnspecified() {
+			actualLocalAddr = listenHost
+		} else {
+			if remoteAddr == "" {
+				// Should never happen except using swarms created by
+				// old versions that didn't save remoteAddr.
+				remoteAddr = "8.8.8.8:53"
+			}
+			conn, err := net.Dial("udp", remoteAddr)
+			if err != nil {
+				return nil, fmt.Errorf("could not find local IP address: %v", err)
+			}
+			localHostPort := conn.LocalAddr().String()
+			actualLocalAddr, _, _ = net.SplitHostPort(localHostPort)
+			conn.Close()
+		}
+	}
+
 	c.node = nil
 	c.cancelDelay = nil
 	c.stop = false
 	n, err := swarmagent.NewNode(&swarmagent.NodeConfig{
-		Hostname:         c.config.Name,
-		ForceNewCluster:  forceNewCluster,
-		ListenControlAPI: filepath.Join(c.root, controlSocket),
-		ListenRemoteAPI:  listenAddr,
-		JoinAddr:         joinAddr,
-		StateDir:         c.root,
-		CAHash:           cahash,
-		Secret:           secret,
-		Executor:         container.NewExecutor(c.config.Backend),
-		HeartbeatTick:    1,
-		ElectionTick:     3,
-		IsManager:        ismanager,
+		Hostname:           c.config.Name,
+		ForceNewCluster:    forceNewCluster,
+		ListenControlAPI:   filepath.Join(c.runtimeRoot, controlSocket),
+		ListenRemoteAPI:    listenAddr,
+		AdvertiseRemoteAPI: advertiseAddr,
+		JoinAddr:           joinAddr,
+		StateDir:           c.root,
+		JoinToken:          joinToken,
+		Executor:           container.NewExecutor(c.config.Backend),
+		HeartbeatTick:      1,
+		ElectionTick:       3,
 	})
 	if err != nil {
 		return nil, err
@@ -239,8 +310,13 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secre
 		reconnectDelay: initialReconnectDelay,
 	}
 	c.node = node
+	c.localAddr = localAddr
+	c.actualLocalAddr = actualLocalAddr // not saved
+	c.remoteAddr = remoteAddr
 	c.listenAddr = listenAddr
+	c.advertiseAddr = advertiseAddr
 	c.saveState()
+
 	c.config.Backend.SetClusterProvider(c)
 	go func() {
 		err := n.Err(ctx)
@@ -291,7 +367,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	if node := c.node; node != nil {
 		if !req.ForceNewCluster {
 			c.Unlock()
-			return "", errSwarmExists(node)
+			return "", ErrSwarmExists
 		}
 		if err := c.stopNode(); err != nil {
 			c.Unlock()
@@ -304,8 +380,49 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		return "", err
 	}
 
+	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
+	if err != nil {
+		c.Unlock()
+		return "", err
+	}
+
+	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+	if err != nil {
+		c.Unlock()
+		return "", err
+	}
+
+	localAddr := listenHost
+
+	// If the advertise address is not one of the system's
+	// addresses, we also require a listen address.
+	listenAddrIP := net.ParseIP(listenHost)
+	if listenAddrIP != nil && listenAddrIP.IsUnspecified() {
+		advertiseIP := net.ParseIP(advertiseHost)
+		if advertiseIP == nil {
+			// not an IP
+			c.Unlock()
+			return "", errMustSpecifyListenAddr
+		}
+
+		systemIPs := listSystemIPs()
+
+		found := false
+		for _, systemIP := range systemIPs {
+			if systemIP.Equal(advertiseIP) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.Unlock()
+			return "", errMustSpecifyListenAddr
+		}
+		localAddr = advertiseIP.String()
+	}
+
 	// todo: check current state existing
-	n, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "", "", false)
+	n, err := c.startNewNode(req.ForceNewCluster, localAddr, "", net.JoinHostPort(listenHost, listenPort), net.JoinHostPort(advertiseHost, advertisePort), "", "")
 	if err != nil {
 		c.Unlock()
 		return "", err
@@ -336,40 +453,49 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	c.Lock()
 	if node := c.node; node != nil {
 		c.Unlock()
-		return errSwarmExists(node)
+		return ErrSwarmExists
 	}
 	if err := validateAndSanitizeJoinRequest(&req); err != nil {
 		c.Unlock()
 		return err
 	}
+
+	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
+	if err != nil {
+		c.Unlock()
+		return err
+	}
+
+	var advertiseAddr string
+	if req.AdvertiseAddr != "" {
+		advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+		// For joining, we don't need to provide an advertise address,
+		// since the remote side can detect it.
+		if err == nil {
+			advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+		}
+	}
+
 	// todo: check current state existing
-	n, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddrs[0], req.Secret, req.CACertHash, req.Manager)
+	n, err := c.startNewNode(false, "", req.RemoteAddrs[0], net.JoinHostPort(listenHost, listenPort), advertiseAddr, req.RemoteAddrs[0], req.JoinToken)
 	if err != nil {
 		c.Unlock()
 		return err
 	}
 	c.Unlock()
 
-	certificateRequested := n.CertificateRequested()
-	for {
-		select {
-		case <-certificateRequested:
-			if n.NodeMembership() == swarmapi.NodeMembershipPending {
-				return fmt.Errorf("Your node is in the process of joining the cluster but needs to be accepted by existing cluster member.\nTo accept this node into cluster run \"docker node accept %v\" in an existing cluster manager. Use \"docker info\" command to see the current Swarm status of your node.", n.NodeID())
-			}
-			certificateRequested = nil
-		case <-time.After(swarmConnectTimeout):
-			// attempt to connect will continue in background, also reconnecting
-			go c.reconnectOnFailure(n)
-			return ErrSwarmJoinTimeoutReached
-		case <-n.Ready():
-			go c.reconnectOnFailure(n)
-			return nil
-		case <-n.done:
-			c.RLock()
-			defer c.RUnlock()
-			return c.err
-		}
+	select {
+	case <-time.After(swarmConnectTimeout):
+		// attempt to connect will continue in background, also reconnecting
+		go c.reconnectOnFailure(n)
+		return ErrSwarmJoinTimeoutReached
+	case <-n.Ready():
+		go c.reconnectOnFailure(n)
+		return nil
+	case <-n.done:
+		c.RLock()
+		defer c.RUnlock()
+		return c.err
 	}
 }
 
@@ -397,6 +523,14 @@ func (c *Cluster) stopNode() error {
 	return nil
 }
 
+func removingManagerCausesLossOfQuorum(reachable, unreachable int) bool {
+	return reachable-2 <= unreachable
+}
+
+func isLastManager(reachable, unreachable int) bool {
+	return reachable == 1 && unreachable == 0
+}
+
 // Leave shuts down Cluster and removes current state.
 func (c *Cluster) Leave(force bool) error {
 	c.Lock()
@@ -407,34 +541,40 @@ func (c *Cluster) Leave(force bool) error {
 	}
 
 	if node.Manager() != nil && !force {
-		msg := "You are attempting to leave cluster on a node that is participating as a manager. "
+		msg := "You are attempting to leave the swarm on a node that is participating as a manager. "
 		if c.isActiveManager() {
 			active, reachable, unreachable, err := c.managerStats()
 			if err == nil {
-				if active && reachable-2 <= unreachable {
-					if reachable == 1 && unreachable == 0 {
-						msg += "Removing the last manager will erase all current state of the cluster. Use `--force` to ignore this message. "
+				if active && removingManagerCausesLossOfQuorum(reachable, unreachable) {
+					if isLastManager(reachable, unreachable) {
+						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
 						c.Unlock()
 						return fmt.Errorf(msg)
 					}
-					msg += fmt.Sprintf("Leaving the cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
+					msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
 				}
 			}
 		} else {
 			msg += "Doing so may lose the consensus of your cluster. "
 		}
 
-		msg += "The only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
+		msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
 		c.Unlock()
 		return fmt.Errorf(msg)
 	}
 	if err := c.stopNode(); err != nil {
+		logrus.Errorf("failed to shut down cluster node: %v", err)
+		signal.DumpStacks("")
 		c.Unlock()
 		return err
 	}
 	c.Unlock()
 	if nodeID := node.NodeID(); nodeID != "" {
-		for _, id := range c.config.Backend.ListContainersForNode(nodeID) {
+		nodeContainers, err := c.listContainerForNode(nodeID)
+		if err != nil {
+			return err
+		}
+		for _, id := range nodeContainers {
 			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
 				logrus.Errorf("error removing %v: %v", id, err)
 			}
@@ -446,6 +586,22 @@ func (c *Cluster) Leave(force bool) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Cluster) listContainerForNode(nodeID string) ([]string, error) {
+	var ids []string
+	filters := filters.NewArgs()
+	filters.Add("label", fmt.Sprintf("com.docker.swarm.node.id=%s", nodeID))
+	containers, err := c.config.Backend.Containers(&apitypes.ContainerListOptions{
+		Filter: filters,
+	})
+	if err != nil {
+		return []string{}, err
+	}
+	for _, c := range containers {
+		ids = append(ids, c.ID)
+	}
+	return ids, nil
 }
 
 func (c *Cluster) clearState() error {
@@ -489,7 +645,7 @@ func (c *Cluster) Inspect() (types.Swarm, error) {
 }
 
 // Update updates configuration of a managed swarm cluster.
-func (c *Cluster) Update(version uint64, spec types.Spec) error {
+func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlags) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -505,7 +661,7 @@ func (c *Cluster) Update(version uint64, spec types.Spec) error {
 		return err
 	}
 
-	swarmSpec, err := convert.SwarmSpecToGRPCandMerge(spec, &swarm.Spec)
+	swarmSpec, err := convert.SwarmSpecToGRPC(spec)
 	if err != nil {
 		return err
 	}
@@ -517,6 +673,10 @@ func (c *Cluster) Update(version uint64, spec types.Spec) error {
 			Spec:      &swarmSpec,
 			ClusterVersion: &swarmapi.Version{
 				Index: version,
+			},
+			Rotation: swarmapi.JoinTokenRotation{
+				RotateWorkerToken:  flags.RotateWorkerToken,
+				RotateManagerToken: flags.RotateManagerToken,
 			},
 		},
 	)
@@ -537,15 +697,22 @@ func (c *Cluster) IsAgent() bool {
 	return c.node != nil && c.ready
 }
 
-// GetListenAddress returns the listening address for current manager's
-// consensus and dispatcher APIs.
-func (c *Cluster) GetListenAddress() string {
+// GetLocalAddress returns the local address.
+func (c *Cluster) GetLocalAddress() string {
 	c.RLock()
 	defer c.RUnlock()
-	if c.isActiveManager() {
-		return c.listenAddr
+	return c.actualLocalAddr
+}
+
+// GetAdvertiseAddress returns the remotely reachable address of this node.
+func (c *Cluster) GetAdvertiseAddress() string {
+	c.RLock()
+	defer c.RUnlock()
+	if c.advertiseAddr != "" {
+		advertiseHost, _, _ := net.SplitHostPort(c.advertiseAddr)
+		return advertiseHost
 	}
-	return ""
+	return c.actualLocalAddr
 }
 
 // GetRemoteAddress returns a known advertise address of a remote manager if
@@ -579,7 +746,10 @@ func (c *Cluster) ListenClusterEvents() <-chan struct{} {
 
 // Info returns information about the current cluster state.
 func (c *Cluster) Info() types.Info {
-	var info types.Info
+	info := types.Info{
+		NodeAddr: c.GetAdvertiseAddress(),
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 
@@ -603,6 +773,14 @@ func (c *Cluster) Info() types.Info {
 
 	if c.isActiveManager() {
 		info.ControlAvailable = true
+		swarm, err := c.Inspect()
+		if err != nil {
+			info.Error = err.Error()
+		}
+
+		// Strip JoinTokens
+		info.Cluster = swarm.ClusterInfo
+
 		if r, err := c.client.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
@@ -610,10 +788,6 @@ func (c *Cluster) Info() types.Info {
 					info.Managers = info.Managers + 1
 				}
 			}
-		}
-
-		if swarm, err := getSwarm(ctx, c.client); err == nil && swarm != nil {
-			info.CACertHash = swarm.RootCA.CACertHash
 		}
 	}
 
@@ -636,12 +810,12 @@ func (c *Cluster) isActiveManager() bool {
 // Call with read lock.
 func (c *Cluster) errNoManager() error {
 	if c.node == nil {
-		return fmt.Errorf("This node is not a Swarm manager. Use \"docker swarm init\" or \"docker swarm join --manager\" to connect this node to Swarm and try again.")
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	if c.node.Manager() != nil {
-		return fmt.Errorf("This node is not a Swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
+		return fmt.Errorf("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
 	}
-	return fmt.Errorf("This node is not a Swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.")
+	return fmt.Errorf("This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.")
 }
 
 // GetServices returns all services of a managed swarm cluster.
@@ -688,7 +862,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	err := populateNetworkID(ctx, c.client, &s)
+	err := c.populateNetworkID(ctx, c.client, &s)
 	if err != nil {
 		return "", err
 	}
@@ -734,7 +908,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -745,12 +919,17 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	err := populateNetworkID(ctx, c.client, &spec)
+	err := c.populateNetworkID(ctx, c.client, &spec)
 	if err != nil {
 		return err
 	}
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
+	if err != nil {
+		return err
+	}
+
+	currentService, err := getService(ctx, c.client, serviceIDOrName)
 	if err != nil {
 		return err
 	}
@@ -764,10 +943,6 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	} else {
 		// this is needed because if the encodedAuth isn't being updated then we
 		// shouldn't lose it, and continue to use the one that was already present
-		currentService, err := getService(ctx, c.client, serviceID)
-		if err != nil {
-			return err
-		}
 		ctnr := currentService.Spec.Task.GetContainer()
 		if ctnr == nil {
 			return fmt.Errorf("service does not use container tasks")
@@ -778,7 +953,7 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	_, err = c.client.UpdateService(
 		ctx,
 		&swarmapi.UpdateServiceRequest{
-			ServiceID: serviceID,
+			ServiceID: currentService.ID,
 			Spec:      &serviceSpec,
 			ServiceVersion: &swarmapi.Version{
 				Index: version,
@@ -893,7 +1068,7 @@ func (c *Cluster) UpdateNode(nodeID string, version uint64, spec types.NodeSpec)
 }
 
 // RemoveNode removes a node from a cluster
-func (c *Cluster) RemoveNode(input string) error {
+func (c *Cluster) RemoveNode(input string, force bool) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -909,7 +1084,7 @@ func (c *Cluster) RemoveNode(input string) error {
 		return err
 	}
 
-	if _, err := c.client.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID}); err != nil {
+	if _, err := c.client.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force}); err != nil {
 		return err
 	}
 	return nil
@@ -1086,10 +1261,14 @@ func (c *Cluster) RemoveNetwork(input string) error {
 	return nil
 }
 
-func populateNetworkID(ctx context.Context, c swarmapi.ControlClient, s *types.ServiceSpec) error {
+func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {
 	for i, n := range s.Networks {
-		apiNetwork, err := getNetwork(ctx, c, n.Target)
+		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
+			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
+				err = fmt.Errorf("network %s is not eligible for docker services", ln.Name())
+				return errors.NewRequestForbiddenError(err)
+			}
 			return err
 		}
 		s.Networks[i].Target = apiNetwork.ID
@@ -1136,8 +1315,8 @@ func (c *Cluster) Cleanup() {
 	if c.isActiveManager() {
 		active, reachable, unreachable, err := c.managerStats()
 		if err == nil {
-			singlenode := active && reachable == 1 && unreachable == 0
-			if active && !singlenode && reachable-2 <= unreachable {
+			singlenode := active && isLastManager(reachable, unreachable)
+			if active && !singlenode && removingManagerCausesLossOfQuorum(reachable, unreachable) {
 				logrus.Errorf("Leaving cluster with %v managers left out of %v. Raft quorum will be lost.", reachable-1, reachable+unreachable)
 			}
 		}
@@ -1219,11 +1398,6 @@ func validateAndSanitizeJoinRequest(req *types.JoinRequest) error {
 			return fmt.Errorf("invalid remoteAddr %q: %v", req.RemoteAddrs[i], err)
 		}
 	}
-	if req.CACertHash != "" {
-		if _, err := digest.ParseDigest(req.CACertHash); err != nil {
-			return fmt.Errorf("invalid CACertHash %q, %v", req.CACertHash, err)
-		}
-	}
 	return nil
 }
 
@@ -1236,13 +1410,6 @@ func validateAddr(addr string) (string, error) {
 		return addr, nil
 	}
 	return strings.TrimPrefix(newaddr, "tcp://"), nil
-}
-
-func errSwarmExists(node *node) error {
-	if node.NodeMembership() != swarmapi.NodeMembershipAccepted {
-		return ErrPendingSwarmExists
-	}
-	return ErrSwarmExists
 }
 
 func initClusterSpec(node *node, spec types.Spec) error {
@@ -1269,7 +1436,7 @@ func initClusterSpec(node *node, spec types.Spec) error {
 				cluster = lcr.Clusters[0]
 				break
 			}
-			newspec, err := convert.SwarmSpecToGRPCandMerge(spec, &cluster.Spec)
+			newspec, err := convert.SwarmSpecToGRPC(spec)
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}

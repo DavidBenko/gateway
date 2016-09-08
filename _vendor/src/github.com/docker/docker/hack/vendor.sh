@@ -19,7 +19,12 @@ case $# in
 	;;
 # If user passed arguments to the script
 1)
-	eval "$(grep -E "^clone [^ ]+ $1" "$0")"
+	path="$PWD/hack/vendor.sh"
+	if ! cloneGrep="$(grep -E "^clone [^ ]+ $1" "$path")"; then
+		echo >&2 "error: failed to find 'clone ... $1' in $path"
+		exit 1
+	fi
+	eval "$cloneGrep"
 	clean
 	exit 0
 	;;
@@ -43,29 +48,30 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.3.6
+clone git github.com/Microsoft/hcsshim v0.4.2
 clone git github.com/Microsoft/go-winio v0.3.4
 clone git github.com/Sirupsen/logrus v0.10.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
-clone git github.com/go-check/check 03a4d9dcf2f92eae8e90ed42aa2656f63fdd0b14 https://github.com/cpuguy83/check.git
-clone git github.com/gorilla/context 14f550f51a
-clone git github.com/gorilla/mux e444e69cbd
+clone git github.com/go-check/check 4ed411733c5785b40214c70bce814c3a3a689609 https://github.com/cpuguy83/check.git
+clone git github.com/gorilla/context v1.1
+clone git github.com/gorilla/mux v1.1
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-shellwords v1.0.0
 clone git github.com/mattn/go-sqlite3 v1.1.0
-clone git github.com/tchap/go-patricia v2.1.0
+clone git github.com/tchap/go-patricia v2.2.6
 clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 # forked golang.org/x/net package includes a patch for lazy loading trace templates
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
-clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
-clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
-clone git github.com/docker/engine-api 1d247454d4307fb1ddf10d09fd2996394b085904
+clone git github.com/docker/go-units eb879ae3e2b84e2a142af415b679ddeda47ec71c
+clone git github.com/docker/go-connections 988efe982fdecb46f01d53465878ff1f2ff411ce
+
+clone git github.com/docker/engine-api f9cef590446e4e6073b49b652f47a337b897c1a3
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 905d374c096ca1f3a9b75529e52518b7540179f3
+clone git github.com/docker/libnetwork 82fb373e3eaa4e9bbb5b5ac148b0a3a71f80fca6
 clone git github.com/docker/go-events afb2b9f2c23f33ada1a22b03651775fdc65a5089
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -73,21 +79,20 @@ clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece581016509
 clone git github.com/hashicorp/memberlist 88ac4de0d1a0ca6def284b571342db3b777a4c37
 clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
 clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
-clone git github.com/docker/libkv 7283ef27ed32fe267388510a91709b307bb9942c
+clone git github.com/docker/libkv v0.2.1
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 734d02c3e202f682c74b71314b2c61eec0170fd4
+clone git github.com/vishvananda/netlink e73bad418fd727ed3a02830b1af1ad0283a1de6c
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
-clone git github.com/coreos/etcd v2.3.2
-fix_rewritten_imports github.com/coreos/etcd
+clone git github.com/coreos/etcd 06e2338108fdc694349aed923f4a7e45cf0cec1f
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.2.1
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 07f32ac1831ed0fc71960b7da5d6bb83cb6881b5
+clone git github.com/docker/distribution 77b9d2997abcded79a5314970fe69a44c93c25fb
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get go-zfs packages
@@ -103,7 +108,7 @@ clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc cc29e3dded8e27ba8f65738f40d251c885030a28 # libcontainer
-clone git github.com/opencontainers/specs v1.0.0-rc1 # specs
+clone git github.com/opencontainers/runtime-spec v1.0.0-rc1 # specs
 clone git github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
@@ -136,32 +141,33 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 0ac3cd1be170d180b2baed755e8f0da547ceb267
+clone git github.com/docker/containerd 8508d2bec90b96403143a1104cdcbd56f6aeb361
 
 # cluster
-clone git github.com/docker/swarmkit 9ee5fc3b8db5de8c8593a57bc45fc178f74ceee1
+clone git github.com/docker/swarmkit 8a761950fb4d9251c335dc6149a8a02756cb3b10
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
 clone git github.com/google/certificate-transparency 025a5cab06f6a819c455d9fdc9e2a1b6d0982284
 clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git
+clone git golang.org/x/time a4bde12657593d5e90d0533a3e4fd95e635124cb https://github.com/golang/time.git
 clone git github.com/mreiferson/go-httpclient 63fe23f7434723dc904c901043af07931f293c47
 clone git github.com/hashicorp/go-memdb 98f52f52d7a476958fa9da671354d270c50661a7
 clone git github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
 clone git github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
-clone git github.com/coreos/pkg 2c77715c4df99b5420ffcae14ead08f52104065d
+clone git github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
 clone git github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
-clone git github.com/prometheus/client_golang e51041b3fa41cece0dca035740ba6411905be473
-clone git github.com/beorn7/perks b965b613227fddccbfffe13eae360ed3fa822f8d
+clone git github.com/prometheus/client_golang 52437c81da6b127a9925d17eb3a382a2e5fd395e
+clone git github.com/beorn7/perks 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
 clone git github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
-clone git github.com/prometheus/common ffe929a3f4c4faeaa10f2b9535c2b1be3ad15650
-clone git github.com/prometheus/procfs 454a56f35412459b5e684fd5ec0f9211b94f002a
+clone git github.com/prometheus/common ebdfc6da46522d58825777cf1f90490a5b1ef1d8
+clone git github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
 clone hg bitbucket.org/ww/goautoneg 75cd24fc2f2c2a2088577d12123ddee5f54e0675
 clone git github.com/matttproud/golang_protobuf_extensions fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
 clone git github.com/pkg/errors 01fa4104b9c248c8945d14d9f128454d5b28d595
 
 # cli
-clone git github.com/spf13/cobra 75205f23b3ea70dc7ae5e900d074e010c23c37e9 https://github.com/dnephin/cobra.git
+clone git github.com/spf13/cobra v1.4.1 https://github.com/dnephin/cobra.git
 clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff

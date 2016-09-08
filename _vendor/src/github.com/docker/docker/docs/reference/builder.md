@@ -120,7 +120,7 @@ instruction must be \`FROM\`** in order to specify the [*Base
 Image*](glossary.md#base-image) from which you are building.
 
 Docker treats lines that *begin* with `#` as a comment, unless the line is
-a valid [parser directive](builder.md#parser directives). A `#` marker anywhere
+a valid [parser directive](builder.md#parser-directives). A `#` marker anywhere
 else in a line is treated as an argument. This allows statements like:
 
 ```Dockerfile
@@ -541,6 +541,9 @@ RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `RUN [ "sh", "-c", "echo $HOME" ]`.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 >
 > **Note**:
 > In the *JSON* form, it is necessary to escape backslashes. This is
@@ -607,6 +610,9 @@ instruction as well.
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `CMD [ "sh", "-c", "echo $HOME" ]`.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -1062,7 +1068,7 @@ user	0m 0.03s
 sys	0m 0.03s
 ```
 
-> **Note:** you can over ride the `ENTRYPOINT` setting using `--entrypoint`,
+> **Note:** you can override the `ENTRYPOINT` setting using `--entrypoint`,
 > but this can only set the binary to *exec* (no `sh -c` will be used).
 
 > **Note**:
@@ -1075,8 +1081,9 @@ sys	0m 0.03s
 > `ENTRYPOINT [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo $HOME" ]`.
-> Variables that are defined in the `Dockerfile`using `ENV`, will be substituted by
-> the `Dockerfile` parser.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 
 ### Shell form ENTRYPOINT example
 
@@ -1524,10 +1531,7 @@ The possible values are:
 
 - 0: success - the container is healthy and ready for use
 - 1: unhealthy - the container is not working correctly
-- 2: starting - the container is not ready for use yet, but is working correctly
-
-If the probe returns 2 ("starting") when the container has already moved out of the
-"starting" state then it is treated as "unhealthy" instead.
+- 2: reserved - do not use this exit code
 
 For example, to check every five minutes or so that a web-server is able to
 serve the site's main page within three seconds:

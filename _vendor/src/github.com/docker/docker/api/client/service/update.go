@@ -2,17 +2,19 @@ package service
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/spf13/cobra"
@@ -37,16 +39,17 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
+	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added user groups from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
+	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
-	flags.Var(newListOptsVar(), flagNetworkRemove, "Remove a network by name")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update service labels")
+	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update container labels")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update environment variables")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
-	flags.StringSliceVar(&opts.networks, flagNetworkAdd, []string{}, "Add or update network attachments")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
 	return cmd
 }
@@ -96,7 +99,6 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 }
 
 func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
-
 	updateString := func(flag string, field *string) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetString(flag)
@@ -115,9 +117,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateDurationOpt := func(flag string, field *time.Duration) {
+	updateDurationOpt := func(flag string, field **time.Duration) {
 		if flags.Changed(flag) {
-			*field = *flags.Lookup(flag).Value.(*DurationOpt).Value()
+			val := *flags.Lookup(flag).Value.(*DurationOpt).Value()
+			*field = &val
 		}
 	}
 
@@ -127,9 +130,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateUint64Opt := func(flag string, field *uint64) {
+	updateUint64Opt := func(flag string, field **uint64) {
 		if flags.Changed(flag) {
-			*field = *flags.Lookup(flag).Value.(*Uint64Opt).Value()
+			val := *flags.Lookup(flag).Value.(*Uint64Opt).Value()
+			*field = &val
 		}
 	}
 
@@ -145,10 +149,11 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
+	updateContainerLabels(flags, &cspec.Labels)
 	updateString("image", &cspec.Image)
 	updateStringToSlice(flags, "args", &cspec.Args)
 	updateEnvironment(flags, &cspec.Env)
-	updateString("workdir", &cspec.Dir)
+	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
 	updateMounts(flags, &cspec.Mounts)
 
@@ -156,7 +161,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		taskResources().Limits = &swarm.Resources{}
 		updateInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
 		updateInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
-
 	}
 	if flags.Changed(flagReserveCPU) || flags.Changed(flagReserveMemory) {
 		taskResources().Reservations = &swarm.Resources{}
@@ -164,7 +168,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
 	}
 
-	updateDurationOpt(flagStopGracePeriod, cspec.StopGracePeriod)
+	updateDurationOpt(flagStopGracePeriod, &cspec.StopGracePeriod)
 
 	if anyChanged(flags, flagRestartCondition, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow) {
 		if task.RestartPolicy == nil {
@@ -175,9 +179,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 			value, _ := flags.GetString(flagRestartCondition)
 			task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
 		}
-		updateDurationOpt(flagRestartDelay, task.RestartPolicy.Delay)
-		updateUint64Opt(flagRestartMaxAttempts, task.RestartPolicy.MaxAttempts)
-		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
+		updateDurationOpt(flagRestartDelay, &task.RestartPolicy.Delay)
+		updateUint64Opt(flagRestartMaxAttempts, &task.RestartPolicy.MaxAttempts)
+		updateDurationOpt(flagRestartWindow, &task.RestartPolicy.Window)
 	}
 
 	if anyChanged(flags, flagConstraintAdd, flagConstraintRemove) {
@@ -191,25 +195,36 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return err
 	}
 
-	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay) {
+	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay, flagUpdateFailureAction) {
 		if spec.UpdateConfig == nil {
 			spec.UpdateConfig = &swarm.UpdateConfig{}
 		}
 		updateUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
 		updateDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
+		updateString(flagUpdateFailureAction, &spec.UpdateConfig.FailureAction)
 	}
 
-	updateNetworks(flags, &spec.Networks)
 	if flags.Changed(flagEndpointMode) {
 		value, _ := flags.GetString(flagEndpointMode)
+		if spec.EndpointSpec == nil {
+			spec.EndpointSpec = &swarm.EndpointSpec{}
+		}
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
+	}
+
+	if anyChanged(flags, flagGroupAdd, flagGroupRemove) {
+		if err := updateGroups(flags, &cspec.Groups); err != nil {
+			return err
+		}
 	}
 
 	if anyChanged(flags, flagPublishAdd, flagPublishRemove) {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
-		updatePorts(flags, &spec.EndpointSpec.Ports)
+		if err := updatePorts(flags, &spec.EndpointSpec.Ports); err != nil {
+			return err
+		}
 	}
 
 	if err := updateLogDriver(flags, &spec.TaskTemplate); err != nil {
@@ -247,9 +262,29 @@ func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 	placement.Constraints = removeItems(placement.Constraints, toRemove, itemKey)
 }
 
+func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
+	if flags.Changed(flagContainerLabelAdd) {
+		if *field == nil {
+			*field = map[string]string{}
+		}
+
+		values := flags.Lookup(flagContainerLabelAdd).Value.(*opts.ListOpts).GetAll()
+		for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
+			(*field)[key] = value
+		}
+	}
+
+	if *field != nil && flags.Changed(flagContainerLabelRemove) {
+		toRemove := flags.Lookup(flagContainerLabelRemove).Value.(*opts.ListOpts).GetAll()
+		for _, label := range toRemove {
+			delete(*field, label)
+		}
+	}
+}
+
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 	if flags.Changed(flagLabelAdd) {
-		if field == nil {
+		if *field == nil {
 			*field = map[string]string{}
 		}
 
@@ -259,7 +294,7 @@ func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 		}
 	}
 
-	if field != nil && flags.Changed(flagLabelRemove) {
+	if *field != nil && flags.Changed(flagLabelRemove) {
 		toRemove := flags.Lookup(flagLabelRemove).Value.(*opts.ListOpts).GetAll()
 		for _, label := range toRemove {
 			delete(*field, label)
@@ -268,10 +303,22 @@ func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 }
 
 func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
+	envSet := map[string]string{}
+	for _, v := range *field {
+		envSet[envKey(v)] = v
+	}
 	if flags.Changed(flagEnvAdd) {
 		value := flags.Lookup(flagEnvAdd).Value.(*opts.ListOpts)
-		*field = append(*field, value.GetAll()...)
+		for _, v := range value.GetAll() {
+			envSet[envKey(v)] = v
+		}
 	}
+
+	*field = []string{}
+	for _, v := range envSet {
+		*field = append(*field, v)
+	}
+
 	toRemove := buildToRemoveSet(flags, flagEnvRemove)
 	*field = removeItems(*field, toRemove, envKey)
 }
@@ -314,14 +361,14 @@ func removeItems(
 	return newSeq
 }
 
-func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
+func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) {
 	if flags.Changed(flagMountAdd) {
 		values := flags.Lookup(flagMountAdd).Value.(*MountOpt).Value()
 		*mounts = append(*mounts, values...)
 	}
 	toRemove := buildToRemoveSet(flags, flagMountRemove)
 
-	newMounts := []swarm.Mount{}
+	newMounts := []mounttypes.Mount{}
 	for _, mount := range *mounts {
 		if _, exists := toRemove[mount.Target]; !exists {
 			newMounts = append(newMounts, mount)
@@ -330,23 +377,77 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	*mounts = newMounts
 }
 
-func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
+func updateGroups(flags *pflag.FlagSet, groups *[]string) error {
+	if flags.Changed(flagGroupAdd) {
+		values, err := flags.GetStringSlice(flagGroupAdd)
+		if err != nil {
+			return err
+		}
+		*groups = append(*groups, values...)
+	}
+	toRemove := buildToRemoveSet(flags, flagGroupRemove)
+
+	newGroups := []string{}
+	for _, group := range *groups {
+		if _, exists := toRemove[group]; !exists {
+			newGroups = append(newGroups, group)
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newGroups)
+
+	*groups = newGroups
+	return nil
+}
+
+type byPortConfig []swarm.PortConfig
+
+func (r byPortConfig) Len() int      { return len(r) }
+func (r byPortConfig) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byPortConfig) Less(i, j int) bool {
+	// We convert PortConfig into `port/protocol`, e.g., `80/tcp`
+	// In updatePorts we already filter out with map so there is duplicate entries
+	return portConfigToString(&r[i]) < portConfigToString(&r[j])
+}
+
+func portConfigToString(portConfig *swarm.PortConfig) string {
+	protocol := portConfig.Protocol
+	if protocol == "" {
+		protocol = "tcp"
+	}
+	return fmt.Sprintf("%v/%s", portConfig.PublishedPort, protocol)
+}
+
+func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
+	// The key of the map is `port/protocol`, e.g., `80/tcp`
+	portSet := map[string]swarm.PortConfig{}
+	// Check to see if there are any conflict in flags.
 	if flags.Changed(flagPublishAdd) {
 		values := flags.Lookup(flagPublishAdd).Value.(*opts.ListOpts).GetAll()
 		ports, portBindings, _ := nat.ParsePortSpecs(values)
 
 		for port := range ports {
-			*portConfig = append(*portConfig, convertPortToPortConfig(port, portBindings)...)
+			newConfigs := convertPortToPortConfig(port, portBindings)
+			for _, entry := range newConfigs {
+				if v, ok := portSet[portConfigToString(&entry)]; ok && v != entry {
+					return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", entry.PublishedPort, entry.TargetPort, entry.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
+				}
+				portSet[portConfigToString(&entry)] = entry
+			}
 		}
 	}
 
-	if !flags.Changed(flagPublishRemove) {
-		return
+	// Override previous PortConfig in service if there is any duplicate
+	for _, entry := range *portConfig {
+		if _, ok := portSet[portConfigToString(&entry)]; !ok {
+			portSet[portConfigToString(&entry)] = entry
+		}
 	}
+
 	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.ListOpts).GetAll()
 	newPorts := []swarm.PortConfig{}
 portLoop:
-	for _, port := range *portConfig {
+	for _, port := range portSet {
 		for _, rawTargetPort := range toRemove {
 			targetPort := nat.Port(rawTargetPort)
 			if equalPort(targetPort, port) {
@@ -355,7 +456,10 @@ portLoop:
 		}
 		newPorts = append(newPorts, port)
 	}
+	// Sort the PortConfig to avoid unnecessary updates
+	sort.Sort(byPortConfig(newPorts))
 	*portConfig = newPorts
+	return nil
 }
 
 func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
@@ -363,29 +467,12 @@ func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
 		port.TargetPort == uint32(targetPort.Int()))
 }
 
-func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
-	if flags.Changed(flagNetworkAdd) {
-		networks, _ := flags.GetStringSlice(flagNetworkAdd)
-		for _, network := range networks {
-			*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
-		}
-	}
-	toRemove := buildToRemoveSet(flags, flagNetworkRemove)
-	newNetworks := []swarm.NetworkAttachmentConfig{}
-	for _, network := range *attachments {
-		if _, exists := toRemove[network.Target]; !exists {
-			newNetworks = append(newNetworks, network)
-		}
-	}
-	*attachments = newNetworks
-}
-
 func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
 	if !flags.Changed(flagReplicas) {
 		return nil
 	}
 
-	if serviceMode.Replicated == nil {
+	if serviceMode == nil || serviceMode.Replicated == nil {
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()

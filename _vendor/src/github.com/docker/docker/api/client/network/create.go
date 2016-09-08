@@ -8,11 +8,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
 	"github.com/spf13/cobra"
 )
 
@@ -79,7 +79,7 @@ func runCreate(dockerCli *client.DockerCli, opts createOptions) error {
 	nc := types.NetworkCreate{
 		Driver:  opts.driver,
 		Options: opts.driverOpts.GetAll(),
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver:  opts.ipamDriver,
 			Config:  ipamCfg,
 			Options: opts.ipamOpt.GetAll(),

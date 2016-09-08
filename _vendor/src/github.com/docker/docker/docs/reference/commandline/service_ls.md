@@ -3,7 +3,6 @@
 title = "service ls"
 description = "The service ls command description and usage"
 keywords = ["service, ls"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
@@ -105,5 +104,5 @@ ID            NAME   REPLICAS  IMAGE        COMMAND
 * [service inspect](service_inspect.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)

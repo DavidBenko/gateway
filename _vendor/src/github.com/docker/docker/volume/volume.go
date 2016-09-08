@@ -6,8 +6,9 @@ import (
 	"strings"
 	"syscall"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -92,8 +93,8 @@ type MountPoint struct {
 	Mode string `json:"Relabel"` // Originally field was `Relabel`"
 
 	// Note Propagation is not used on Windows
-	Propagation string // Mount propagation string
-	Named       bool   // specifies if the mountpoint was specified by name
+	Propagation mounttypes.Propagation // Mount propagation string
+	Named       bool                   // specifies if the mountpoint was specified by name
 
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
@@ -106,7 +107,7 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string) (string, error) {
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
@@ -116,8 +117,9 @@ func (m *MountPoint) Setup(mountLabel string) (string, error) {
 	if len(m.Source) == 0 {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
-	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	if err := system.MkdirAll(m.Source, 0755); err != nil {
+	// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
+	// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
+	if err := idtools.MkdirAllNewAs(m.Source, 0755, rootUID, rootGID); err != nil {
 		if perr, ok := err.(*os.PathError); ok {
 			if perr.Err != syscall.ENOTDIR {
 				return "", err
@@ -143,18 +145,18 @@ func (m *MountPoint) Path() string {
 // Type returns the type of mount point
 func (m *MountPoint) Type() string {
 	if m.Name != "" {
-		return "VOLUME"
+		return "volume"
 	}
 	if m.Source != "" {
-		return "BIND"
+		return "bind"
 	}
-	return "EPHEMERAL"
+	return "ephemeral"
 }
 
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.
 func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
 	specParts := strings.SplitN(spec, ":", 2)

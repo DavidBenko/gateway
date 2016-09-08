@@ -8,17 +8,13 @@ import (
 	"strings"
 	"time"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"
-)
-
-var (
-	// DefaultReplicas is the default replicas to use for a replicated service
-	DefaultReplicas uint64 = 1
 )
 
 type int64Value interface {
@@ -135,7 +131,7 @@ func (i *Uint64Opt) Value() *uint64 {
 
 // MountOpt is a Value type for parsing mounts
 type MountOpt struct {
-	values []swarm.Mount
+	values []mounttypes.Mount
 }
 
 // Set a new mount value
@@ -146,23 +142,23 @@ func (m *MountOpt) Set(value string) error {
 		return err
 	}
 
-	mount := swarm.Mount{}
+	mount := mounttypes.Mount{}
 
-	volumeOptions := func() *swarm.VolumeOptions {
+	volumeOptions := func() *mounttypes.VolumeOptions {
 		if mount.VolumeOptions == nil {
-			mount.VolumeOptions = &swarm.VolumeOptions{
+			mount.VolumeOptions = &mounttypes.VolumeOptions{
 				Labels: make(map[string]string),
 			}
 		}
 		if mount.VolumeOptions.DriverConfig == nil {
-			mount.VolumeOptions.DriverConfig = &swarm.Driver{}
+			mount.VolumeOptions.DriverConfig = &mounttypes.Driver{}
 		}
 		return mount.VolumeOptions
 	}
 
-	bindOptions := func() *swarm.BindOptions {
+	bindOptions := func() *mounttypes.BindOptions {
 		if mount.BindOptions == nil {
-			mount.BindOptions = new(swarm.BindOptions)
+			mount.BindOptions = new(mounttypes.BindOptions)
 		}
 		return mount.BindOptions
 	}
@@ -176,39 +172,42 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
+	mount.Type = mounttypes.TypeVolume // default to volume mounts
 	// Set writable as the default
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "readonly" {
-			mount.ReadOnly = true
-			continue
-		}
+		key := strings.ToLower(parts[0])
 
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "volume-nocopy" {
-			volumeOptions().NoCopy = true
-			continue
+		if len(parts) == 1 {
+			switch key {
+			case "readonly", "ro":
+				mount.ReadOnly = true
+				continue
+			case "volume-nocopy":
+				volumeOptions().NoCopy = true
+				continue
+			}
 		}
 
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
-		key, value := parts[0], parts[1]
-		switch strings.ToLower(key) {
+		value := parts[1]
+		switch key {
 		case "type":
-			mount.Type = swarm.MountType(strings.ToUpper(value))
-		case "source":
+			mount.Type = mounttypes.Type(strings.ToLower(value))
+		case "source", "src":
 			mount.Source = value
-		case "target":
+		case "target", "dst", "destination":
 			mount.Target = value
-		case "readonly":
-			ro, err := strconv.ParseBool(value)
+		case "readonly", "ro":
+			mount.ReadOnly, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for readonly: %s", value)
+				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
-			mount.ReadOnly = ro
 		case "bind-propagation":
-			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
+			bindOptions().Propagation = mounttypes.Propagation(strings.ToLower(value))
 		case "volume-nocopy":
 			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
@@ -240,11 +239,11 @@ func (m *MountOpt) Set(value string) error {
 		return fmt.Errorf("source is required when specifying volume-* options")
 	}
 
-	if mount.Type == swarm.MountType("BIND") && mount.VolumeOptions != nil {
-		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
+	if mount.Type == mounttypes.TypeBind && mount.VolumeOptions != nil {
+		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", mounttypes.TypeBind)
 	}
-	if mount.Type == swarm.MountType("VOLUME") && mount.BindOptions != nil {
-		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
+	if mount.Type == mounttypes.TypeVolume && mount.BindOptions != nil {
+		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", mounttypes.TypeVolume)
 	}
 
 	m.values = append(m.values, mount)
@@ -267,13 +266,14 @@ func (m *MountOpt) String() string {
 }
 
 // Value returns the mounts
-func (m *MountOpt) Value() []swarm.Mount {
+func (m *MountOpt) Value() []mounttypes.Mount {
 	return m.values
 }
 
 type updateOptions struct {
 	parallelism uint64
 	delay       time.Duration
+	onFailure   string
 }
 
 type resourceOptions struct {
@@ -391,14 +391,16 @@ func ValidatePort(value string) (string, error) {
 }
 
 type serviceOptions struct {
-	name    string
-	labels  opts.ListOpts
-	image   string
-	args    []string
-	env     opts.ListOpts
-	workdir string
-	user    string
-	mounts  MountOpt
+	name            string
+	labels          opts.ListOpts
+	containerLabels opts.ListOpts
+	image           string
+	args            []string
+	env             opts.ListOpts
+	workdir         string
+	user            string
+	groups          []string
+	mounts          MountOpt
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -419,8 +421,9 @@ type serviceOptions struct {
 
 func newServiceOptions() *serviceOptions {
 	return &serviceOptions{
-		labels: opts.NewListOpts(runconfigopts.ValidateEnv),
-		env:    opts.NewListOpts(runconfigopts.ValidateEnv),
+		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
+		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
+		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
@@ -441,8 +444,10 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Image:           opts.image,
 				Args:            opts.args,
 				Env:             opts.env.GetAll(),
+				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
+				Groups:          opts.groups,
 				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
@@ -455,8 +460,9 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		},
 		Mode: swarm.ServiceMode{},
 		UpdateConfig: &swarm.UpdateConfig{
-			Parallelism: opts.update.parallelism,
-			Delay:       opts.update.delay,
+			Parallelism:   opts.update.parallelism,
+			Delay:         opts.update.delay,
+			FailureAction: opts.update.onFailure,
 		},
 		Networks:     convertNetworks(opts.networks),
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
@@ -485,8 +491,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 
-	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
-	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
+	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
+	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
+	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional user groups to the container")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -501,53 +508,59 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy")
 
-	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 0, "Maximum number of tasks updated simultaneously")
+	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
+	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
-	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
+	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 
 	flags.StringVar(&opts.logDriver.name, flagLogDriver, "", "Logging driver for service")
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
 }
 
 const (
-	flagConstraint         = "constraint"
-	flagConstraintRemove   = "constraint-rm"
-	flagConstraintAdd      = "constraint-add"
-	flagEndpointMode       = "endpoint-mode"
-	flagEnv                = "env"
-	flagEnvRemove          = "env-rm"
-	flagEnvAdd             = "env-add"
-	flagLabel              = "label"
-	flagLabelRemove        = "label-rm"
-	flagLabelAdd           = "label-add"
-	flagLimitCPU           = "limit-cpu"
-	flagLimitMemory        = "limit-memory"
-	flagMode               = "mode"
-	flagMount              = "mount"
-	flagMountRemove        = "mount-rm"
-	flagMountAdd           = "mount-add"
-	flagName               = "name"
-	flagNetwork            = "network"
-	flagNetworkRemove      = "network-rm"
-	flagNetworkAdd         = "network-add"
-	flagPublish            = "publish"
-	flagPublishRemove      = "publish-rm"
-	flagPublishAdd         = "publish-add"
-	flagReplicas           = "replicas"
-	flagReserveCPU         = "reserve-cpu"
-	flagReserveMemory      = "reserve-memory"
-	flagRestartCondition   = "restart-condition"
-	flagRestartDelay       = "restart-delay"
-	flagRestartMaxAttempts = "restart-max-attempts"
-	flagRestartWindow      = "restart-window"
-	flagStopGracePeriod    = "stop-grace-period"
-	flagUpdateDelay        = "update-delay"
-	flagUpdateParallelism  = "update-parallelism"
-	flagUser               = "user"
-	flagRegistryAuth       = "registry-auth"
-	flagLogDriver          = "log-driver"
-	flagLogOpt             = "log-opt"
+	flagConstraint           = "constraint"
+	flagConstraintRemove     = "constraint-rm"
+	flagConstraintAdd        = "constraint-add"
+	flagContainerLabel       = "container-label"
+	flagContainerLabelRemove = "container-label-rm"
+	flagContainerLabelAdd    = "container-label-add"
+	flagEndpointMode         = "endpoint-mode"
+	flagEnv                  = "env"
+	flagEnvRemove            = "env-rm"
+	flagEnvAdd               = "env-add"
+	flagGroupAdd             = "group-add"
+	flagGroupRemove          = "group-rm"
+	flagLabel                = "label"
+	flagLabelRemove          = "label-rm"
+	flagLabelAdd             = "label-add"
+	flagLimitCPU             = "limit-cpu"
+	flagLimitMemory          = "limit-memory"
+	flagMode                 = "mode"
+	flagMount                = "mount"
+	flagMountRemove          = "mount-rm"
+	flagMountAdd             = "mount-add"
+	flagName                 = "name"
+	flagNetwork              = "network"
+	flagPublish              = "publish"
+	flagPublishRemove        = "publish-rm"
+	flagPublishAdd           = "publish-add"
+	flagReplicas             = "replicas"
+	flagReserveCPU           = "reserve-cpu"
+	flagReserveMemory        = "reserve-memory"
+	flagRestartCondition     = "restart-condition"
+	flagRestartDelay         = "restart-delay"
+	flagRestartMaxAttempts   = "restart-max-attempts"
+	flagRestartWindow        = "restart-window"
+	flagStopGracePeriod      = "stop-grace-period"
+	flagUpdateDelay          = "update-delay"
+	flagUpdateFailureAction  = "update-failure-action"
+	flagUpdateParallelism    = "update-parallelism"
+	flagUser                 = "user"
+	flagWorkdir              = "workdir"
+	flagRegistryAuth         = "with-registry-auth"
+	flagLogDriver            = "log-driver"
+	flagLogOpt               = "log-opt"
 )

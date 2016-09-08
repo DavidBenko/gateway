@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,11 +31,18 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/go-units"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // filterDriver is an HCSShim driver type for the Windows Filter driver.
 const filterDriver = 1
+
+var (
+	vmcomputedll            = syscall.NewLazyDLL("vmcompute.dll")
+	hcsExpandSandboxSize    = vmcomputedll.NewProc("ExpandSandboxSize")
+	hcsSandboxSizeSupported = hcsExpandSandboxSize.Find() == nil
+)
 
 // init registers the windows graph drivers to the register.
 func init() {
@@ -67,6 +75,15 @@ func isTP5OrOlder() bool {
 // InitFilter returns a new Windows storage filter driver.
 func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	logrus.Debugf("WindowsGraphDriver InitFilter at %s", home)
+
+	fsType, err := getFileSystemType(string(home[0]))
+	if err != nil {
+		return nil, err
+	}
+	if strings.ToLower(fsType) == "refs" {
+		return nil, fmt.Errorf("%s is on an ReFS volume - ReFS volumes are not supported", home)
+	}
+
 	d := &Driver{
 		info: hcsshim.DriverInfo{
 			HomeDir: home,
@@ -76,6 +93,37 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 		ctr:   graphdriver.NewRefCounter(&checker{}),
 	}
 	return d, nil
+}
+
+// win32FromHresult is a helper function to get the win32 error code from an HRESULT
+func win32FromHresult(hr uintptr) uintptr {
+	if hr&0x1fff0000 == 0x00070000 {
+		return hr & 0xffff
+	}
+	return hr
+}
+
+// getFileSystemType obtains the type of a file system through GetVolumeInformation
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa364993(v=vs.85).aspx
+func getFileSystemType(drive string) (fsType string, hr error) {
+	var (
+		modkernel32              = syscall.NewLazyDLL("kernel32.dll")
+		procGetVolumeInformation = modkernel32.NewProc("GetVolumeInformationW")
+		buf                      = make([]uint16, 255)
+		size                     = syscall.MAX_PATH + 1
+	)
+	if len(drive) != 1 {
+		hr = errors.New("getFileSystemType must be called with a drive letter")
+		return
+	}
+	drive += `:\`
+	n := uintptr(unsafe.Pointer(nil))
+	r0, _, _ := syscall.Syscall9(procGetVolumeInformation.Addr(), 8, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(drive))), n, n, n, n, n, uintptr(unsafe.Pointer(&buf[0])), uintptr(size), 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	fsType = syscall.UTF16ToString(buf)
+	return
 }
 
 // String returns the string representation of a driver. This should match
@@ -116,10 +164,6 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 }
 
 func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
-	if len(storageOpt) != 0 {
-		return fmt.Errorf("--storage-opt is not supported for windows")
-	}
-
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err
@@ -182,6 +226,17 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
 		}
+
+		storageOptions, err := parseStorageOpt(storageOpt)
+		if err != nil {
+			return fmt.Errorf("Failed to parse storage options - %s", err)
+		}
+
+		if hcsSandboxSizeSupported {
+			if err := hcsshim.ExpandSandboxSize(d.info, id, storageOptions.size); err != nil {
+				return err
+			}
+		}
 	}
 
 	if _, err := os.Lstat(d.dir(parent)); err != nil {
@@ -216,7 +271,7 @@ func (d *Driver) Remove(id string) error {
 	return hcsshim.DestroyLayer(d.info, rID)
 }
 
-// Get returns the rootfs path for the id. This will mount the dir at it's given path.
+// Get returns the rootfs path for the id. This will mount the dir at its given path.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
@@ -776,4 +831,28 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	}
 
 	return &fileGetCloserWithBackupPrivileges{d.dir(id)}, nil
+}
+
+type storageOptions struct {
+	size uint64
+}
+
+func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
+	options := storageOptions{}
+
+	// Read size to change the block device size per container.
+	for key, val := range storageOpt {
+		key := strings.ToLower(key)
+		switch key {
+		case "size":
+			size, err := units.RAMInBytes(val)
+			if err != nil {
+				return nil, err
+			}
+			options.size = uint64(size)
+		default:
+			return nil, fmt.Errorf("Unknown storage option: %s", key)
+		}
+	}
+	return &options, nil
 }

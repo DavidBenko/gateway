@@ -7,9 +7,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,6 @@ func NewLogsCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runLogs(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.follow, "follow", "f", false, "Follow log output")

@@ -20,7 +20,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/archive"
@@ -34,9 +37,6 @@ import (
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/strslice"
 )
 
 func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
@@ -255,9 +255,9 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	// ignoring error because the file was already opened successfully
 	tmpFileSt, err := tmpFile.Stat()
 	if err != nil {
+		tmpFile.Close()
 		return
 	}
-	tmpFile.Close()
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -271,6 +271,8 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 			mTime = parsedMTime
 		}
 	}
+
+	tmpFile.Close()
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
 		return
@@ -427,11 +429,12 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 
 	// parse the ONBUILD triggers by invoking the parser
 	for _, step := range onBuildTriggers {
-		ast, err := parser.Parse(strings.NewReader(step))
+		ast, err := parser.Parse(strings.NewReader(step), &b.directive)
 		if err != nil {
 			return err
 		}
 
+		total := len(ast.Children)
 		for i, n := range ast.Children {
 			switch strings.ToUpper(n.Value) {
 			case "ONBUILD":
@@ -440,7 +443,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
 
-			if err := b.dispatch(i, n); err != nil {
+			if err := b.dispatch(i, total, n); err != nil {
 				return err
 			}
 		}
@@ -648,7 +651,7 @@ func (b *Builder) parseDockerfile() error {
 			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
-	b.dockerfile, err = parser.Parse(f)
+	b.dockerfile, err = parser.Parse(f, &b.directive)
 	if err != nil {
 		return err
 	}

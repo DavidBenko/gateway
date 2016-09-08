@@ -28,7 +28,7 @@
 		people = [
 			"aaronlehmann",
 			"aluzzardi",
-			"calavera",
+			"anusha",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
@@ -42,6 +42,7 @@
 			"mavenugo",
 			"mhbauer",
 			"mlaventure",
+			"mrjana",
 			"runcom",
 			"stevvooe",
 			"tianon",
@@ -58,6 +59,7 @@
 
 		people = [
 			"jamtur01",
+			"misty",
 			"moxiegirl",
 			"sfsmithcha",
 			"sven",
@@ -89,6 +91,15 @@
 	# Thank you!
 
 		people = [
+			# David Calavera contributed many features to Docker, such as an improved
+			# event system, dynamic configuration reloading, volume plugins, fancy
+			# new templating options, and an external client credential store. As a
+			# maintainer, David was release captain for Docker 1.8, and competing
+			# with Jess Frazelle to be "top dream killer".
+			# David is now doing amazing stuff as CTO for https://www.netlify.com,
+			# and tweets as @calavera.
+			"calavera",
+
 			# As a maintainer, Erik was responsible for the "builder", and
 			# started the first designs for the new networking model in
 			# Docker. Erik is now working on all kinds of plugins for Docker
@@ -152,6 +163,11 @@
 	Name = "Andrea Luzzardi"
 	Email = "al@docker.com"
 	GitHub = "aluzzardi"
+
+	[people.anusha]
+	Name = "Anusha Ragunathan"
+	Email = "anusha@docker.com"
+	GitHub = "anusha-ragunathan"
 
 	[people.calavera]
 	Name = "David Calavera"
@@ -238,6 +254,11 @@
 	Email = "mbauer@us.ibm.com"
 	GitHub = "mhbauer"
 
+	[people.misty]
+	Name = "Misty Stanley-Jones"
+	Email = "misty@docker.com"
+	GitHub = "mstanleyjones"
+
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
 	Email = "mickael.laventure@docker.com"
@@ -247,6 +268,11 @@
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.mrjana]
+	Name = "Jana Radhakrishnan"
+	Email = "mrjana@docker.com"
+	GitHub = "mrjana"
 
 	[people.programmerq]
 	Name = "Jeff Anderson"

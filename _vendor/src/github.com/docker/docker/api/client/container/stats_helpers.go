@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
@@ -97,6 +97,10 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 			if err := dec.Decode(&v); err != nil {
 				dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
 				u <- err
+				if err == io.EOF {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 

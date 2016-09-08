@@ -55,6 +55,7 @@ dockerd - Enable daemon mode
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
 [**--storage-opt**[=*[]*]]
+[**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
 [**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
 [**--tlscert**[=*~/.docker/cert.pem*]]
@@ -234,10 +235,15 @@ output otherwise.
   Force the Docker runtime to use a specific storage driver.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support either of the overlay storage drivers.
+  Enable selinux support. Default is false.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
+
+**--swarm-default-advertise-addr**=*IP|INTERFACE*
+  Set default address or interface for swarm to advertise as its externally-reachable address to other cluster
+  members. This can be a hostname, an IP address, or an interface such as `eth0`. A port cannot be specified with
+  this option.
 
 **--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.

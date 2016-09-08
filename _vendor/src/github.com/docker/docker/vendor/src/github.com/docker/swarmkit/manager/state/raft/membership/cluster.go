@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -33,6 +34,8 @@ type Cluster struct {
 	// removed contains the list of removed Members,
 	// those ids cannot be reused
 	removed map[uint64]bool
+
+	PeersBroadcast *watch.Queue
 }
 
 // Member represents a raft Cluster Member
@@ -49,8 +52,9 @@ func NewCluster() *Cluster {
 	// TODO(abronan): generate Cluster ID for federation
 
 	return &Cluster{
-		members: make(map[uint64]*Member),
-		removed: make(map[uint64]bool),
+		members:        make(map[uint64]*Member),
+		removed:        make(map[uint64]bool),
+		PeersBroadcast: watch.NewQueue(),
 	}
 }
 
@@ -83,6 +87,17 @@ func (c *Cluster) GetMember(id uint64) *Member {
 	return c.members[id]
 }
 
+func (c *Cluster) broadcastUpdate() {
+	peers := make([]*api.Peer, 0, len(c.members))
+	for _, m := range c.members {
+		peers = append(peers, &api.Peer{
+			NodeID: m.NodeID,
+			Addr:   m.Addr,
+		})
+	}
+	c.PeersBroadcast.Publish(peers)
+}
+
 // AddMember adds a node to the Cluster Memberlist.
 func (c *Cluster) AddMember(member *Member) error {
 	c.mu.Lock()
@@ -93,6 +108,7 @@ func (c *Cluster) AddMember(member *Member) error {
 	}
 
 	c.members[member.RaftID] = member
+	c.broadcastUpdate()
 	return nil
 }
 
@@ -110,18 +126,25 @@ func (c *Cluster) RemoveMember(id uint64) error {
 	}
 
 	c.removed[id] = true
+	c.broadcastUpdate()
 	return nil
 }
 
 // ReplaceMemberConnection replaces the member's GRPC connection and GRPC
 // client.
-func (c *Cluster) ReplaceMemberConnection(id uint64, newConn *Member) error {
+func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	oldMember, ok := c.members[id]
 	if !ok {
 		return ErrIDNotFound
+	}
+
+	if oldConn.Conn != oldMember.Conn {
+		// The connection was already replaced. Don't do it again.
+		newConn.Conn.Close()
+		return nil
 	}
 
 	oldMember.Conn.Close()

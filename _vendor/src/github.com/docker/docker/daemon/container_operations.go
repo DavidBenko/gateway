@@ -9,13 +9,13 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
@@ -177,11 +177,12 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	// Legacy Link is only supported by docker run --link
-	if _, ok := container.NetworkSettings.Networks[defaultNetName]; !container.HostConfig.NetworkMode.IsDefault() || !ok {
+	bridgeSettings, ok := container.NetworkSettings.Networks[defaultNetName]
+	if !ok {
 		return sboxOptions, nil
 	}
 
-	if container.NetworkSettings.Networks[defaultNetName].EndpointID == "" {
+	if bridgeSettings.EndpointID == "" {
 		return sboxOptions, nil
 	}
 
@@ -209,7 +210,6 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		}
 	}
 
-	bridgeSettings := container.NetworkSettings.Networks[defaultNetName]
 	for alias, parent := range daemon.parents(container) {
 		if daemon.configStore.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
 			continue
@@ -511,7 +511,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrNa
 	}
 
 	if !containertypes.NetworkMode(idOrName).IsUserDefined() {
-		if hasUserDefinedIPAddress(endpointConfig) {
+		if hasUserDefinedIPAddress(endpointConfig) && !enableIPOnPredefinedNetwork() {
 			return nil, runconfig.ErrUnsupportedNetworkAndIP
 		}
 		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 {
@@ -618,8 +618,13 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-// ForceEndpointDelete deletes an endpoing from a network forcefully
-func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
+// ForceEndpointDelete deletes an endpoint from a network forcefully
+func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error {
+	n, err := daemon.FindNetwork(networkName)
+	if err != nil {
+		return err
+	}
+
 	ep, err := n.EndpointByName(name)
 	if err != nil {
 		return err

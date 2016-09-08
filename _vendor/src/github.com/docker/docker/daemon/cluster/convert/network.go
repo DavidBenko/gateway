@@ -3,9 +3,9 @@ package convert
 import (
 	"strings"
 
-	basictypes "github.com/docker/engine-api/types"
-	networktypes "github.com/docker/engine-api/types/network"
-	types "github.com/docker/engine-api/types/swarm"
+	basictypes "github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
@@ -179,21 +179,23 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		},
 		Ipv6Enabled: create.EnableIPv6,
 		Internal:    create.Internal,
-		IPAM: &swarmapi.IPAMOptions{
+	}
+	if create.IPAM != nil {
+		ns.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
 				Name:    create.IPAM.Driver,
 				Options: create.IPAM.Options,
 			},
-		},
+		}
+		ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
+		for _, ipamConfig := range create.IPAM.Config {
+			ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
+				Subnet:  ipamConfig.Subnet,
+				Range:   ipamConfig.IPRange,
+				Gateway: ipamConfig.Gateway,
+			})
+		}
+		ns.IPAM.Configs = ipamSpec
 	}
-	ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
-	for _, ipamConfig := range create.IPAM.Config {
-		ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
-			Subnet:  ipamConfig.Subnet,
-			Range:   ipamConfig.IPRange,
-			Gateway: ipamConfig.Gateway,
-		})
-	}
-	ns.IPAM.Configs = ipamSpec
 	return ns
 }

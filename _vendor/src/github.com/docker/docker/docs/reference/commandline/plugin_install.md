@@ -17,8 +17,8 @@ Usage:  docker plugin install [OPTIONS] PLUGIN
 Install a plugin
 
 Options:
-      --disable                 do not enable the plugin on install
-      --grant-all-permissions   grant all permissions necessary to run the plugin
+      --disable                 Do not enable the plugin on install
+      --grant-all-permissions   Grant all permissions necessary to run the plugin
       --help                    Print usage
 ```
 
@@ -47,8 +47,8 @@ After the plugin is installed, it appears in the list of plugins:
 ```bash
 $ docker plugin ls
 
-NAME                  VERSION             ACTIVE
-tiborvass/no-remove   latest              true
+NAME                  TAG                 DESCRIPTION                ENABLED
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information

@@ -413,7 +413,12 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -439,22 +444,27 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 
 	log.Debugf("Service name To resolve: %v", name)
 
+	// There are DNS implementaions that allow SRV queries for names not in
+	// the format defined by RFC 2782. Hence specific validations checks are
+	// not done
 	parts := strings.Split(name, ".")
 	if len(parts) < 3 {
-		return nil, nil, fmt.Errorf("invalid service name, %s", name)
+		return nil, nil, nil
 	}
 
 	portName := parts[0]
 	proto := parts[1]
-	if proto != "_tcp" && proto != "_udp" {
-		return nil, nil, fmt.Errorf("invalid protocol in service, %s", name)
-	}
 	svcName := strings.Join(parts[2:], ".")
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -488,6 +498,38 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 	return srv, ip, nil
 }
 
+func getDynamicNwEndpoints(epList []*endpoint) []*endpoint {
+	eps := []*endpoint{}
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if n.dynamic && !n.ingress {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
+func getIngressNwEndpoint(epList []*endpoint) *endpoint {
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if n.ingress {
+			return ep
+		}
+	}
+	return nil
+}
+
+func getLocalNwEndpoints(epList []*endpoint) []*endpoint {
+	eps := []*endpoint{}
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if !n.dynamic && !n.ingress {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
 func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -518,6 +560,21 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	}
 
 	epList := sb.getConnectedEndpoints()
+
+	// In swarm mode services with exposed ports are connected to user overlay
+	// network, ingress network and docker_gwbridge network. Name resolution
+	// should prioritize returning the VIP/IPs on user overlay network.
+	newList := []*endpoint{}
+	if !sb.controller.isDistributedControl() {
+		newList = append(newList, getDynamicNwEndpoints(epList)...)
+		ingressEP := getIngressNwEndpoint(epList)
+		if ingressEP != nil {
+			newList = append(newList, ingressEP)
+		}
+		newList = append(newList, getLocalNwEndpoints(epList)...)
+		epList = newList
+	}
+
 	for i := 0; i < len(reqName); i++ {
 
 		// First check for local container alias
@@ -575,7 +632,11 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			ep.Unlock()
 		}
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -712,6 +773,12 @@ func (sb *sandbox) restoreOslSandbox() error {
 		joinInfo := ep.joinInfo
 		i := ep.iface
 		ep.Unlock()
+
+		if i == nil {
+			log.Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
+			continue
+		}
+
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))

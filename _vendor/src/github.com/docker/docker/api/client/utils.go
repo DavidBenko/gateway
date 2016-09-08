@@ -14,10 +14,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 )
 
 func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
@@ -49,9 +49,9 @@ func (cli *DockerCli) ResizeTtyTo(ctx context.Context, id string, height, width 
 	}
 }
 
-// getExecExitCode perform an inspect on the exec command. It returns
+// GetExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
-func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool, int, error) {
+func (cli *DockerCli) GetExecExitCode(ctx context.Context, execID string) (bool, int, error) {
 	resp, err := cli.client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.

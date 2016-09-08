@@ -101,15 +101,15 @@ type RemoteEndpoint struct {
 	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
 	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
 	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
-	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
-	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
-	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"false"`
+	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"true"`
 	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
 	HanaEnabled       bool `flag:"remote-endpoint-hana-enabled" default:"true"`
 	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
-	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"true"`
+	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
+	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
+	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

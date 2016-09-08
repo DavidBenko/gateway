@@ -7,9 +7,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/cli"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +46,6 @@ func NewUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runUpdate(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.Uint16Var(&opts.blkioWeight, "blkio-weight", 0, "Block IO (relative weight), between 10 and 1000")
@@ -135,13 +134,21 @@ func runUpdate(dockerCli *client.DockerCli, opts *updateOptions) error {
 
 	ctx := context.Background()
 
-	var errs []string
+	var (
+		warns []string
+		errs  []string
+	)
 	for _, container := range opts.containers {
-		if err := dockerCli.Client().ContainerUpdate(ctx, container, updateConfig); err != nil {
+		r, err := dockerCli.Client().ContainerUpdate(ctx, container, updateConfig)
+		if err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
 		}
+		warns = append(warns, r.Warnings...)
+	}
+	if len(warns) > 0 {
+		fmt.Fprintf(dockerCli.Out(), "%s", strings.Join(warns, "\n"))
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "\n"))

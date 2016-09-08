@@ -15,6 +15,8 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/cli"
@@ -27,8 +29,6 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
@@ -104,6 +104,22 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
+// lastProgressOutput is the same as progress.Output except
+// that it only output with the last update. It is used in
+// non terminal scenarios to depresss verbose messages
+type lastProgressOutput struct {
+	output progress.Output
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
+	if !prog.LastUpdate {
+		return nil
+	}
+
+	return out.output.WriteProgress(prog)
+}
+
 func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	var (
@@ -162,6 +178,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
+		defer f.Close()
 
 		var excludes []string
 		if err == nil {
@@ -210,6 +227,9 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
+	if !dockerCli.IsTerminalOut() {
+		progressOutput = &lastProgressOutput{output: progressOutput}
+	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
@@ -401,7 +421,7 @@ func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadClos
 				return
 			}
 
-			var content io.Reader = tarReader
+			content := io.Reader(tarReader)
 			if hdr.Name == dockerfileName {
 				// This entry is the Dockerfile. Since the tar archive was
 				// generated from a directory on the local filesystem, the

@@ -5,9 +5,9 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/formatter"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,7 @@ type imagesOptions struct {
 	filter      []string
 }
 
-// NewImagesCommand create a new `docker images` command
+// NewImagesCommand creates a new `docker images` command
 func NewImagesCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts imagesOptions
 
@@ -79,8 +79,8 @@ func runImages(dockerCli *client.DockerCli, opts imagesOptions) error {
 
 	f := opts.format
 	if len(f) == 0 {
-		if len(dockerCli.ImagesFormat()) > 0 && !opts.quiet {
-			f = dockerCli.ImagesFormat()
+		if len(dockerCli.ConfigFile().ImagesFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().ImagesFormat
 		} else {
 			f = "table"
 		}

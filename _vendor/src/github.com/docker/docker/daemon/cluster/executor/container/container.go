@@ -9,13 +9,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	"github.com/docker/docker/api/types"
+	enginecontainer "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
-	enginecontainer "github.com/docker/engine-api/types/container"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
-	"github.com/docker/engine-api/types/network"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 )
@@ -51,6 +51,10 @@ func (c *containerConfig) setTask(t *api.Task) error {
 
 	if container.Image == "" {
 		return ErrImageRequired
+	}
+
+	if err := validateMounts(container.Mounts); err != nil {
+		return err
 	}
 
 	// index the networks by name
@@ -272,6 +276,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Resources: c.resources(),
 		Binds:     c.binds(),
 		Tmpfs:     c.tmpfs(),
+		GroupAdd:  c.spec().Groups,
 	}
 
 	if c.task.LogDriver != nil {
@@ -473,7 +478,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
 		Driver: na.Network.DriverState.Name,
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,

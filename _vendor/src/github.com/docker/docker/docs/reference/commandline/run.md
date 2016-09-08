@@ -95,7 +95,7 @@ Options:
   -P, --publish-all                 Publish all exposed ports to random ports
       --read-only                   Mount the container's root filesystem as read only
       --restart string              Restart policy to apply when a container exits (default "no")
-                                    Possible values are : no, on-failuer[:max-retry], always, unless-stopped
+                                    Possible values are : no, on-failure[:max-retry], always, unless-stopped
       --rm                          Automatically remove the container when it exits
       --runtime string              Runtime to use for this container
       --security-opt value          Security Options (default [])
@@ -194,11 +194,11 @@ The `-w` lets the command being executed inside directory given, here
 
 ### Set storage driver options per container
 
-    $ docker create -it --storage-opt size=120G fedora /bin/bash
+    $ docker run -it --storage-opt size=120G fedora /bin/bash
 
 This (size) will allow to set the container rootfs size to 120G at creation time. 
 User cannot pass a size less than the Default BaseFS Size. This option is only 
-available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
+available for the `devicemapper`, `btrfs`, `windowsfilter`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
 
@@ -657,7 +657,7 @@ network namespace, run this command:
     $ docker run --sysctl net.ipv4.ip_forward=1 someimage
 
 
-> **Note**: Not all sysctls are namespaced. docker does not support changing sysctls
+> **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
 > inside of a container that also modify the host system. As the kernel 
 > evolves we expect to see more sysctls become namespaced.
 

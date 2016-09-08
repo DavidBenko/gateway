@@ -6,10 +6,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 )
 
 // execBackend includes functions to implement to provide exec functionality.
@@ -42,7 +42,7 @@ type stateBackend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool) error
 	ContainerStop(name string, seconds int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) ([]string, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 }
 

@@ -9,9 +9,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,6 @@ func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runAttach(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.noStdin, "no-stdin", false, "Do not attach STDIN")

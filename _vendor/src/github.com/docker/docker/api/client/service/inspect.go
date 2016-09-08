@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/inspect"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
+	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/ioutils"
-	apiclient "github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
@@ -101,15 +102,30 @@ func printService(out io.Writer, service swarm.Service) {
 			fmt.Fprintf(out, " Replicas:\t%d\n", *service.Spec.Mode.Replicated.Replicas)
 		}
 	}
+
+	if service.UpdateStatus.State != "" {
+		fmt.Fprintln(out, "Update status:")
+		fmt.Fprintf(out, " State:\t\t%s\n", service.UpdateStatus.State)
+		fmt.Fprintf(out, " Started:\t%s ago\n", strings.ToLower(units.HumanDuration(time.Since(service.UpdateStatus.StartedAt))))
+		if service.UpdateStatus.State == swarm.UpdateStateCompleted {
+			fmt.Fprintf(out, " Completed:\t%s ago\n", strings.ToLower(units.HumanDuration(time.Since(service.UpdateStatus.CompletedAt))))
+		}
+		fmt.Fprintf(out, " Message:\t%s\n", service.UpdateStatus.Message)
+	}
+
 	fmt.Fprintln(out, "Placement:")
 	if service.Spec.TaskTemplate.Placement != nil && len(service.Spec.TaskTemplate.Placement.Constraints) > 0 {
 		ioutils.FprintfIfNotEmpty(out, " Constraints\t: %s\n", strings.Join(service.Spec.TaskTemplate.Placement.Constraints, ", "))
 	}
-	fmt.Fprintf(out, "UpdateConfig:\n")
-	fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
-	if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
-		fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
+	if service.Spec.UpdateConfig != nil {
+		fmt.Fprintf(out, "UpdateConfig:\n")
+		fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
+		if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
+			fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
+		}
+		fmt.Fprintf(out, " On failure:\t%s\n", service.Spec.UpdateConfig.FailureAction)
 	}
+
 	fmt.Fprintf(out, "ContainerSpec:\n")
 	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
 
@@ -136,6 +152,7 @@ func printService(out io.Writer, service swarm.Service) {
 		for _, n := range service.Spec.Networks {
 			fmt.Fprintf(out, " %s", n.Target)
 		}
+		fmt.Fprintln(out, "")
 	}
 
 	if len(service.Endpoint.Ports) > 0 {

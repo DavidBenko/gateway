@@ -8,9 +8,9 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/inspect"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -45,7 +45,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 	getRef := func(ref string) (interface{}, []byte, error) {
-		nodeRef, err := Reference(client, ctx, ref)
+		nodeRef, err := Reference(ctx, client, ref)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -71,6 +71,8 @@ func printHumanFriendly(out io.Writer, refs []string, getRef inspect.GetRefFunc)
 		// print extra space between objects, but not after the last one
 		if idx+1 != len(refs) {
 			fmt.Fprintf(out, "\n\n")
+		} else {
+			fmt.Fprintf(out, "\n")
 		}
 	}
 	return nil
@@ -88,6 +90,7 @@ func printNode(out io.Writer, node swarm.Node) {
 	}
 
 	ioutils.FprintfIfNotEmpty(out, "Hostname:\t\t%s\n", node.Description.Hostname)
+	fmt.Fprintf(out, "Joined at:\t\t%s\n", client.PrettyPrint(node.CreatedAt))
 	fmt.Fprintln(out, "Status:")
 	fmt.Fprintf(out, " State:\t\t\t%s\n", client.PrettyPrint(node.Status.State))
 	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", client.PrettyPrint(node.Status.Message))
