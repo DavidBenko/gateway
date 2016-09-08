@@ -1,6 +1,7 @@
 package core
 
 import (
+	"gateway/config"
 	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
@@ -36,14 +37,14 @@ func (k *KeyStore) GetKey(accountID int64, name string) (interface{}, bool) {
 
 	key, e := model.FindKeyByAccountIdAndName(accountID, name, k.db)
 	if e != nil {
-		logreport.Println(e)
+		logreport.Printf("%s Error getting key %s: %s\n", config.Admin, name, e)
 		return nil, false
 	}
 
 	if key != nil {
 		validKey, err := key.GetParsedKey()
 		if err != nil {
-			logreport.Printf("\n[keys] error parsing key %s: %s\n", name, err.Error())
+			logreport.Printf("%s Error parsing key %s: %s\n", config.Admin, name, err.Error())
 			return nil, false
 		}
 
