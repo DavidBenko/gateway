@@ -51,6 +51,16 @@ func (a *Account) ValidateFromDatabaseError(err error) aperrors.Errors {
 	return errors
 }
 
+// ValidateFromStripeError translates possible stripe errors
+// into validation errors.
+func (a *Account) ValidateFromStripeError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
+	if se, ok := err.(*stripe.Error); ok {
+		errors.Add("base", se.Msg)
+	}
+	return errors
+}
+
 // AllAccounts returns all accounts in default order.
 func AllAccounts(db *sql.DB) ([]*Account, error) {
 	accounts := []*Account{}
@@ -162,8 +172,7 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 }
 
 // Update updates the account in the database.
-func (a *Account) Update(tx *sql.Tx) error {
-	var err error
+func (a *Account) Update(tx *sql.Tx) (err error) {
 	// Handle Stripe related plan or billing changes.
 	if stripe.Key != "" {
 		currentAccount, err := FindAccount(tx.DB, a.ID)
