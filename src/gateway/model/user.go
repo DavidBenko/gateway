@@ -261,7 +261,8 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	if stripe.Key != "" {
-		account, err := FindAccount(tx.DB, u.AccountID)
+		account := Account{}
+		err := tx.Get(&account, tx.SQL("accounts/find"), u.AccountID)
 		if err != nil {
 			return err
 		}
