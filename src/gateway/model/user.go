@@ -117,8 +117,8 @@ func FindAdminUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
 		`SELECT id, name, email, admin, confirmed FROM users
-		 WHERE account_id = ? AND admin = 1 ORDER BY id LIMIT 1;`,
-		accountID)
+		 WHERE account_id = ? AND admin = ? ORDER BY id LIMIT 1;`,
+		accountID, true)
 	return &user, err
 }
 
