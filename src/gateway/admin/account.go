@@ -76,6 +76,11 @@ func (c *AccountController) Update(w http.ResponseWriter, r *http.Request,
 		validationErrors = account.ValidateFromDatabaseError(err)
 		if !validationErrors.Empty() {
 			return SerializableValidationErrors{validationErrors}
+		} else {
+			validationErrors = account.ValidateFromStripeError(err)
+			if !validationErrors.Empty() {
+				return SerializableValidationErrors{validationErrors}
+			}
 		}
 		logreport.Printf("%s Error %s account: %v\n%v", config.System, desc, err, r)
 		return aphttp.NewServerError(err)
