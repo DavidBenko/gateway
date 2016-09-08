@@ -142,11 +142,6 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 		if plan.Price > 0 && a.StripeToken == "" {
 			return errors.New("stripe_token must not be blank")
 		}
-		// Pass Stripe single-use token, plan, and customer details to Stripe to create the subscription.
-		plan, err = FindPlan(tx.DB, a.PlanID.Int64)
-		if err != nil {
-			return err
-		}
 		customerParams := &stripe.CustomerParams{}
 		if a.StripeToken != "" {
 			customerParams.SetSource(a.StripeToken)
@@ -168,6 +163,7 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 
 // Update updates the account in the database.
 func (a *Account) Update(tx *sql.Tx) error {
+	var err error
 	// Handle Stripe related plan or billing changes.
 	if stripe.Key != "" {
 		currentAccount, err := FindAccount(tx.DB, a.ID)
@@ -178,7 +174,7 @@ func (a *Account) Update(tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		if a.StripeCustomerID.String == "" {
+		if !currentAccount.StripeCustomerID.Valid {
 			customerParams := &stripe.CustomerParams{}
 			if a.StripeToken != "" {
 				customerParams.SetSource(a.StripeToken)
@@ -202,37 +198,39 @@ func (a *Account) Update(tx *sql.Tx) error {
 			if err != nil {
 				return err
 			}
-		}
-		if a.PlanID.Int64 != currentAccount.PlanID.Int64 && plan.Price > 0 {
-			c, err := customer.Get(currentAccount.StripeCustomerID.String, nil)
-			if err != nil {
-				return err
+		} else {
+			if a.PlanID.Int64 != currentAccount.PlanID.Int64 && plan.Price > 0 {
+				c, err := customer.Get(currentAccount.StripeCustomerID.String, nil)
+				if err != nil {
+					return err
+				}
+				if c.DefaultSource == nil && a.StripeToken == "" {
+					return errors.New("stripe_token must not be blank")
+				}
 			}
-			if c.DefaultSource == nil && a.StripeToken == "" {
-				return errors.New("stripe_token must not be blank")
+			if a.StripeToken != "" {
+				customerParams := &stripe.CustomerParams{}
+				customerParams.SetSource(a.StripeToken)
+				_, err = customer.Update(currentAccount.StripeCustomerID.String, customerParams)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		if a.StripeToken != "" {
-			customerParams := &stripe.CustomerParams{}
-			customerParams.SetSource(a.StripeToken)
-			_, err = customer.Update(currentAccount.StripeCustomerID.String, customerParams)
-			if err != nil {
-				return err
-			}
-		}
-		if a.PlanID.Int64 != currentAccount.PlanID.Int64 {
-			_, err = sub.Update(currentAccount.StripeSubscriptionID.String,
-				&stripe.SubParams{
-					Plan: plan.StripeName,
-				},
-			)
-			if err != nil {
-				return err
+			if a.PlanID.Int64 != currentAccount.PlanID.Int64 {
+				_, err = sub.Update(currentAccount.StripeSubscriptionID.String,
+					&stripe.SubParams{
+						Plan: plan.StripeName,
+					},
+				)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
+	} else {
+		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
 	}
-	err := tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
 	if err != nil {
 		return err
 	}
