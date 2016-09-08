@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"gateway/config"
 	"gateway/logreport"
 )
 
@@ -19,7 +20,7 @@ func Encrypt(data []byte, publicKey interface{}, algorithmName string, tag strin
 	}
 
 	if hash == crypto.MD5 || hash == crypto.SHA1 {
-		logreport.Printf("\nMinimum of SHA256 is recommended.\n")
+		logreport.Printf("%s Minimum of SHA256 is recommended.\n", config.Admin)
 	}
 
 	switch publicKey.(type) {
