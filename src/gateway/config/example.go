@@ -203,6 +203,9 @@ const ExampleConfigurationFile = `##############################################
 # The header to send the proxy request ID back in. Not sent if blank.
 # requestIdHeader = ''
 
+# The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.
+# healthCheckPath = '/__gw-health-check'
+
 [remoteEndpoint]
 # Whether or not http remote endpoints are enabled, defaults is true.
 # httpEnabled =
