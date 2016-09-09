@@ -27,6 +27,7 @@ import (
 //go:generate ./controller.rb --model PushMessage --reflect
 //go:generate ./controller.rb --model PushChannelMessage --reflect
 //go:generate ./controller.rb --model Plan --allow-create=false --allow-update=false --allow-delete=false
+//go:generate ./controller.rb --model Sample --account --before-validate-hook
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
