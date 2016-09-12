@@ -6,7 +6,7 @@ var AP = AP || {};
  * 
  * @namespace
  */
-AP.Conversions = AP.Conversions || {};
+AP.Conversion = AP.Conversion || {};
 
-AP.Conversions.toJson = _toJson;
+AP.Conversion.toJson = _toJson;
 delete _toJson;

@@ -6,7 +6,7 @@ var AP = AP || {};
  * 
  * @namespace
  */
-AP.Conversions = AP.Conversions || {};
+AP.Conversion = AP.Conversion || {};
 
-AP.Conversions.toXML = _toXML;
+AP.Conversion.toXML = _toXML;
 delete _toXML;
