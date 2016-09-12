@@ -39,6 +39,7 @@ ENV PROXY_CODE_TIMEOUT 5
 ENV PROXY_HTTP_TIMEOUT 60
 ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts.[0]}}:5000"
 ENV CACHE_APIS false
+ENV HEALTH_CHECK_PATH "/__gw-health-check"
 
 # LOCAL STORE CONFIG
 ENV STORE_TYPE boltdb
@@ -107,7 +108,7 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -remote-endpoint-script-enabled=$SCRIPT_ENABLED -remote-endpoint-store-enabled=$STORE_ENABLED \
   -airbrake-api-key="$AIRBRAKE_API_KEY" -airbrake-environment="$AIRBRAKE_ENVIRONMENT" -airbrake-project-id="$AIRBRAKE_PROJECT_ID" \
   -smtp-user="$SMTP_USER" -smtp-password="$SMTP_PASSWORD" -smtp-sender="$SMTP_SENDER" -smtp-server="$SMTP_SERVER" -smtp-port=$SMTP_PORT -smtp-email-scheme=$EMAIL_SCHEME -smtp-email-host="$EMAIL_HOST" -smtp-email-port=$EMAIL_PORT \
-  -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT \
+  -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT -proxy-health-check-path="$HEALTH_CHECK_PATH" \
   -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
   -license-content="$LICENSE_CONTENT" \
   -admin-google-analytics-tracking-id="$GOOGLE_ANALYTICS_TRACKING_ID" \
