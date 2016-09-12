@@ -92,6 +92,8 @@ type ProxyServer struct {
 	HTTPTimeout   int64 `flag:"proxy-http-timeout" default:"60"`
 	CodeTimeout   int64 `flag:"proxy-code-timeout" default:"5"`
 	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
+
+	HealthCheckPath string `flag:"proxy-health-check-path" default:"/__gw-health-check"`
 }
 
 // RemoteEndpoint specifies which types of remote endpionts are available
