@@ -11,6 +11,8 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+type converter func(data interface{}) (string, error)
+
 var undefined = otto.Value{}
 
 func IncludeConversion(vm *otto.Otto) {
@@ -40,7 +42,7 @@ func setToXML(vm *otto.Otto) {
 	})
 }
 
-func convert(vm *otto.Otto, call otto.FunctionCall, fn func(interface{}) (string, error)) (otto.Value, error) {
+func convert(vm *otto.Otto, call otto.FunctionCall, fn converter) (otto.Value, error) {
 	arg := call.Argument(0)
 	if arg == undefined {
 		return undefined, errors.New("undefined argument")
