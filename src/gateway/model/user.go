@@ -75,6 +75,9 @@ func (u *User) ValidateFromDatabaseError(err error) aperrors.Errors {
 		err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
 		errors.Add("email", "is already taken")
 	}
+	if err.Error() == "Maximum number of users allowed by plan reached." {
+		errors.Add("base", "maximum number of users allowed by plan reached")
+	}
 	return errors
 }
 
@@ -271,7 +274,7 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 			return err
 		}
 		if int64(count) >= plan.MaxUsers {
-			return errors.New(fmt.Sprintf("Plan only allows %v user(s).", plan.MaxUsers))
+			return errors.New(`Maximum number of users allowed by plan reached.`)
 		}
 	}
 
