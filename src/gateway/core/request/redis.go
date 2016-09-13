@@ -15,7 +15,7 @@ import (
 
 type RedisRequest struct {
 	Config    *redis.Spec `json:"config"`
-	Statement string      `json:"executeStatement"`
+	Arguments []string    `json:"arguments"`
 	conn      redigo.Conn
 }
 
@@ -79,21 +79,17 @@ func (r *RedisRequest) JSON() ([]byte, error) {
 func (r *RedisRequest) Perform() Response {
 	response := &RedisResponse{}
 
-	// Split the supplied statement into separate arguments to be consumed
-	// by the redis driver.
-	parameters := splitStatement(r.Statement)
-
-	if len(parameters) == 0 {
+	if len(r.Arguments) == 0 {
 		response.Error = "missing command parameter"
 		return response
 	}
 
 	// The command will be the first element in the string slice
-	command := parameters[0]
+	command := r.Arguments[0]
 
 	// Pass the command and all parameters after the first (the first is the command)
 
-	d, err := r.conn.Do(command, toEmptyInterfaceSlice(parameters)[1:]...)
+	d, err := r.conn.Do(command, toEmptyInterfaceSlice(r.Arguments)[1:]...)
 
 	if err != nil {
 		logreport.Printf(err.Error())
@@ -139,7 +135,7 @@ func (r *RedisRequest) Perform() Response {
 }
 
 func (r *RedisRequest) Log(devMode bool) string {
-	return r.Statement
+	return strings.Join(r.Arguments, " ")
 }
 
 func (r *RedisRequest) updateWith(endpointData *RedisRequest) {
