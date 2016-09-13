@@ -14,15 +14,11 @@ import (
 	"gateway/admin"
 	"gateway/config"
 	"gateway/core"
-	"gateway/db/pools"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
-	"gateway/push"
-	"gateway/smtp"
 	sql "gateway/sql"
-	"gateway/store"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -44,9 +40,7 @@ type Server struct {
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server {
-	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
-
+func NewServer(conf config.Configuration, ownDb *sql.DB, warp *core.Core) *Server {
 	var source proxyDataSource
 	if conf.Proxy.CacheAPIs {
 		source = newCachingProxyDataSource(ownDb)
@@ -54,21 +48,8 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 		source = newPassthroughProxyDataSource(ownDb)
 	}
 
-	pools := pools.MakePools()
-	ownDb.RegisterListener(pools)
-
 	return &Server{
-		Core: &core.Core{
-			DevMode:    conf.DevMode(),
-			HTTPClient: &http.Client{Timeout: httpTimeout},
-			DBPools:    pools,
-			OwnDb:      ownDb,
-			SoapConf:   conf.Soap,
-			DockerConf: conf.Docker,
-			Store:      s,
-			Push:       push.NewPushPool(conf.Push),
-			Smtp:       smtp.NewSmtpPool(),
-		},
+		Core:      warp,
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,
 		adminConf: conf.Admin,

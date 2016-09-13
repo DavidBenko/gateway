@@ -15,6 +15,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/core"
 	"gateway/errors/report"
 	"gateway/http"
 	"gateway/license"
@@ -27,7 +28,6 @@ import (
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
-	"gateway/store"
 	"gateway/version"
 
 	stripe "github.com/stripe/stripe-go"
@@ -162,12 +162,14 @@ func main() {
 		}
 	}
 
+	warp := core.NewCore(conf, db)
+
 	service.ElasticLoggingService(conf)
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
-	service.JobsService(conf, db)
+	service.JobsService(conf, db, warp)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 
@@ -198,21 +200,11 @@ func main() {
 		model.StartDockerEndpointUpdateListener(db)
 	}
 
-	// Configure the object store
-	objectStore, err := store.Configure(conf.Store)
-	if err != nil {
-		logreport.Fatalf("Unable to configure the object store: %v", err)
-	}
-	err = objectStore.Migrate()
-	if err != nil {
-		logreport.Fatalf("Unable to migrate the object store: %v", err)
-	}
-
 	model.ConfigureDefaultAPIAccessScheme(conf.Admin.DefaultAPIAccessScheme)
 
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
-	proxy := proxy.NewServer(conf, db, objectStore)
+	proxy := proxy.NewServer(conf, db, warp)
 	go proxy.Run()
 
 	sigs := make(chan os.Signal, 1)
@@ -226,7 +218,7 @@ func main() {
 			logreport.Printf("Error shutting down SOAP service: %v", err)
 		}
 
-		objectStore.Shutdown()
+		warp.Shutdown()
 
 		done <- true
 	}()

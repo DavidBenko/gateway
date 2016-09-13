@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"gateway/config"
 	"gateway/logreport"
 	"gateway/model"
 
@@ -19,10 +18,16 @@ import (
 
 var errCodeTimeout = errors.New("JavaScript took too long to execute")
 
+type VMConfig interface {
+	GetEnableOSEnv() bool
+	GetCodeTimeout() int64
+	GetNumErrorLines() int64
+}
+
 // CoreVM is an Otto VM with some helper data stored alongside it.
 type CoreVM struct {
 	*otto.Otto
-	conf                    config.ProxyServer
+	VMConfig
 	LogPrint                logreport.Logf
 	LogPrefix               string
 	Log                     bytes.Buffer
@@ -35,18 +40,18 @@ func (c *CoreVM) InitCoreVM(
 	vm *otto.Otto,
 	logPrint logreport.Logf,
 	logPrefix string,
-	conf config.ProxyServer,
+	conf VMConfig,
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
 	timeout int64,
 ) error {
 
 	c.Otto = vm
-	c.conf = conf
+	c.VMConfig = conf
 	c.LogPrint = logPrint
 	c.LogPrefix = logPrefix
-	c.timeout = timeout
 
+	c.timeout = timeout
 	var scripts = make([]interface{}, 0)
 
 	for _, library := range libraries {
@@ -61,7 +66,7 @@ func (c *CoreVM) InitCoreVM(
 
 	injectEnvironment := fmt.Sprintf("var env = %s;", string(proxyEndpoint.Environment.Data))
 	scripts = append(scripts, injectEnvironment)
-	if conf.EnableOSEnv {
+	if c.GetEnableOSEnv() {
 		scripts = append(scripts, osEnvironmentScript())
 	}
 
@@ -77,8 +82,8 @@ func (c *CoreVM) InitCoreVM(
 // Run runs the given script, preventing infinite loops and very slow JS
 func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 	codeTimeout := int64(0)
-	if c.timeout < 1 || c.timeout > c.conf.CodeTimeout {
-		codeTimeout = c.conf.CodeTimeout
+	if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
+		codeTimeout = c.GetCodeTimeout()
 	} else {
 		codeTimeout = c.timeout
 	}
@@ -104,7 +109,7 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 
 	value, err = c.Otto.Run(script)
 	if err != nil {
-		return value, &jsError{err, script, c.conf.NumErrorLines}
+		return value, &jsError{err, script, c.GetNumErrorLines()}
 	}
 	return
 }

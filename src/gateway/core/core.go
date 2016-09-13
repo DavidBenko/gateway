@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/core/request"
@@ -33,6 +34,39 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
+}
+
+func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
+	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
+
+	pools := pools.MakePools()
+	ownDb.RegisterListener(pools)
+
+	// Configure the object store
+	objectStore, err := store.Configure(conf.Store)
+	if err != nil {
+		logreport.Fatalf("Unable to configure the object store: %v", err)
+	}
+	err = objectStore.Migrate()
+	if err != nil {
+		logreport.Fatalf("Unable to migrate the object store: %v", err)
+	}
+
+	return &Core{
+		DevMode:    conf.DevMode(),
+		HTTPClient: &http.Client{Timeout: httpTimeout},
+		DBPools:    pools,
+		OwnDb:      ownDb,
+		SoapConf:   conf.Soap,
+		DockerConf: conf.Docker,
+		Store:      objectStore,
+		Push:       push.NewPushPool(conf.Push),
+		Smtp:       smtp.NewSmtpPool(),
+	}
+}
+
+func (c *Core) Shutdown() {
+	c.Store.Shutdown()
 }
 
 func (s *Core) PrepareRequest(

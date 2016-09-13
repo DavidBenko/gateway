@@ -13,7 +13,7 @@ import (
 )
 
 type Timer struct {
-	AccountID int64 `json:"-"`
+	AccountID int64 `json:"-" db:"account_id"`
 	UserID    int64 `json:"-"`
 
 	ID         int64          `json:"id,omitempty" path:"id"`
