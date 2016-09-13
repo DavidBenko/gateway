@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	adm "gateway/admin"
 	"gateway/errors"
 	"gateway/model"
 	"gateway/model/testing"
@@ -11,26 +12,30 @@ import (
 
 func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 	testing.PrepareAccount(c, a.db, testing.JeffAccount)
+	controller := &adm.SamplesController{}
 
 	for i, t := range []struct {
 		should   string
-		given    model.Sample
+		given    *model.Sample
 		isInsert bool
 		expect   errors.Errors
 	}{{
 		should: "give error for invalid Operator",
-		given: model.Sample{
+		given: &model.Sample{
 			Constraints: []stats.Constraint{{Operator: "foo"}},
 		},
 		isInsert: true,
 		expect:   errors.Errors{"operator": {`"foo" is not a valid operator`}},
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
+		tx, err := a.db.Begin()
+		c.Assert(err, gc.IsNil)
 
 		c.Check(
-			t.given.BeforeValidate(t.isInsert),
+			controller.BeforeValidate(t.given, tx),
 			gc.DeepEquals,
 			t.expect,
 		)
+		tx.Commit()
 	}
 }
