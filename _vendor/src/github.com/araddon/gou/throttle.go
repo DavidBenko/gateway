@@ -9,6 +9,7 @@ type Throttler struct {
 	// Limit to this events/per
 	maxPer float64
 	per    float64
+	count  int32
 
 	// Last Event
 	last time.Time
@@ -24,16 +25,19 @@ func NewThrottler(max int, per time.Duration) *Throttler {
 	return &Throttler{
 		maxPer:    float64(max),
 		allowance: float64(max),
+		count:     int32(0),
 		last:      time.Now(),
 		per:       per.Seconds(),
 	}
 }
 
 // Should we limit this because we are above rate?
-func (r *Throttler) Throttle() bool {
+// Returns a bool of whether to throttle the message, and a count
+// of previous log messages throttled since last log message.
+func (r *Throttler) ThrottleAdd(ct int32) (bool, int32) {
 
 	if r.maxPer == 0 {
-		return false
+		return false, 0
 	}
 
 	// http://stackoverflow.com/questions/667508/whats-a-good-rate-limiting-algorithm
@@ -47,10 +51,25 @@ func (r *Throttler) Throttle() bool {
 		r.allowance = r.maxPer
 	}
 
-	if r.allowance <= 1.0 {
-		return true // do throttle/limit
+	if r.allowance < 1.0 {
+		r.count += ct        // increment throttled log count
+		return true, r.count // do throttle/limit
 	}
 
+	tmpCount := r.count
+	r.count = 0 // reset count
+
 	r.allowance -= 1.0
-	return false // dont throttle
+	return false, tmpCount // dont throttle, return previous throttle count
+}
+
+// Should we limit this because we are above rate?
+// Returns a bool of whether to throttle the message, and a count
+// of previous log messages throttled since last log message.
+func (r *Throttler) Throttle() (bool, int32) {
+	return r.ThrottleAdd(1)
+}
+
+func (r *Throttler) ThrottleCount() int32 {
+	return r.count
 }
