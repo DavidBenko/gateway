@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"gateway/config"
@@ -21,6 +22,9 @@ import (
 	"github.com/AnyPresence/surgemq/service"
 	"github.com/AnyPresence/surgemq/sessions"
 )
+
+var once sync.Once
+var mqtt *MQTT
 
 type MQTTPusher struct {
 	push chan<- []byte
@@ -78,94 +82,98 @@ func (p *MQTTPusher) Push(channel *model.PushChannel, device *model.PushDevice, 
 	return nil
 }
 
-func SetupMQTT(db *apsql.DB, conf config.Push) *MQTT {
-	log.Infof = func(fmt string, v ...interface{}) {
-		logreport.Printf("[mqtt] "+fmt, v...)
-	}
-	log.Errorf = func(fmt string, v ...interface{}) {
-		logreport.Printf("[mqtt] "+fmt, v...)
-	}
-	log.Debugf = func(fmt string, v ...interface{}) {}
-
-	server := &service.Server{
-		KeepAlive:        300,
-		ConnectTimeout:   int(conf.ConnectTimeout),
-		SessionsProvider: "gateway",
-		Authenticator:    "gateway",
-		TopicsProvider:   "mem",
+func SetupMQTT(db *apsql.DB, conf config.Push) {
+	if mqtt != nil {
+		panic("MQTT has already been configured!")
 	}
 
-	mqtt := &MQTT{
-		DB:     db,
-		Server: server,
-	}
-
-	auth.Register("gateway", mqtt)
-	sessions.Register("gateway", NewDBProvider)
-
-	go func() {
-		if err := server.ListenAndServe(conf.MQTTURI); err != nil {
-			logreport.Fatal(err)
+	once.Do(func() {
+		log.Infof = func(fmt string, v ...interface{}) {
+			logreport.Printf("[mqtt] "+fmt, v...)
 		}
-	}()
-
-	if conf.EnableBroker {
-		var err error
-		mqtt.Broker, err = mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.XPub(), conf.XSub())
-		if err != nil {
-			logreport.Fatal(err)
+		log.Errorf = func(fmt string, v ...interface{}) {
+			logreport.Printf("[mqtt] "+fmt, v...)
 		}
-	}
+		log.Debugf = func(fmt string, v ...interface{}) {}
 
-	go func() {
-		receive, err := queue.Subscribe(
-			conf.XPub(),
-			mangos.Sub,
-			mangos.SubTCP,
-		)
-		if err != nil {
-			logreport.Fatal(err)
+		server := &service.Server{
+			KeepAlive:        300,
+			ConnectTimeout:   int(conf.ConnectTimeout),
+			SessionsProvider: "gateway",
+			Authenticator:    "gateway",
+			TopicsProvider:   "mem",
 		}
-		messages, errs := receive.Channels()
-		defer func() {
-			receive.Close()
-		}()
+
+		mqtt = &MQTT{
+			DB:     db,
+			Server: server,
+		}
+
+		auth.Register("gateway", mqtt)
+		sessions.Register("gateway", NewDBProvider)
+
 		go func() {
-			for err := range errs {
-				logreport.Printf("[mqtt] %v", err)
+			if err := server.ListenAndServe(conf.MQTTURI); err != nil {
+				logreport.Fatal(err)
 			}
 		}()
-		for msg := range messages {
-			push := &PushMessage{}
-			err := json.Unmarshal(msg, push)
+
+		if conf.EnableBroker {
+			var err error
+			mqtt.Broker, err = mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.XPub(), conf.XSub())
 			if err != nil {
 				logreport.Fatal(err)
-			}
-			endpoint, err := model.FindRemoteEndpointForAPIIDAndAccountID(db, push.Channel.RemoteEndpointID,
-				push.Channel.APIID, push.Channel.AccountID)
-			if err != nil {
-				logreport.Printf("[mqtt] %v", err)
-			}
-			context := &Context{
-				RemoteEndpoint:       endpoint,
-				PushPlatformCodename: push.Device.Type,
-			}
-			pubmsg := message.NewPublishMessage()
-			pubmsg.SetTopic([]byte(fmt.Sprintf("/%s", push.Channel.Name)))
-			pubmsg.SetQoS(0)
-			payload, err := json.Marshal(push.Data)
-			if err != nil {
-				logreport.Fatal(err)
-			}
-			pubmsg.SetPayload(payload)
-			err = server.Publish(context, pubmsg, nil, push.Device.Token)
-			if err != nil {
-				logreport.Printf("[mqtt] %v", err)
 			}
 		}
-	}()
 
-	return mqtt
+		go func() {
+			receive, err := queue.Subscribe(
+				conf.XPub(),
+				mangos.Sub,
+				mangos.SubTCP,
+			)
+			if err != nil {
+				logreport.Fatal(err)
+			}
+			messages, errs := receive.Channels()
+			defer func() {
+				receive.Close()
+			}()
+			go func() {
+				for err := range errs {
+					logreport.Printf("[mqtt] %v", err)
+				}
+			}()
+			for msg := range messages {
+				push := &PushMessage{}
+				err := json.Unmarshal(msg, push)
+				if err != nil {
+					logreport.Fatal(err)
+				}
+				endpoint, err := model.FindRemoteEndpointForAPIIDAndAccountID(db, push.Channel.RemoteEndpointID,
+					push.Channel.APIID, push.Channel.AccountID)
+				if err != nil {
+					logreport.Printf("[mqtt] %v", err)
+				}
+				context := &Context{
+					RemoteEndpoint:       endpoint,
+					PushPlatformCodename: push.Device.Type,
+				}
+				pubmsg := message.NewPublishMessage()
+				pubmsg.SetTopic([]byte(fmt.Sprintf("/%s", push.Channel.Name)))
+				pubmsg.SetQoS(0)
+				payload, err := json.Marshal(push.Data)
+				if err != nil {
+					logreport.Fatal(err)
+				}
+				pubmsg.SetPayload(payload)
+				err = server.Publish(context, pubmsg, nil, push.Device.Token)
+				if err != nil {
+					logreport.Printf("[mqtt] %v", err)
+				}
+			}
+		}()
+	})
 }
 
 func (m *MQTT) Authenticate(id string, cred interface{}) (fmt.Stringer, error) {
