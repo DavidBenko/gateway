@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/pub"
-	"github.com/gdamore/mangos/transport/ipc"
-	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/pub"
+	"github.com/go-mangos/mangos/transport/ipc"
+	"github.com/go-mangos/mangos/transport/tcp"
 )
 
 var _ = queue.Publisher(&PubSocket{})
@@ -83,6 +83,7 @@ func sendLoop(
 			if err = s.Send(msg); err != nil {
 				e <- err
 			}
+			time.Sleep(1000)
 		}
 	}
 }
@@ -189,7 +190,7 @@ func PubTCP(p queue.Publisher) (queue.Publisher, error) {
 
 // PubIPC is a queue.PubBinding which adds a IPC binding to the PubSocket.
 func PubIPC(p queue.Publisher) (queue.Publisher, error) {
-	// https://github.com/gdamore/mangos/issues/2
+	// https://github.com/go-mangos/mangos/issues/2
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		// Unix domain sockets are supported on Linux and Darwin
