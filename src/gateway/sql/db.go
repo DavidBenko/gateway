@@ -81,7 +81,7 @@ func (db *DB) Migrate() error {
 		migrateToV13,
 		migrateToV14,
 		migrateToV15,
-		func(db *DB) error { return nil },
+		migrateToV16,
 		migrateToV17,
 	}
 

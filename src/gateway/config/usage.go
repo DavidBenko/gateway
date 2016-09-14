@@ -76,6 +76,8 @@ var usageStrings = map[string]string{
 	"proxy-code-timeout":     "The timeout in seconds to use for proxy script code.",
 	"proxy-code-error-lines": "The number of lines of code to show around script errors in dev mode.",
 
+	"proxy-health-check-path": "The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.",
+
 	"job-enable-os-env":    "Whether or not to expose the OS's ENV to job code.",
 	"job-code-timeout":     "The timeout in seconds to use for job script code.",
 	"job-code-error-lines": "The number of lines of code to show around script errors in dev mode.",
