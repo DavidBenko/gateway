@@ -1138,16 +1138,16 @@ AP.Redis = AP.Redis || {};
  * @param [request] - An incoming request to copy the statement and parameters
  */
 AP.Redis.Request = function() {
-  this.executeStatement = null;
+  this.arguments = [];
 
   if (arguments.length == 1) {
     var request = arguments[0];
-    this.executeStatement = _.clone(request.executeStatement)
+    this.arguments = _.clone(request.arguments);
   }
 }
 
-AP.Redis.Request.prototype.execute = function(stmt) {
-  this.executeStatement = stmt;
+AP.Redis.Request.prototype.execute = function() {
+  this.arguments = Array.prototype.slice.call(arguments);
 }
 
 /**
