@@ -1,9 +1,11 @@
 package testing
 
 import (
+	"fmt"
 	aperrors "gateway/errors"
 	"gateway/model"
 	apsql "gateway/sql"
+	"time"
 
 	gc "gopkg.in/check.v1"
 )
@@ -23,7 +25,6 @@ func PrepareUser(
 ) *model.User {
 	tx, err := db.Begin()
 	c.Assert(err, gc.IsNil)
-	defer func() { c.Assert(tx.Commit(), gc.IsNil) }()
 
 	u, ok := users[which]
 	c.Assert(ok, gc.Equals, true)
@@ -32,14 +33,14 @@ func PrepareUser(
 
 	c.Assert(user.Validate(true), gc.DeepEquals, make(aperrors.Errors))
 	c.Assert(user.Insert(tx), gc.IsNil)
-
+	c.Assert(tx.Commit(), gc.IsNil)
 	return user
 }
 
 var users = map[string]model.User{
 	JeffUser: {
 		Name:                    `Jeff`,
-		Email:                   `g@ffery.com`,
+		Email:                   fmt.Sprintf("g%d@ffery.com", time.Now().Unix()),
 		NewPassword:             `password`,
 		NewPasswordConfirmation: `password`,
 		Admin:     true,
@@ -47,7 +48,7 @@ var users = map[string]model.User{
 	},
 	OtherUser: {
 		Name:                    `Brian`,
-		Email:                   `br@in.com`,
+		Email:                   fmt.Sprintf("br%d@in.com", time.Now().Unix()),
 		NewPassword:             `password`,
 		NewPasswordConfirmation: `password`,
 		Admin:     true,
