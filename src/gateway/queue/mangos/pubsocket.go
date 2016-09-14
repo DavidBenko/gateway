@@ -83,7 +83,6 @@ func sendLoop(
 			if err = s.Send(msg); err != nil {
 				e <- err
 			}
-			time.Sleep(1000)
 		}
 	}
 }
