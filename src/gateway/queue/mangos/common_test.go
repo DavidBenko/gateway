@@ -160,19 +160,19 @@ func trySend(
 	pE <-chan error,
 	doneSend chan struct{},
 ) {
-	to := time.After(testing.LongWait)
+	to := time.After(5 * time.Second)
 	for i := 0; i < TotalAttempts; i++ {
 		select {
 		case e := <-pE:
 			c.Logf("unexpected receive from error channel: %#v", e)
 			c.FailNow()
 		case pCh <- []byte(msg):
+			time.Sleep(100000)
 		case <-to:
 			c.Logf("testPubSub: failed to send after %s",
 				testing.LongWait.String())
 			c.FailNow()
 		}
-		time.Sleep(10000)
 	}
 	close(doneSend)
 }
@@ -201,7 +201,7 @@ Recv:
 		c.Log("testPubSub: Received no messages, as intended")
 		// Finished without receiving anything, which is the desired
 		// behavior.
-	case <-time.After(testing.LongWait):
+	case <-time.After(5 * time.Second):
 		c.Logf("testPubSub: tryShouldNotReceive timed out after %s",
 			testing.LongWait.String())
 		c.FailNow()
@@ -226,7 +226,7 @@ Recv:
 		case m := <-sCh:
 			c.Check(string(m), gc.Equals, msg)
 			total++
-		case <-time.After(testing.LongWait):
+		case <-time.After(5 * time.Second):
 			break Recv
 		}
 	}
