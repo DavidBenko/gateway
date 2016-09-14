@@ -114,13 +114,20 @@ func (e *ProxyEndpoint) ValidateFromDatabaseError(err error) aperrors.Errors {
 // All returns all proxyEndpoints on the Account's API in default order.
 func (e *ProxyEndpoint) All(db *apsql.DB) ([]*ProxyEndpoint, error) {
 	proxyEndpoints := []*ProxyEndpoint{}
-	if e.Type == "" {
-		err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all"), e.APIID, e.AccountID)
-		if err != nil {
-			return nil, err
+	if e.APIID > 0 {
+		if e.Type == "" {
+			err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all"), e.APIID, e.AccountID)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_for_type"), e.Type, e.APIID, e.AccountID)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_for_type"), e.Type, e.APIID, e.AccountID)
+		err := db.Select(&proxyEndpoints, db.SQL("proxy_endpoints/all_for_type_and_account"), e.Type, e.AccountID)
 		if err != nil {
 			return nil, err
 		}
