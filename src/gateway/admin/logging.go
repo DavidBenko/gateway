@@ -31,7 +31,6 @@ var Interceptor = newInterceptor()
 
 type LogStreamController struct {
 	BaseController
-	aggregator *mangos.Broker
 }
 
 func RouteLogStream(c *LogStreamController, path string, router aphttp.Router) {
