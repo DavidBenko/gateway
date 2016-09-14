@@ -38,13 +38,11 @@ type Sample struct {
 func (s *Sample) ValidateConstraints(tx *apsql.Tx) error {
 	var ownedAPIs []int64
 	err := tx.Select(&ownedAPIs, `
-SELECT id
-  FROM apis
-  WHERE account_id =
-    (SELECT account_id
-       FROM users
-       WHERE account_id = ?
-         AND id = ?)`[1:], s.AccountID, s.UserID)
+SELECT DISTINCT a.id
+  FROM users u, apis a
+ WHERE u.account_id = a.account_id
+	 AND u.id = ?
+	 AND u.account_id = ?`, s.UserID, s.AccountID)
 	if err != nil {
 		return err
 	}
