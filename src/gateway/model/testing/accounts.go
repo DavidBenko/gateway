@@ -18,7 +18,6 @@ const (
 func PrepareAccount(c *gc.C, db *apsql.DB, which string) *model.Account {
 	tx, err := db.Begin()
 	c.Assert(err, gc.IsNil)
-	defer func() { c.Assert(tx.Commit(), gc.IsNil) }()
 
 	a, ok := accounts[which]
 	c.Assert(ok, gc.Equals, true)
@@ -26,7 +25,7 @@ func PrepareAccount(c *gc.C, db *apsql.DB, which string) *model.Account {
 
 	c.Assert(acc.Validate(true), gc.DeepEquals, make(aperrors.Errors))
 	c.Assert(acc.Insert(tx), gc.IsNil)
-
+	c.Assert(tx.Commit(), gc.IsNil)
 	return acc
 }
 
