@@ -24,16 +24,15 @@ func PrepareAPI(
 ) *model.API {
 	tx, err := db.Begin()
 	c.Assert(err, gc.IsNil)
-	defer func() { c.Assert(tx.Commit(), gc.IsNil) }()
-
 	a, ok := apis[which]
 	c.Assert(ok, gc.Equals, true)
-	a.AccountID, a.UserID = accID, userID
+	a.AccountID = accID
+	a.UserID = userID
 	api := &a
 
 	c.Assert(api.Validate(true), gc.DeepEquals, make(aperrors.Errors))
 	c.Assert(api.Insert(tx), gc.IsNil)
-
+	c.Assert(tx.Commit(), gc.IsNil)
 	return api
 }
 
