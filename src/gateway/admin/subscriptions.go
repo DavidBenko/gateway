@@ -57,6 +57,10 @@ func (c *SubscriptionsController) Subscription(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
+	if invoice.Charge == nil {
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
 	charge, err := charge.Get(invoice.Charge.ID, nil)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
