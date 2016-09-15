@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"gateway/config"
@@ -25,13 +26,15 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+var once sync.Once
+var Broker *mangos.Broker
+
 const CHANNEL_SIZE = 1024
 
 var Interceptor = newInterceptor()
 
 type LogStreamController struct {
 	BaseController
-	aggregator *mangos.Broker
 }
 
 func RouteLogStream(c *LogStreamController, path string, router aphttp.Router) {
@@ -128,8 +131,17 @@ func newInterceptor() *logPublisher {
 	return newPublisher(make(chan []byte, CHANNEL_SIZE))
 }
 
-func newAggregator(conf config.ProxyAdmin) (*mangos.Broker, error) {
-	return mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.XPub(), conf.XSub())
+func newAggregator(conf config.ProxyAdmin) error {
+	if Broker != nil {
+		panic("Log broker has already been configured!")
+	}
+
+	var err error
+	once.Do(func() {
+		Broker, err = mangos.NewBroker(mangos.XPubXSub, mangos.TCP, conf.XPub(), conf.XSub())
+	})
+
+	return err
 }
 
 func makeFilter(ws *websocket.Conn) func(b byte) bool {
