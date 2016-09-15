@@ -226,7 +226,7 @@ func (t *Timer) Schedule() {
 	}
 
 	current := time.Now()
-	location := time.FixedZone(fmt.Sprintf("fz%v", t.TimeZone), int(t.TimeZone)*60)
+	location := time.FixedZone(fmt.Sprintf("fz%v", t.TimeZone), int(t.TimeZone)*60*60)
 	next := t.FindNext(current.In(location))
 	t.Next = next.Unix()
 }

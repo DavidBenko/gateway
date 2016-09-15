@@ -14,6 +14,6 @@ SELECT
   timers.attributes as attributes,
   timers.data as data
 FROM timers, apis
-WHERE timer.id = ?
+WHERE timers.id = ?
   AND timers.api_id = apis.id
   AND apis.account_id = ?;

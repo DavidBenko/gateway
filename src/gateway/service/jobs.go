@@ -90,7 +90,7 @@ func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, con
 	if err != nil {
 		return err
 	}
-	vm.Set("__ap_jobAttributesJSON", attributesJSON)
+	vm.Set("__ap_jobAttributesJSON", string(attributesJSON))
 	scripts := []interface{}{
 		"var attributes = JSON.parse(__ap_jobAttributesJSON);",
 	}
