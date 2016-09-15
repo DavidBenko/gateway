@@ -250,9 +250,3 @@ func (a *Account) Update(tx *sql.Tx) (err error) {
 	}
 	return tx.Notify("accounts", a.ID, a.UserID, 0, 0, a.ID, sql.Update)
 }
-
-// SetStripePaymentRetryAttempt updates the account in the database with a new StripePaymentRetryAttempt value.
-func (a *Account) SetStripePaymentRetryAttempt(tx *sql.Tx, retry int64) error {
-	a.StripePaymentRetryAttempt = retry
-	return tx.UpdateOne(tx.SQL("accounts/update_stripe_payment_retry_attempt"), retry, a.ID)
-}

@@ -8,10 +8,13 @@ import (
 	"gateway/model"
 	apsql "gateway/sql"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/handlers"
 	"github.com/stripe/stripe-go"
+	"github.com/stripe/stripe-go/charge"
 	"github.com/stripe/stripe-go/event"
+	"github.com/stripe/stripe-go/sub"
 )
 
 type SubscriptionsController struct {
@@ -42,31 +45,61 @@ func (c *SubscriptionsController) Subscription(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
+	// We only handle invoice events right now.
+	if !strings.HasPrefix(event.Type, `invoice`) {
+		return aphttp.NewError(errors.New("Unhandled event type."), http.StatusBadRequest)
+	}
+	invoice := &stripe.Invoice{}
+	if err := invoice.UnmarshalJSON(event.Data.Raw); err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+	subscription, err := sub.Get(invoice.Sub, nil)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
+	if invoice.Charge == nil {
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
+	charge, err := charge.Get(invoice.Charge.ID, nil)
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
 	if account, err := model.FindAccountByStripeCustomer(tx.DB, event.Data.Obj["customer"].(string)); err == nil {
 		user, err := model.FindAdminUserForAccountID(tx.DB, account.ID)
 		if err != nil {
 			return aphttp.NewError(err, http.StatusBadRequest)
 		}
+		paymentDetails := &mail.PaymentDetails{
+			InvoiceID:         invoice.ID,
+			PaymentAmount:     charge.Amount,
+			PaymentDate:       invoice.Date,
+			Plan:              subscription.Plan.Name,
+			PlanAmount:        subscription.Plan.Amount,
+			CardDisplay:       charge.Source.Card.Display(),
+			FailureReason:     charge.FailMsg,
+			NextChargeAttempt: invoice.NextAttempt,
+		}
 		if event.Type == "invoice.payment_succeeded" {
-			err = mail.SendInvoicePaymentSucceededEmail(c.SMTP, c.ProxyServer, c.conf, user, true)
+			err = mail.SendInvoicePaymentSucceededEmail(c.SMTP, c.ProxyServer, c.conf, user, paymentDetails, true)
 			if err != nil {
 				return aphttp.NewError(err, http.StatusBadRequest)
 			}
 		} else if event.Type == "invoice.payment_failed" {
-			account.SetStripePaymentRetryAttempt(tx, account.StripePaymentRetryAttempt+1)
-			if account.StripePaymentRetryAttempt < c.conf.StripePaymentRetryAttempts {
-				err = mail.SendInvoicePaymentFailedEmail(c.SMTP, c.ProxyServer, c.conf, user, true)
-			} else {
+			if invoice.Attempts > 1 && invoice.NextAttempt < 1 {
+				// Too many failures and Stripe will not be trying again.
 				fallbackPlan, err := model.FindPlanByName(tx.DB, c.conf.StripeFallbackPlan)
 				if err != nil {
 					return aphttp.NewError(err, http.StatusBadRequest)
 				}
-				err = mail.SendInvoicePaymentFailedAndPlanDowngradedEmail(c.SMTP, c.ProxyServer, c.conf, user, true)
+				err = mail.SendInvoicePaymentFailedAndPlanDowngradedEmail(c.SMTP, c.ProxyServer, c.conf, user, paymentDetails, true)
 				account.PlanID.Int64 = fallbackPlan.ID
 				err = account.Update(tx)
 				if err != nil {
 					return aphttp.NewError(err, http.StatusBadRequest)
 				}
+			} else {
+				err = mail.SendInvoicePaymentFailedEmail(c.SMTP, c.ProxyServer, c.conf, user, paymentDetails, true)
 			}
 			if err != nil {
 				return aphttp.NewError(err, http.StatusBadRequest)
