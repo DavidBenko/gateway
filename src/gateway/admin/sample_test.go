@@ -1,8 +1,7 @@
 package admin_test
 
 import (
-	adm "gateway/admin"
-	"gateway/errors"
+	"gateway/admin"
 	"gateway/model"
 	"gateway/model/testing"
 	"gateway/stats"
@@ -11,31 +10,21 @@ import (
 )
 
 func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
-	testing.PrepareAccount(c, a.db, testing.JeffAccount)
-	controller := &adm.SamplesController{}
-
-	for i, t := range []struct {
-		should   string
-		given    *model.Sample
-		isInsert bool
-		expect   errors.Errors
-	}{{
-		should: "give error for invalid Operator",
-		given: &model.Sample{
-			Constraints: []stats.Constraint{{Operator: "foo"}},
-		},
-		isInsert: true,
-		expect:   errors.Errors{"operator": {`"foo" is not a valid operator`}},
-	}} {
-		c.Logf("test %d: should %s", i, t.should)
-		tx, err := a.db.Begin()
-		c.Assert(err, gc.IsNil)
-
-		c.Check(
-			controller.BeforeValidate(t.given, tx),
-			gc.DeepEquals,
-			t.expect,
-		)
-		tx.Commit()
+	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
+	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
+	testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API2)
+	controller := &admin.SamplesController{}
+	given := &model.Sample{
+		Name:        "Sample1",
+		Constraints: []stats.Constraint{{Key: "api.id", Operator: "foo", Value: int64(5)}},
+		AccountID:   acc1.ID,
+		UserID:      user1.ID,
 	}
+	expected := `invalid operator "foo" for single api.id value, use "EQ"`
+	c.Logf("test 0: should %s", "give error for invalid Operator")
+	tx, err := a.db.Begin()
+	c.Assert(err, gc.IsNil)
+	gotten := controller.BeforeValidate(given, tx)
+	c.Check(gotten, gc.ErrorMatches, expected)
+	tx.Commit()
 }
