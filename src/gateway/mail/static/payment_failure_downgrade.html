@@ -1,12 +1,15 @@
 {{define "body"}}
 <br/>
-<strong><span style="font-size:14px;">Your most recent Nanoscale.io invoice payment has failed. Your account has been downgraded.</span></strong><br/>
+We have made several failed attempts to charge your {{.PaymentDetails.CardDisplay}} for your Nanoscale.io subscription. As a result, we have automatically downgraded your account to the free plan.<br/>
 <br/>
-Please login and update your billing details and re-select your desired plan.
+{{.PaymentDetails.FailureReason}}<br/>
 <br/>
-To manage your accout, visit&nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a><br/>
+To update your payment method, please visit &nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a> and update your account.<br/>
 <br/>
-The Nanoscale.io Team<br/>
+If you have any questions, please contact us at <a href="mailto:support@nanoscale.io" style="color:#6350b0;">support@nanoscale.io</a>. &nbsp;<br/>
+<br/>
+Thank you for using Nanoscale.io<br/>
+<a href="http://www.nanoscale.io">http://www.nanoscale.io</a>
 <br/>
 &nbsp;
 {{end}}
