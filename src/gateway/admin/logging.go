@@ -301,6 +301,9 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 	}
 	query := map[string]interface{}{
 		"size": float64(size),
+		"sort": []interface{}{
+			map[string]interface{}{"logDate": "desc"},
+		},
 		"query": map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must": queryMust,
@@ -375,6 +378,7 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 	}
 
 	search := bleve.NewSearchRequest(bleve.NewConjunctionQuery(query))
+	search.SortBy([]string{"-logDate"})
 	search.Size = size
 	search.Fields = []string{"text"}
 	searchResults, err := Bleve.Search(search)
