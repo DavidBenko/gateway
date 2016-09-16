@@ -93,6 +93,7 @@ var shared = func() *otto.Otto {
 	vm := otto.New()
 
 	conversion.IncludeConversion(vm)
+	conversion.IncludePath(vm)
 
 	var files = []string{
 		"gateway.js",

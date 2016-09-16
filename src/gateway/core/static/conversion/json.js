@@ -10,3 +10,6 @@ AP.Conversion = AP.Conversion || {};
 
 AP.Conversion.toJson = _toJson;
 delete _toJson;
+
+AP.Conversion.JSONPath = _JSONPath;
+delete _JSONPath;

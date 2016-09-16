@@ -85,17 +85,7 @@ func ToXML(data interface{}) (string, error) {
 }
 
 func ToJSON(data interface{}) (string, error) {
-	var xml string
-
-	if x, ok := data.(string); ok {
-		xml = x
-	} else {
-		return "", fmt.Errorf("invalid type: %T", data)
-	}
-
-	buf := []byte(xml)
-
-	m, err := mxj.NewMapXml(buf)
+	m, err := ParseXMLToMap(data)
 
 	if err != nil {
 		return "", fmt.Errorf("errors parsing XML to JSON: %s", err)
@@ -108,4 +98,23 @@ func ToJSON(data interface{}) (string, error) {
 	}
 
 	return string(json), nil
+}
+
+func ParseXMLToMap(data interface{}) (*mxj.Map, error) {
+	var xml string
+
+	if x, ok := data.(string); ok {
+		xml = x
+	} else {
+		return nil, fmt.Errorf("invalid type: %T", data)
+	}
+
+	buf := []byte(xml)
+
+	m, err := mxj.NewMapXml(buf)
+	if err != nil {
+		return nil, fmt.Errorf("errors parsing XML: %s", err)
+	}
+
+	return &m, nil
 }
