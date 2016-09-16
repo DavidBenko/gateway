@@ -5,6 +5,7 @@ import (
 	"gateway/model"
 	"gateway/model/testing"
 	"gateway/stats"
+	"regexp"
 
 	gc "gopkg.in/check.v1"
 )
@@ -12,13 +13,11 @@ import (
 func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
-	testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API2)
+	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API2)
 	controller := &admin.SamplesController{}
-
 	for i, t := range []struct {
 		should      string
 		given       *model.Sample
-		expect      string
 		expectError string
 	}{{
 		should: "give error for invalid Operator",
@@ -31,7 +30,29 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 			},
 		},
 		expectError: `invalid operator "foo" for single api.id value, use "EQ"`,
-	}} {
+	}, {
+		should: "give error for invalid value",
+		given: &model.Sample{
+			Name:      "Sample1",
+			AccountID: acc1.ID,
+			UserID:    user1.ID,
+			Constraints: []stats.Constraint{
+				{Key: "api.id", Operator: "EQ", Value: "5"},
+			},
+		},
+		expectError: regexp.QuoteMeta("invalid type string for api.id value, must be int64 or []int64"),
+	}, {
+		should: "Work with a valid value",
+		given: &model.Sample{
+			Name:      "Sample1",
+			AccountID: acc1.ID,
+			UserID:    user1.ID,
+			Constraints: []stats.Constraint{
+				{Key: "api.id", Operator: stats.EQ, Value: api1.ID},
+			},
+		},
+	},
+	} {
 		c.Logf("test %d: should %s", i, t.should)
 
 		tx, err := a.db.Begin()
@@ -40,7 +61,7 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 		if t.expectError != "" {
 			c.Check(gotten, gc.ErrorMatches, t.expectError)
 		} else {
-			c.Check(gotten, gc.DeepEquals, t.expect)
+			c.Assert(gotten, gc.IsNil)
 		}
 		tx.Commit()
 
