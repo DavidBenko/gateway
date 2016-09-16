@@ -1,6 +1,6 @@
 {{define "body"}}
 <br/>
-A payment of {{.PaymentDetails.PaymentAmountString}} for your Nanoscale.io subscription was processed on {{.PaymentDetails.PaymentDateString}} against your {{.PaymentDetails.CardDisplay}}.<br/>
+A payment of {{.PaymentDetails.PaymentAmountString}} for your Nanoscale.io subscription was processed on {{.PaymentDetails.PaymentDateString}} against your {{.PaymentDetails.CardDisplay}}. Your invoice number is {{.PaymentDetails.InvoiceID}}.<br/>
 <br/>
 You are currently on the {{.PaymentDetails.Plan}} plan which is priced at {{.PaymentDetails.PlanAmountString}}/month. If the amount charged to your credit card differs from the monthly plan price, it may be because you changed plans during the previous billing period.<br/>
 <br/>
