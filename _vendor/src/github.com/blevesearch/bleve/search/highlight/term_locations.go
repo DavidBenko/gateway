@@ -57,7 +57,7 @@ func (t TermLocations) Less(i, j int) bool {
 	}
 	// all the common array positions are the same
 	if len(t[i].ArrayPositions) < len(t[j].ArrayPositions) {
-		return true // j array positions, longer so greather
+		return true // j array positions, longer so greater
 	} else if len(t[i].ArrayPositions) > len(t[j].ArrayPositions) {
 		return false // j array positions, shorter so less
 	}
@@ -97,4 +97,16 @@ func OrderTermLocations(tlm search.TermLocationMap) TermLocations {
 	}
 	sort.Sort(rv)
 	return rv
+}
+
+func SameArrayPositions(fieldArrayPositions []uint64, termLocationArrayPositions []float64) bool {
+	if len(fieldArrayPositions) != len(termLocationArrayPositions) {
+		return false
+	}
+	for i := 0; i < len(fieldArrayPositions); i++ {
+		if fieldArrayPositions[i] != uint64(termLocationArrayPositions[i]) {
+			return false
+		}
+	}
+	return true
 }

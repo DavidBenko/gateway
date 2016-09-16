@@ -18,11 +18,12 @@ import (
 const DefaultTextIndexingOptions = IndexField
 
 type TextField struct {
-	name           string
-	arrayPositions []uint64
-	options        IndexingOptions
-	analyzer       *analysis.Analyzer
-	value          []byte
+	name              string
+	arrayPositions    []uint64
+	options           IndexingOptions
+	analyzer          *analysis.Analyzer
+	value             []byte
+	numPlainTextBytes uint64
 }
 
 func (t *TextField) Name() string {
@@ -60,7 +61,7 @@ func (t *TextField) Analyze() (int, analysis.TokenFrequencies) {
 		}
 	}
 	fieldLength := len(tokens) // number of tokens in this doc field
-	tokenFreqs := analysis.TokenFrequency(tokens, t.arrayPositions)
+	tokenFreqs := analysis.TokenFrequency(tokens, t.arrayPositions, t.options.IncludeTermVectors())
 	return fieldLength, tokenFreqs
 }
 
@@ -72,35 +73,42 @@ func (t *TextField) GoString() string {
 	return fmt.Sprintf("&document.TextField{Name:%s, Options: %s, Analyzer: %v, Value: %s, ArrayPositions: %v}", t.name, t.options, t.analyzer, t.value, t.arrayPositions)
 }
 
+func (t *TextField) NumPlainTextBytes() uint64 {
+	return t.numPlainTextBytes
+}
+
 func NewTextField(name string, arrayPositions []uint64, value []byte) *TextField {
 	return NewTextFieldWithIndexingOptions(name, arrayPositions, value, DefaultTextIndexingOptions)
 }
 
 func NewTextFieldWithIndexingOptions(name string, arrayPositions []uint64, value []byte, options IndexingOptions) *TextField {
 	return &TextField{
-		name:           name,
-		arrayPositions: arrayPositions,
-		options:        options,
-		value:          value,
+		name:              name,
+		arrayPositions:    arrayPositions,
+		options:           options,
+		value:             value,
+		numPlainTextBytes: uint64(len(value)),
 	}
 }
 
 func NewTextFieldWithAnalyzer(name string, arrayPositions []uint64, value []byte, analyzer *analysis.Analyzer) *TextField {
 	return &TextField{
-		name:           name,
-		arrayPositions: arrayPositions,
-		options:        DefaultTextIndexingOptions,
-		analyzer:       analyzer,
-		value:          value,
+		name:              name,
+		arrayPositions:    arrayPositions,
+		options:           DefaultTextIndexingOptions,
+		analyzer:          analyzer,
+		value:             value,
+		numPlainTextBytes: uint64(len(value)),
 	}
 }
 
 func NewTextFieldCustom(name string, arrayPositions []uint64, value []byte, options IndexingOptions, analyzer *analysis.Analyzer) *TextField {
 	return &TextField{
-		name:           name,
-		arrayPositions: arrayPositions,
-		options:        options,
-		analyzer:       analyzer,
-		value:          value,
+		name:              name,
+		arrayPositions:    arrayPositions,
+		options:           options,
+		analyzer:          analyzer,
+		value:             value,
+		numPlainTextBytes: uint64(len(value)),
 	}
 }

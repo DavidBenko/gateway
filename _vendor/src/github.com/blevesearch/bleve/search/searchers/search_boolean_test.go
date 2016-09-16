@@ -12,11 +12,15 @@ package searchers
 import (
 	"testing"
 
+	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/search"
 )
 
 func TestBooleanSearch(t *testing.T) {
 
+	if twoDocIndex == nil {
+		t.Fatal("its null")
+	}
 	twoDocIndexReader, err := twoDocIndex.Reader()
 	if err != nil {
 		t.Error(err)
@@ -244,30 +248,30 @@ func TestBooleanSearch(t *testing.T) {
 		{
 			searcher: booleanSearcher,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 0.9818005051949021,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           0.9818005051949021,
 				},
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 0.808709699395535,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           0.808709699395535,
 				},
-				&search.DocumentMatch{
-					ID:    "4",
-					Score: 0.34618161159873423,
+				{
+					IndexInternalID: index.IndexInternalID("4"),
+					Score:           0.34618161159873423,
 				},
 			},
 		},
 		{
 			searcher: booleanSearcher2,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 0.6775110856165737,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           0.6775110856165737,
 				},
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 0.6775110856165737,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           0.6775110856165737,
 				},
 			},
 		},
@@ -279,30 +283,30 @@ func TestBooleanSearch(t *testing.T) {
 		{
 			searcher: booleanSearcher4,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 0.5,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           0.5,
 				},
-				&search.DocumentMatch{
-					ID:    "4",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("4"),
+					Score:           1.0,
 				},
 			},
 		},
 		{
 			searcher: booleanSearcher5,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 0.5,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           0.5,
 				},
-				&search.DocumentMatch{
-					ID:    "4",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("4"),
+					Score:           1.0,
 				},
 			},
 		},
@@ -314,18 +318,18 @@ func TestBooleanSearch(t *testing.T) {
 		{
 			searcher: conjunctionSearcher7,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 2.0097428702814377,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           2.0097428702814377,
 				},
 			},
 		},
 		{
 			searcher: conjunctionSearcher8,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 2.0681575785068107,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           2.0681575785068107,
 				},
 			},
 		},
@@ -339,19 +343,23 @@ func TestBooleanSearch(t *testing.T) {
 			}
 		}()
 
-		next, err := test.searcher.Next()
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(test.searcher.DocumentMatchPoolSize(), 0),
+		}
+		next, err := test.searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {
 			if i < len(test.results) {
-				if next.ID != test.results[i].ID {
-					t.Errorf("expected result %d to have id %s got %s for test %d", i, test.results[i].ID, next.ID, testIndex)
+				if !next.IndexInternalID.Equals(test.results[i].IndexInternalID) {
+					t.Errorf("expected result %d to have id %s got %s for test %d", i, test.results[i].IndexInternalID, next.IndexInternalID, testIndex)
 				}
 				if !scoresCloseEnough(next.Score, test.results[i].Score) {
 					t.Errorf("expected result %d to have score %v got  %v for test %d", i, test.results[i].Score, next.Score, testIndex)
 					t.Logf("scoring explanation: %s", next.Expl)
 				}
 			}
-			next, err = test.searcher.Next()
+			ctx.DocumentMatchPool.Put(next)
+			next, err = test.searcher.Next(ctx)
 			i++
 		}
 		if err != nil {

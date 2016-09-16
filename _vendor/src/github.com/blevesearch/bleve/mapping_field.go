@@ -10,20 +10,41 @@
 package bleve
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/blevesearch/bleve/analysis"
 	"github.com/blevesearch/bleve/document"
 )
 
+// control the default behavior for dynamic fields (those not explicitly mapped)
+var (
+	IndexDynamic = true
+	StoreDynamic = true
+)
+
 // A FieldMapping describes how a specific item
 // should be put into the index.
 type FieldMapping struct {
-	Name               string `json:"name,omitempty"`
-	Type               string `json:"type,omitempty"`
-	Analyzer           string `json:"analyzer,omitempty"`
-	Store              bool   `json:"store,omitempty"`
-	Index              bool   `json:"index,omitempty"`
+	Name string `json:"name,omitempty"`
+	Type string `json:"type,omitempty"`
+
+	// Analyzer specifies the name of the analyzer to use for this field.  If
+	// Analyzer is empty, traverse the DocumentMapping tree toward the root and
+	// pick the first non-empty DefaultAnalyzer found. If there is none, use
+	// the IndexMapping.DefaultAnalyzer.
+	Analyzer string `json:"analyzer,omitempty"`
+
+	// Store indicates whether to store field values in the index. Stored
+	// values can be retrieved from search results using SearchRequest.Fields.
+	Store bool `json:"store,omitempty"`
+	Index bool `json:"index,omitempty"`
+
+	// IncludeTermVectors, if true, makes terms occurrences to be recorded for
+	// this field. It includes the term position within the terms sequence and
+	// the term offsets in the source document field. Term vectors are required
+	// to perform phrase queries or terms highlighting in source documents.
 	IncludeTermVectors bool   `json:"include_term_vectors,omitempty"`
 	IncludeInAll       bool   `json:"include_in_all,omitempty"`
 	DateFormat         string `json:"date_format,omitempty"`
@@ -40,6 +61,13 @@ func NewTextFieldMapping() *FieldMapping {
 	}
 }
 
+func newTextFieldMappingDynamic(im *IndexMapping) *FieldMapping {
+	rv := NewTextFieldMapping()
+	rv.Store = im.StoreDynamic
+	rv.Index = im.IndexDynamic
+	return rv
+}
+
 // NewNumericFieldMapping returns a default field mapping for numbers
 func NewNumericFieldMapping() *FieldMapping {
 	return &FieldMapping{
@@ -50,6 +78,13 @@ func NewNumericFieldMapping() *FieldMapping {
 	}
 }
 
+func newNumericFieldMappingDynamic(im *IndexMapping) *FieldMapping {
+	rv := NewNumericFieldMapping()
+	rv.Store = im.StoreDynamic
+	rv.Index = im.IndexDynamic
+	return rv
+}
+
 // NewDateTimeFieldMapping returns a default field mapping for dates
 func NewDateTimeFieldMapping() *FieldMapping {
 	return &FieldMapping{
@@ -58,6 +93,30 @@ func NewDateTimeFieldMapping() *FieldMapping {
 		Index:        true,
 		IncludeInAll: true,
 	}
+}
+
+func newDateTimeFieldMappingDynamic(im *IndexMapping) *FieldMapping {
+	rv := NewDateTimeFieldMapping()
+	rv.Store = im.StoreDynamic
+	rv.Index = im.IndexDynamic
+	return rv
+}
+
+// NewBooleanFieldMapping returns a default field mapping for booleans
+func NewBooleanFieldMapping() *FieldMapping {
+	return &FieldMapping{
+		Type:         "boolean",
+		Store:        true,
+		Index:        true,
+		IncludeInAll: true,
+	}
+}
+
+func newBooleanFieldMappingDynamic(im *IndexMapping) *FieldMapping {
+	rv := NewBooleanFieldMapping()
+	rv.Store = im.StoreDynamic
+	rv.Index = im.IndexDynamic
+	return rv
 }
 
 // Options returns the indexing options for this field.
@@ -94,7 +153,7 @@ func (fm *FieldMapping) processString(propertyValueString string, pathString str
 		dateTimeParser := context.im.dateTimeParserNamed(dateTimeFormat)
 		if dateTimeParser != nil {
 			parsedDateTime, err := dateTimeParser.ParseDateTime(propertyValueString)
-			if err != nil {
+			if err == nil {
 				fm.processTime(parsedDateTime, pathString, path, indexes, context)
 			}
 		}
@@ -131,13 +190,26 @@ func (fm *FieldMapping) processTime(propertyValueTime time.Time, pathString stri
 	}
 }
 
-func (fm *FieldMapping) analyzerForField(path []string, context *walkContext) *analysis.Analyzer {
-	analyzerName := context.dm.defaultAnalyzerName(path)
-	if analyzerName == "" {
-		analyzerName = context.im.DefaultAnalyzer
+func (fm *FieldMapping) processBoolean(propertyValueBool bool, pathString string, path []string, indexes []uint64, context *walkContext) {
+	fieldName := getFieldName(pathString, path, fm)
+	if fm.Type == "boolean" {
+		options := fm.Options()
+		field := document.NewBooleanFieldWithIndexingOptions(fieldName, indexes, propertyValueBool, options)
+		context.doc.AddField(field)
+
+		if !fm.IncludeInAll {
+			context.excludedFromAll = append(context.excludedFromAll, fieldName)
+		}
 	}
-	if fm.Analyzer != "" {
-		analyzerName = fm.Analyzer
+}
+
+func (fm *FieldMapping) analyzerForField(path []string, context *walkContext) *analysis.Analyzer {
+	analyzerName := fm.Analyzer
+	if analyzerName == "" {
+		analyzerName = context.dm.defaultAnalyzerName(path)
+		if analyzerName == "" {
+			analyzerName = context.im.DefaultAnalyzer
+		}
 	}
 	return context.im.analyzerNamed(analyzerName)
 }
@@ -152,4 +224,68 @@ func getFieldName(pathString string, path []string, fieldMapping *FieldMapping) 
 		fieldName = parentName + fieldMapping.Name
 	}
 	return fieldName
+}
+
+// UnmarshalJSON offers custom unmarshaling with optional strict validation
+func (fm *FieldMapping) UnmarshalJSON(data []byte) error {
+
+	var tmp map[string]json.RawMessage
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return err
+	}
+
+	var invalidKeys []string
+	for k, v := range tmp {
+		switch k {
+		case "name":
+			err := json.Unmarshal(v, &fm.Name)
+			if err != nil {
+				return err
+			}
+		case "type":
+			err := json.Unmarshal(v, &fm.Type)
+			if err != nil {
+				return err
+			}
+		case "analyzer":
+			err := json.Unmarshal(v, &fm.Analyzer)
+			if err != nil {
+				return err
+			}
+		case "store":
+			err := json.Unmarshal(v, &fm.Store)
+			if err != nil {
+				return err
+			}
+		case "index":
+			err := json.Unmarshal(v, &fm.Index)
+			if err != nil {
+				return err
+			}
+		case "include_term_vectors":
+			err := json.Unmarshal(v, &fm.IncludeTermVectors)
+			if err != nil {
+				return err
+			}
+		case "include_in_all":
+			err := json.Unmarshal(v, &fm.IncludeInAll)
+			if err != nil {
+				return err
+			}
+		case "date_format":
+			err := json.Unmarshal(v, &fm.DateFormat)
+			if err != nil {
+				return err
+			}
+		default:
+			invalidKeys = append(invalidKeys, k)
+		}
+	}
+
+	if MappingJSONStrict && len(invalidKeys) > 0 {
+		return fmt.Errorf("field mapping contains invalid keys: %v", invalidKeys)
+	}
+
+	return nil
 }

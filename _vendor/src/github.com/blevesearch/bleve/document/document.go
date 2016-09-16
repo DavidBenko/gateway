@@ -9,14 +9,13 @@
 
 package document
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type Document struct {
 	ID              string  `json:"id"`
 	Fields          []Field `json:"fields"`
 	CompositeFields []*CompositeField
+	Number          uint64 `json:"-"`
 }
 
 func NewDocument(id string) *Document {
@@ -53,4 +52,19 @@ func (d *Document) GoString() string {
 		compositeFields += fmt.Sprintf("%#v", field)
 	}
 	return fmt.Sprintf("&document.Document{ID:%s, Fields: %s, CompositeFields: %s}", d.ID, fields, compositeFields)
+}
+
+func (d *Document) NumPlainTextBytes() uint64 {
+	rv := uint64(0)
+	for _, field := range d.Fields {
+		rv += field.NumPlainTextBytes()
+	}
+	for _, compositeField := range d.CompositeFields {
+		for _, field := range d.Fields {
+			if compositeField.includesField(field.Name()) {
+				rv += field.NumPlainTextBytes()
+			}
+		}
+	}
+	return rv
 }

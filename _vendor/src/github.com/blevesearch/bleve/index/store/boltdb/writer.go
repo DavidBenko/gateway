@@ -10,41 +10,68 @@
 package boltdb
 
 import (
+	"fmt"
+
 	"github.com/blevesearch/bleve/index/store"
-	"github.com/boltdb/bolt"
 )
 
 type Writer struct {
-	store  *Store
-	tx     *bolt.Tx
-	reader *Reader
-}
-
-func (w *Writer) Set(key, val []byte) error {
-	return w.tx.Bucket([]byte(w.store.bucket)).Put(key, val)
-}
-
-func (w *Writer) Delete(key []byte) error {
-	return w.tx.Bucket([]byte(w.store.bucket)).Delete(key)
+	store *Store
 }
 
 func (w *Writer) NewBatch() store.KVBatch {
-	return store.NewEmulatedBatch(w, w.store.mo)
+	return store.NewEmulatedBatch(w.store.mo)
+}
+
+func (w *Writer) NewBatchEx(options store.KVBatchOptions) ([]byte, store.KVBatch, error) {
+	return make([]byte, options.TotalBytes), w.NewBatch(), nil
+}
+
+func (w *Writer) ExecuteBatch(batch store.KVBatch) error {
+
+	emulatedBatch, ok := batch.(*store.EmulatedBatch)
+	if !ok {
+		return fmt.Errorf("wrong type of batch")
+	}
+
+	tx, err := w.store.db.Begin(true)
+	if err != nil {
+		return err
+	}
+
+	bucket := tx.Bucket([]byte(w.store.bucket))
+	bucket.FillPercent = w.store.fillPercent
+
+	for k, mergeOps := range emulatedBatch.Merger.Merges {
+		kb := []byte(k)
+		existingVal := bucket.Get(kb)
+		mergedVal, fullMergeOk := w.store.mo.FullMerge(kb, existingVal, mergeOps)
+		if !fullMergeOk {
+			return fmt.Errorf("merge operator returned failure")
+		}
+		err = bucket.Put(kb, mergedVal)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, op := range emulatedBatch.Ops {
+		if op.V != nil {
+			err := bucket.Put(op.K, op.V)
+			if err != nil {
+				return err
+			}
+		} else {
+			err := bucket.Delete(op.K)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (w *Writer) Close() error {
-	defer w.store.writer.Unlock()
-	return w.tx.Commit()
-}
-
-func (w *Writer) BytesSafeAfterClose() bool {
-	return w.reader.BytesSafeAfterClose()
-}
-
-func (w *Writer) Get(key []byte) ([]byte, error) {
-	return w.reader.Get(key)
-}
-
-func (w *Writer) Iterator(key []byte) store.KVIterator {
-	return w.reader.Iterator(key)
+	return nil
 }

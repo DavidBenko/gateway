@@ -35,11 +35,11 @@ func TestTermScorer(t *testing.T) {
 		// test some simple math
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 1,
 				Norm: 1.0,
 				Vectors: []*index.TermFieldVector{
-					&index.TermFieldVector{
+					{
 						Field: "desc",
 						Pos:   1,
 						Start: 0,
@@ -48,21 +48,22 @@ func TestTermScorer(t *testing.T) {
 				},
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: math.Sqrt(1.0) * idf,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           math.Sqrt(1.0) * idf,
+				Sort:            []string{},
 				Expl: &search.Explanation{
 					Value:   math.Sqrt(1.0) * idf,
 					Message: "fieldWeight(desc:beer in one), product of:",
 					Children: []*search.Explanation{
-						&search.Explanation{
+						{
 							Value:   1,
 							Message: "tf(termFreq(desc:beer)=1",
 						},
-						&search.Explanation{
+						{
 							Value:   1,
 							Message: "fieldNorm(field=desc, doc=one)",
 						},
-						&search.Explanation{
+						{
 							Value:   idf,
 							Message: "idf(docFreq=9, maxDocs=100)",
 						},
@@ -70,8 +71,8 @@ func TestTermScorer(t *testing.T) {
 				},
 				Locations: search.FieldTermLocationMap{
 					"desc": search.TermLocationMap{
-						"beer": search.Locations{
-							&search.Location{
+						"beer": []*search.Location{
+							{
 								Pos:   1,
 								Start: 0,
 								End:   4,
@@ -84,26 +85,27 @@ func TestTermScorer(t *testing.T) {
 		// test the same thing again (score should be cached this time)
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 1,
 				Norm: 1.0,
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: math.Sqrt(1.0) * idf,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           math.Sqrt(1.0) * idf,
+				Sort:            []string{},
 				Expl: &search.Explanation{
 					Value:   math.Sqrt(1.0) * idf,
 					Message: "fieldWeight(desc:beer in one), product of:",
 					Children: []*search.Explanation{
-						&search.Explanation{
+						{
 							Value:   1,
 							Message: "tf(termFreq(desc:beer)=1",
 						},
-						&search.Explanation{
+						{
 							Value:   1,
 							Message: "fieldNorm(field=desc, doc=one)",
 						},
-						&search.Explanation{
+						{
 							Value:   idf,
 							Message: "idf(docFreq=9, maxDocs=100)",
 						},
@@ -114,26 +116,27 @@ func TestTermScorer(t *testing.T) {
 		// test a case where the sqrt isn't precalculated
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 65,
 				Norm: 1.0,
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: math.Sqrt(65) * idf,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           math.Sqrt(65) * idf,
+				Sort:            []string{},
 				Expl: &search.Explanation{
 					Value:   math.Sqrt(65) * idf,
 					Message: "fieldWeight(desc:beer in one), product of:",
 					Children: []*search.Explanation{
-						&search.Explanation{
+						{
 							Value:   math.Sqrt(65),
 							Message: "tf(termFreq(desc:beer)=65",
 						},
-						&search.Explanation{
+						{
 							Value:   1,
 							Message: "fieldNorm(field=desc, doc=one)",
 						},
-						&search.Explanation{
+						{
 							Value:   idf,
 							Message: "idf(docFreq=9, maxDocs=100)",
 						},
@@ -144,7 +147,10 @@ func TestTermScorer(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := scorer.Score(test.termMatch)
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
+		}
+		actual := scorer.Score(ctx, test.termMatch)
 
 		if !reflect.DeepEqual(actual, test.result) {
 			t.Errorf("expected %#v got %#v for %#v", test.result, actual, test.termMatch)
@@ -177,48 +183,49 @@ func TestTermScorerWithQueryNorm(t *testing.T) {
 	}{
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 1,
 				Norm: 1.0,
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: math.Sqrt(1.0) * idf * 3.0 * idf * 2.0,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           math.Sqrt(1.0) * idf * 3.0 * idf * 2.0,
+				Sort:            []string{},
 				Expl: &search.Explanation{
 					Value:   math.Sqrt(1.0) * idf * 3.0 * idf * 2.0,
 					Message: "weight(desc:beer^3.000000 in one), product of:",
 					Children: []*search.Explanation{
-						&search.Explanation{
+						{
 							Value:   2.0 * idf * 3.0,
 							Message: "queryWeight(desc:beer^3.000000), product of:",
 							Children: []*search.Explanation{
-								&search.Explanation{
+								{
 									Value:   3,
 									Message: "boost",
 								},
-								&search.Explanation{
+								{
 									Value:   idf,
 									Message: "idf(docFreq=9, maxDocs=100)",
 								},
-								&search.Explanation{
+								{
 									Value:   2,
 									Message: "queryNorm",
 								},
 							},
 						},
-						&search.Explanation{
+						{
 							Value:   math.Sqrt(1.0) * idf,
 							Message: "fieldWeight(desc:beer in one), product of:",
 							Children: []*search.Explanation{
-								&search.Explanation{
+								{
 									Value:   1,
 									Message: "tf(termFreq(desc:beer)=1",
 								},
-								&search.Explanation{
+								{
 									Value:   1,
 									Message: "fieldNorm(field=desc, doc=one)",
 								},
-								&search.Explanation{
+								{
 									Value:   idf,
 									Message: "idf(docFreq=9, maxDocs=100)",
 								},
@@ -231,7 +238,10 @@ func TestTermScorerWithQueryNorm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := scorer.Score(test.termMatch)
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
+		}
+		actual := scorer.Score(ctx, test.termMatch)
 
 		if !reflect.DeepEqual(actual, test.result) {
 			t.Errorf("expected %#v got %#v for %#v", test.result, actual, test.termMatch)

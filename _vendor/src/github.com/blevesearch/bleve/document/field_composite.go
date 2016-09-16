@@ -31,11 +31,12 @@ func NewCompositeField(name string, defaultInclude bool, include []string, exclu
 
 func NewCompositeFieldWithIndexingOptions(name string, defaultInclude bool, include []string, exclude []string, options IndexingOptions) *CompositeField {
 	rv := &CompositeField{
-		name:           name,
-		options:        options,
-		defaultInclude: defaultInclude,
-		includedFields: make(map[string]bool, len(include)),
-		excludedFields: make(map[string]bool, len(exclude)),
+		name:                 name,
+		options:              options,
+		defaultInclude:       defaultInclude,
+		includedFields:       make(map[string]bool, len(include)),
+		excludedFields:       make(map[string]bool, len(exclude)),
+		compositeFrequencies: make(analysis.TokenFrequencies),
 	}
 
 	for _, i := range include {
@@ -68,7 +69,11 @@ func (c *CompositeField) Value() []byte {
 	return []byte{}
 }
 
-func (c *CompositeField) Compose(field string, length int, freq analysis.TokenFrequencies) {
+func (c *CompositeField) NumPlainTextBytes() uint64 {
+	return 0
+}
+
+func (c *CompositeField) includesField(field string) bool {
 	shouldInclude := c.defaultInclude
 	_, fieldShouldBeIncluded := c.includedFields[field]
 	if fieldShouldBeIncluded {
@@ -78,9 +83,12 @@ func (c *CompositeField) Compose(field string, length int, freq analysis.TokenFr
 	if fieldShouldBeExcluded {
 		shouldInclude = false
 	}
+	return shouldInclude
+}
 
-	if shouldInclude {
+func (c *CompositeField) Compose(field string, length int, freq analysis.TokenFrequencies) {
+	if c.includesField(field) {
 		c.totalLength += length
-		c.compositeFrequencies = c.compositeFrequencies.MergeAll(field, freq)
+		c.compositeFrequencies.MergeAll(field, freq)
 	}
 }

@@ -28,11 +28,11 @@ func TestConstantScorer(t *testing.T) {
 		// test some simple math
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 1,
 				Norm: 1.0,
 				Vectors: []*index.TermFieldVector{
-					&index.TermFieldVector{
+					{
 						Field: "desc",
 						Pos:   1,
 						Start: 0,
@@ -41,18 +41,22 @@ func TestConstantScorer(t *testing.T) {
 				},
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: 1.0,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           1.0,
 				Expl: &search.Explanation{
 					Value:   1.0,
 					Message: "ConstantScore()",
 				},
+				Sort: []string{},
 			},
 		},
 	}
 
 	for _, test := range tests {
-		actual := scorer.Score(test.termMatch.ID)
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
+		}
+		actual := scorer.Score(ctx, test.termMatch.ID)
 
 		if !reflect.DeepEqual(actual, test.result) {
 			t.Errorf("expected %#v got %#v for %#v", test.result, actual, test.termMatch)
@@ -72,32 +76,33 @@ func TestConstantScorerWithQueryNorm(t *testing.T) {
 	}{
 		{
 			termMatch: &index.TermFieldDoc{
-				ID:   "one",
+				ID:   index.IndexInternalID("one"),
 				Freq: 1,
 				Norm: 1.0,
 			},
 			result: &search.DocumentMatch{
-				ID:    "one",
-				Score: 2.0,
+				IndexInternalID: index.IndexInternalID("one"),
+				Score:           2.0,
+				Sort:            []string{},
 				Expl: &search.Explanation{
 					Value:   2.0,
 					Message: "weight(^1.000000), product of:",
 					Children: []*search.Explanation{
-						&search.Explanation{
+						{
 							Value:   2.0,
 							Message: "ConstantScore()^1.000000, product of:",
 							Children: []*search.Explanation{
-								&search.Explanation{
+								{
 									Value:   1,
 									Message: "boost",
 								},
-								&search.Explanation{
+								{
 									Value:   2,
 									Message: "queryNorm",
 								},
 							},
 						},
-						&search.Explanation{
+						{
 							Value:   1.0,
 							Message: "ConstantScore()",
 						},
@@ -108,7 +113,10 @@ func TestConstantScorerWithQueryNorm(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := scorer.Score(test.termMatch.ID)
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
+		}
+		actual := scorer.Score(ctx, test.termMatch.ID)
 
 		if !reflect.DeepEqual(actual, test.result) {
 			t.Errorf("expected %#v got %#v for %#v", test.result, actual, test.termMatch)

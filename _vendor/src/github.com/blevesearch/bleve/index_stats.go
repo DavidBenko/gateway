@@ -11,29 +11,60 @@ package bleve
 
 import (
 	"encoding/json"
+	"sync"
 	"sync/atomic"
 )
 
 type IndexStat struct {
-	indexStat  json.Marshaler
 	searches   uint64
 	searchTime uint64
+	i          *indexImpl
+}
+
+func (is *IndexStat) statsMap() map[string]interface{} {
+	m := map[string]interface{}{}
+	m["index"] = is.i.i.StatsMap()
+	m["searches"] = atomic.LoadUint64(&is.searches)
+	m["search_time"] = atomic.LoadUint64(&is.searchTime)
+	return m
 }
 
 func (is *IndexStat) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{}
-	m["index"] = is.indexStat
-	m["searches"] = atomic.LoadUint64(&is.searches)
-	m["search_time"] = atomic.LoadUint64(&is.searchTime)
+	m := is.statsMap()
 	return json.Marshal(m)
 }
 
-type IndexStats map[string]*IndexStat
+type IndexStats struct {
+	indexes map[string]*IndexStat
+	mutex   sync.RWMutex
+}
 
-func (i IndexStats) String() string {
-	bytes, err := json.Marshal(i)
+func NewIndexStats() *IndexStats {
+	return &IndexStats{
+		indexes: make(map[string]*IndexStat),
+	}
+}
+
+func (i *IndexStats) Register(index Index) {
+	i.mutex.Lock()
+	defer i.mutex.Unlock()
+	i.indexes[index.Name()] = index.Stats()
+}
+
+func (i *IndexStats) UnRegister(index Index) {
+	i.mutex.Lock()
+	defer i.mutex.Unlock()
+	delete(i.indexes, index.Name())
+}
+
+func (i *IndexStats) String() string {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
+	bytes, err := json.Marshal(i.indexes)
 	if err != nil {
 		return "error marshaling stats"
 	}
 	return string(bytes)
 }
+
+var indexStats *IndexStats

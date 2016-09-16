@@ -1,6 +1,10 @@
 %{
 package bleve
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 func logDebugGrammar(format string, v ...interface{}) {
 	if debugParser {
@@ -9,28 +13,27 @@ func logDebugGrammar(format string, v ...interface{}) {
 }
 %}
 
-%union { 
-s string 
+%union {
+s string
 n int
 f float64
 q Query}
 
-%token tSTRING tPHRASE tPLUS tMINUS tCOLON tBOOST tLPAREN tRPAREN tNUMBER tSTRING tGREATER tLESS
-tEQUAL tTILDE tTILDENUMBER
+%token tSTRING tPHRASE tPLUS tMINUS tCOLON tBOOST tNUMBER tSTRING tGREATER tLESS
+tEQUAL tTILDE
 
 %type <s>                tSTRING
 %type <s>                tPHRASE
 %type <s>                tNUMBER
-%type <s>                tTILDENUMBER
+%type <s>                tTILDE
+%type <s>                tBOOST
 %type <q>                searchBase
 %type <f>                searchSuffix
 %type <n>                searchPrefix
-%type <n>                searchMustMustNot
-%type <f>                searchBoost
 
 %%
 
-input: 
+input:
 searchParts {
 	logDebugGrammar("INPUT")
 };
@@ -64,12 +67,6 @@ searchPrefix:
 	$$ = queryShould
 }
 |
-searchMustMustNot {
-	$$ = $1
-}
-;
-
-searchMustMustNot:
 tPLUS {
 	logDebugGrammar("PLUS")
 	$$ = queryMust
@@ -84,42 +81,37 @@ searchBase:
 tSTRING {
 	str := $1
 	logDebugGrammar("STRING - %s", str)
-	q := NewMatchQuery(str)
+	var q Query
+	if strings.HasPrefix(str, "/") && strings.HasSuffix(str, "/") {
+	  q = NewRegexpQuery(str[1:len(str)-1])
+	} else if strings.ContainsAny(str, "*?"){
+	  q = NewWildcardQuery(str)
+	} else {
+	  q = NewMatchQuery(str)
+	}
 	$$ = q
 }
 |
 tSTRING tTILDE {
 	str := $1
-	logDebugGrammar("FUZZY STRING - %s", str)
+	fuzziness, err := strconv.ParseFloat($2, 64)
+	if err != nil {
+	  yylex.(*lexerWrapper).lex.Error(fmt.Sprintf("invalid fuzziness value: %v", err))
+	}
+	logDebugGrammar("FUZZY STRING - %s %f", str, fuzziness)
 	q := NewMatchQuery(str)
-	q.SetFuzziness(1)
+	q.SetFuzziness(int(fuzziness))
 	$$ = q
 }
 |
 tSTRING tCOLON tSTRING tTILDE {
 	field := $1
 	str := $3
-	logDebugGrammar("FIELD - %s FUZZY STRING - %s", field, str)
-	q := NewMatchQuery(str)
-	q.SetFuzziness(1)
-	q.SetField(field)
-	$$ = q
-}
-|
-tSTRING tTILDENUMBER {
-	str := $1
-	fuzziness, _ := strconv.ParseFloat($2, 64)
-	logDebugGrammar("FUZZY STRING - %s", str)
-	q := NewMatchQuery(str)
-	q.SetFuzziness(int(fuzziness))
-	$$ = q
-}
-|
-tSTRING tCOLON tSTRING tTILDENUMBER {
-	field := $1
-	str := $3
-	fuzziness, _ := strconv.ParseFloat($4, 64)
-	logDebugGrammar("FIELD - %s FUZZY-%f STRING - %s", field, fuzziness, str)
+	fuzziness, err := strconv.ParseFloat($4, 64)
+	if err != nil {
+		yylex.(*lexerWrapper).lex.Error(fmt.Sprintf("invalid fuzziness value: %v", err))
+	}
+	logDebugGrammar("FIELD - %s FUZZY STRING - %s %f", field, str, fuzziness)
 	q := NewMatchQuery(str)
 	q.SetFuzziness(int(fuzziness))
 	q.SetField(field)
@@ -144,7 +136,15 @@ tSTRING tCOLON tSTRING {
 	field := $1
 	str := $3
 	logDebugGrammar("FIELD - %s STRING - %s", field, str)
-	q := NewMatchQuery(str).SetField(field)
+	var q Query
+	if strings.HasPrefix(str, "/") && strings.HasSuffix(str, "/") {
+		q = NewRegexpQuery(str[1:len(str)-1])
+	} else if strings.ContainsAny(str, "*?"){
+	  q = NewWildcardQuery(str)
+	}  else {
+		q = NewMatchQuery(str)
+	}
+	q.SetField(field)
 	$$ = q
 }
 |
@@ -198,13 +198,46 @@ tSTRING tCOLON tLESS tEQUAL tNUMBER {
 	logDebugGrammar("FIELD - LESS THAN OR EQUAL %f", max)
 	q := NewNumericRangeInclusiveQuery(nil, &max, nil, &maxInclusive).SetField(field)
 	$$ = q
-};
+}
+|
+tSTRING tCOLON tGREATER tPHRASE {
+	field := $1
+	minInclusive := false
+	phrase := $4
 
-searchBoost:
-tBOOST tNUMBER {
-	boost, _ := strconv.ParseFloat($2, 64)
-	$$ = boost
-	logDebugGrammar("BOOST %f", boost)
+	logDebugGrammar("FIELD - GREATER THAN DATE %s", phrase)
+	q := NewDateRangeInclusiveQuery(&phrase, nil, &minInclusive, nil).SetField(field)
+	$$ = q
+}
+|
+tSTRING tCOLON tGREATER tEQUAL tPHRASE {
+	field := $1
+	minInclusive := true
+	phrase := $5
+
+	logDebugGrammar("FIELD - GREATER THAN OR EQUAL DATE %s", phrase)
+	q := NewDateRangeInclusiveQuery(&phrase, nil, &minInclusive, nil).SetField(field)
+	$$ = q
+}
+|
+tSTRING tCOLON tLESS tPHRASE {
+	field := $1
+	maxInclusive := false
+	phrase := $4
+
+	logDebugGrammar("FIELD - LESS THAN DATE %s", phrase)
+	q := NewDateRangeInclusiveQuery(nil, &phrase, nil, &maxInclusive).SetField(field)
+	$$ = q
+}
+|
+tSTRING tCOLON tLESS tEQUAL tPHRASE {
+	field := $1
+	maxInclusive := true
+	phrase := $5
+
+	logDebugGrammar("FIELD - LESS THAN OR EQUAL DATE %s", phrase)
+	q := NewDateRangeInclusiveQuery(nil, &phrase, nil, &maxInclusive).SetField(field)
+	$$ = q
 };
 
 searchSuffix:
@@ -212,6 +245,11 @@ searchSuffix:
 	$$ = 1.0
 }
 |
-searchBoost {
-	
+tBOOST {
+	boost, err := strconv.ParseFloat($1, 64)
+	if err != nil {
+	  yylex.(*lexerWrapper).lex.Error(fmt.Sprintf("invalid boost value: %v", err))
+	}
+	$$ = boost
+	logDebugGrammar("BOOST %f", boost)
 };
