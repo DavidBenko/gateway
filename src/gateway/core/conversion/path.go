@@ -51,7 +51,14 @@ func getPath(vm *otto.Otto, call otto.FunctionCall, fn pather) (otto.Value, erro
 		return undefined, errors.New("undefined path argument")
 	}
 
-	path, _ := p.Export()
+	pExport, _ := p.Export()
+
+	var path string
+	if strP, ok := pExport.(string); ok {
+		path = strP
+	} else {
+		return undefined, errors.New("path should be a string")
+	}
 
 	var subkeys []string
 	s := call.Argument(2)
@@ -59,10 +66,14 @@ func getPath(vm *otto.Otto, call otto.FunctionCall, fn pather) (otto.Value, erro
 		subkeys = make([]string, 0)
 	} else {
 		export, _ := s.Export()
-		subkeys = convertToStringSlice(export.([]interface{}))
+		if e, ok := export.([]interface{}); ok {
+			subkeys = convertToStringSlice(e)
+		} else {
+			return undefined, errors.New("subkeys should be an array of strings")
+		}
 	}
 
-	result, err := fn(data, path.(string), subkeys)
+	result, err := fn(data, path, subkeys)
 	if err != nil {
 		return undefined, fmt.Errorf("failed to convert: %s", err)
 	}
@@ -78,7 +89,9 @@ func convertToStringSlice(values []interface{}) []string {
 	stringValues := make([]string, len(values))
 
 	for i, v := range values {
-		stringValues[i] = v.(string)
+		if a, ok := v.(string); ok {
+			stringValues[i] = a
+		}
 	}
 
 	return stringValues

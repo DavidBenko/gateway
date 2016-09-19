@@ -41,7 +41,6 @@ func (s *PathSuite) TestingXmlPathInvalidPath(c *gc.C) {
 	result, err := conversion.XMLPath(stub, "user.id", sub)
 	c.Assert(err, gc.NotNil)
 	c.Assert(len(result), gc.Equals, 0)
-
 }
 
 func (s *PathSuite) TestJsonPath(c *gc.C) {
