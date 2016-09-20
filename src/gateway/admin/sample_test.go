@@ -13,7 +13,12 @@ import (
 func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
-	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API2)
+	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
+
+	acc2 := testing.PrepareAccount(c, a.db, testing.OtherAccount)
+	user2 := testing.PrepareUser(c, a.db, acc2.ID, testing.OtherUser)
+	api2 := testing.PrepareAPI(c, a.db, acc2.ID, user2.ID, testing.API2)
+
 	controller := &admin.SamplesController{}
 	for i, t := range []struct {
 		should      string
@@ -51,6 +56,17 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 				{Key: "api.id", Operator: stats.EQ, Value: api1.ID},
 			},
 		},
+	}, {
+		should: "disallow user1 from querying constraints api.id of api2",
+		given: &model.Sample{
+			Name:      "Sample3",
+			AccountID: acc1.ID,
+			UserID:    user1.ID,
+			Constraints: []stats.Constraint{
+				{Key: "api.id", Operator: stats.EQ, Value: api2.ID},
+			},
+		},
+		expectError: regexp.QuoteMeta("api 2 not owned by user 1"),
 	},
 	} {
 		c.Logf("test %d: should %s", i, t.should)
