@@ -165,9 +165,6 @@ const ExampleConfigurationFile = `##############################################
 # Stripe fallback plan (this uses the internal Gateway plan name).
 # stripeFallbackPlan = ''
 
-# Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.
-# stripePaymentRetryAttempts = ''
-
 # If the gateway should attempt to migrate non-stripe accounts to Stripe on startup.
 # stripeMigrateAccounts = false
 
