@@ -33,39 +33,48 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) 
 
 func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
-		data, err := getArgument(call, 0)
+		d, err := getArgument(call, 0)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
+		}
+
+		var data string
+		if ds, ok := d.(string); ok {
+			data = ds
 		}
 
 		o, err := getArgument(call, 1)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
 		options := o.(map[string]interface{})
 
-		var key interface{}
-		if keyName, ok := options["key"]; ok {
-			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
-				key = k
-			}
+		key, err := GetKeyFromSource(options, keySource, accountID)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
 		}
 
-		tag := ""
-		if t, ok := options["tag"]; ok {
-			tag = t.(string)
+		tag, err := GetOptionString(options, "tag", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
 		}
 
 		// default hashing algorithm is sha256
 		algorithm := defaultHashAlgorithm
-		if a, ok := options["algorithm"]; ok {
-			algorithm = a.(string)
+		a, err := GetOptionString(options, "algorithm", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
+		} else {
+			algorithm = a
 		}
 
-		result, err := crypto.Encrypt([]byte(data.(string)), key, algorithm, tag)
+		result, err := crypto.Encrypt([]byte(data), key, algorithm, tag)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
@@ -89,6 +98,11 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
+		if ds, ok := d.(string); !ok {
+			logreport.Println("data should be a string")
+			return undefined
+		}
+
 		o, err := getArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
@@ -97,38 +111,45 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 		options := o.(map[string]interface{})
 
-		var key interface{}
-		if keyName, ok := options["key"]; ok {
-			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
-				key = k
-			}
+		key, err := GetKeyFromSource(options, keySource, accountID)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
 		}
 
-		tag := ""
-		if t, ok := options["tag"]; ok {
-			tag = t.(string)
+		tag, err := GetOptionString(options, "tag", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
 		}
 
+		// default hashing algorithm is sha256
 		algorithm := defaultHashAlgorithm
-		if a, ok := options["algorithm"]; ok {
-			algorithm = a.(string)
+		a, err := GetOptionString(options, "algorithm", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
+		} else {
+			algorithm = a
 		}
 
 		// default expects data to be base64 encoded
 		b64encoding := true
 		if b, ok := options["base64"]; ok {
-			b64encoding = b.(bool)
+			if v, ok := b.(bool); ok {
+				b64encoding = v
+			}
 		}
 
 		var data []byte
 		if b64encoding {
-			data, err = base64.StdEncoding.DecodeString(d.(string))
+			data, err = base64.StdEncoding.DecodeString(ds)
 			if err != nil {
 				logreport.Print(err)
 				return undefined
 			}
 		} else {
-			data = []byte(d.(string))
+			data = []byte(ds)
 		}
 
 		result, err := crypto.Decrypt(data, key, algorithm, tag)
