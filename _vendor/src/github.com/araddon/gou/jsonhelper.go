@@ -242,7 +242,7 @@ func jsonEntry(name string, v interface{}) (interface{}, bool) {
 			return nil, false
 		}
 	case JsonHelper:
-		return v.(JsonHelper).Get(name), true
+		return val.Get(name), true
 	case []interface{}:
 		return v, true
 	default:
@@ -475,14 +475,17 @@ func (j JsonHelper) Int64Safe(n string) (int64, bool) {
 
 func (j JsonHelper) Float64(n string) float64 {
 	v := j.Get(n)
-	f64, _ := CoerceFloat(v)
+	f64, err := CoerceFloat(v)
+	if err != nil {
+		return math.NaN()
+	}
 	return f64
 }
 
 func (j JsonHelper) Float64Safe(n string) (float64, bool) {
 	v := j.Get(n)
 	if v == nil {
-		return math.NaN(), false
+		return math.NaN(), true
 	}
 	fv, err := CoerceFloat(v)
 	if err != nil {
@@ -565,7 +568,7 @@ func (j JsonHelper) PrettyJson() []byte {
 }
 func (j JsonHelper) Keys() []string {
 	keys := make([]string, 0)
-	for key, _ := range j {
+	for key := range j {
 		keys = append(keys, key)
 	}
 	return keys
@@ -575,6 +578,23 @@ func (j JsonHelper) HasKey(name string) bool {
 		return true
 	}
 	return false
+}
+
+// GobDecode overwrites the receiver, which must be a pointer,
+// with the value represented by the byte slice, which was written
+// by GobEncode, usually for the same concrete type.
+// GobDecode([]byte) error
+func (j *JsonHelper) GobDecode(data []byte) error {
+	var mv map[string]interface{}
+	if err := json.Unmarshal(data, &mv); err != nil {
+		return err
+	}
+	*j = JsonHelper(mv)
+	return nil
+}
+func (j *JsonHelper) GobEncode() ([]byte, error) {
+	by, err := json.Marshal(j)
+	return by, err
 }
 
 // The following consts are from http://code.google.com/p/go-bit/ (Apache licensed). It

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"text/template"
+	"time"
 
 	"gateway/config"
 	"gateway/logreport"
@@ -12,15 +13,45 @@ import (
 )
 
 type EmailTemplate struct {
-	From    string
-	To      string
-	Subject string
-	Scheme  string
-	Host    string
-	Port    int64
-	Prefix  string
-	Token   string
-	Resend  bool
+	From           string
+	To             string
+	Subject        string
+	Scheme         string
+	Host           string
+	Port           int64
+	Prefix         string
+	Token          string
+	Resend         bool
+	PaymentDetails *PaymentDetails
+}
+
+type PaymentDetails struct {
+	InvoiceID         string
+	PaymentAmount     uint64
+	PaymentDate       int64
+	Plan              string
+	PlanAmount        uint64
+	CardDisplay       string
+	FailureReason     string
+	NextChargeAttempt int64
+}
+
+func (p *PaymentDetails) PaymentDateString() string {
+	t := time.Unix(p.PaymentDate, 0)
+	return fmt.Sprintf("%s %d, %d", t.Month(), t.Day(), t.Year())
+}
+
+func (p *PaymentDetails) NextChargeAttemptString() string {
+	t := time.Unix(p.NextChargeAttempt, 0)
+	return fmt.Sprintf("%s %d, %d", t.Month(), t.Day(), t.Year())
+}
+
+func (p *PaymentDetails) PaymentAmountString() string {
+	return fmt.Sprintf("$%d", p.PaymentAmount/100)
+}
+
+func (p *PaymentDetails) PlanAmountString() string {
+	return fmt.Sprintf("$%d", p.PlanAmount/100)
 }
 
 func NewEmailTemplate(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
@@ -44,6 +75,13 @@ func NewEmailTemplate(_smtp config.SMTP, proxyServer config.ProxyServer, admin c
 		Port:   port,
 		Prefix: admin.PathPrefix,
 	}
+}
+
+func NewEmailTemplateWithPaymentDetails(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
+	user *model.User, paymentDetails *PaymentDetails) *EmailTemplate {
+	emailTemplate := NewEmailTemplate(_smtp, proxyServer, admin, user)
+	emailTemplate.PaymentDetails = paymentDetails
+	return emailTemplate
 }
 
 func (e *EmailTemplate) UrlPrefix() string {

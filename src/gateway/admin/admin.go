@@ -65,15 +65,15 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db, s)
 
 	if conf.EnableBroker {
-		broker, err := newAggregator(conf)
+		err := newAggregator(conf)
 		if err != nil {
 			logreport.Fatal(err)
 		}
-		stream := &LogStreamController{base, broker}
-		RouteLogStream(stream, "/logs/socket", authAdmin)
-		RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
-		RouteLogStream(stream, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
 	}
+	stream := &LogStreamController{base}
+	RouteLogStream(stream, "/logs/socket", authAdmin)
+	RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
+	RouteLogStream(stream, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
 
 	search := &LogSearchController{configuration.Elastic, base}
 	RouteLogSearch(search, "/logs", authAdmin, db, conf)
