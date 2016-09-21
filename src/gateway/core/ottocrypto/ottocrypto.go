@@ -2,6 +2,12 @@ package ottocrypto
 
 import "fmt"
 
+// DefaultHashAlgorithm is used if nothing is supplied in the options.
+var DefaultHashAlgorithm = "sha256"
+
+// Default padding scheme used if nothing is supplied in the options.
+var DefaultPaddingScheme = "pkcs1v15"
+
 func GetKeyFromSource(options map[string]interface{}, keySource KeyDataSource, accountID int64) (interface{}, error) {
 	var key interface{}
 	k, err := GetOptionString(options, "key", false)

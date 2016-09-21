@@ -9,9 +9,6 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-// Default padding scheme used if nothing is supplied in the options.
-var defaultPaddingScheme = "pkcs1v15"
-
 // IncludeSigning create the AP.Crypto.sign and AP.Crypto.verify helper functions in the
 // supplied Otto VM.
 func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
@@ -54,12 +51,12 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			}
 		}
 
-		algorithm := defaultHashAlgorithm
+		algorithm := DefaultHashAlgorithm
 		if a, ok := options["algorithm"]; ok {
 			algorithm = a.(string)
 		}
 
-		padding := defaultPaddingScheme
+		padding := DefaultPaddingScheme
 		if p, ok := options["padding"]; ok {
 			padding = p.(string)
 		}
@@ -120,12 +117,12 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			}
 		}
 
-		algorithm := defaultHashAlgorithm
+		algorithm := DefaultHashAlgorithm
 		if a, ok := options["algorithm"]; ok {
 			algorithm = a.(string)
 		}
 
-		padding := defaultPaddingScheme
+		padding := DefaultPaddingScheme
 		if p, ok := options["padding"]; ok {
 			padding = p.(string)
 		}

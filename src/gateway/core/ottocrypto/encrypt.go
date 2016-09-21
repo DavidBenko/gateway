@@ -2,6 +2,7 @@ package ottocrypto
 
 import (
 	"encoding/base64"
+	"errors"
 	"gateway/crypto"
 	"gateway/logreport"
 
@@ -11,9 +12,6 @@ import (
 type KeyDataSource interface {
 	GetKey(int64, string) (interface{}, bool)
 }
-
-// Default hashing algorithm used if nothing is supplied in the options.
-var defaultHashAlgorithm = "sha256"
 
 // IncludeEncryption adds the AP.Crypto.encrypt and AP.Crypto.decrypt functions in
 // the supplied Otto VM.
@@ -42,6 +40,9 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 		var data string
 		if ds, ok := d.(string); ok {
 			data = ds
+		} else {
+			logreport.Println("data should be a string")
+			return undefined
 		}
 
 		o, err := getArgument(call, 1)
@@ -50,28 +51,10 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		options := o.(map[string]interface{})
-
-		key, err := GetKeyFromSource(options, keySource, accountID)
+		key, algorithm, tag, err := getOptions(o, keySource, accountID)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
-		}
-
-		tag, err := GetOptionString(options, "tag", true)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		}
-
-		// default hashing algorithm is sha256
-		algorithm := defaultHashAlgorithm
-		a, err := GetOptionString(options, "algorithm", true)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		} else {
-			algorithm = a
 		}
 
 		result, err := crypto.Encrypt([]byte(data), key, algorithm, tag)
@@ -98,7 +81,8 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		if ds, ok := d.(string); !ok {
+		ds, ok := d.(string)
+		if !ok {
 			logreport.Println("data should be a string")
 			return undefined
 		}
@@ -109,47 +93,16 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		options := o.(map[string]interface{})
-
-		key, err := GetKeyFromSource(options, keySource, accountID)
+		key, algorithm, tag, err := getOptions(o, keySource, accountID)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
 		}
 
-		tag, err := GetOptionString(options, "tag", true)
+		data, err := base64.StdEncoding.DecodeString(ds)
 		if err != nil {
-			logreport.Println(err)
+			logreport.Print(err)
 			return undefined
-		}
-
-		// default hashing algorithm is sha256
-		algorithm := defaultHashAlgorithm
-		a, err := GetOptionString(options, "algorithm", true)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		} else {
-			algorithm = a
-		}
-
-		// default expects data to be base64 encoded
-		b64encoding := true
-		if b, ok := options["base64"]; ok {
-			if v, ok := b.(bool); ok {
-				b64encoding = v
-			}
-		}
-
-		var data []byte
-		if b64encoding {
-			data, err = base64.StdEncoding.DecodeString(ds)
-			if err != nil {
-				logreport.Print(err)
-				return undefined
-			}
-		} else {
-			data = []byte(ds)
 		}
 
 		result, err := crypto.Decrypt(data, key, algorithm, tag)
@@ -166,4 +119,32 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 		return val
 	})
+}
+
+func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
+	options, ok := opts.(map[string]interface{})
+	if !ok {
+		err = errors.New("options should be an object")
+		return
+	}
+
+	key, err = GetKeyFromSource(options, keySource, accountID)
+	if err != nil {
+		return
+	}
+
+	tag, err = GetOptionString(options, "tag", true)
+	if err != nil {
+		return
+	}
+
+	algorithm = DefaultHashAlgorithm
+	a, err := GetOptionString(options, "algorithm", true)
+	if err != nil {
+		return
+	}
+	if a != "" {
+		algorithm = a
+	}
+	return
 }
