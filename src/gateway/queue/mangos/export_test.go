@@ -4,7 +4,7 @@ import (
 	"gateway/queue"
 	"reflect"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 	gc "gopkg.in/check.v1"
 )
 

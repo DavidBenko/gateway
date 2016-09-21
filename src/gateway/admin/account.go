@@ -59,6 +59,7 @@ func (c *AccountController) Update(w http.ResponseWriter, r *http.Request,
 	}
 
 	account.ID = c.accountID(r)
+	account.UserID = c.userID(r)
 
 	var method func(*apsql.Tx) error
 	desc := "updating"

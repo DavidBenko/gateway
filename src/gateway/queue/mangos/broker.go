@@ -7,7 +7,7 @@ import (
 	"gateway/errors"
 	"gateway/queue"
 
-	mg "github.com/gdamore/mangos"
+	mg "github.com/go-mangos/mangos"
 )
 
 // Kind represents the different available Scalable Protocols messaging brokers.
@@ -109,7 +109,7 @@ func newXPubXSubBroker(
 		)
 	}
 
-	// gdamore/mangos.Device implements a naive forwarder.  TODO: expand on
+	// go-mangos/mangos.Device implements a naive forwarder.  TODO: expand on
 	// this if we have FilterFuncs.  Then we can have, for example, an
 	// XPUB/XSUB broker subscribed only to a subset of messages.
 	if err := mg.Device(sSock, pSock); err != nil {

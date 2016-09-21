@@ -1,0 +1,15 @@
+default[:elasticsearch][:version] = '0.20.5'
+default[:elasticsearch][:es_user] = "elasticsearch"
+default[:elasticsearch][:config] = "/etc/init/elasticsearch.conf"
+default[:elasticsearch][:java_home] = "/usr/lib/jvm/java-7-openjdk-i386"
+default[:elasticsearch][:extract] = "/usr/local/"
+default[:elasticsearch][:es_home] = "#{default[:elasticsearch][:extract]}/elasticsearch-#{default[:elasticsearch][:version]}"
+default[:elasticsearch][:es_min_mem] = "256m"
+default[:elasticsearch][:es_max_mem] = "512m"
+default[:elasticsearch][:daemon] = "$ES_HOME/bin/elasticsearch"
+default[:elasticsearch][:data_dir] = "#{default[:elasticsearch][:es_home]}/data"
+default[:elasticsearch][:config_dir] = "#{default[:elasticsearch][:es_home]}/config"
+default[:elasticsearch][:log_dir] = "#{default[:elasticsearch][:es_home]}/log"
+default[:elasticsearch][:work_dir] = "#{default[:elasticsearch][:es_home]}/work"
+
+default[:elasticsearch][:mongo_plugin_dir] = "#{default[:elasticsearch][:es_home]}/plugins/river-mongodb"

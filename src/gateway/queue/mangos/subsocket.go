@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/gdamore/mangos"
-	"github.com/gdamore/mangos/protocol/sub"
-	"github.com/gdamore/mangos/transport/ipc"
-	"github.com/gdamore/mangos/transport/tcp"
+	"github.com/go-mangos/mangos"
+	"github.com/go-mangos/mangos/protocol/sub"
+	"github.com/go-mangos/mangos/transport/ipc"
+	"github.com/go-mangos/mangos/transport/tcp"
 )
 
 var _ = queue.Subscriber(&SubSocket{})
@@ -189,7 +189,7 @@ func SubTCP(s queue.Subscriber) (queue.Subscriber, error) {
 
 // SubIPC is a queue.SubBinding which adds a IPC binding to the SubSocket.
 func SubIPC(s queue.Subscriber) (queue.Subscriber, error) {
-	// https://github.com/gdamore/mangos/issues/2
+	// https://github.com/go-mangos/mangos/issues/2
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		// Unix domain sockets are supported on Linux and Darwin

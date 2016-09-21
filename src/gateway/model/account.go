@@ -21,6 +21,7 @@ type Account struct {
 	StripeCustomerID          sql.NullString `json:"-" db:"stripe_customer_id"`
 	StripeSubscriptionID      sql.NullString `json:"-" db:"stripe_subscription_id"`
 	StripePaymentRetryAttempt int64          `json:"-" db:"stripe_payment_retry_attempt"`
+	UserID                    int64          `json:"-"`
 }
 
 // Validate validates the model.
@@ -57,6 +58,10 @@ func (a *Account) ValidateFromStripeError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if se, ok := err.(*stripe.Error); ok {
 		errors.Add("base", se.Msg)
+	} else {
+		if err.Error() == "stripe_token must not be blank" {
+			errors.Add("stripe_token", "must not be blank")
+		}
 	}
 	return errors
 }
@@ -168,7 +173,7 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Insert)
+	return tx.Notify("accounts", a.ID, a.UserID, 0, 0, a.ID, sql.Insert)
 }
 
 // Update updates the account in the database.
@@ -243,11 +248,5 @@ func (a *Account) Update(tx *sql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Update)
-}
-
-// SetStripePaymentRetryAttempt updates the account in the database with a new StripePaymentRetryAttempt value.
-func (a *Account) SetStripePaymentRetryAttempt(tx *sql.Tx, retry int64) error {
-	a.StripePaymentRetryAttempt = retry
-	return tx.UpdateOne(tx.SQL("accounts/update_stripe_payment_retry_attempt"), retry, a.ID)
+	return tx.Notify("accounts", a.ID, a.UserID, 0, 0, a.ID, sql.Update)
 }
