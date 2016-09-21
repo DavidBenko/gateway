@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -99,6 +100,7 @@ func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, con
 	if _, err = vm.RunAll(scripts); err != nil {
 		return err
 	}
+	vm.Set("result", "done")
 
 	if err = warp.RunComponents(vm, job.Components); err != nil {
 		if err.Error() == "JavaScript took too long to execute" {
@@ -107,6 +109,20 @@ func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, con
 		}
 		return err
 	}
+
+	value, err := vm.Get("result")
+	if err != nil {
+		return err
+	}
+	export, err := value.Export()
+	if err != nil {
+		return err
+	}
+	result, err := json.Marshal(export)
+	if err != nil {
+		return err
+	}
+	logreport.Printf("%s %s", logPrefix, string(result))
 
 	return nil
 }
