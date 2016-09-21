@@ -27,8 +27,8 @@ func JobsService(conf config.Configuration, db *sql.DB, warp *core.Core) {
 			for len(timers) > 0 {
 				length := len(timers)
 				t := source.Intn(length)
-				logPrefix := fmt.Sprintf("%s [act %d] [api %d] [end %d]", config.Job,
-					timers[t].AccountID, timers[t].APIID, timers[t].JobID)
+				logPrefix := fmt.Sprintf("%s [act %d] [timer %d] [api %d] [end %d]", config.Job,
+					timers[t].AccountID, timers[t].ID, timers[t].APIID, timers[t].JobID)
 				err = executeJob(db, timers[t], now.Unix(), logPrefix, &conf.Job, warp)
 				if err != nil {
 					logreport.Printf("%s %v", logPrefix, err)
@@ -63,6 +63,8 @@ func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, con
 	if fresh.Next > now {
 		return nil
 	}
+
+	logreport.Printf("%s %s", logPrefix, fresh.Name)
 
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
 		if fresh.Once {

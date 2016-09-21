@@ -134,7 +134,7 @@ func newAggregator(conf config.ProxyAdmin) (*mangos.Broker, error) {
 
 func makeFilter(ws *websocket.Conn) func(b byte) bool {
 	request := ws.Request()
-	exps := []*regexp.Regexp{regexp.MustCompile(".*\\[proxy\\].*")}
+	exps := []*regexp.Regexp{regexp.MustCompile(".*\\[(proxy|job)\\].*")}
 	act := int64(-1)
 	if requestSession != nil {
 		session := requestSession(request)
@@ -151,6 +151,9 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 	}
 	if end := endpointIDFromPath(request); end != -1 {
 		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[end %v\\].*", end)))
+	}
+	if timer := timerIDFromPath(request); timer != -1 {
+		exps = append(exps, regexp.MustCompile(fmt.Sprintf(".*\\[timer %v\\].*", timer)))
 	}
 	request.ParseForm()
 	if query, valid := request.Form["query"]; valid {
@@ -284,6 +287,14 @@ func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearc
 		}
 		queryMust = append(queryMust, queryEndpoint)
 	}
+	if timer := timerIDFromPath(r); timer != -1 {
+		queryTimer := map[string]interface{}{
+			"term": map[string]interface{}{
+				"timer": float64(timer),
+			},
+		}
+		queryMust = append(queryMust, queryTimer)
+	}
 	if len(r.Form["query"]) == 1 {
 		queryQuery := map[string]interface{}{
 			"term": map[string]interface{}{
@@ -364,6 +375,12 @@ func (c *LogSearchController) BleveSearch(r *http.Request) (results []LogSearchR
 		queryEndpoint := bleve.NewNumericRangeQuery(&minEndpoint, &maxEndpoint)
 		queryEndpoint.SetField("endpoint")
 		query = append(query, queryEndpoint)
+	}
+	if timer := timerIDFromPath(r); timer != -1 {
+		minTimer, maxTimer := float64(timer), float64(timer+1)
+		queryTimer := bleve.NewNumericRangeQuery(&minTimer, &maxTimer)
+		queryTimer.SetField("timer")
+		query = append(query, queryTimer)
 	}
 	if len(r.Form["query"]) == 1 {
 		queryQuery := bleve.NewMatchQuery(r.Form["query"][0])

@@ -73,6 +73,10 @@ func endpointIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["endpointID"])
 }
 
+func timerIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["timerID"])
+}
+
 func testIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["testID"])
 }
