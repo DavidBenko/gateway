@@ -2,7 +2,6 @@ package ottocrypto
 
 import (
 	"encoding/json"
-	"fmt"
 	"gateway/crypto"
 	"gateway/logreport"
 
@@ -142,20 +141,4 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 		return val
 	})
-}
-
-func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
-	obj, err := vm.Object(fmt.Sprintf("(%s)", string(s)))
-
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	result, err := vm.ToValue(obj)
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	return result
-
 }

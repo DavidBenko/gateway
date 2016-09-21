@@ -9,10 +9,6 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-type KeyDataSource interface {
-	GetKey(int64, string) (interface{}, bool)
-}
-
 // IncludeEncryption adds the AP.Crypto.encrypt and AP.Crypto.decrypt functions in
 // the supplied Otto VM.
 func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) {

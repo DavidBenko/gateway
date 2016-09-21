@@ -1,14 +1,11 @@
 package ottocrypto
 
 import (
-	"errors"
 	"gateway/crypto"
 	"gateway/logreport"
 
 	"github.com/robertkrimen/otto"
 )
-
-var undefined = otto.Value{}
 
 // IncludeHashing creates the _hashPassword, _compareHashAndPassword, hash and
 // hashHmac functions in the supplied Otto VM.
@@ -166,13 +163,4 @@ func setHashHmac(vm *otto.Otto) {
 
 		return val
 	})
-}
-
-func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
-	arg := call.Argument(index)
-	if arg == undefined {
-		return nil, errors.New("undefined argument")
-	}
-
-	return arg.Export()
 }
