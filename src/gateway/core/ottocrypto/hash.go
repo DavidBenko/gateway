@@ -18,31 +18,41 @@ func IncludeHashing(vm *otto.Otto) {
 
 func setHashPassword(vm *otto.Otto) {
 	vm.Set("_hashPassword", func(call otto.FunctionCall) otto.Value {
-		password, err := getArgument(call, 0)
-
+		p, err := getArgument(call, 0)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		iterations, err := getArgument(call, 1)
-
-		if err != nil {
-			logreport.Print(err)
+		password, ok := p.(string)
+		if !ok {
+			logreport.Println("password should be a string")
 			return undefined
 		}
 
-		result, err := crypto.HashPassword(password.(string), int(iterations.(int64)))
+		i, err := getArgument(call, 1)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
+		}
+
+		iterations, ok := i.(int64)
+		if !ok {
+			logreport.Println("iterations should be a number")
+			return undefined
+		}
+
+		result, err := crypto.HashPassword(password, int(iterations))
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
 		val, err := vm.ToValue(result)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
@@ -52,27 +62,39 @@ func setHashPassword(vm *otto.Otto) {
 
 func setCompareHashAndPassword(vm *otto.Otto) {
 	vm.Set("_compareHashAndPassword", func(call otto.FunctionCall) otto.Value {
-		hash, err := getArgument(call, 0)
+		h, err := getArgument(call, 0)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		password, err := getArgument(call, 1)
-		if err != nil {
-			logreport.Print(err)
+		hash, ok := h.(string)
+		if !ok {
+			logreport.Println("hash should be a string")
 			return undefined
 		}
 
-		result, err := crypto.CompareHashAndPassword(hash.(string), password.(string))
+		p, err := getArgument(call, 1)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
+			return undefined
+		}
+
+		password, ok := p.(string)
+		if !ok {
+			logreport.Println("password should be a string")
+			return undefined
+		}
+
+		result, err := crypto.CompareHashAndPassword(hash, password)
+		if err != nil {
+			logreport.Println(err)
 			return undefined
 		}
 
 		val, err := vm.ToValue(result)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
@@ -82,36 +104,43 @@ func setCompareHashAndPassword(vm *otto.Otto) {
 
 func setHash(vm *otto.Otto) {
 	vm.Set("_hash", func(call otto.FunctionCall) otto.Value {
-		data, err := getArgument(call, 0)
+		d, err := getArgument(call, 0)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 1)
-
-		if err != nil {
-			logreport.Print(err)
+		data, ok := d.(string)
+		if !ok {
+			logreport.Println("data should be a string")
 			return undefined
 		}
 
+		a, err := getArgument(call, 1)
+
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		result, err := crypto.Hash(data.(string), algorithm.(string))
+		algorithm, ok := a.(string)
+		if !ok {
+			logreport.Println("algorithm should be a string")
+			return undefined
+		}
+
+		result, err := crypto.Hash(data, algorithm)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
 		val, err := vm.ToValue(result)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
@@ -121,43 +150,56 @@ func setHash(vm *otto.Otto) {
 
 func setHashHmac(vm *otto.Otto) {
 	vm.Set("_hashHmac", func(call otto.FunctionCall) otto.Value {
-		data, err := getArgument(call, 0)
+		d, err := getArgument(call, 0)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		tag, err := getArgument(call, 1)
-
-		if err != nil {
-			logreport.Print(err)
+		data, ok := d.(string)
+		if !ok {
+			logreport.Println("data should be a string")
 			return undefined
 		}
 
-		algorithm, err := getArgument(call, 2)
+		t, err := getArgument(call, 1)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		if err != nil {
-			logreport.Print(err)
+		tag, ok := t.(string)
+		if !ok {
+			logreport.Println("tag should be a string")
 			return undefined
 		}
 
-		result, err := crypto.HashHmac(data.(string), tag.(string), algorithm.(string))
+		a, err := getArgument(call, 2)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
+			return undefined
+		}
+
+		algorithm, ok := a.(string)
+		if !ok {
+			logreport.Println("algorithm should be a string")
+			return undefined
+		}
+
+		result, err := crypto.HashHmac(data, tag, algorithm)
+
+		if err != nil {
+			logreport.Println(err)
 			return undefined
 		}
 
 		val, err := vm.ToValue(result)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
