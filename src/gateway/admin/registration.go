@@ -100,9 +100,23 @@ func (c *RegistrationController) Registration(w http.ResponseWriter, r *http.Req
 	}
 
 	account := &model.Account{Name: name, PlanID: apsql.MakeNullInt64(registration.PlanID), StripeToken: registration.StripeToken}
+	validationErrors := account.Validate(true)
+	if !validationErrors.Empty() {
+		return SerializableValidationErrors{validationErrors}
+	}
 	err := account.Insert(tx)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		validationErrors = account.ValidateFromDatabaseError(err)
+		if !validationErrors.Empty() {
+			return SerializableValidationErrors{validationErrors}
+		} else {
+			validationErrors = account.ValidateFromStripeError(err)
+			if !validationErrors.Empty() {
+				return SerializableValidationErrors{validationErrors}
+			} else {
+				return aphttp.NewError(err, http.StatusBadRequest)
+			}
+		}
 	}
 
 	user := &model.User{

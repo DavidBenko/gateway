@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/gdamore/mangos"
+	"github.com/go-mangos/mangos"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )

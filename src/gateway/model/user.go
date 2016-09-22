@@ -75,6 +75,9 @@ func (u *User) ValidateFromDatabaseError(err error) aperrors.Errors {
 		err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
 		errors.Add("email", "is already taken")
 	}
+	if err.Error() == "Maximum number of users allowed by plan reached." {
+		errors.Add("base", "maximum number of users allowed by plan reached")
+	}
 	return errors
 }
 
@@ -117,8 +120,8 @@ func FindAdminUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
 		`SELECT id, name, email, admin, confirmed FROM users
-		 WHERE account_id = ? AND admin = 1 ORDER BY id LIMIT 1;`,
-		accountID)
+		 WHERE account_id = ? AND admin = ? ORDER BY id LIMIT 1;`,
+		accountID, true)
 	return &user, err
 }
 
@@ -261,7 +264,8 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	if stripe.Key != "" {
-		account, err := FindAccount(tx.DB, u.AccountID)
+		account := Account{}
+		err := tx.Get(&account, tx.SQL("accounts/find"), u.AccountID)
 		if err != nil {
 			return err
 		}
@@ -270,7 +274,7 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 			return err
 		}
 		if int64(count) >= plan.MaxUsers {
-			return errors.New(fmt.Sprintf("Plan only allows %v user(s).", plan.MaxUsers))
+			return errors.New(`Maximum number of users allowed by plan reached.`)
 		}
 	}
 

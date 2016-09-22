@@ -85,6 +85,13 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 // Run runs the server.
 func (s *Server) Run() {
 
+	// system-wide health-check
+	if s.proxyConf.HealthCheckPath != "" {
+		s.router.Handle(s.proxyConf.HealthCheckPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("ok\n"))
+		}))
+	}
+
 	// Set up admin
 	admin.Setup(s.router, s.OwnDb, s.Store, s.conf, s.Core)
 

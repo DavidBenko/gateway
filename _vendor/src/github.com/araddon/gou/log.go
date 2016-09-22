@@ -110,7 +110,7 @@ func DiscardStandardLogger() {
 //	gou.SetLogger(log.New(os.Stdout, "", log.LstdFlags), "debug")
 //
 //  loglevls:   debug, info, warn, error, fatal
-// Note, that you can also set a seperate Error Log Level
+// Note, that you can also set a separate Error Log Level
 func SetLogger(l *log.Logger, logLevel string) {
 	logger = l
 	LogLevelSet(logLevel)
@@ -157,6 +157,12 @@ func Debugf(format string, v ...interface{}) {
 	}
 }
 
+func DebugT(lineCt int) {
+	if LogLevel >= 4 {
+		DoLog(3, DEBUG, fmt.Sprint("\n", PrettyStack(lineCt)))
+	}
+}
+
 // Log at info level
 func Info(v ...interface{}) {
 	if LogLevel >= 3 {
@@ -171,6 +177,13 @@ func Infof(format string, v ...interface{}) {
 	}
 }
 
+// Info Trace
+func InfoT(lineCt int) {
+	if LogLevel >= 3 {
+		DoLog(3, INFO, fmt.Sprint("\n", PrettyStack(lineCt)))
+	}
+}
+
 // Log at warn level
 func Warn(v ...interface{}) {
 	if LogLevel >= 2 {
@@ -182,6 +195,13 @@ func Warn(v ...interface{}) {
 func Warnf(format string, v ...interface{}) {
 	if LogLevel >= 2 {
 		DoLog(3, WARN, fmt.Sprintf(format, v...))
+	}
+}
+
+// Warn Trace
+func WarnT(lineCt int) {
+	if LogLevel >= 2 {
+		DoLog(3, WARN, fmt.Sprint("\n", PrettyStack(lineCt)))
 	}
 }
 
@@ -228,10 +248,59 @@ func LogTracef(logLvl int, format string, v ...interface{}) {
 		stackTraceStr := string(stackBuf[0:stackBufLen])
 		parts := strings.Split(stackTraceStr, "\n")
 		if len(parts) > 1 {
-			v = append(v, strings.Join(parts[3:len(parts)], "\n"))
+			v = append(v, strings.Join(parts[3:], "\n"))
 		}
 		DoLog(3, logLvl, fmt.Sprintf(format+"\n%v", v...))
 	}
+}
+
+// Log to logger if setup, grab a stack trace and add that as well
+//
+//    u.LogTracef(u.ERROR, "message %s", varx)
+//
+func LogTraceDf(logLvl, lineCt int, format string, v ...interface{}) {
+	if LogLevel >= logLvl {
+		// grab a stack trace
+		stackBuf := make([]byte, 6000)
+		stackBufLen := runtime.Stack(stackBuf, false)
+		stackTraceStr := string(stackBuf[0:stackBufLen])
+		parts := strings.Split(stackTraceStr, "\n")
+		if len(parts) > 1 {
+			if (len(parts) - 3) > lineCt {
+				parts = parts[3 : 3+lineCt]
+				parts2 := make([]string, 0, len(parts)/2)
+				for i := 1; i < len(parts); i = i + 2 {
+					parts2 = append(parts2, parts[i])
+				}
+				v = append(v, strings.Join(parts2, "\n"))
+				//v = append(v, strings.Join(parts[3:3+lineCt], "\n"))
+			} else {
+				v = append(v, strings.Join(parts[3:], "\n"))
+			}
+		}
+		DoLog(3, logLvl, fmt.Sprintf(format+"\n%v", v...))
+	}
+}
+
+func PrettyStack(lineCt int) string {
+	stackBuf := make([]byte, 10000)
+	stackBufLen := runtime.Stack(stackBuf, false)
+	stackTraceStr := string(stackBuf[0:stackBufLen])
+	parts := strings.Split(stackTraceStr, "\n")
+	if len(parts) > 3 {
+		parts = parts[2:]
+		parts2 := make([]string, 0, len(parts)/2)
+		for i := 3; i < len(parts)-1; i++ {
+			if !strings.HasSuffix(parts[i], ")") && !strings.HasPrefix(parts[i], "/usr/local") {
+				parts2 = append(parts2, parts[i])
+			}
+		}
+		if len(parts2) > lineCt {
+			return strings.Join(parts2[0:lineCt], "\n")
+		}
+		return strings.Join(parts2, "\n")
+	}
+	return stackTraceStr
 }
 
 // Throttle logging based on key, such that key would never occur more than
@@ -247,11 +316,16 @@ func LogThrottleKey(logLvl, limit int, key, format string, v ...interface{}) {
 			th = NewThrottler(limit, 3600*time.Second)
 			logThrottles[key] = th
 		}
-		if th.Throttle() {
+		skip, throttleCount := th.Throttle()
+		if skip {
 			throttleMu.Unlock()
 			return
 		}
 		throttleMu.Unlock()
+
+		if throttleCount > 0 {
+			format = fmt.Sprintf("%s LogsThrottled[%d]", format, throttleCount)
+		}
 		DoLog(3, logLvl, fmt.Sprintf(format, v...))
 	}
 }
@@ -269,12 +343,43 @@ func LogThrottle(logLvl, limit int, format string, v ...interface{}) {
 			th = NewThrottler(limit, 3600*time.Second)
 			logThrottles[format] = th
 		}
-		if th.Throttle() {
+		var throttleCount int32
+		skip, throttleCount := th.Throttle()
+		if skip {
 			throttleMu.Unlock()
 			return
 		}
 		throttleMu.Unlock()
+
+		if throttleCount > 0 {
+			format = fmt.Sprintf("%s LogsThrottled[%d]", format, throttleCount)
+		}
 		DoLog(3, logLvl, fmt.Sprintf(format, v...))
+	}
+}
+
+// Throttle logging based on @format as a key, such that key would never occur more than
+//   @limit times per hour
+//
+//    LogThrottleD(5, u.ERROR, 1, "message %s", varx)
+//
+func LogThrottleD(depth, logLvl, limit int, format string, v ...interface{}) {
+	if LogLevel >= logLvl {
+		throttleMu.Lock()
+		th, ok := logThrottles[format]
+		if !ok {
+			th = NewThrottler(limit, 3600*time.Second)
+			logThrottles[format] = th
+		}
+		skip, throttleCount := th.Throttle()
+		if skip {
+			throttleMu.Unlock()
+			return
+		}
+		throttleMu.Unlock()
+
+		format = fmt.Sprintf("Log Throttled[%d] %s", throttleCount, format)
+		DoLog(depth, logLvl, fmt.Sprintf(format, v...))
 	}
 }
 
