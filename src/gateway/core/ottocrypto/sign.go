@@ -29,41 +29,43 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 		d, err := getArgument(call, 0)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		data := []byte(d.(string))
+		data, ok := d.(string)
+		if !ok {
+			logreport.Println("data should be a string")
+			return undefined
+		}
 
 		o, err := getArgument(call, 1)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		options := o.(map[string]interface{})
-
-		var key interface{}
-		if keyName, ok := options["key"]; ok {
-			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
-				key = k
-			}
+		options, ok := o.(map[string]interface{})
+		if !ok {
+			logreport.Println("options should be an object")
+			return undefined
 		}
 
-		algorithm := DefaultHashAlgorithm
-		if a, ok := options["algorithm"]; ok {
-			algorithm = a.(string)
+		key, algorithm, _, err := getOptions(o, keySource, accountID)
+
+		padding, err := getOptionString(options, "padding", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
+		}
+		if padding == "" {
+			padding = DefaultPaddingScheme
 		}
 
-		padding := DefaultPaddingScheme
-		if p, ok := options["padding"]; ok {
-			padding = p.(string)
-		}
-
-		results, err := crypto.Sign(data, key, algorithm, padding)
+		results, err := crypto.Sign([]byte(data), key, algorithm, padding)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
@@ -89,53 +91,65 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 		d, err := getArgument(call, 0)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		data := []byte(d.(string))
+		data, ok := d.(string)
+		if !ok {
+			logreport.Println("data should be a string")
+			return undefined
+		}
 
-		signature, err := getArgument(call, 1)
+		s, err := getArgument(call, 1)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
+			return undefined
+		}
+
+		signature, ok := s.(string)
+		if !ok {
+			logreport.Println("signature should be a string")
 			return undefined
 		}
 
 		o, err := getArgument(call, 2)
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 
-		options := o.(map[string]interface{})
-
-		var key interface{}
-		if keyName, ok := options["key"]; ok {
-			if k, found := keySource.GetKey(accountID, keyName.(string)); found {
-				key = k
-			}
+		options, ok := o.(map[string]interface{})
+		if !ok {
+			logreport.Println("options should be an object")
+			return undefined
 		}
 
-		algorithm := DefaultHashAlgorithm
-		if a, ok := options["algorithm"]; ok {
-			algorithm = a.(string)
+		key, algorithm, _, err := getOptions(o, keySource, accountID)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
 		}
 
-		padding := DefaultPaddingScheme
-		if p, ok := options["padding"]; ok {
-			padding = p.(string)
+		padding, err := getOptionString(options, "padding", true)
+		if err != nil {
+			logreport.Println(err)
+			return undefined
+		}
+		if padding == "" {
+			padding = DefaultPaddingScheme
 		}
 
-		results, err := crypto.Verify(data, signature.(string), key, algorithm, padding)
+		results, err := crypto.Verify([]byte(data), signature, key, algorithm, padding)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 		}
 
 		val, err := otto.ToValue(results)
 
 		if err != nil {
-			logreport.Print(err)
+			logreport.Println(err)
 			return undefined
 		}
 

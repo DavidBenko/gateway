@@ -22,11 +22,11 @@ type KeyDataSource interface {
 	GetKey(int64, string) (interface{}, bool)
 }
 
-// GetKeyFromSource returns the crypto key given a key option in the options map and an accountID from the supplied
+// getKeyFromSource returns the crypto key given a key option in the options map and an accountID from the supplied
 // KeyDataSource.
-func GetKeyFromSource(options map[string]interface{}, keySource KeyDataSource, accountID int64) (interface{}, error) {
+func getKeyFromSource(options map[string]interface{}, keySource KeyDataSource, accountID int64) (interface{}, error) {
 	var key interface{}
-	k, err := GetOptionString(options, "key", false)
+	k, err := getOptionString(options, "key", false)
 	if err != nil {
 		return key, err
 	}
@@ -37,9 +37,9 @@ func GetKeyFromSource(options map[string]interface{}, keySource KeyDataSource, a
 	return key, fmt.Errorf("key not found with name %s", k)
 }
 
-// GetOptionString gets the supplied key value from the options map. If optional is true, will not
+// getOptionString gets the supplied key value from the options map. If optional is true, will not
 // return an error if nothing is found.
-func GetOptionString(options map[string]interface{}, key string, optional bool) (string, error) {
+func getOptionString(options map[string]interface{}, key string, optional bool) (string, error) {
 	if k, ok := options[key]; ok {
 		if s, ok := k.(string); ok {
 			return s, nil
@@ -75,4 +75,32 @@ func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	}
 
 	return arg.Export()
+}
+
+func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
+	options, ok := opts.(map[string]interface{})
+	if !ok {
+		err = errors.New("options should be an object")
+		return
+	}
+
+	algorithm = DefaultHashAlgorithm
+	key, err = getKeyFromSource(options, keySource, accountID)
+	if err != nil {
+		return
+	}
+
+	tag, err = getOptionString(options, "tag", true)
+	if err != nil {
+		return
+	}
+
+	a, err := getOptionString(options, "algorithm", true)
+	if err != nil {
+		return
+	}
+	if a != "" {
+		algorithm = a
+	}
+	return
 }

@@ -2,7 +2,6 @@ package ottocrypto
 
 import (
 	"encoding/base64"
-	"errors"
 	"gateway/crypto"
 	"gateway/logreport"
 
@@ -115,32 +114,4 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 		return val
 	})
-}
-
-func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
-	options, ok := opts.(map[string]interface{})
-	if !ok {
-		err = errors.New("options should be an object")
-		return
-	}
-
-	key, err = GetKeyFromSource(options, keySource, accountID)
-	if err != nil {
-		return
-	}
-
-	tag, err = GetOptionString(options, "tag", true)
-	if err != nil {
-		return
-	}
-
-	algorithm = DefaultHashAlgorithm
-	a, err := GetOptionString(options, "algorithm", true)
-	if err != nil {
-		return
-	}
-	if a != "" {
-		algorithm = a
-	}
-	return
 }
