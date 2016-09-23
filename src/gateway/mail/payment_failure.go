@@ -6,9 +6,9 @@ import (
 )
 
 func SendInvoicePaymentFailedEmail(_smtp config.SMTP, proxyServer config.ProxyServer, admin config.ProxyAdmin,
-	user *model.User, async bool) error {
-	context := NewEmailTemplate(_smtp, proxyServer, admin, user)
-	context.Subject = "Payment Failed"
+	user *model.User, paymentDetails *PaymentDetails, async bool) error {
+	context := NewEmailTemplateWithPaymentDetails(_smtp, proxyServer, admin, user, paymentDetails)
+	context.Subject = "Nanoscale.io Billing Problem"
 	err := Send("payment_failure.html", context, _smtp, user, async)
 	if err != nil {
 		return err

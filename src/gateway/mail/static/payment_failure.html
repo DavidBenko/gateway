@@ -1,12 +1,17 @@
 {{define "body"}}
 <br/>
-<strong><span style="font-size:14px;">Your most recent invoice payment has failed.</span></strong><br/>
+We had a problem attempting to charge your {{.PaymentDetails.CardDisplay}} for your Nanoscale.io subscription.<br/>
 <br/>
-In order to stay on your current plan please login and update your billing details. We will try to charge your account again in the next few days.
+Failure reason: {{.PaymentDetails.FailureReason}}<br/>
 <br/>
-To manage your accout, visit&nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a><br/>
+We will make another attempt on {{.PaymentDetails.NextChargeAttemptString}}.<br/>
 <br/>
-The AnyPresence Team<br/>
+To update your payment method, please visit &nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a> and update your account. Failure to resolve this issue could result in your Nanoscale.io plan being automatically downgraded to the free plan.<br/>
+<br/>
+If you have any questions, please contact us at <a href="mailto:support@nanoscale.io" style="color:#6350b0;">support@nanoscale.io</a>. &nbsp;<br/>
+<br/>
+Thank you for using Nanoscale.io<br/>
+<a href="http://www.nanoscale.io">http://www.nanoscale.io</a>
 <br/>
 &nbsp;
 {{end}}

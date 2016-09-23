@@ -21,6 +21,7 @@ type Account struct {
 	StripeCustomerID          sql.NullString `json:"-" db:"stripe_customer_id"`
 	StripeSubscriptionID      sql.NullString `json:"-" db:"stripe_subscription_id"`
 	StripePaymentRetryAttempt int64          `json:"-" db:"stripe_payment_retry_attempt"`
+	UserID                    int64          `json:"-"`
 }
 
 // Validate validates the model.
@@ -47,6 +48,20 @@ func (a *Account) ValidateFromDatabaseError(err error) aperrors.Errors {
 	}
 	if sql.IsUniqueConstraint(err, "accounts", "stripe_subscription_id") {
 		errors.Add("stripe_subscription_id", "is already taken")
+	}
+	return errors
+}
+
+// ValidateFromStripeError translates possible stripe errors
+// into validation errors.
+func (a *Account) ValidateFromStripeError(err error) aperrors.Errors {
+	errors := make(aperrors.Errors)
+	if se, ok := err.(*stripe.Error); ok {
+		errors.Add("base", se.Msg)
+	} else {
+		if err.Error() == "stripe_token must not be blank" {
+			errors.Add("stripe_token", "must not be blank")
+		}
 	}
 	return errors
 }
@@ -142,11 +157,6 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 		if plan.Price > 0 && a.StripeToken == "" {
 			return errors.New("stripe_token must not be blank")
 		}
-		// Pass Stripe single-use token, plan, and customer details to Stripe to create the subscription.
-		plan, err = FindPlan(tx.DB, a.PlanID.Int64)
-		if err != nil {
-			return err
-		}
 		customerParams := &stripe.CustomerParams{}
 		if a.StripeToken != "" {
 			customerParams.SetSource(a.StripeToken)
@@ -163,11 +173,11 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Insert)
+	return tx.Notify("accounts", a.ID, a.UserID, 0, 0, a.ID, sql.Insert)
 }
 
 // Update updates the account in the database.
-func (a *Account) Update(tx *sql.Tx) error {
+func (a *Account) Update(tx *sql.Tx) (err error) {
 	// Handle Stripe related plan or billing changes.
 	if stripe.Key != "" {
 		currentAccount, err := FindAccount(tx.DB, a.ID)
@@ -178,44 +188,65 @@ func (a *Account) Update(tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		if a.PlanID.Int64 != currentAccount.PlanID.Int64 && plan.Price > 0 {
-			c, err := customer.Get(currentAccount.StripeCustomerID.String, nil)
-			if err != nil {
-				return err
-			}
-			if c.DefaultSource == nil && a.StripeToken == "" {
-				return errors.New("stripe_token must not be blank")
-			}
-		}
-		if a.StripeToken != "" {
+		if !currentAccount.StripeCustomerID.Valid {
 			customerParams := &stripe.CustomerParams{}
-			customerParams.SetSource(a.StripeToken)
-			_, err = customer.Update(currentAccount.StripeCustomerID.String, customerParams)
+			if a.StripeToken != "" {
+				customerParams.SetSource(a.StripeToken)
+			}
+			customerParams.Plan = plan.StripeName
+			c, err := customer.New(customerParams)
 			if err != nil {
 				return err
 			}
-		}
-		if a.PlanID.Int64 != currentAccount.PlanID.Int64 {
-			_, err = sub.Update(currentAccount.StripeSubscriptionID.String,
-				&stripe.SubParams{
-					Plan: plan.StripeName,
-				},
-			)
+			a.StripeCustomerID.String = c.ID
+			a.StripeCustomerID.Valid = true
+			a.StripeSubscriptionID.String = c.Subs.Values[0].ID
+			a.StripeSubscriptionID.Valid = true
+			a.PlanID.Int64 = plan.ID
+			currentAccount.StripeCustomerID.String = c.ID
+			currentAccount.StripeCustomerID.Valid = true
+			currentAccount.StripeSubscriptionID.String = c.Subs.Values[0].ID
+			currentAccount.StripeSubscriptionID.Valid = true
+			currentAccount.PlanID.Int64 = plan.ID
+			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.PlanID.Int64, a.ID)
 			if err != nil {
 				return err
+			}
+		} else {
+			if a.PlanID.Int64 != currentAccount.PlanID.Int64 && plan.Price > 0 {
+				c, err := customer.Get(currentAccount.StripeCustomerID.String, nil)
+				if err != nil {
+					return err
+				}
+				if c.DefaultSource == nil && a.StripeToken == "" {
+					return errors.New("stripe_token must not be blank")
+				}
+			}
+			if a.StripeToken != "" {
+				customerParams := &stripe.CustomerParams{}
+				customerParams.SetSource(a.StripeToken)
+				_, err = customer.Update(currentAccount.StripeCustomerID.String, customerParams)
+				if err != nil {
+					return err
+				}
+			}
+			if a.PlanID.Int64 != currentAccount.PlanID.Int64 {
+				_, err = sub.Update(currentAccount.StripeSubscriptionID.String,
+					&stripe.SubParams{
+						Plan: plan.StripeName,
+					},
+				)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
+	} else {
+		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
 	}
-	err := tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
 	if err != nil {
 		return err
 	}
-	return tx.Notify("accounts", a.ID, 0, 0, 0, a.ID, sql.Update)
-}
-
-// SetStripePaymentRetryAttempt updates the account in the database with a new StripePaymentRetryAttempt value.
-func (a *Account) SetStripePaymentRetryAttempt(tx *sql.Tx, retry int64) error {
-	a.StripePaymentRetryAttempt = retry
-	return tx.UpdateOne(tx.SQL("accounts/update_stripe_payment_retry_attempt"), retry, a.ID)
+	return tx.Notify("accounts", a.ID, a.UserID, 0, 0, a.ID, sql.Update)
 }
