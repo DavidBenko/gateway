@@ -1237,3 +1237,51 @@ AP.Smtp = AP.Smtp || {};
      this.environment = env;
    }
  }
+
+/**
+ * Job holds helper classes for Job related tasks
+ *
+ * @namespace
+ */
+AP.Job = AP.Job || {};
+
+/**
+ * Creates a new Job request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.Job.Request = function() {
+  this.arguments = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+
+AP.Job.Request.prototype.request = function() {
+  this.arguments = arguments;
+}
+
+/**
+ * Runs a job.
+ *
+ * @param {string} name The name of the job.
+ * @param {Object} [attributes] Attributes for the job.
+ */
+AP.Job.Request.prototype.run = function(name, attributes) {
+  this.request("run", name, attributes);
+}
+
+/**
+ * Schedules a job
+ *
+ * @param {Number} time When to schedule the job for.
+ * @param {string} name The name of the job.
+ * @param {Object} [attributes] Attributes for the job.
+ */
+AP.Job.Request.prototype.schedule = function(time, name, attributes) {
+  this.request("schedule", Math.floor(time.getTime() / 1000), name, attributes);
+}

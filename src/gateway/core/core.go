@@ -34,6 +34,7 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
+	Conf       config.Configuration
 }
 
 func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
@@ -62,6 +63,7 @@ func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
 		Store:      objectStore,
 		Push:       push.NewPushPool(conf.Push),
 		Smtp:       smtp.NewSmtpPool(),
+		Conf:       conf,
 	}
 }
 
@@ -114,6 +116,8 @@ func (s *Core) PrepareRequest(
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
 	case model.RemoteEndpointTypeDocker:
 		return request.NewDockerRequest(endpoint, data, s.DockerConf)
+	case model.RemoteEndpointTypeJob:
+		return request.NewJobRequest(s.OwnDb, endpoint, s.ExecuteJob, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

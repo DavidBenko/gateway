@@ -169,7 +169,7 @@ func main() {
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
-	service.JobsService(conf, db, warp)
+	service.JobsService(conf, warp)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 

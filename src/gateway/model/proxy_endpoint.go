@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -163,11 +164,21 @@ func (e *ProxyEndpoint) Find(db *apsql.DB) (*ProxyEndpoint, error) {
 		UserID:    e.UserID,
 		APIID:     e.APIID,
 	}
-	err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find"), e.ID, e.Type, e.APIID, e.AccountID)
-	if err != nil {
-		return nil, err
+	if e.ID > 0 {
+		err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find"), e.ID, e.Type, e.APIID, e.AccountID)
+		if err != nil {
+			return nil, err
+		}
+	} else if e.Name != "" {
+		err := db.Get(&proxyEndpoint, db.SQL("proxy_endpoints/find_name"), e.Name, e.Type, e.APIID, e.AccountID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("Not enough information for proxy endpoint find.")
 	}
 
+	var err error
 	proxyEndpoint.Components, err = AllProxyEndpointComponentsForEnvironmentOnAPI(
 		db, e.APIID, proxyEndpoint.EnvironmentID, e.ID,
 	)

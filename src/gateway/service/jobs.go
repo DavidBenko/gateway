@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
@@ -9,19 +8,18 @@ import (
 
 	"gateway/config"
 	"gateway/core"
-	"gateway/core/vm"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
 )
 
-func JobsService(conf config.Configuration, db *sql.DB, warp *core.Core) {
+func JobsService(conf config.Configuration, warp *core.Core) {
 	ticker := time.NewTicker(time.Minute)
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	go func() {
 		for now := range ticker.C {
 			timer := model.Timer{}
-			timers, err := timer.AllReady(db, now.Unix())
+			timers, err := timer.AllReady(warp.OwnDb, now.Unix())
 			if err != nil {
 				logreport.Printf("%s %v", config.Job, err)
 			}
@@ -30,7 +28,7 @@ func JobsService(conf config.Configuration, db *sql.DB, warp *core.Core) {
 				t := source.Intn(length)
 				logPrefix := fmt.Sprintf("%s [act %d] [timer %d] [api %d] [end %d]", config.Job,
 					timers[t].AccountID, timers[t].ID, timers[t].APIID, timers[t].JobID)
-				err = executeJob(db, timers[t], now.Unix(), logPrefix, &conf.Job, warp)
+				err = executeJob(timers[t], now.Unix(), logPrefix, warp)
 				if err != nil {
 					logreport.Printf("%s %v", logPrefix, err)
 				}
@@ -41,7 +39,9 @@ func JobsService(conf config.Configuration, db *sql.DB, warp *core.Core) {
 	}()
 }
 
-func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, conf vm.VMConfig, warp *core.Core) (err error) {
+func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core) (err error) {
+	db := warp.OwnDb
+
 	locked, err := db.TryLock("timers", timer.ID)
 	if err != nil {
 		return err
@@ -77,52 +77,10 @@ func executeJob(db *sql.DB, timer *model.Timer, now int64, logPrefix string, con
 		return err
 	}
 
-	job, err := model.FindProxyEndpointForProxy(db, timer.JobID, model.ProxyEndpointTypeJob)
-	if err != nil {
-		return err
-	}
-	libraries, err := model.AllLibrariesForProxy(db, timer.APIID)
-	if err != nil {
-		return err
-	}
-
-	vm := &vm.CoreVM{}
-	vm.InitCoreVM(core.VMCopy(), logreport.Printf, logPrefix, conf, job, libraries, conf.GetCodeTimeout())
-
 	attributesJSON, err := timer.Attributes.MarshalJSON()
 	if err != nil {
 		return err
 	}
-	vm.Set("__ap_jobAttributesJSON", string(attributesJSON))
-	scripts := []interface{}{
-		"var attributes = JSON.parse(__ap_jobAttributesJSON);",
-	}
-	if _, err = vm.RunAll(scripts); err != nil {
-		return err
-	}
-	vm.Set("result", "done")
 
-	if err = warp.RunComponents(vm, job.Components); err != nil {
-		if err.Error() == "JavaScript took too long to execute" {
-			logreport.Printf("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, conf.GetCodeTimeout())
-			return nil
-		}
-		return err
-	}
-
-	value, err := vm.Get("result")
-	if err != nil {
-		return err
-	}
-	export, err := value.Export()
-	if err != nil {
-		return err
-	}
-	result, err := json.Marshal(export)
-	if err != nil {
-		return err
-	}
-	logreport.Printf("%s %s", logPrefix, string(result))
-
-	return nil
+	return warp.ExecuteJob(timer.JobID, timer.APIID, logPrefix, string(attributesJSON))
 }
