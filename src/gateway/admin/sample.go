@@ -27,7 +27,7 @@ func (c *SamplesController) QueryStats(
 	if err := c.BeforeValidate(sample, tx); err != nil {
 		return nil, err
 	}
-	sq := &sql.SQL{}
+	sq := &sql.SQL{DB: tx.DB.DB}
 	results, e := sq.Sample(
 		sample.Constraints,
 		sample.Variables...,
