@@ -14,6 +14,11 @@ import (
 )
 
 func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
+	driver := sql.SQLite3
+	if a.db.Driver == "postgres" {
+		driver = sql.Postgres
+	}
+	c.Assert(sql.Migrate(a.db.DB, driver), gc.IsNil)
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
 	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
@@ -88,11 +93,17 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 }
 
 func (a *AdminSuite) TestQueryStats(c *gc.C) {
+	driver := sql.SQLite3
+	if a.db.Driver == "postgres" {
+		driver = sql.Postgres
+	}
+	c.Assert(sql.Migrate(a.db.DB, driver), gc.IsNil)
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
 	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
 
-	sq := &sql.SQL{DB: a.db}
+	sq := &sql.SQL{DB: a.db.DB}
+
 	point1 := stats.Point{
 		Timestamp: time.Now(),
 		Values: map[string]interface{}{
