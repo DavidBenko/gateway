@@ -5,7 +5,10 @@ import (
 	"gateway/model"
 	"gateway/model/testing"
 	"gateway/stats"
+	"gateway/stats/sql"
+	"net/http"
 	"regexp"
+	"time"
 
 	gc "gopkg.in/check.v1"
 )
@@ -87,6 +90,34 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 func (a *AdminSuite) TestQueryStats(c *gc.C) {
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
+	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
+
+	sq := &sql.SQL{DB: a.db}
+	point1 := stats.Point{
+		Timestamp: time.Now(),
+		Values: map[string]interface{}{
+			"request.size":                  10,
+			"request.id":                    "1234",
+			"api.id":                        api1.ID,
+			"api.name":                      api1.Name,
+			"response.time":                 50,
+			"response.size":                 500,
+			"response.status":               http.StatusOK,
+			"response.error":                "",
+			"host.id":                       int64(2),
+			"host.name":                     "text",
+			"proxy.id":                      int64(2),
+			"proxy.name":                    "text",
+			"proxy.env.id":                  int64(2),
+			"proxy.env.name":                "text",
+			"proxy.route.path":              "text",
+			"proxy.route.verb":              "text",
+			"proxy.group.id":                int64(2),
+			"proxy.group.name":              "text",
+			"remote_endpoint.response.time": 2,
+		},
+	}
+	c.Assert(sq.Log(point1), gc.IsNil)
 
 	controller := &admin.SamplesController{}
 	for i, t := range []struct {
@@ -106,6 +137,18 @@ func (a *AdminSuite) TestQueryStats(c *gc.C) {
 		},
 		expectError: `invalid operator "foo" for single api.id value, use "EQ"`,
 	},
+		{
+			should: "give some results for a valid query",
+			given: &model.Sample{
+				Name:      "Sample2",
+				AccountID: acc1.ID,
+				UserID:    user1.ID,
+				Variables: []string{"request.size", "request.id"},
+				Constraints: []stats.Constraint{
+					{Key: "api.id", Operator: stats.EQ, Value: api1.ID},
+				},
+			},
+		},
 	} {
 		c.Logf("test %d: should %s", i, t.should)
 
