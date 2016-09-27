@@ -40,8 +40,8 @@ ORDER BY timestamp, node`[1:],
 	}, {
 		should: "generate a simple sampler query for SQLite",
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, time.Now()},
-			{"timestamp", stats.LT, time.Now()},
+			{Key: "timestamp", Operator: stats.GTE, Value: time.Now()},
+			{Key: "timestamp", Operator: stats.LT, Value: time.Now()},
 		},
 		givenVars:   []string{"request.size", "request.id"},
 		givenDriver: s.sqlite,
@@ -56,8 +56,8 @@ ORDER BY timestamp, node`[1:],
 	}, {
 		should: "generate a simple sampler query for Postgres",
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, time.Now()},
-			{"timestamp", stats.LT, time.Now()},
+			{Key: "timestamp", Operator: stats.GTE, Value: time.Now()},
+			{Key: "timestamp", Operator: stats.LT, Value: time.Now()},
 		},
 		givenVars:   []string{"request.size", "request.id"},
 		givenDriver: s.postgres,
@@ -72,10 +72,10 @@ ORDER BY timestamp, node`[1:],
 	}, {
 		should: "generate a more complex sampler query for SQLite",
 		givenConstraints: []stats.Constraint{
-			{"node", stats.EQ, "foo"},
-			{"request.id", stats.IN, []string{"1", "2"}},
-			{"timestamp", stats.GTE, time.Now()},
-			{"timestamp", stats.LT, time.Now()},
+			{Key: "node", Operator: stats.EQ, Value: "foo"},
+			{Key: "request.id", Operator: stats.IN, Value: []string{"1", "2"}},
+			{Key: "timestamp", Operator: stats.GTE, Value: time.Now()},
+			{Key: "timestamp", Operator: stats.LT, Value: time.Now()},
 		},
 		givenVars: []string{
 			"node", "timestamp", "request.size", "request.id",
@@ -96,10 +96,10 @@ ORDER BY timestamp, node`[1:],
 	}, {
 		should: "generate a more complex sampler query for Postgres",
 		givenConstraints: []stats.Constraint{
-			{"node", stats.EQ, "foo"},
-			{"request.id", stats.IN, []string{"1", "2"}},
-			{"timestamp", stats.GTE, time.Now()},
-			{"timestamp", stats.LT, time.Now()},
+			{Key: "node", Operator: stats.EQ, Value: "foo"},
+			{Key: "request.id", Operator: stats.IN, Value: []string{"1", "2"}},
+			{Key: "timestamp", Operator: stats.GTE, Value: time.Now()},
+			{Key: "timestamp", Operator: stats.LT, Value: time.Now()},
 		},
 		givenVars: []string{
 			"node", "timestamp", "request.size", "request.id",
@@ -177,8 +177,8 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 			"node1": {samplePoint("simple", tNow.UTC())},
 		},
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second).UTC()},
-			{"timestamp", stats.LT, tNow.Add(2 * time.Second).UTC()},
+			{Key: "timestamp", Operator: stats.GTE, Value: tNow.Add(-2 * time.Second).UTC()},
+			{Key: "timestamp", Operator: stats.LT, Value: tNow.Add(2 * time.Second).UTC()},
 		},
 		givenMeasurements: []string{"node", "timestamp"},
 		expect: stats.Result{
@@ -204,8 +204,8 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 			},
 		},
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
-			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
+			{Key: "timestamp", Operator: stats.GTE, Value: tNow.Add(-2 * time.Second)},
+			{Key: "timestamp", Operator: stats.LT, Value: tNow.Add(2 * time.Second)},
 		},
 		givenMeasurements: []string{"node", "timestamp", "request.size"},
 		expect: stats.Result{{
@@ -267,9 +267,9 @@ func (s *SQLSuite) TestSample(c *gc.C) {
 			},
 		},
 		givenConstraints: []stats.Constraint{
-			{"timestamp", stats.GTE, tNow.Add(-2 * time.Second)},
-			{"timestamp", stats.LT, tNow.Add(2 * time.Second)},
-			{"node", stats.EQ, "global"},
+			{Key: "timestamp", Operator: stats.GTE, Value: tNow.Add(-2 * time.Second)},
+			{Key: "timestamp", Operator: stats.LT, Value: tNow.Add(2 * time.Second)},
+			{Key: "node", Operator: stats.EQ, Value: "global"},
 		},
 		givenMeasurements: []string{"timestamp", "response.time"},
 		expect: stats.Result{{
