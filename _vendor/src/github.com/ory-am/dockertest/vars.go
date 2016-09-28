@@ -17,7 +17,10 @@ var (
 	// BindDockerToLocalhost if set, forces docker to bind the image to localhost. This for example is required when running tests on travis-ci.
 	// You can set this variable either directly or by defining a DOCKERTEST_BIND_LOCALHOST env variable.
 	// FIXME DOCKER_BIND_LOCALHOST remove legacy support
-	BindDockerToLocalhost = env.Getenv("DOCKERTEST_BIND_LOCALHOST", env.Getenv("DOCKER_BIND_LOCALHOST", ""))
+	BindDockerToLocalhost = env.Getenv("DOCKERTEST_BIND_LOCALHOST", env.Getenv("DOCKER_BIND_LOCALHOST", "1"))
+
+	// UseDockerMachine if set, forces docker to use the legacy docker-machine on OSX/Windows.
+	UseDockerMachine = env.Getenv("DOCKERTEST_LEGACY_DOCKER_MACHINE", "")
 
 	// ContainerPrefix will be prepended to all containers started by dockertest to make identification of these "test images" hassle-free.
 	ContainerPrefix = env.Getenv("DOCKERTEST_CONTAINER_PREFIX", "dockertest-")
@@ -45,6 +48,27 @@ var (
 
 	// RethinkDBImageName is the RethinkDB image name on dockerhub.
 	RethinkDBImageName = env.Getenv("DOCKERTEST_RETHINKDB_IMAGE_NAME", "rethinkdb")
+
+	// RabbitMQImage name is the RabbitMQ image name on dockerhub.
+	RabbitMQImageName = env.Getenv("DOCKERTEST_RABBITMQ_IMAGE_NAME", "rabbitmq")
+
+	// ActiveMQImage name is the ActiveMQ image name on dockerhub.
+	ActiveMQImageName = env.Getenv("DOCKERTEST_ACTIVEMQ_IMAGE_NAME", "webcenter/activemq")
+
+	// MockserverImageName name is the Mockserver image name on dockerhub.
+	MockserverImageName = env.Getenv("DOCKERTEST_MOCKSERVER_IMAGE_NAME", "jamesdbloom/mockserver")
+
+	// ConsulImageName is the Consul image name on dockerhub.
+	ConsulImageName = env.Getenv("DOCKERTEST_CONSUL_IMAGE_NAME", "consul")
+
+	// ZooKeeperImageName is the ZooKeeper image name on dockerhub.
+	ZooKeeperImageName = env.Getenv("DOCKERTEST_ZOOKEEPER_IMAGE_NAME", "jplock/zookeeper")
+
+	// CassandraImageName is the Cassandra image name on dockerhub.
+	CassandraImageName = env.Getenv("DOCKERTEST_CASSANDRA_IMAGE_NAME", "cassandra")
+
+	// EtcdImageName is the etcd image name on dockerhub.
+	EtcdImageName = env.Getenv("DOCKERTEST_ETCD_IMAGE_NAME", "quay.io/coreos/etcd")
 )
 
 // Username and password configuration
