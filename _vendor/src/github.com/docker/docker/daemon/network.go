@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	networktypes "github.com/docker/libnetwork/types"
+	"golang.org/x/net/context"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -58,6 +59,7 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 }
 
 // GetNetworkByName function returns a network for a given network name.
+// If no network name is given, the default network is returned.
 func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
@@ -184,6 +186,29 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
 	return daemon.netController.SetKeys(keys)
+}
+
+// UpdateAttachment notifies the attacher about the attachment config.
+func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *network.NetworkingConfig) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
+		return daemon.clusterProvider.UpdateAttachment(networkID, containerID, config)
+	}
+
+	return nil
+}
+
+// WaitForDetachment makes the cluster manager wait for detachment of
+// the container from the network.
+func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	return daemon.clusterProvider.WaitForDetachment(ctx, networkName, networkID, taskID, containerID)
 }
 
 // CreateManagedNetwork creates an agent network.
@@ -333,12 +358,14 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
 func (daemon *Daemon) GetNetworkDriverList() []string {
-	pluginList := []string{}
-	pluginMap := make(map[string]bool)
-
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
+
+	// TODO: Replace this with proper libnetwork API
+	pluginList := []string{"overlay"}
+	pluginMap := map[string]bool{"overlay": true}
+
 	networks := daemon.netController.Networks()
 
 	for _, network := range networks {
@@ -347,8 +374,6 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 			pluginMap[network.Type()] = true
 		}
 	}
-	// TODO : Replace this with proper libnetwork API
-	pluginList = append(pluginList, "overlay")
 
 	sort.Strings(pluginList)
 

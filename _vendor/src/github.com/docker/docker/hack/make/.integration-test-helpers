@@ -8,7 +8,7 @@ bundle_test_integration_cli() {
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, eg.
+# You can use this to select certain tests to run, e.g.
 #
 #     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
@@ -67,11 +67,13 @@ test_env() {
 			DOCKER_HOST="$DOCKER_HOST" \
 			DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
 			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
+			DOCKERFILE="$DOCKERFILE" \
 			GOPATH="$GOPATH" \
 			GOTRACEBACK=all \
 			HOME="$ABS_DEST/fake-HOME" \
 			PATH="$PATH" \
 			TEMP="$TEMP" \
+			TEST_IMAGE_NAMESPACE="$TEST_IMAGE_NAMESPACE" \
 			"$@"
 	)
 }

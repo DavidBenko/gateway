@@ -17,6 +17,13 @@ To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](index.md#feature-deprecation-policy).
 
 
+### `docker daemon` subcommand
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+The daemon is moved to a separate binary (`dockerd`), and should be used instead.
+
 ### Three argument form in `docker import`
 **Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
@@ -196,3 +203,7 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 - DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
 - DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
 
+### `MAINTAINER` in Dockerfile
+**Deprecated In Release: v1.13.0**
+
+`MAINTAINER` was an early very limited form of `LABEL` which should be used instead.

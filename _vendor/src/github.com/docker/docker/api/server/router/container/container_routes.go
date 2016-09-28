@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -151,10 +150,16 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname); err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+
+	checkpoint := r.Form.Get("checkpoint")
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname, checkpoint); err != nil {
+		return err
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -380,10 +385,6 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 	}
 
 	if err := s.backend.ContainerRm(name, config); err != nil {
-		// Force a 404 for the empty string
-		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
-			return fmt.Errorf("no such container: \"\"")
-		}
 		return err
 	}
 

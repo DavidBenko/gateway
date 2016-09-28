@@ -84,6 +84,7 @@ func init() {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
 	}
+	isolation = info.Isolation
 }
 
 func convertBasesize(basesizeBytes int64) (int64, error) {
@@ -753,6 +754,10 @@ func newRemoteFileServer(ctx *FakeContext) (*remoteFileServer, error) {
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(stringutils.GenerateRandomAlphaOnlyString(10)))
 	)
+
+	if err := ensureHTTPServerImage(); err != nil {
+		return nil, err
+	}
 
 	// Build the image
 	if err := fakeContextAddDockerfile(ctx, `FROM httpserver

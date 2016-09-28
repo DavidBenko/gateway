@@ -24,7 +24,7 @@ type Backend interface {
 	SetupIngress(req clustertypes.NetworkCreateRequest, nodeIP string) error
 	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	CreateManagedContainer(config types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error)
-	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool) error
+	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string) error
 	ContainerStop(name string, seconds int) error
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
@@ -40,4 +40,6 @@ type Backend interface {
 	IsSwarmCompatible() error
 	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(listener chan interface{})
+	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
+	WaitForDetachment(context.Context, string, string, string, string) error
 }

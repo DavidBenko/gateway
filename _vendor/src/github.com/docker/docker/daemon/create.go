@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
@@ -115,6 +115,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
+	if err := idtools.MkdirAs(container.CheckpointDir(), 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
 
 	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err
@@ -198,7 +201,9 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		}
 		layerID = img.RootFS.ChainID()
 	}
-	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.MountLabel, daemon.setupInitLayer, container.HostConfig.StorageOpt)
+
+	rwLayer, err := daemon.layerStore.CreateRWLayer(container.ID, layerID, container.MountLabel, daemon.getLayerInit(), container.HostConfig.StorageOpt)
+
 	if err != nil {
 		return err
 	}
@@ -252,7 +257,7 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	}
 	if len(nwConfig.EndpointsConfig) == 1 {
 		for _, v := range nwConfig.EndpointsConfig {
-			if v.IPAMConfig != nil {
+			if v != nil && v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
 					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
 				}
