@@ -110,8 +110,8 @@ type RemoteEndpoint struct {
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
-	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
+	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
