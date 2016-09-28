@@ -74,32 +74,6 @@ example, the development license in `test/dev_license` was generated with:
             -company="AnyPresence, Inc" -private-key=./test/license/private_key
 
 
-## Examples
-
-FIXME Out of date with filesystem code
-
-The `test` directory has several sets of example data. The one being maintained
-most frequently right now is the standalone "loopback" server, which serves as
-its own backend.
-
-Setup scripts for the "loopback" data and the other examples are run with
-`rake`, which you can get with a standard Ruby installation by invoking:
-
-    gem install rake
-
-To seed a fresh server (run with `make run`) with the loopback data:
-
-	cd test/examples
-	rake loopback seed
-
-And to update the proxy code after making changes:
-
-    rake loopback update
-
-To completely clear the default Gateway data:
-
-    rake clean
-
 ## Testing
 
 You can run the unit tests via:
@@ -113,6 +87,8 @@ You can run the integration test suite via:
 This will spin up Docker images to test some of the remote endpoint types. It will also run against a local Postgres instance. In order for this test suite to pass please make sure you have Docker installed and you have access to the anypresence/justapis-ldap repo on the Docker Hub.
 
 Also, make sure that the CA cert file located at `test/ldap/security/cacert.pem` is added to your Keychain and trusted.
+
+If you are using docker-machine locally, make sure to set `DOCKERTEST_LEGACY_DOCKER_MACHINE=1` in your environment.
 
 ## Packaging
 

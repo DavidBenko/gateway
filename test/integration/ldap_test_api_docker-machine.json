@@ -30,7 +30,7 @@
                 "status": null,
                 "status_message": null,
                 "data": {
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "port": 389,
                     "username": "cn=anypresence.com, dc=anypresence, dc=com",
                     "password": "password",
@@ -46,7 +46,7 @@
                 "status": null,
                 "status_message": null,
                 "data": {
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "port": 389,
                     "username": "cn=anypresence.com, dc=anypresence, dc=com",
                     "password": "password",
@@ -67,7 +67,7 @@
                 "status": null,
                 "status_message": null,
                 "data": {
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "port": 389,
                     "username": "cn=anypresence.com, dc=anypresence, dc=com",
                     "password": "password",
@@ -88,7 +88,7 @@
                 "status": null,
                 "status_message": null,
                 "data": {
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "port": 389,
                     "username": "cn=anypresence.com, dc=anypresence, dc=com",
                     "password": "password",
@@ -107,7 +107,7 @@
                 "status": null,
                 "status_message": null,
                 "data": {
-                    "host": "localhost",
+                    "host": "192.168.99.100",
                     "port": 389,
                     "username": "cn=anypresence.com, dc=anypresence, dc=com",
                     "password": "password",
