@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	dexec "github.com/ahmetalpbalkan/go-dexec"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"sync"
 )
 
