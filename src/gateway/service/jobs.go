@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"time"
 
@@ -59,7 +58,7 @@ func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core
 
 	fresh, err := timer.Find(db)
 	if err != nil {
-		return err
+		return nil
 	}
 	if fresh.Next > now {
 		return nil
@@ -69,7 +68,7 @@ func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core
 
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
 		if fresh.Once {
-			fresh.Next = math.MaxInt64
+			return fresh.Delete(tx)
 		}
 		return fresh.Update(tx)
 	})
