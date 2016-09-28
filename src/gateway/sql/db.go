@@ -81,6 +81,7 @@ func (db *DB) Migrate() error {
 		migrateToV13,
 		migrateToV14,
 		migrateToV15,
+		migrateToV16,
 	}
 
 	for i := version; i < currentVersion; i++ {

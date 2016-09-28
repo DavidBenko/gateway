@@ -173,10 +173,26 @@ var searchTests = []searchTest{
 	},
 }
 
+func ldapHost() string {
+	if os.Getenv("DOCKERTEST_LEGACY_DOCKER_MACHINE") == "1" {
+		return "192.168.99.100"
+	} else {
+		return "localhost"
+	}
+}
+
+func ldapTestApi() string {
+	if os.Getenv("DOCKERTEST_LEGACY_DOCKER_MACHINE") == "1" {
+		return "ldap_test_api_docker-machine"
+	} else {
+		return "ldap_test_api"
+	}
+}
+
 func ldapSetup(t *testing.T) error {
 	var apiSetupErr error
 	once.Do(func() {
-		host, apiSetupErr = integration.ImportAPI("ldap_test_api", h)
+		host, apiSetupErr = integration.ImportAPI(ldapTestApi(), h)
 	})
 
 	if apiSetupErr != nil {
@@ -187,7 +203,7 @@ func ldapSetup(t *testing.T) error {
 		"ldapadd",
 		"-x",
 		"-D", "cn=anypresence.com, dc=anypresence, dc=com",
-		"-h", "192.168.99.100",
+		"-h", ldapHost(),
 		"-w", "password",
 		"-f", ldapSetupFile,
 	).Output()
@@ -205,7 +221,7 @@ func ldapTeardown(t *testing.T) error {
 		"ldapdelete",
 		"-x",
 		"-D", "cn=anypresence.com, dc=anypresence, dc=com",
-		"-h", "192.168.99.100",
+		"-h", ldapHost(),
 		"-w", "password",
 		"-e", "manageDSAit",
 		"-r",
@@ -222,7 +238,7 @@ func ldapTeardown(t *testing.T) error {
 		"ldapdelete",
 		"-x",
 		"-D", "cn=anypresence.com, dc=anypresence, dc=com",
-		"-h", "192.168.99.100",
+		"-h", ldapHost(),
 		"-w", "password",
 		"-r",
 		"dc=anypresence,dc=com",

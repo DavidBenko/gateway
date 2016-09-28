@@ -273,7 +273,7 @@ vendor_get: vendor_clean
 	github.com/go-sql-driver/mysql \
 	golang.org/x/net/websocket \
 	github.com/vincent-petithory/dataurl \
-	github.com/gdamore/mangos \
+	github.com/go-mangos/mangos \
 	github.com/xeipuuv/gojsonschema \
 	gopkg.in/airbrake/gobrake.v2 \
 	github.com/boltdb/bolt \

@@ -1,12 +1,13 @@
 {{define "body"}}
 <br/>
-<strong><span style="font-size:14px;">Your most recent Nanoscale.io invoice has been successfully paid.</span></strong><br/>
+A payment of {{.PaymentDetails.PaymentAmountString}} for your Nanoscale.io subscription was processed on {{.PaymentDetails.PaymentDateString}} against your {{.PaymentDetails.CardDisplay}}. Your invoice number is {{.PaymentDetails.InvoiceID}}.<br/>
 <br/>
-No additional payment is due at this time. Thank you!
+You are currently on the {{.PaymentDetails.Plan}} plan which is priced at {{.PaymentDetails.PlanAmountString}}/month. If the amount charged to your credit card differs from the monthly plan price, it may be because you changed plans during the previous billing period.<br/>
 <br/>
-To manage your accout, visit&nbsp;<a href="{{.UrlPrefix}}#/login">{{.UrlPrefix}}#/login</a><br/>
+If you have any questions, please contact us at <a href="mailto:support@nanoscale.io" style="color:#6350b0;">support@nanoscale.io</a>. &nbsp;<br/>
 <br/>
-The Nanoscale.io Team<br/>
+Thank you for using Nanoscale.io<br/>
+<a href="http://www.nanoscale.io">http://www.nanoscale.io</a>
 <br/>
 &nbsp;
 {{end}}

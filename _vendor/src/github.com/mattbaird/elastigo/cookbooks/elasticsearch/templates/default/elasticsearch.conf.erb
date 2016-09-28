@@ -1,0 +1,25 @@
+# ElasticSearch Service
+
+description     "elasticsearch"
+
+start on (net-device-up
+          and local-filesystems
+          and runlevel [2345])
+
+stop on runlevel [016]
+
+respawn limit 10 5
+
+env JAVA_HOME=<%= node[:elasticsearch][:java_home] %>
+env ES_HOME=<%= node[:elasticsearch][:es_home] %>
+env ES_MIN_MEM=<%= node[:elasticsearch][:es_min_mem] %>
+env ES_MAX_MEM=<%= node[:elasticsearch][:es_max_mem] %>
+env DAEMON=<%= node[:elasticsearch][:daemon] %>
+env DATA_DIR=<%= node[:elasticsearch][:data_dir] %>
+env CONFIG_DIR=<%= node[:elasticsearch][:config_dir] %>
+env LOG_DIR=<%= node[:elasticsearch][:log_dir] %>
+env WORK_DIR=<%= node[:elasticsearch][:work_dir] %>
+
+console output
+
+exec su <%= node[:elasticsearch][:es_user] %> -c "$DAEMON -f -Des.path.conf=$CONFIG_DIR -Des.path.home=$ES_HOME -Des.path.logs=$LOG_DIR -Des.path.data=$DATA_DIR"

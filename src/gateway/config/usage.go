@@ -76,6 +76,8 @@ var usageStrings = map[string]string{
 	"proxy-code-timeout":     "The timeout in seconds to use for proxy script code.",
 	"proxy-code-error-lines": "The number of lines of code to show around script errors in dev mode.",
 
+	"proxy-health-check-path": "The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.",
+
 	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-http-enabled":       "Whether or not http remote endpoints are enabled. Defaults to true.",
@@ -122,11 +124,10 @@ var usageStrings = map[string]string{
 
 	"admin-google-analytics-tracking-id": "A Google Analytics Tracking ID to be used by the rendered Admin UI.",
 
-	"stripe-secret-key":             "Stripe API Secret Key",
-	"stripe-publishable-key":        "Stripe API Publishable Key",
-	"stripe-fallback-plan":          "Stripe plan to fallback on when subscription billing fails (this uses the internal Gateway plan name)",
-	"stripe-payment-retry-attempts": "Stripe payment retry attempts is the number of times to retry billing before downgrading the account to the fallback plan.",
-	"stripe-migrate-accounts":       "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
+	"stripe-secret-key":       "Stripe API Secret Key",
+	"stripe-publishable-key":  "Stripe API Publishable Key",
+	"stripe-fallback-plan":    "Stripe plan to fallback on when subscription billing fails (this uses the internal Gateway plan name)",
+	"stripe-migrate-accounts": "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
 
 	"admin-api-host": "The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.",
 
