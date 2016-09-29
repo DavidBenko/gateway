@@ -26,9 +26,11 @@ type DockerRequest struct {
 
 // DockerResponse is a response from a Docker container
 type DockerResponse struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
-	Error  bool   `json:"error"`
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	Logs       string `json:"logs"`
+	StatusCode int    `json:"status_code"`
+	Error      bool   `json:"error"`
 }
 
 // JSON marshals a DockerResponse to JSON
@@ -38,7 +40,7 @@ func (dr *DockerResponse) JSON() ([]byte, error) {
 
 // Log formats the response's output
 func (dr *DockerResponse) Log() string {
-	return fmt.Sprintf("Stdout: %s, Stderr: %s, Error: %t", dr.Stdout, dr.Stderr, dr.Error)
+	return fmt.Sprintf("Stdout: %s, Stderr: %s, Logs: %s, StatusCode: %d, Error: %t", dr.Stdout, dr.Stderr, dr.Logs, dr.StatusCode, dr.Error)
 }
 
 // NewDockerRequest creates a new Docker request
@@ -111,5 +113,5 @@ func (dr *DockerRequest) Perform() Response {
 	if err != nil {
 		return NewErrorResponse(aperrors.NewWrapped("[docker] Error executing command in docker conatiner", err))
 	}
-	return &DockerResponse{Stdout: runOutput.Stdout, Stderr: runOutput.Stderr, Error: runOutput.Error}
+	return &DockerResponse{Stdout: runOutput.Stdout, Stderr: runOutput.Stderr, Logs: runOutput.Logs, StatusCode: runOutput.StatusCode, Error: runOutput.Error}
 }

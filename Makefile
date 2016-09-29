@@ -289,7 +289,6 @@ vendor_get: vendor_clean
 	github.com/alexjlockwood/gcm \
 	github.com/garyburd/redigo \
 	github.com/fsouza/go-dockerclient \
-	github.com/ahmetalpbalkan/go-dexec \
 	github.com/AnyPresence/surgemq \
 	github.com/surge/glog \
 	github.com/stripe/stripe-go

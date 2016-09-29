@@ -89,7 +89,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
-  "remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to false.",
+	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to false.",
 
