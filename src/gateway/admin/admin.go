@@ -107,8 +107,10 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 
 	RouteResource(&HostsController{BaseController: base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
 	RouteResource(&EnvironmentsController{BaseController: base}, "/apis/{apiID}/environments", authAdmin, db, conf)
+	RouteRootEnvironments(&RootEnvironmentsController{BaseController: base}, "/environments", authAdmin, db, conf)
 	RouteResource(&LibrariesController{BaseController: base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
 	RouteResource(&EndpointGroupsController{BaseController: base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
+	RouteRootEndpointGroups(&RootEndpointGroupsController{BaseController: base}, "/endpoint_groups", authAdmin, db, conf)
 	RouteResource(&RemoteEndpointsController{BaseController: base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
 	RouteRootRemoteEndpoints(&RootRemoteEndpointsController{BaseController: base}, "/remote_endpoints", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointsController{BaseController: base, Type: model.ProxyEndpointTypeHTTP}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
