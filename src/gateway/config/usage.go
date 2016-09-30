@@ -163,4 +163,5 @@ var usageStrings = map[string]string{
 
 	"docker-memory":     "The amount of memory MB to allocate to each running docker container",
 	"docker-cpu-shares": "The CPU share weight to allocate to each running docker container",
+	"docker-host":       "The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.",
 }

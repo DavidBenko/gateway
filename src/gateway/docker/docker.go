@@ -32,14 +32,18 @@ type RunOutput struct {
 	Error      bool   `json:"error"`
 }
 
-func ConfigureDockerClientFromEnv() error {
+func ConfigureDockerClient(dockerConfig config.Docker) error {
 	if client != nil {
 		panic("Docker client has already been configured!")
 	}
 
 	var err error
 	once.Do(func() {
-		client, err = dockerclient.NewClientFromEnv()
+		if dockerConfig.Host == "" {
+			client, err = dockerclient.NewClientFromEnv()
+		} else {
+			client, err = dockerclient.NewClient(dockerConfig.Host)
+		}
 	})
 
 	return err
