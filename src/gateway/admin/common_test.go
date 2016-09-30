@@ -34,8 +34,8 @@ func (m *AdminSuite) SetUpTest(c *gc.C) {
 	}
 
 	m.db = modelt.NewDB(c, config.Database{
-		Driver:           "sqlite3",
-		ConnectionString: ":memory:",
+		Driver:           "postgres",
+		ConnectionString: "postgres://localhost:5432/gateway_test?sslmode=disable",
 	})
 }
 
