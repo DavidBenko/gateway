@@ -210,13 +210,13 @@ you how to configure a Docker host to use the `devicemapper` storage driver in
 a `direct-lvm` configuration.
 
 > **Caution:** If you have already run the Docker daemon on your Docker host
-> and have images you want to keep, `push` them Docker Hub or your private
+> and have images you want to keep, `push` them to Docker Hub or your private
 > Docker Trusted Registry before attempting this procedure.
 
 The procedure below will create a logical volume configured as a thin pool to
 use as backing for the storage pool. It assumes that you have a spare block
 device at `/dev/xvdf` with enough free space to complete the task. The device
-identifier and volume sizes may be be different in your environment and you
+identifier and volume sizes may be different in your environment and you
 should substitute your own values throughout the procedure. The procedure also
 assumes that the Docker daemon is in the `stopped` state.
 
@@ -423,7 +423,7 @@ Containers: 0
  Paused: 0
  Stopped: 0
 Images: 2
-Server Version: 1.11.0-rc2
+Server Version: 1.11.0
 Storage Driver: devicemapper
  Pool Name: docker-8:1-123141-pool
  Pool Blocksize: 65.54 kB

@@ -25,18 +25,20 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/transport"
 )
 
 const (
-	maxConnectionRetryCount   = 3
-	connectionRetryDelay      = 3 * time.Second
-	containerdShutdownTimeout = 15 * time.Second
-	containerdBinary          = "docker-containerd"
-	containerdPidFilename     = "docker-containerd.pid"
-	containerdSockFilename    = "docker-containerd.sock"
-	containerdStateDir        = "containerd"
-	eventTimestampFilename    = "event.ts"
+	maxConnectionRetryCount      = 3
+	connectionRetryDelay         = 3 * time.Second
+	containerdHealthCheckTimeout = 3 * time.Second
+	containerdShutdownTimeout    = 15 * time.Second
+	containerdBinary             = "docker-containerd"
+	containerdPidFilename        = "docker-containerd.pid"
+	containerdSockFilename       = "docker-containerd.sock"
+	containerdStateDir           = "containerd"
+	eventTimestampFilename       = "event.ts"
 )
 
 type remote struct {
@@ -134,36 +136,40 @@ func (r *remote) UpdateOptions(options ...RemoteOption) error {
 
 func (r *remote) handleConnectionChange() {
 	var transientFailureCount = 0
-	state := grpc.Idle
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	healthClient := grpc_health_v1.NewHealthClient(r.rpcConn)
+
 	for {
-		s, err := r.rpcConn.WaitForStateChange(context.Background(), state)
-		if err != nil {
-			break
+		<-ticker.C
+		ctx, cancel := context.WithTimeout(context.Background(), containerdHealthCheckTimeout)
+		_, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+		cancel()
+		if err == nil {
+			continue
 		}
-		state = s
-		logrus.Debugf("containerd connection state change: %v", s)
+
+		logrus.Debugf("libcontainerd: containerd health check returned error: %v", err)
 
 		if r.daemonPid != -1 {
-			switch state {
-			case grpc.TransientFailure:
-				// Reset state to be notified of next failure
-				transientFailureCount++
-				if transientFailureCount >= maxConnectionRetryCount {
-					transientFailureCount = 0
-					if utils.IsProcessAlive(r.daemonPid) {
-						utils.KillProcess(r.daemonPid)
-					}
-					<-r.daemonWaitCh
-					if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
-						logrus.Errorf("error restarting containerd: %v", err)
-					}
-				} else {
-					state = grpc.Idle
-					time.Sleep(connectionRetryDelay)
-				}
-			case grpc.Shutdown:
+			if strings.Contains(err.Error(), "is closing") {
 				// Well, we asked for it to stop, just return
 				return
+			}
+			// all other errors are transient
+			// Reset state to be notified of next failure
+			transientFailureCount++
+			if transientFailureCount >= maxConnectionRetryCount {
+				transientFailureCount = 0
+				if utils.IsProcessAlive(r.daemonPid) {
+					utils.KillProcess(r.daemonPid)
+				}
+				<-r.daemonWaitCh
+				if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
+					logrus.Errorf("libcontainerd: error restarting containerd: %v", err)
+				}
+				continue
 			}
 		}
 	}
@@ -216,11 +222,11 @@ func (r *remote) Client(b Backend) (Client, error) {
 
 func (r *remote) updateEventTimestamp(t time.Time) {
 	f, err := os.OpenFile(r.eventTsPath, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_TRUNC, 0600)
-	defer f.Close()
 	if err != nil {
 		logrus.Warnf("libcontainerd: failed to open event timestamp file: %v", err)
 		return
 	}
+	defer f.Close()
 
 	b, err := t.MarshalText()
 	if err != nil {
@@ -245,11 +251,11 @@ func (r *remote) getLastEventTimestamp() time.Time {
 	}
 
 	f, err := os.Open(r.eventTsPath)
-	defer f.Close()
 	if err != nil {
 		logrus.Warnf("libcontainerd: Unable to access last event ts: %v", err)
 		return t
 	}
+	defer f.Close()
 
 	b := make([]byte, fi.Size())
 	n, err := f.Read(b)
@@ -273,7 +279,7 @@ func (r *remote) startEventsMonitor() error {
 	er := &containerd.EventsRequest{
 		Timestamp: tsp,
 	}
-	events, err := r.apiClient.Events(context.Background(), er)
+	events, err := r.apiClient.Events(context.Background(), er, grpc.FailFast(false))
 	if err != nil {
 		return err
 	}
@@ -290,12 +296,12 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 				// ignore error if grpc remote connection is closed manually
 				return
 			}
-			logrus.Errorf("failed to receive event from containerd: %v", err)
+			logrus.Errorf("libcontainerd: failed to receive event from containerd: %v", err)
 			go r.startEventsMonitor()
 			return
 		}
 
-		logrus.Debugf("received containerd event: %#v", e)
+		logrus.Debugf("libcontainerd: received containerd event: %#v", e)
 
 		var container *container
 		var c *client
@@ -329,10 +335,10 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 func (r *remote) runContainerdDaemon() error {
 	pidFilename := filepath.Join(r.stateDir, containerdPidFilename)
 	f, err := os.OpenFile(pidFilename, os.O_RDWR|os.O_CREATE, 0600)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	// File exist, check if the daemon is alive
 	b := make([]byte, 8)
@@ -347,7 +353,7 @@ func (r *remote) runContainerdDaemon() error {
 			return err
 		}
 		if utils.IsProcessAlive(int(pid)) {
-			logrus.Infof("previous instance of containerd still alive (%d)", pid)
+			logrus.Infof("libcontainerd: previous instance of containerd still alive (%d)", pid)
 			r.daemonPid = int(pid)
 			return nil
 		}
@@ -385,7 +391,7 @@ func (r *remote) runContainerdDaemon() error {
 			args = append(args, "--runtime-args")
 			args = append(args, v)
 		}
-		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
+		logrus.Debugf("libcontainerd: runContainerdDaemon: runtimeArgs: %s", args)
 	}
 
 	cmd := exec.Command(containerdBinary, args...)
@@ -403,7 +409,7 @@ func (r *remote) runContainerdDaemon() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	logrus.Infof("New containerd process, pid: %d", cmd.Process.Pid)
+	logrus.Infof("libcontainerd: new containerd process, pid: %d", cmd.Process.Pid)
 	if err := setOOMScore(cmd.Process.Pid, r.oomScore); err != nil {
 		utils.KillProcess(cmd.Process.Pid)
 		return err

@@ -2,11 +2,17 @@ package docker
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"github.com/ahmetalpbalkan/dexec"
+	"gateway/config"
+	"gateway/logreport"
 	dockerclient "github.com/fsouza/go-dockerclient"
+	"strings"
+	"sync"
 )
+
+var once sync.Once
+var client *dockerclient.Client
 
 type DockerConfig struct {
 	Repository string `json:"repository"`
@@ -19,17 +25,38 @@ type DockerConfig struct {
 }
 
 type RunOutput struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
-	Error  bool   `json:"error"`
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	Logs       string `json:"logs"`
+	StatusCode int    `json:"status_code"`
+	Error      bool   `json:"error"`
+}
+
+func ConfigureDockerClient(dockerConfig config.Docker) error {
+	if client != nil {
+		panic("Docker client has already been configured!")
+	}
+
+	var err error
+	once.Do(func() {
+		if dockerConfig.Host == "" {
+			client, err = dockerclient.NewClientFromEnv()
+		} else {
+			client, err = dockerclient.NewClient(dockerConfig.Host)
+		}
+	})
+
+	return err
+}
+
+func DockerClientInfo() (string, error) {
+	info, err := client.Info()
+	prettyInfo, _ := json.MarshalIndent(info, "", "    ")
+	return string(prettyInfo), err
 }
 
 // Pull pulls the image from the repository
 func (dc *DockerConfig) PullOrRefresh() error {
-	client, err := dockerclient.NewClientFromEnv()
-	if err != nil {
-		return errors.New("cannot initialize docker client.")
-	}
 	var perr error
 	if dc.Tag == "latest" {
 		perr = dc.PullImage(client)
@@ -75,11 +102,8 @@ func (dc *DockerConfig) PullImage(client *dockerclient.Client) error {
 }
 
 func (dc *DockerConfig) ImageExists() (bool, error) {
-	client, err := dockerclient.NewClientFromEnv()
-	if err != nil {
-		return false, errors.New("cannot initialize docker client.")
-	}
 	var images []dockerclient.APIImageSearch
+	var err error
 	if dc.Username != "" && dc.Password != "" || dc.Registry != "" {
 		authConfig := dockerclient.AuthConfiguration{
 			Username:      dc.Username,
@@ -100,17 +124,10 @@ func (dc *DockerConfig) ImageExists() (bool, error) {
 }
 
 func (dc *DockerConfig) Execute(command string, arguments []string, environmentVars map[string]string) (*RunOutput, error) {
-	client, err := dockerclient.NewClientFromEnv()
 	var environment []string
 	for k, v := range environmentVars {
 		environment = append(environment, fmt.Sprintf("%s=%s", k, v))
 	}
-	output := new(RunOutput)
-	if err != nil {
-		return output, err
-	}
-
-	d := dexec.Docker{Client: client}
 
 	var perr error
 	if dc.Tag == "latest" {
@@ -126,29 +143,77 @@ func (dc *DockerConfig) Execute(command string, arguments []string, environmentV
 	if perr != nil {
 		return nil, perr
 	}
-	m, err := dexec.ByCreatingContainer(dockerclient.CreateContainerOptions{
+
+	var stdout, stderr, containerLogs bytes.Buffer
+
+	container, err := client.CreateContainer(dockerclient.CreateContainerOptions{
 		Config: &dockerclient.Config{
-			Image:     dc.Image(),
-			Env:       environment,
-			Memory:    dc.Memory * 1024 * 1024,
-			CPUShares: dc.CPUShares,
+			Image:        dc.Image(),
+			StdinOnce:    true,
+			OpenStdin:    true,
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Env:          environment,
+			Memory:       dc.Memory * 1024 * 1024,
+			CPUShares:    dc.CPUShares,
 		},
 	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	var stdout, stderr bytes.Buffer
-	cmd := d.Command(m, command, arguments...)
-	cmdErr := false
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	if err != nil {
-		cmdErr = true
-		if stderr.Len() < 1 {
-			return &RunOutput{Stdout: stdout.String(), Stderr: err.Error(), Error: cmdErr}, err
+	defer func() {
+		if err = client.RemoveContainer(dockerclient.RemoveContainerOptions{
+			ID: container.ID,
+		}); err != nil {
+			logreport.Printf("%s Could not remove container %s: %s", config.System, container.ID, err.Error())
 		}
+	}()
+
+	if err = client.StartContainer(container.ID, &dockerclient.HostConfig{}); err != nil {
+		return nil, err
 	}
-	return &RunOutput{Stdout: stdout.String(), Stderr: stderr.String(), Error: cmdErr}, nil
+
+	var stdin = strings.NewReader(strings.Join(append([]string{command}, arguments...), " "))
+
+	go func() {
+		if err = client.AttachToContainer(dockerclient.AttachToContainerOptions{
+			Container:    container.ID,
+			Stream:       true,
+			Stdin:        true,
+			Stdout:       true,
+			Stderr:       true,
+			InputStream:  stdin,
+			OutputStream: &stdout,
+			ErrorStream:  &stderr,
+		}); err != nil {
+			logreport.Printf("%s Could not attach to container %s: %s", config.System, container.ID, err.Error())
+		}
+	}()
+
+	code, err := client.WaitContainer(container.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.Logs(dockerclient.LogsOptions{
+		Container:    container.ID,
+		Stdout:       true,
+		Stderr:       true,
+		OutputStream: &containerLogs,
+		ErrorStream:  &containerLogs,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	dockerErr := false
+	if stderr.Len() > 0 {
+		dockerErr = true
+	}
+
+	return &RunOutput{Stdout: stdout.String(), Stderr: stderr.String(), Logs: containerLogs.String(), StatusCode: code, Error: dockerErr}, nil
 }
