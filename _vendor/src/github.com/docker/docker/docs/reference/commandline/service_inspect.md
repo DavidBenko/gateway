@@ -3,7 +3,6 @@
 title = "service inspect"
 description = "The service inspect command description and usage"
 keywords = ["service, inspect"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
@@ -116,7 +115,7 @@ ID:		c8wgl7q4ndfd52ni6qftkvnnp
 Name:		frontend
 Labels:
  - org.example.projectname=demo-app
-Mode:		REPLICATED
+Service Mode:	REPLICATED
  Replicas:		5
 Placement:
 UpdateConfig:
@@ -124,12 +123,15 @@ UpdateConfig:
 ContainerSpec:
  Image:		nginx:alpine
 Resources:
+Endpoint Mode:  vip
 Ports:
  Name =
  Protocol = tcp
  TargetPort = 443
  PublishedPort = 4443
 ```
+
+You can also use `--format pretty` for the same effect.
 
 
 ### Finding the number of tasks running as part of a service
@@ -150,5 +152,5 @@ $ docker service inspect --format='{{.Spec.Mode.Replicated.Replicas}}' redis
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)
