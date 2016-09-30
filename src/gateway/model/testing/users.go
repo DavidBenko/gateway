@@ -5,6 +5,7 @@ import (
 	aperrors "gateway/errors"
 	"gateway/model"
 	apsql "gateway/sql"
+	"math/rand"
 	"time"
 
 	gc "gopkg.in/check.v1"
@@ -40,7 +41,7 @@ func PrepareUser(
 var users = map[string]model.User{
 	JeffUser: {
 		Name:                    `Jeff`,
-		Email:                   fmt.Sprintf("g%d@ffery.com", time.Now().Unix()),
+		Email:                   generateUniqueEmail("g%v@ffery.com"),
 		NewPassword:             `password`,
 		NewPasswordConfirmation: `password`,
 		Admin:     true,
@@ -48,10 +49,15 @@ var users = map[string]model.User{
 	},
 	OtherUser: {
 		Name:                    `Brian`,
-		Email:                   fmt.Sprintf("br%d@in.com", time.Now().Unix()),
+		Email:                   generateUniqueEmail("br%v@in.com"),
 		NewPassword:             `password`,
 		NewPasswordConfirmation: `password`,
 		Admin:     true,
 		Confirmed: true,
 	},
+}
+
+func generateUniqueEmail(formatter string) string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return fmt.Sprintf(formatter, r.Int63())
 }
