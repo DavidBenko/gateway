@@ -23,7 +23,7 @@ available through the Docker Engine CLI. These commands are:
 * `docker network inspect`
 
 While not required, it is a good idea to read [Understanding Docker
-network](dockernetworks.md) before trying the examples in this section. The
+network](index.md) before trying the examples in this section. The
 examples for the rely on a `bridge` network so that you can try them
 immediately.  If you would prefer to experiment with an `overlay` network see
 the [Getting started with multi-host networks](get-started-overlay.md) instead.
@@ -57,12 +57,13 @@ $ docker network inspect simple-network
             "Config": [
                 {
                     "Subnet": "172.22.0.0/16",
-                    "Gateway": "172.22.0.1/16"
+                    "Gateway": "172.22.0.1"
                 }
             ]
         },
         "Containers": {},
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -105,8 +106,8 @@ $ docker network create -d overlay \
   --gateway=192.168.0.100 \
   --gateway=192.170.0.100 \
   --ip-range=192.168.1.0/24 \
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
+  --aux-address="my-router=192.168.1.5" --aux-address="my-switch=192.168.1.6" \
+  --aux-address="my-printer=192.170.1.5" --aux-address="my-nas=192.170.1.6" \
   my-multihost-network
 ```
 
@@ -123,7 +124,7 @@ equivalent docker daemon flags used for docker0 bridge:
 | `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
 | `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
-| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.driver.mtu`                  | `--mtu`     | Set the containers network MTU                        |
 
 The following arguments can be passed to `docker network create` for any network driver.
 
@@ -153,14 +154,15 @@ $ docker network inspect my-network
             "Config": [
                 {
                     "Subnet": "172.23.0.0/16",
-                    "Gateway": "172.23.0.1/16"
+                    "Gateway": "172.23.0.1"
                 }
             ]
         },
         "Containers": {},
         "Options": {
             "com.docker.network.bridge.host_binding_ipv4": "172.23.0.1"
-        }
+        },
+        "Labels": {}
     }
 ]
 
@@ -223,7 +225,7 @@ $ docker network inspect isolated_nw
             "Config": [
                 {
                     "Subnet": "172.25.0.0/16",
-                    "Gateway": "172.25.0.1/16"
+                    "Gateway": "172.25.0.1"
                 }
             ]
         },
@@ -236,7 +238,8 @@ $ docker network inspect isolated_nw
                 "IPv6Address": ""
             }
         },
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -784,7 +787,7 @@ $ docker network inspect isolated_nw
             "Config": [
                 {
                     "Subnet": "172.21.0.0/16",
-                    "Gateway": "172.21.0.1/16"
+                    "Gateway": "172.21.0.1"
                 }
             ]
         },
@@ -797,7 +800,8 @@ $ docker network inspect isolated_nw
                 "IPv6Address": ""
             }
         },
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 ```
@@ -882,7 +886,7 @@ $ docker network disconnect isolated_nw container3
 ```
 
 ```bash
-docker network inspect isolated_nw
+$ docker network inspect isolated_nw
 
 [
     {
@@ -895,12 +899,13 @@ docker network inspect isolated_nw
             "Config": [
                 {
                     "Subnet": "172.21.0.0/16",
-                    "Gateway": "172.21.0.1/16"
+                    "Gateway": "172.21.0.1"
                 }
             ]
         },
         "Containers": {},
-        "Options": {}
+        "Options": {},
+        "Labels": {}
     }
 ]
 

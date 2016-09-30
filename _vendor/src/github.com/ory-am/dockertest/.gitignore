@@ -2,4 +2,5 @@
 node_modules/
 *.iml
 *.exe
-.cover
+.cover/
+vendor/

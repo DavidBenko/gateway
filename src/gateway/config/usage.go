@@ -78,8 +78,6 @@ var usageStrings = map[string]string{
 
 	"proxy-health-check-path": "The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.",
 
-	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to true.",
-	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-http-enabled":       "Whether or not http remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-sqlserver-enabled":  "Whether or not MS SQLServer remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-mysql-enabled":      "Whether or not MySQL remote endpoints are enabled. Defaults to true.",
@@ -91,7 +89,9 @@ var usageStrings = map[string]string{
 	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
-	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to false.",
+	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to false.",
+	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to false.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",
@@ -163,4 +163,5 @@ var usageStrings = map[string]string{
 
 	"docker-memory":     "The amount of memory MB to allocate to each running docker container",
 	"docker-cpu-shares": "The CPU share weight to allocate to each running docker container",
+	"docker-host":       "The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.",
 }

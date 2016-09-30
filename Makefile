@@ -288,7 +288,7 @@ vendor_get: vendor_clean
 	github.com/sideshow/apns2 \
 	github.com/alexjlockwood/gcm \
 	github.com/garyburd/redigo \
-	github.com/ahmetalpbalkan/go-dexec \
+	github.com/fsouza/go-dockerclient \
 	github.com/AnyPresence/surgemq \
 	github.com/surge/glog \
 	github.com/stripe/stripe-go

@@ -216,12 +216,6 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not PostgreSQL remote endpoints are enabled, defaults is true.
 # postgreSqlEnabled =
 
-# Whether or not script remote endpoints are enabled, defaults is true.
-# scriptEnabled =
-
-# Whether or not soap remote endpoints are enabled, defaults is true.
-# soapEnabled =
-
 # Whether or not MS SQLServer remote endpoints are enabled, defaults is true.
 # sqlServerEnabled =
 
@@ -234,20 +228,26 @@ const ExampleConfigurationFile = `##############################################
 # Whether or not the SAP Hana remote endpoints are enabled, default is true.
 # hanaEnabled =
 
-# Whether or not Docker remote endpoints are enabled, default is true.
+# Whether or not script remote endpoints are enabled, defaults is false.
+# scriptEnabled =
+
+# Whether or not soap remote endpoints are enabled, defaults is false.
+# soapEnabled =
+
+# Whether or not Docker remote endpoints are enabled, default is false.
 # dockerEnabled =
 
 [soap]
 # The hostname for the SOAP client, default is 'localhost'
 # soapClientHost = ''
 
-# The port number to listen on for the SOAP client, default is 19083
+# The port number to listen on for the SOAP client, default is 19083.
 # soapClientPort =
 
-# The JVM options to pass to the JVM on startup that will be used to invoke SOAP services, default is blank
+# The JVM options to pass to the JVM on startup that will be used to invoke SOAP services, default is blank.
 # javaOpts = ''
 
-# The home directory of your JDK 1.8 installation, default is what's in the path
+# The home directory of your JDK 1.8 installation, default is what's in the path.
 # jdkPath = ''
 
 # The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request), defaults to 0.
@@ -257,8 +257,11 @@ const ExampleConfigurationFile = `##############################################
 # The amount of memory MB to allocate to each running docker container.
 # memory = 128
 
-# The CPU share weight to allocate to each running docker container
+# The CPU share weight to allocate to each running docker container.
 # cpuShares = 1024
+
+# The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.
+# host = ''
 
 ## ---------- Logging ------------
 [bleve]

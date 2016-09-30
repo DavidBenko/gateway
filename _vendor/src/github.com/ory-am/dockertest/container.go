@@ -1,12 +1,27 @@
 package dockertest
 
 import (
-	"camlistore.org/pkg/netutil"
 	"fmt"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+// AwaitReachable tries to make a TCP connection to addr regularly.
+// It returns an error if it's unable to make a connection before maxWait.
+func AwaitReachable(addr string, maxWait time.Duration) error {
+	done := time.Now().Add(maxWait)
+	for time.Now().Before(done) {
+		c, err := net.Dial("tcp", addr)
+		if err == nil {
+			c.Close()
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("%v unreachable for %v", addr, maxWait)
+}
 
 // ContainerID represents a container and offers methods like Kill or IP.
 type ContainerID string
@@ -19,6 +34,16 @@ func (c ContainerID) IP() (string, error) {
 // Kill runs "docker kill" on the container.
 func (c ContainerID) Kill() error {
 	return KillContainer(string(c))
+}
+
+// Start runs "docker start" on the container.
+func (c ContainerID) Start() error {
+	return StartContainer(string(c))
+}
+
+// Stop runs "docker stop" on the container.
+func (c ContainerID) Stop() error {
+	return StopContainer(string(c))
 }
 
 // Remove runs "docker rm" on the container
@@ -40,7 +65,7 @@ func (c ContainerID) KillRemove() error {
 
 // lookup retrieves the ip address of the container, and tries to reach
 // before timeout the tcp address at this ip and given port.
-func (c ContainerID) lookup(port int, timeout time.Duration) (ip string, err error) {
+func (c ContainerID) lookup(ports []int, timeout time.Duration) (ip string, err error) {
 	if DockerMachineAvailable {
 		var out []byte
 		out, err = exec.Command("docker-machine", "ip", DockerMachineName).Output()
@@ -54,7 +79,12 @@ func (c ContainerID) lookup(port int, timeout time.Duration) (ip string, err err
 		err = fmt.Errorf("error getting IP: %v", err)
 		return
 	}
-	addr := fmt.Sprintf("%s:%d", ip, port)
-	err = netutil.AwaitReachable(addr, timeout)
+	for _, port := range ports {
+		addr := fmt.Sprintf("%s:%d", ip, port)
+		err = AwaitReachable(addr, timeout)
+		if err != nil {
+			return
+		}
+	}
 	return
 }
