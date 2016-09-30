@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	"fmt"
 	"gateway/admin"
 	"gateway/model"
 	"gateway/model/testing"
@@ -13,12 +14,16 @@ import (
 	gc "gopkg.in/check.v1"
 )
 
-func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
+func (a *AdminSuite) prepare(c *gc.C) {
 	driver := sql.SQLite3
 	if a.db.Driver == "postgres" {
 		driver = sql.Postgres
 	}
 	c.Assert(sql.Migrate(a.db.DB, driver), gc.IsNil)
+}
+
+func (a *AdminSuite) TestSampleMethods(c *gc.C) {
+	a.prepare(c)
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
 	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
@@ -28,6 +33,36 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 	api2 := testing.PrepareAPI(c, a.db, acc2.ID, user2.ID, testing.API2)
 
 	controller := &admin.SamplesController{}
+	tx, err := a.db.Begin()
+	c.Assert(err, gc.IsNil)
+	sq := &sql.SQL{DB: a.db.DB}
+
+	point1 := stats.Point{
+		Timestamp: time.Now(),
+		Values: map[string]interface{}{
+			"request.size":                  10,
+			"request.id":                    "1234",
+			"api.id":                        api1.ID,
+			"api.name":                      api1.Name,
+			"response.time":                 50,
+			"response.size":                 500,
+			"response.status":               http.StatusOK,
+			"response.error":                "",
+			"host.id":                       int64(2),
+			"host.name":                     "text",
+			"proxy.id":                      int64(2),
+			"proxy.name":                    "text",
+			"proxy.env.id":                  int64(2),
+			"proxy.env.name":                "text",
+			"proxy.route.path":              "text",
+			"proxy.route.verb":              "text",
+			"proxy.group.id":                int64(2),
+			"proxy.group.name":              "text",
+			"remote_endpoint.response.time": 2,
+		},
+	}
+	c.Assert(sq.Log(point1), gc.IsNil)
+
 	for i, t := range []struct {
 		should      string
 		given       *model.Sample
@@ -74,67 +109,24 @@ func (a *AdminSuite) TestSampleBeforeValidate(c *gc.C) {
 				{Key: "api.id", Operator: stats.EQ, Value: api2.ID},
 			},
 		},
-		expectError: regexp.QuoteMeta("api 2 not owned by user 1"),
+		expectError: regexp.QuoteMeta(fmt.Sprintf("api %d not owned by user %d", api2.ID, user1.ID)),
 	},
 	} {
 		c.Logf("test %d: should %s", i, t.should)
 
-		tx, err := a.db.Begin()
-		c.Assert(err, gc.IsNil)
 		gotten := controller.BeforeValidate(t.given, tx)
 		if t.expectError != "" {
 			c.Check(gotten, gc.ErrorMatches, t.expectError)
 		} else {
 			c.Assert(gotten, gc.IsNil)
 		}
-		tx.Commit()
-
 	}
-}
 
-func (a *AdminSuite) TestQueryStats(c *gc.C) {
-	driver := sql.SQLite3
-	if a.db.Driver == "postgres" {
-		driver = sql.Postgres
-	}
-	c.Assert(sql.Migrate(a.db.DB, driver), gc.IsNil)
-	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
-	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
-	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
-
-	sq := &sql.SQL{DB: a.db.DB}
-
-	point1 := stats.Point{
-		Timestamp: time.Now(),
-		Values: map[string]interface{}{
-			"request.size":                  10,
-			"request.id":                    "1234",
-			"api.id":                        api1.ID,
-			"api.name":                      api1.Name,
-			"response.time":                 50,
-			"response.size":                 500,
-			"response.status":               http.StatusOK,
-			"response.error":                "",
-			"host.id":                       int64(2),
-			"host.name":                     "text",
-			"proxy.id":                      int64(2),
-			"proxy.name":                    "text",
-			"proxy.env.id":                  int64(2),
-			"proxy.env.name":                "text",
-			"proxy.route.path":              "text",
-			"proxy.route.verb":              "text",
-			"proxy.group.id":                int64(2),
-			"proxy.group.name":              "text",
-			"remote_endpoint.response.time": 2,
-		},
-	}
-	c.Assert(sq.Log(point1), gc.IsNil)
-
-	controller := &admin.SamplesController{}
 	for i, t := range []struct {
 		should      string
 		given       *model.Sample
 		expectError string
+		expected    stats.Result
 	}{{
 		should: "give error for invalid Operator",
 		given: &model.Sample{
@@ -159,6 +151,8 @@ func (a *AdminSuite) TestQueryStats(c *gc.C) {
 					{Key: "api.id", Operator: stats.EQ, Value: api1.ID},
 				},
 			},
+			expectError: "",
+			expected:    stats.Result{stats.Row{Values: map[string]interface{}{"request.size": 10, "request.id": "1234"}}},
 		},
 	} {
 		c.Logf("test %d: should %s", i, t.should)
@@ -169,7 +163,8 @@ func (a *AdminSuite) TestQueryStats(c *gc.C) {
 		if t.expectError != "" {
 			c.Check(er, gc.ErrorMatches, t.expectError)
 		} else {
-			c.Assert(gotten, gc.IsNil)
+			c.Assert(er, gc.IsNil)
+			c.Assert(gotten, gc.DeepEquals, t.expected)
 		}
 		tx.Commit()
 
