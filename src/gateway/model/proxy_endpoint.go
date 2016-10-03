@@ -16,6 +16,11 @@ const (
 	ProxyEndpointTypeJob  = "job"
 )
 
+var ProxyEndpointNotifyTypeMap = map[string]string{
+	ProxyEndpointTypeHTTP: "proxy_endpoints",
+	ProxyEndpointTypeJob:  "jobs",
+}
+
 // ProxyEndpoint holds the data to power the proxy for a given API endpoint.
 type ProxyEndpoint struct {
 	AccountID       int64  `json:"-"`
@@ -246,7 +251,7 @@ func (e *ProxyEndpoint) Delete(tx *apsql.Tx) error {
 	if err != nil {
 		return err
 	}
-	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Delete)
+	return tx.Notify(ProxyEndpointNotifyTypeMap[e.Type], e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Delete)
 }
 
 // Insert inserts the proxyEndpoint into the database as a new row.
@@ -279,7 +284,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 		}
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
+	return tx.Notify(ProxyEndpointNotifyTypeMap[e.Type], e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Insert)
 }
 
 // Update updates the proxyEndpoint in the database.
@@ -344,5 +349,5 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		}
 	}
 
-	return tx.Notify("proxy_endpoints", e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
+	return tx.Notify(ProxyEndpointNotifyTypeMap[e.Type], e.AccountID, e.UserID, e.APIID, 0, e.ID, apsql.Update)
 }
