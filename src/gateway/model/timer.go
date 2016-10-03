@@ -42,7 +42,6 @@ const starBit = 1 << 63
 
 func (f *field) Parse(a string) (bits uint64, err error) {
 	switch a {
-	case "":
 	case "*":
 		for b := f.min; b <= f.max; b++ {
 			bits |= 1 << uint(b)
