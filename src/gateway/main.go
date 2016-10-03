@@ -218,6 +218,8 @@ func main() {
 			logreport.Printf("Error shutting down SOAP service: %v", err)
 		}
 
+		service.StopJobsService()
+
 		warp.Shutdown()
 
 		done <- true
