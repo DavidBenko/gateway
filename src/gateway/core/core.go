@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"gateway/config"
+	"gateway/core/conversion"
 	"gateway/core/ottocrypto"
 	"gateway/core/request"
 	"gateway/db/pools"
@@ -96,6 +97,9 @@ func VMCopy(accountID int64, keySource ottocrypto.KeyDataSource) *otto.Otto {
 var shared = func() *otto.Otto {
 	vm := otto.New()
 
+	conversion.IncludeConversion(vm)
+	conversion.IncludePath(vm)
+
 	var files = []string{
 		"gateway.js",
 		"sessions.js",
@@ -103,6 +107,8 @@ var shared = func() *otto.Otto {
 		"call.js",
 		"http/request.js",
 		"http/response.js",
+		"conversion/json.js",
+		"conversion/xml.js",
 	}
 
 	ottocrypto.IncludeHashing(vm)
