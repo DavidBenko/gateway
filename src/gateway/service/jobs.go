@@ -103,5 +103,5 @@ func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core
 		return err
 	}
 
-	return warp.ExecuteJob(timer.JobID, timer.APIID, logPrefix, string(attributesJSON))
+	return warp.ExecuteJob(timer.JobID, timer.AccountID, timer.APIID, logPrefix, string(attributesJSON))
 }

@@ -3,7 +3,6 @@
 title = "node update"
 description = "The node update command description and usage"
 keywords = ["resources, update, dynamically"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
@@ -21,7 +20,6 @@ Options:
       --help                  Print usage
       --label-add value       Add or update a node label (key=value) (default [])
       --label-rm value        Remove a node label if exists (default [])
-      --membership string     Membership of the node (accepted/rejected)
       --role string           Role of the node (worker/manager)
 ```
 
@@ -61,6 +59,6 @@ metadata](../../userguide/labels-custom-metadata.md).
 ## Related information
 
 * [node inspect](node_inspect.md)
-* [node tasks](node_tasks.md)
+* [node ps](node_ps.md)
 * [node ls](node_ls.md)
 * [node rm](node_rm.md)

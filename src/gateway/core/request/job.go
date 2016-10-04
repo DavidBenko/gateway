@@ -12,7 +12,7 @@ import (
 	sql "gateway/sql"
 )
 
-type ExecuteJob func(jobID, apiID int64, logPrefix, attributes string) (err error)
+type ExecuteJob func(jobID, accountID, apiID int64, logPrefix, attributes string) (err error)
 
 type JobRequest struct {
 	Arguments  map[string]interface{} `json:"arguments"`
@@ -54,7 +54,7 @@ func storeOperationRun(request *JobRequest) error {
 		return err
 	}
 
-	go request.ExecuteJob(endpoint.ID, endpoint.APIID, logPrefix, string(attributesJSON))
+	go request.ExecuteJob(endpoint.ID, endpoint.AccountID, endpoint.APIID, logPrefix, string(attributesJSON))
 
 	return nil
 }

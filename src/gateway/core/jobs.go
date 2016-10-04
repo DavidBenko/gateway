@@ -8,7 +8,7 @@ import (
 	"gateway/model"
 )
 
-func (c *Core) ExecuteJob(jobID, apiID int64, logPrefix, attributes string) (err error) {
+func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, attributes string) (err error) {
 	conf := &c.Conf.Job
 
 	job, err := model.FindProxyEndpointForProxy(c.OwnDb, jobID, model.ProxyEndpointTypeJob)
@@ -21,7 +21,7 @@ func (c *Core) ExecuteJob(jobID, apiID int64, logPrefix, attributes string) (err
 	}
 
 	vm := &vm.CoreVM{}
-	vm.InitCoreVM(VMCopy(), logreport.Printf, logPrefix, conf, job, libraries, conf.GetCodeTimeout())
+	vm.InitCoreVM(VMCopy(accountID, c.KeyStore), logreport.Printf, logPrefix, conf, job, libraries, conf.GetCodeTimeout())
 
 	vm.Set("__ap_jobAttributesJSON", attributes)
 	scripts := []interface{}{

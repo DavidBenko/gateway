@@ -14,7 +14,9 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	specs "github.com/opencontainers/specs/specs-go"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/timestamp"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/net/context"
 )
 
@@ -131,7 +133,7 @@ func (clnt *client) prepareBundleDir(uid, gid int) (string, error) {
 	return p, nil
 }
 
-func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) (err error) {
+func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) (err error) {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 
@@ -178,7 +180,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		return err
 	}
 
-	return container.start()
+	return container.start(checkpoint, checkpointDir)
 }
 
 func (clnt *client) Signal(containerID string, sig int) error {
@@ -343,7 +345,7 @@ func (clnt *client) newContainer(dir string, options ...CreateOption) *container
 	}
 	for _, option := range options {
 		if err := option.Apply(container); err != nil {
-			logrus.Error(err)
+			logrus.Errorf("libcontainerd: newContainer(): %v", err)
 		}
 	}
 	return container
@@ -391,7 +393,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 	clnt.lock(cont.Id)
 	defer clnt.unlock(cont.Id)
 
-	logrus.Debugf("restore container %s state %s", cont.Id, cont.Status)
+	logrus.Debugf("libcontainerd: restore container %s state %s", cont.Id, cont.Status)
 
 	containerID := cont.Id
 	if _, err := clnt.getContainer(containerID); err == nil {
@@ -445,17 +447,17 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 				}})
 		}
 
-		logrus.Warnf("unexpected backlog event: %#v", lastEvent)
+		logrus.Warnf("libcontainerd: unexpected backlog event: %#v", lastEvent)
 	}
 
 	return nil
 }
 
-func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event, error) {
+func (clnt *client) getContainerLastEventSinceTime(id string, tsp *timestamp.Timestamp) (*containerd.Event, error) {
 	er := &containerd.EventsRequest{
-		Timestamp:  clnt.remote.restoreFromTimestamp,
+		Timestamp:  tsp,
 		StoredOnly: true,
-		Id:         containerID,
+		Id:         id,
 	}
 	events, err := clnt.remote.apiClient.Events(context.Background(), er)
 	if err != nil {
@@ -470,7 +472,7 @@ func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event
 			if err.Error() == "EOF" {
 				break
 			}
-			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", containerID, err)
+			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", id, err)
 			return nil, err
 		}
 
@@ -483,6 +485,30 @@ func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event
 	}
 
 	return ev, nil
+}
+
+func (clnt *client) getContainerLastEvent(id string) (*containerd.Event, error) {
+	ev, err := clnt.getContainerLastEventSinceTime(id, clnt.remote.restoreFromTimestamp)
+	if err == nil && ev == nil {
+		// If ev is nil and the container is running in containerd,
+		// we already consumed all the event of the
+		// container, included the "exit" one.
+		// Thus, we request all events containerd has in memory for
+		// this container in order to get the last one (which should
+		// be an exit event)
+		logrus.Warnf("libcontainerd: client is out of sync, restore was called on a fully synced container (%s).", id)
+		// Request all events since beginning of time
+		t := time.Unix(0, 0)
+		tsp, err := ptypes.TimestampProto(t)
+		if err != nil {
+			logrus.Errorf("libcontainerd: getLastEventSinceTime() failed to convert timestamp: %q", err)
+			return nil, err
+		}
+
+		return clnt.getContainerLastEventSinceTime(id, tsp)
+	}
+
+	return ev, err
 }
 
 func (clnt *client) Restore(containerID string, options ...CreateOption) error {
@@ -505,12 +531,20 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 			return err
 		}
 
-		// If ev is nil, then we already consumed all the event of the
-		// container, included the "exit" one.
-		// Thus we return to avoid overriding the Exit Code.
 		if ev == nil {
-			logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
-			return nil
+			if _, err := clnt.getContainer(containerID); err == nil {
+				// If ev is nil and the container is running in containerd,
+				// we already consumed all the event of the
+				// container, included the "exit" one.
+				// Thus we return to avoid overriding the Exit Code.
+				logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
+				return nil
+			}
+			// the container is not running so we need to fix the state within docker
+			ev = &containerd.Event{
+				Type:   StateExit,
+				Status: 1,
+			}
 		}
 
 		// get the exit status for this container
@@ -526,7 +560,7 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	// container is still alive
 	if clnt.liveRestore {
 		if err := clnt.restore(cont, ev, options...); err != nil {
-			logrus.Errorf("error restoring %s: %v", containerID, err)
+			logrus.Errorf("libcontainerd: error restoring %s: %v", containerID, err)
 		}
 		return nil
 	}
@@ -542,21 +576,29 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	container.discardFifos()
 
 	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
-		logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
+		logrus.Errorf("libcontainerd: error sending sigterm to %v: %v", containerID, err)
 	}
+	// Let the main loop handle the exit event
+	clnt.remote.Unlock()
 	select {
 	case <-time.After(10 * time.Second):
 		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
-			logrus.Errorf("error sending sigkill to %v: %v", containerID, err)
+			logrus.Errorf("libcontainerd: error sending sigkill to %v: %v", containerID, err)
 		}
 		select {
 		case <-time.After(2 * time.Second):
 		case <-w.wait():
+			// relock because of the defer
+			clnt.remote.Lock()
 			return nil
 		}
 	case <-w.wait():
+		// relock because of the defer
+		clnt.remote.Lock()
 		return nil
 	}
+	// relock because of the defer
+	clnt.remote.Lock()
 
 	clnt.deleteContainer(containerID)
 
@@ -582,4 +624,58 @@ func (en *exitNotifier) close() {
 }
 func (en *exitNotifier) wait() <-chan struct{} {
 	return en.c
+}
+
+func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return err
+	}
+
+	_, err := clnt.remote.apiClient.CreateCheckpoint(context.Background(), &containerd.CreateCheckpointRequest{
+		Id: containerID,
+		Checkpoint: &containerd.Checkpoint{
+			Name:        checkpointID,
+			Exit:        exit,
+			Tcp:         true,
+			UnixSockets: true,
+			Shell:       false,
+			EmptyNS:     []string{"network"},
+		},
+		CheckpointDir: checkpointDir,
+	})
+	return err
+}
+
+func (clnt *client) DeleteCheckpoint(containerID string, checkpointID string, checkpointDir string) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return err
+	}
+
+	_, err := clnt.remote.apiClient.DeleteCheckpoint(context.Background(), &containerd.DeleteCheckpointRequest{
+		Id:            containerID,
+		Name:          checkpointID,
+		CheckpointDir: checkpointDir,
+	})
+	return err
+}
+
+func (clnt *client) ListCheckpoints(containerID string, checkpointDir string) (*Checkpoints, error) {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	if _, err := clnt.getContainer(containerID); err != nil {
+		return nil, err
+	}
+
+	resp, err := clnt.remote.apiClient.ListCheckpoint(context.Background(), &containerd.ListCheckpointRequest{
+		Id:            containerID,
+		CheckpointDir: checkpointDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return (*Checkpoints)(resp), nil
 }

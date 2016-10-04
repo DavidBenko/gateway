@@ -60,7 +60,7 @@ func (c *MetaScratchPadsController) Execute(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	vm := core.VMCopy()
+	vm := core.VMCopy(pad.AccountID, c.KeyStore)
 	_, err = vm.Run(pad.Code)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)

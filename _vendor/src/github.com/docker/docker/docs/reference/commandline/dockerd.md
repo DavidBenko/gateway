@@ -48,6 +48,8 @@ Options:
       -H, --host=[]                          Daemon socket(s) to connect to
       --help                                 Print usage
       --icc=true                             Enable inter-container communication
+      --init                                 Run an init inside containers to forward signals and reap processes
+      --init-path                            Path to the docker-init binary
       --insecure-registry=[]                 Enable insecure registry communication
       --ip=0.0.0.0                           Default IP when binding container ports
       --ip-forward=true                      Enable net.ipv4.ip_forward
@@ -56,7 +58,7 @@ Options:
       --ipv6                                 Enable IPv6 networking
       -l, --log-level=info                   Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --live-restore                         Enable live restore of docker when containers are still running
+      --live-restore                         Enables keeping containers alive during daemon downtime
       --log-driver=json-file                 Default driver for container logs
       --log-opt=map[]                        Default log driver options for containers
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
@@ -69,6 +71,7 @@ Options:
       -s, --storage-driver                   Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Storage driver options
+      --swarm-default-advertise-addr         Set default address or interface for swarm advertised address
       --tls                                  Use TLS; implied by --tlsverify
       --tlscacert=~/.docker/ca.pem           Trust certs signed only by this CA
       --tlscert=~/.docker/cert.pem           Path to TLS certificate file
@@ -122,26 +125,32 @@ find examples of using Systemd socket activation with Docker and Systemd in the
 You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
 
-    # listen using the default unix socket, and on 2 specific IP addresses on this host.
-    dockerd -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+```bash
+# listen using the default unix socket, and on 2 specific IP addresses on this host.
+$ sudo dockerd -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+```
 
 The Docker client will honor the `DOCKER_HOST` environment variable to set the
 `-H` flag for the client.
 
-    $ docker -H tcp://0.0.0.0:2375 ps
-    # or
-    $ export DOCKER_HOST="tcp://0.0.0.0:2375"
-    $ docker ps
-    # both are equal
+```bash
+$ docker -H tcp://0.0.0.0:2375 ps
+# or
+$ export DOCKER_HOST="tcp://0.0.0.0:2375"
+$ docker ps
+# both are equal
+```
 
 Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than
 the empty string is equivalent to setting the `--tlsverify` flag. The following
 are equivalent:
 
-    $ docker --tlsverify ps
-    # or
-    $ export DOCKER_TLS_VERIFY=1
-    $ docker ps
+```bash
+$ docker --tlsverify ps
+# or
+$ export DOCKER_TLS_VERIFY=1
+$ docker ps
+```
 
 The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
@@ -187,27 +196,31 @@ For example:
 `-H`, when empty, will default to the same value as
 when no `-H` was passed in.
 
-`-H` also accepts short form for TCP bindings:
-
-    `host:` or `host:port` or `:port`
+`-H` also accepts short form for TCP bindings: `host:` or `host:port` or `:port`
 
 Run Docker in daemon mode:
 
-    $ sudo <path to>/dockerd -H 0.0.0.0:5555 &
+```bash
+$ sudo <path to>/dockerd -H 0.0.0.0:5555 &
+```
 
 Download an `ubuntu` image:
 
-    $ docker -H :5555 pull ubuntu
+```bash
+$ docker -H :5555 pull ubuntu
+```
 
 You can use multiple `-H`, for example, if you want to listen on both
 TCP and a Unix socket
 
-    # Run docker in daemon mode
-    $ sudo <path to>/dockerd -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
-    # Download an ubuntu image, use default Unix socket
-    $ docker pull ubuntu
-    # OR use the TCP port
-    $ docker -H tcp://127.0.0.1:2375 pull ubuntu
+```bash
+# Run docker in daemon mode
+$ sudo <path to>/dockerd -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
+# Download an ubuntu image, use default Unix socket
+$ docker pull ubuntu
+# OR use the TCP port
+$ docker -H tcp://127.0.0.1:2375 pull ubuntu
+```
 
 ### Daemon storage-driver option
 
@@ -271,29 +284,30 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
 *  `dm.thinpooldev`
 
-     Specifies a custom block storage device to use for the thin pool.
+    Specifies a custom block storage device to use for the thin pool.
 
-     If using a block device for device mapper storage, it is best to use `lvm`
-     to create and manage the thin-pool volume. This volume is then handed to Docker
-     to exclusively create snapshot volumes needed for images and containers.
+    If using a block device for device mapper storage, it is best to use `lvm`
+    to create and manage the thin-pool volume. This volume is then handed to Docker
+    to exclusively create snapshot volumes needed for images and containers.
 
-     Managing the thin-pool outside of Engine makes for the most feature-rich
-     method of having Docker utilize device mapper thin provisioning as the
-     backing storage for Docker containers. The highlights of the lvm-based
-     thin-pool management feature include: automatic or interactive thin-pool
-     resize support, dynamically changing thin-pool features, automatic thinp
-     metadata checking when lvm activates the thin-pool, etc.
+    Managing the thin-pool outside of Engine makes for the most feature-rich
+    method of having Docker utilize device mapper thin provisioning as the
+    backing storage for Docker containers. The highlights of the lvm-based
+    thin-pool management feature include: automatic or interactive thin-pool
+    resize support, dynamically changing thin-pool features, automatic thinp
+    metadata checking when lvm activates the thin-pool, etc.
 
-     As a fallback if no thin pool is provided, loopback files are
-     created. Loopback is very slow, but can be used without any
-     pre-configuration of storage. It is strongly recommended that you do
-     not use loopback in production. Ensure your Engine daemon has a
-     `--storage-opt dm.thinpooldev` argument provided.
+    As a fallback if no thin pool is provided, loopback files are
+    created. Loopback is very slow, but can be used without any
+    pre-configuration of storage. It is strongly recommended that you do
+    not use loopback in production. Ensure your Engine daemon has a
+    `--storage-opt dm.thinpooldev` argument provided.
 
-     Example use:
+    Example use:
 
-        $ dockerd \
-              --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+    ```bash
+    $ sudo dockerd --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+    ```
 
 *  `dm.basesize`
 
@@ -309,7 +323,10 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.basesize=50G
+    ```bash
+    $ sudo dockerd --storage-opt dm.basesize=50G
+    ```
+
 
     This will increase the base device size to 50G. The Docker daemon will throw an
     error if existing base device size is larger than 50G. A user can use
@@ -319,19 +336,23 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     that may already be initialized and inherited by pulled images. Typically,
     a change to this value requires additional steps to take effect:
 
-        $ sudo service docker stop
-        $ sudo rm -rf /var/lib/docker
-        $ sudo service docker start
+     ```bash
+    $ sudo service docker stop
+    $ sudo rm -rf /var/lib/docker
+    $ sudo service docker start
+    ```
 
     Example use:
 
-        $ dockerd --storage-opt dm.basesize=20G
+    ```bash
+    $ sudo dockerd --storage-opt dm.basesize=20G
+    ```
 
 *  `dm.loopdatasize`
 
     > **Note**:
-	> This option configures devicemapper loopback, which should not
-	> be used in production.
+    > This option configures devicemapper loopback, which should not
+    > be used in production.
 
     Specifies the size to use when creating the loopback file for the
     "data" device which is used for the thin pool. The default size is
@@ -340,7 +361,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.loopdatasize=200G
+    ```bash
+    $ sudo dockerd --storage-opt dm.loopdatasize=200G
+    ```
 
 *  `dm.loopmetadatasize`
 
@@ -355,7 +378,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.loopmetadatasize=4G
+    ```bash
+    $ sudo dockerd --storage-opt dm.loopmetadatasize=4G
+    ```
 
 *  `dm.fs`
 
@@ -364,7 +389,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.fs=ext4
+    ```bash
+    $ sudo dockerd --storage-opt dm.fs=ext4
+    ```
 
 *  `dm.mkfsarg`
 
@@ -372,7 +399,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"
+    ```bash
+    $ sudo dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"
+    ```
 
 *  `dm.mountopt`
 
@@ -380,7 +409,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.mountopt=nodiscard
+    ```bash
+    $ sudo dockerd --storage-opt dm.mountopt=nodiscard
+    ```
 
 *  `dm.datadev`
 
@@ -394,9 +425,11 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd \
-              --storage-opt dm.datadev=/dev/sdb1 \
-              --storage-opt dm.metadatadev=/dev/sdc1
+    ```bash
+    $ sudo dockerd \
+          --storage-opt dm.datadev=/dev/sdb1 \
+          --storage-opt dm.metadatadev=/dev/sdc1
+    ```
 
 *  `dm.metadatadev`
 
@@ -410,13 +443,17 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     If setting up a new metadata pool it is required to be valid. This can be
     achieved by zeroing the first 4k to indicate empty metadata, like this:
 
-        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+    ```bash
+    $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+    ```
 
     Example use:
 
-        $ dockerd \
-              --storage-opt dm.datadev=/dev/sdb1 \
-              --storage-opt dm.metadatadev=/dev/sdc1
+    ```bash
+    $ sudo dockerd \
+          --storage-opt dm.datadev=/dev/sdb1 \
+          --storage-opt dm.metadatadev=/dev/sdc1
+    ```
 
 *  `dm.blocksize`
 
@@ -425,7 +462,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.blocksize=512K
+    ```bash
+    $ sudo dockerd --storage-opt dm.blocksize=512K
+    ```
 
 *  `dm.blkdiscard`
 
@@ -439,7 +478,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.blkdiscard=false
+    ```bash
+    $ sudo dockerd --storage-opt dm.blkdiscard=false
+    ```
 
 *  `dm.override_udev_sync_check`
 
@@ -449,10 +490,12 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     To view the `udev` sync support of a Docker daemon that is using the
     `devicemapper` driver, run:
 
-        $ docker info
-        [...]
-        Udev Sync Supported: true
-        [...]
+    ```bash
+    $ docker info
+    [...]
+    Udev Sync Supported: true
+    [...]
+    ```
 
     When `udev` sync support is `true`, then `devicemapper` and udev can
     coordinate the activation and deactivation of devices for containers.
@@ -465,7 +508,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     To allow the `docker` daemon to start, regardless of `udev` sync not being
     supported, set `dm.override_udev_sync_check` to true:
 
-        $ dockerd --storage-opt dm.override_udev_sync_check=true
+    ```bash
+    $ sudo dockerd --storage-opt dm.override_udev_sync_check=true
+    ```
 
     When this value is `true`, the  `devicemapper` continues and simply warns
     you the errors are happening.
@@ -495,7 +540,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd --storage-opt dm.use_deferred_removal=true
+    ```bash
+    $ sudo dockerd --storage-opt dm.use_deferred_removal=true
+    ```
 
 *  `dm.use_deferred_deletion`
 
@@ -509,9 +556,11 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     To avoid this failure, enable both deferred device deletion and deferred
     device removal on the daemon.
 
-        $ dockerd \
-              --storage-opt dm.use_deferred_deletion=true \
-              --storage-opt dm.use_deferred_removal=true
+    ```bash
+    $ sudo dockerd \
+          --storage-opt dm.use_deferred_deletion=true \
+          --storage-opt dm.use_deferred_removal=true
+    ```
 
     With these two options enabled, if a device is busy when the driver is
     deleting a container, the driver marks the device as deleted. Later, when
@@ -548,7 +597,23 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     Example use:
 
     ```bash
-    $ dockerd --storage-opt dm.min_free_space=10%
+    $ sudo dockerd --storage-opt dm.min_free_space=10%
+    ```
+
+*  `dm.xfs_nospace_max_retries`
+
+    Specifies the maximum number of retries XFS should attempt to complete
+    IO when ENOSPC (no space) error is returned by underlying storage device.
+
+    By default XFS retries infinitely for IO to finish and this can result
+    in unkillable process. To change this behavior one can set
+    xfs_nospace_max_retries to say 0 and XFS will not retry IO after getting
+    ENOSPC and will shutdown filesystem.
+
+    Example use:
+
+    ```bash
+    $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
     ```
 
 #### ZFS options
@@ -561,7 +626,9 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Example use:
 
-        $ dockerd -s zfs --storage-opt zfs.fsname=zroot/docker
+    ```bash
+    $ sudo dockerd -s zfs --storage-opt zfs.fsname=zroot/docker
+    ```
 
 #### Btrfs options
 
@@ -573,7 +640,10 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     **size** cannot be smaller than **btrfs.min_space**.
 
     Example use:
-        $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
+
+    ```bash
+    $ sudo dockerd -s btrfs --storage-opt btrfs.min_space=10G
+    ```
 
 #### Overlay2 options
 
@@ -589,9 +659,17 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 ## Docker runtime execution options
 
 The Docker daemon relies on a
-[OCI](https://github.com/opencontainers/specs) compliant runtime
+[OCI](https://github.com/opencontainers/runtime-spec) compliant runtime
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
+
+By default, the Docker daemon automatically starts `containerd`. If you want to
+control `containerd` startup, manually start `containerd` and pass the path to
+the `containerd` socket using the `--containerd` flag. For example:
+
+```bash
+$ sudo dockerd --containerd /var/run/dev/docker-containerd.sock
+```
 
 Runtimes can be registered with the daemon either via the
 configuration file or using the `--add-runtime` command line argument.
@@ -614,9 +692,11 @@ The following is an example adding 2 runtimes via the configuration:
 
 This is the same example via the command line:
 
-    $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+```bash
+$ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+```
 
-**Note**: defining runtime arguments via the command line is not supported.
+> **Note**: defining runtime arguments via the command line is not supported.
 
 ## Options for the runtime
 
@@ -631,14 +711,18 @@ cgroups. You can specify only specify `cgroupfs` or `systemd`. If you specify
 
 This example sets the `cgroupdriver` to `systemd`:
 
-    $ sudo dockerd --exec-opt native.cgroupdriver=systemd
+```bash
+$ sudo dockerd --exec-opt native.cgroupdriver=systemd
+```
 
 Setting this option applies to all containers the daemon launches.
 
 Also Windows Container makes use of `--exec-opt` for special purpose. Docker user
 can specify default container isolation technology with this, for example:
 
-    $ dockerd --exec-opt isolation=hyperv
+```bash
+$ sudo dockerd --exec-opt isolation=hyperv
+```
 
 Will make `hyperv` the default isolation technology on Windows. If no isolation
 value is specified on daemon start, on Windows client, the default is
@@ -646,11 +730,19 @@ value is specified on daemon start, on Windows client, the default is
 
 ## Daemon DNS options
 
-To set the DNS server for all Docker containers, use
-`dockerd --dns 8.8.8.8`.
+To set the DNS server for all Docker containers, use:
 
-To set the DNS search domain for all Docker containers, use
-`dockerd --dns-search example.com`.
+```bash
+$ sudo dockerd --dns 8.8.8.8
+```
+
+
+To set the DNS search domain for all Docker containers, use:
+
+```bash
+$ sudo dockerd --dns-search example.com
+```
+
 
 ## Insecure registries
 
@@ -745,7 +837,7 @@ using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 
 ```bash
-dockerd \
+$ sudo dockerd \
     --cluster-advertise 192.168.1.2:2376 \
     --cluster-store etcd://192.168.1.2:2379 \
     --cluster-store-opt kv.cacertfile=/path/to/ca.pem \
@@ -795,7 +887,7 @@ authorization plugins when you start the Docker `daemon` using the
 `--authorization-plugin=PLUGIN_ID` option.
 
 ```bash
-dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+$ sudo dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification
@@ -866,10 +958,10 @@ startup will fail with an error message.
 > *before* the `--userns-remap` option is enabled. Once these files exist, the
 > daemon can be (re)started and range assignment on user creation works properly.
 
-*Example: starting with default Docker user management:*
+**Example: starting with default Docker user management:**
 
 ```bash
-$ dockerd --userns-remap=default
+$ sudo dockerd --userns-remap=default
 ```
 
 When `default` is provided, Docker will create - or find the existing - user and group
@@ -930,16 +1022,16 @@ This option will completely disable user namespace mapping for the container's u
 The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
- - sharing PID or NET namespaces with the host (`--pid=host` or `--network=host`)
- - A `--read-only` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
- - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
+ - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
 In general, user namespaces are an advanced feature and will require
 coordination with other capabilities. For example, if volumes are mounted from
 the host, file ownership will have to be pre-arranged if the user or
 administrator wishes the containers to have expected access to the volume
-contents.
+contents. Note that when using external volume or graph driver plugins, those
+external software programs must be made aware of user and group mapping ranges
+if they are to work seamlessly with user namespace support.
 
 Finally, while the `root` user inside a user namespaced container process has
 many of the expected admin privileges that go along with being the superuser, the
@@ -1002,14 +1094,14 @@ via flags. The docker daemon fails to start if an option is duplicated between
 the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
-in the configuration file and also set daemon labels via the `--label` flag. 
+in the configuration file and also set daemon labels via the `--label` flag.
 Options that are not present in the file are ignored when the daemon starts.
 
 ### Linux configuration file
 
-The default location of the configuration file on Linux is 
+The default location of the configuration file on Linux is
 `/etc/docker/daemon.json`. The `--config-file` flag can be used to specify a
- non-default location. 
+ non-default location.
 
 This is a full example of the allowed configuration options on Linux:
 
@@ -1024,8 +1116,9 @@ This is a full example of the allowed configuration options on Linux:
 	"storage-driver": "",
 	"storage-opts": [],
 	"labels": [],
+	"live-restore": true,
 	"log-driver": "",
-	"log-opts": [],
+	"log-opts": {},
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
@@ -1042,12 +1135,15 @@ This is a full example of the allowed configuration options on Linux:
 	"tlscacert": "",
 	"tlscert": "",
 	"tlskey": "",
+	"swarm-default-advertise-addr": "",
 	"api-cors-header": "",
 	"selinux-enabled": false,
 	"userns-remap": "",
 	"group": "",
 	"cgroup-parent": "",
 	"default-ulimits": {},
+	"init": false,
+	"init-path": "/usr/libexec/docker-init",
 	"ipv6": false,
 	"iptables": false,
 	"ip-forward": false,
@@ -1085,7 +1181,7 @@ This is a full example of the allowed configuration options on Linux:
 
 The default location of the configuration file on Windows is
  `%programdata%\docker\config\daemon.json`. The `--config-file` flag can be
- used to specify a non-default location. 
+ used to specify a non-default location.
 
 This is a full example of the allowed configuration options on Windows:
 
@@ -1099,7 +1195,8 @@ This is a full example of the allowed configuration options on Windows:
     "storage-driver": "",
     "storage-opts": [],
     "labels": [],
-    "log-driver": "", 
+    "live-restore": true,
+    "log-driver": "",
     "mtu": 0,
     "pidfile": "",
     "graph": "",
@@ -1112,6 +1209,7 @@ This is a full example of the allowed configuration options on Windows:
     "tlscacert": "",
     "tlscert": "",
     "tlskey": "",
+    "swarm-default-advertise-addr": "",
     "group": "",
     "default-ulimits": {},
     "bridge": "",
@@ -1139,6 +1237,7 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `live-restore`: Enables [keeping containers alive during daemon downtime](../../admin/live-restore.md).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
 - `default-runtime`: it updates the runtime to be used if not is
@@ -1146,6 +1245,7 @@ The list of currently supported options that can be reconfigured is this:
   the runtime shipped with the official docker packages.
 - `runtimes`: it updates the list of available OCI runtimes that can
   be used to run containers
+- `authorization-plugin`: specifies the authorization plugins to use.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
@@ -1206,7 +1306,7 @@ The `--tls*` options enable use of specific certificates for individual daemons.
 Example script for a separate “bootstrap” instance of the Docker daemon without network:
 
 ```bash
-$ docker daemon \
+$ sudo dockerd \
         -H unix:///var/run/docker-bootstrap.sock \
         -p /var/run/docker-bootstrap.pid \
         --iptables=false \

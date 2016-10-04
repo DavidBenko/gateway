@@ -138,6 +138,8 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
+	proxyEndpoint.AccountID = accountID
+
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
 		httpErr = s.httpError(err)
@@ -191,7 +193,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout)
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.KeyStore)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
