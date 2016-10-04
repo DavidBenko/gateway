@@ -62,8 +62,14 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 		if err = r.initTasks(ctx, readTx); err != nil {
 			return
 		}
-		err = r.initServices(readTx)
-		err = r.initCluster(readTx)
+
+		if err = r.initServices(readTx); err != nil {
+			return
+		}
+
+		if err = r.initCluster(readTx); err != nil {
+			return
+		}
 	})
 	if err != nil {
 		return err
@@ -104,25 +110,23 @@ func (r *ReplicatedOrchestrator) tick(ctx context.Context) {
 	r.tickServices(ctx)
 }
 
-func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.Task {
+func newTask(cluster *api.Cluster, service *api.Service, slot uint64, nodeID string) *api.Task {
 	var logDriver *api.Driver
 	if service.Spec.Task.LogDriver != nil {
 		// use the log driver specific to the task, if we have it.
 		logDriver = service.Spec.Task.LogDriver
 	} else if cluster != nil {
 		// pick up the cluster default, if available.
-		logDriver = cluster.Spec.DefaultLogDriver // nil is okay here.
+		logDriver = cluster.Spec.TaskDefaults.LogDriver // nil is okay here.
 	}
 
-	// NOTE(stevvooe): For now, we don't override the container naming and
-	// labeling scheme in the agent. If we decide to do this in the future,
-	// they should be overridden here.
-	return &api.Task{
-		ID:                 identity.NewID(),
+	taskID := identity.NewID()
+	task := api.Task{
+		ID:                 taskID,
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
 		ServiceID:          service.ID,
-		Slot:               instance,
+		Slot:               slot,
 		Status: api.TaskStatus{
 			State:     api.TaskStateNew,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),
@@ -134,6 +138,17 @@ func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.T
 		DesiredState: api.TaskStateRunning,
 		LogDriver:    logDriver,
 	}
+
+	// In global mode we also set the NodeID
+	if nodeID != "" {
+		task.NodeID = nodeID
+	}
+
+	// Assign name based on task name schema
+	name := store.TaskName(&task)
+	task.Annotations = api.Annotations{Name: name}
+
+	return &task
 }
 
 // isReplicatedService checks if a service is a replicated service

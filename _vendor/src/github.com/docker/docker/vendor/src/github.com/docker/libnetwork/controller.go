@@ -52,6 +52,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/cluster"
@@ -97,7 +98,7 @@ type NetworkController interface {
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
 	Sandboxes() []Sandbox
 
-	// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+	// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
 	WalkSandboxes(walker SandboxWalker)
 
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
@@ -149,6 +150,7 @@ type controller struct {
 	ingressSandbox         *sandbox
 	sboxOnce               sync.Once
 	agent                  *agent
+	networkLocker          *locker.Locker
 	agentInitDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
@@ -169,6 +171,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		svcRecords:      make(map[string]svcInfo),
 		serviceBindings: make(map[serviceKey]*service),
 		agentInitDone:   make(chan struct{}),
+		networkLocker:   locker.New(),
 	}
 
 	if err := c.initStores(); err != nil {
@@ -250,6 +253,21 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	clusterConfigAvailable := c.clusterConfigAvailable
 	agent := c.agent
 	c.Unlock()
+
+	subsysKeys := make(map[string]int)
+	for _, key := range keys {
+		if key.Subsystem != subsysGossip &&
+			key.Subsystem != subsysIPSec {
+			return fmt.Errorf("key received for unrecognized subsystem")
+		}
+		subsysKeys[key.Subsystem]++
+	}
+	for s, count := range subsysKeys {
+		if count != keyringSize {
+			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+		}
+	}
+
 	if len(existingKeys) == 0 {
 		c.Lock()
 		c.keys = keys
@@ -268,9 +286,6 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		c.keys = keys
 		c.Unlock()
 		return nil
-	}
-	if len(keys) < keyringSize {
-		return c.handleKeyChangeV1(keys)
 	}
 	return c.handleKeyChange(keys)
 }
@@ -295,8 +310,41 @@ func (c *controller) clusterAgentInit() {
 			c.Lock()
 			c.clusterConfigAvailable = false
 			c.agentInitDone = make(chan struct{})
+			c.keys = nil
 			c.Unlock()
+
+			// We are leaving the cluster. Make sure we
+			// close the gossip so that we stop all
+			// incoming gossip updates before cleaning up
+			// any remaining service bindings. But before
+			// deleting the networks since the networks
+			// should still be present when cleaning up
+			// service bindings
 			c.agentClose()
+			c.cleanupServiceBindings("")
+
+			c.Lock()
+			ingressSandbox := c.ingressSandbox
+			c.ingressSandbox = nil
+			c.Unlock()
+
+			if ingressSandbox != nil {
+				if err := ingressSandbox.Delete(); err != nil {
+					log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+				}
+			}
+
+			n, err := c.NetworkByName("ingress")
+			if err != nil {
+				log.Warnf("Could not find ingress network while leaving: %v", err)
+			}
+
+			if n != nil {
+				if err := n.Delete(); err != nil {
+					log.Warnf("Could not delete ingress network while leaving: %v", err)
+				}
+			}
+
 			return
 		}
 	}
@@ -305,7 +353,13 @@ func (c *controller) clusterAgentInit() {
 // AgentInitWait waits for agent initialization to be completed in the
 // controller.
 func (c *controller) AgentInitWait() {
-	<-c.agentInitDone
+	c.Lock()
+	agentInitDone := c.agentInitDone
+	c.Unlock()
+
+	if agentInitDone != nil {
+		<-agentInitDone
+	}
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
@@ -377,6 +431,10 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	if !update {
 		return nil
 	}
+
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
 
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
@@ -522,6 +580,8 @@ func (c *controller) Config() config.Config {
 }
 
 func (c *controller) isManager() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -529,6 +589,8 @@ func (c *controller) isManager() bool {
 }
 
 func (c *controller) isAgent() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -555,6 +617,15 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
+	if id != "" {
+		c.networkLocker.Lock(id)
+		defer c.networkLocker.Unlock(id)
+
+		if _, err := c.NetworkByID(id); err == nil {
+			return nil, NetworkNameError(id)
+		}
+	}
+
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
@@ -640,6 +711,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	joinCluster(network)
+	if !c.isDistributedControl() {
+		arrangeIngressFilterRule()
+	}
 
 	return network, nil
 }
@@ -679,9 +753,11 @@ func (c *controller) reservePools() {
 				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
 			}
 		}
-		for i, c := range n.ipamV6Config {
-			if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
-				c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+		if n.enableIPv6 {
+			for i, c := range n.ipamV6Config {
+				if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+					c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+				}
 			}
 		}
 		// Reserve pools
@@ -727,6 +803,8 @@ func (c *controller) addNetwork(n *network) error {
 	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
+
+	n.startResolver()
 
 	return nil
 }
@@ -846,6 +924,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
 	defer func() {
