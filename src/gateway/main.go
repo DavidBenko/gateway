@@ -412,9 +412,10 @@ var commands = map[string]Command{
 			{"stripe_name", true},
 			{"max_users", true},
 			{"javascript_timeout", true},
+			{"job_timeout", true},
 			{"price", true},
 		},
-		"plans:create name:\"<name>\" stripe_name:<stripe_name> max_users:<max_users> javascript_timeout:<javascript_timeout> price:<price>",
+		"plans:create name:\"<name>\" stripe_name:<stripe_name> max_users:<max_users> javascript_timeout:<javascript_timeout> job_timeout:<job_timeout> price:<price>",
 		plansCreate,
 	},
 	"plans:update": {
@@ -424,9 +425,10 @@ var commands = map[string]Command{
 			{"stripe_name", false},
 			{"max_users", false},
 			{"javascript_timeout", false},
+			{"job_timeout", false},
 			{"price", false},
 		},
-		"plans:update <id> [name:\"<name>\"] [email:<email>] [stripe_name:<stripe_name>] [max_users:<max_users>] [javascript_timeout:<javascript_timeout>] [price:<price>]",
+		"plans:update <id> [name:\"<name>\"] [email:<email>] [stripe_name:<stripe_name>] [max_users:<max_users>] [javascript_timeout:<javascript_timeout>] [job_timeout:<job_timeout>] [price:<price>]",
 		plansUpdate,
 	},
 	"plans:destroy": {
@@ -744,6 +746,10 @@ func plansCreate(params map[string]string, conf config.Configuration, db *sql.DB
 	if err != nil {
 		logreport.Fatal(err)
 	}
+	jobTimeout, err := strconv.Atoi(params["job_timeout"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
 	price, err := strconv.Atoi(params["price"])
 	if err != nil {
 		logreport.Fatal(err)
@@ -753,6 +759,7 @@ func plansCreate(params map[string]string, conf config.Configuration, db *sql.DB
 		StripeName:        params["stripe_name"],
 		MaxUsers:          int64(maxUsers),
 		JavascriptTimeout: int64(javascriptTimeout),
+		JobTimeout:        int64(jobTimeout),
 		Price:             int64(price),
 	}
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
@@ -785,6 +792,13 @@ func plansUpdate(params map[string]string, conf config.Configuration, db *sql.DB
 			logreport.Fatal(err)
 		}
 		plan.JavascriptTimeout = int64(javascripTimeout)
+	}
+	if params["job_timeout"] != "" {
+		jobTimeout, err := strconv.Atoi(params["job_timeout"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		plan.JobTimeout = int64(jobTimeout)
 	}
 	if params["price"] != "" {
 		price, err := strconv.Atoi(params["price"])

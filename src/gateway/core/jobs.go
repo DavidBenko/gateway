@@ -6,6 +6,8 @@ import (
 	"gateway/core/vm"
 	"gateway/logreport"
 	"gateway/model"
+
+	stripe "github.com/stripe/stripe-go"
 )
 
 func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, attributes string) (err error) {
@@ -20,8 +22,19 @@ func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, attributes s
 		return err
 	}
 
+	codeTimeout := conf.GetCodeTimeout()
+	if stripe.Key != "" {
+		plan, err := model.FindPlanByAccountID(c.OwnDb, accountID)
+		if err != nil {
+			return err
+		}
+		if plan.JobTimeout < codeTimeout {
+			codeTimeout = plan.JobTimeout
+		}
+	}
+
 	vm := &vm.CoreVM{}
-	vm.InitCoreVM(VMCopy(accountID, c.KeyStore), logreport.Printf, logPrefix, conf, job, libraries, conf.GetCodeTimeout())
+	vm.InitCoreVM(VMCopy(accountID, c.KeyStore), logreport.Printf, logPrefix, conf, job, libraries, codeTimeout)
 
 	vm.Set("__ap_jobAttributesJSON", attributes)
 	scripts := []interface{}{
