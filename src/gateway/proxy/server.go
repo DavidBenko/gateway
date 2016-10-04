@@ -55,6 +55,9 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 		source = newPassthroughProxyDataSource(ownDb)
 	}
 
+	keyStore := core.NewKeyStore(ownDb)
+	ownDb.RegisterListener(keyStore)
+
 	pools := pools.MakePools()
 	ownDb.RegisterListener(pools)
 
@@ -68,6 +71,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			Store:      s,
 			Push:       push.NewPushPool(conf.Push),
 			Smtp:       smtp.NewSmtpPool(),
+			KeyStore:   keyStore,
 		},
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,
@@ -157,6 +161,8 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
+	proxyEndpoint.AccountID = accountID
+
 	libraries, err := s.proxyData.Libraries(proxyEndpoint.APIID)
 	if err != nil {
 		httpErr = s.httpError(err)
@@ -210,7 +216,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout)
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.KeyStore)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return

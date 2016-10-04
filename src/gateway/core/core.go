@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"gateway/config"
+	"gateway/core/ottocrypto"
 	"gateway/core/request"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
@@ -32,6 +33,7 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
+	KeyStore   *KeyStore
 }
 
 func (s *Core) PrepareRequest(
@@ -84,8 +86,11 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy() *otto.Otto {
-	return shared.Copy()
+func VMCopy(accountID int64, keySource ottocrypto.KeyDataSource) *otto.Otto {
+	vm := shared.Copy()
+	ottocrypto.IncludeSigning(vm, accountID, keySource)
+	ottocrypto.IncludeEncryption(vm, accountID, keySource)
+	return vm
 }
 
 var shared = func() *otto.Otto {
@@ -94,10 +99,14 @@ var shared = func() *otto.Otto {
 	var files = []string{
 		"gateway.js",
 		"sessions.js",
+		"crypto.js",
 		"call.js",
 		"http/request.js",
 		"http/response.js",
 	}
+
+	ottocrypto.IncludeHashing(vm)
+
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
 		if err != nil {
