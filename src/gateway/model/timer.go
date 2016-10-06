@@ -230,6 +230,15 @@ func (t *Timer) Schedule() {
 	t.Next = next.Unix()
 }
 
+func (t *Timer) ScheduleTime(now time.Time) {
+	if t.Once {
+		return
+	}
+
+	next := t.FindNext(now)
+	t.Next = next.Unix()
+}
+
 func (t *Timer) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if apsql.IsUniqueConstraint(err, "name") {
@@ -306,6 +315,31 @@ func (t *Timer) Insert(tx *apsql.Tx) error {
 
 func (t *Timer) Update(tx *apsql.Tx) error {
 	t.Schedule()
+
+	attributes, err := marshaledForStorage(t.Attributes)
+	if err != nil {
+		return err
+	}
+
+	data, err := marshaledForStorage(t.Data)
+	if err != nil {
+		return err
+	}
+
+	err = tx.UpdateOne(tx.SQL("timers/update"), t.APIID, t.AccountID,
+		t.JobID, t.APIID,
+		t.Name, t.Once, t.TimeZone,
+		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
+		t.Next, attributes, data,
+		t.ID, t.APIID, t.AccountID)
+	if err != nil {
+		return err
+	}
+	return tx.Notify("timers", t.AccountID, t.UserID, t.APIID, 0, t.ID, apsql.Update)
+}
+
+func (t *Timer) UpdateTime(tx *apsql.Tx, now time.Time) error {
+	t.ScheduleTime(now)
 
 	attributes, err := marshaledForStorage(t.Attributes)
 	if err != nil {

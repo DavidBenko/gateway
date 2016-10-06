@@ -139,30 +139,6 @@ func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	return db.DB.Queryx(db.q(query), args...)
 }
 
-// TryLock tries to obtain a lock for a given table name and id
-func (db *DB) TryLock(table string, id int64) (bool, error) {
-	if db.Driver == Sqlite3 {
-		return true, nil
-	}
-
-	locked := struct{ Locked bool }{}
-	sql := fmt.Sprintf("SELECT pg_try_advisory_lock('%v'::regclass::integer, ?) as locked;", table)
-	err := db.Select(&locked, sql, id)
-	return locked.Locked, err
-}
-
-// Unlock unlocks a lock
-func (db *DB) Unlock(table string, id int64) (bool, error) {
-	if db.Driver == Sqlite3 {
-		return true, nil
-	}
-
-	unlocked := struct{ Unlocked bool }{}
-	sql := fmt.Sprintf("SELECT pg_advisory_unlock('%v'::regclass::integer, ?) as unlocked;", table)
-	err := db.Select(&unlocked, sql, id)
-	return unlocked.Unlocked, err
-}
-
 // RegisterListener registers a listener with the database
 func (db *DB) RegisterListener(l Listener) {
 	defer db.listenersMutex.Unlock()

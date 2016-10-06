@@ -19,7 +19,7 @@ var (
 )
 
 func JobsService(conf config.Configuration, warp *core.Core) {
-	ticker := time.NewTicker(time.Second * 30)
+	ticker := time.NewTicker(time.Minute)
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	go func() {
 		for now := range ticker.C {
@@ -31,18 +31,19 @@ func JobsService(conf config.Configuration, warp *core.Core) {
 			for len(timers) > 0 {
 				length := len(timers)
 				t := source.Intn(length)
-				go func(timer *model.Timer, now int64) {
-					atomic.AddInt64(&jobsCount, 1)
+				atomic.AddInt64(&jobsCount, 1)
+				go func(timer *model.Timer, now time.Time, sleep int64) {
 					defer func() {
 						atomic.AddInt64(&jobsCount, -1)
 					}()
+					time.Sleep(time.Duration(sleep))
 					logPrefix := fmt.Sprintf("%s [act %d] [timer %d] [api %d] [end %d]", config.Job,
 						timer.AccountID, timer.ID, timer.APIID, timer.JobID)
 					err = executeJob(timer, now, logPrefix, warp)
 					if err != nil {
 						logreport.Printf("%s %v", logPrefix, err)
 					}
-				}(timers[t], now.Unix())
+				}(timers[t], now, source.Int63n(int64(30*time.Second)))
 				timers[t], timers[length-1] = timers[length-1], timers[t]
 				timers = timers[:length-1]
 			}
@@ -60,10 +61,14 @@ func StopJobsService() {
 	}
 }
 
-func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core) (err error) {
+func executeJob(timer *model.Timer, now time.Time, logPrefix string, warp *core.Core) (err error) {
 	db := warp.OwnDb
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
 
-	locked, err := db.TryLock("timers", timer.ID)
+	locked, err := tx.TryLock(sql.LockSetJobs, timer.ID)
 	if err != nil {
 		return err
 	}
@@ -72,17 +77,18 @@ func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core
 	}
 
 	defer func() {
-		_, errUnlock := db.Unlock("timers", timer.ID)
+		_, errUnlock := tx.Unlock(sql.LockSetJobs, timer.ID)
 		if errUnlock != nil {
 			err = errUnlock
 		}
+		tx.Commit()
 	}()
 
 	fresh, err := timer.Find(db)
 	if err != nil {
 		return nil
 	}
-	if fresh.Next > now {
+	if fresh.Next > now.Unix() {
 		return nil
 	}
 
@@ -92,7 +98,7 @@ func executeJob(timer *model.Timer, now int64, logPrefix string, warp *core.Core
 		if fresh.Once {
 			return fresh.Delete(tx)
 		}
-		return fresh.Update(tx)
+		return fresh.UpdateTime(tx, now)
 	})
 	if err != nil {
 		return err
