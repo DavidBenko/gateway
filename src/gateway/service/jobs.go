@@ -43,7 +43,7 @@ func JobsService(conf config.Configuration, warp *core.Core) {
 					if err != nil {
 						logreport.Printf("%s %v", logPrefix, err)
 					}
-				}(timers[t], now, source.Int63n(int64(30*time.Second)))
+				}(timers[t], now, source.Int63n(int64(120*time.Second)))
 				timers[t], timers[length-1] = timers[length-1], timers[t]
 				timers = timers[:length-1]
 			}
