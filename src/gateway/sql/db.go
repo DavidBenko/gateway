@@ -139,6 +139,17 @@ func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	return db.DB.Queryx(db.q(query), args...)
 }
 
+// CurrentTime gets the current time for the database
+func (db *DB) CurrentTime() (time.Time, error) {
+	if db.Driver == Sqlite3 {
+		return time.Now(), nil
+	}
+
+	current := struct{ Current time.Time }{}
+	err := db.Get(&current, "SELECT CURRENT_TIMESTAMP as current;")
+	return current.Current, err
+}
+
 // RegisterListener registers a listener with the database
 func (db *DB) RegisterListener(l Listener) {
 	defer db.listenersMutex.Unlock()

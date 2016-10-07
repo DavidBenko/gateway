@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -216,18 +217,23 @@ NEXT:
 		}
 	}
 
-	return next
+	return next.Add(time.Duration(15-rand.Intn(31)) * time.Second)
 }
 
-func (t *Timer) Schedule() {
+func (t *Timer) Schedule(tx *apsql.Tx) error {
 	if t.Once {
-		return
+		return nil
 	}
 
-	current := time.Now()
+	current, err := tx.DB.CurrentTime()
+	if err != nil {
+		return err
+	}
 	location := time.FixedZone(fmt.Sprintf("fz%v", t.TimeZone), int(t.TimeZone)*60*60)
 	next := t.FindNext(current.In(location))
 	t.Next = next.Unix()
+
+	return nil
 }
 
 func (t *Timer) ScheduleTime(now time.Time) {
@@ -290,7 +296,10 @@ func (t *Timer) Delete(tx *apsql.Tx) error {
 }
 
 func (t *Timer) Insert(tx *apsql.Tx) error {
-	t.Schedule()
+	err := t.Schedule(tx)
+	if err != nil {
+		return err
+	}
 
 	attributes, err := marshaledForStorage(t.Attributes)
 	if err != nil {
@@ -314,7 +323,10 @@ func (t *Timer) Insert(tx *apsql.Tx) error {
 }
 
 func (t *Timer) Update(tx *apsql.Tx) error {
-	t.Schedule()
+	err := t.Schedule(tx)
+	if err != nil {
+		return err
+	}
 
 	attributes, err := marshaledForStorage(t.Attributes)
 	if err != nil {

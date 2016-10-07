@@ -19,10 +19,15 @@ var (
 )
 
 func JobsService(conf config.Configuration, warp *core.Core) {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(15 * time.Second)
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	go func() {
-		for now := range ticker.C {
+		for range ticker.C {
+			now, err := warp.OwnDb.CurrentTime()
+			if err != nil {
+				logreport.Printf("%s %v", config.Job, err)
+			}
+
 			timer := model.Timer{}
 			timers, err := timer.AllReady(warp.OwnDb, now.Unix())
 			if err != nil {
@@ -32,18 +37,17 @@ func JobsService(conf config.Configuration, warp *core.Core) {
 				length := len(timers)
 				t := source.Intn(length)
 				atomic.AddInt64(&jobsCount, 1)
-				go func(timer *model.Timer, now time.Time, sleep int64) {
+				go func(timer *model.Timer, now time.Time) {
 					defer func() {
 						atomic.AddInt64(&jobsCount, -1)
 					}()
-					time.Sleep(time.Duration(sleep))
 					logPrefix := fmt.Sprintf("%s [act %d] [timer %d] [api %d] [end %d]", config.Job,
 						timer.AccountID, timer.ID, timer.APIID, timer.JobID)
 					err = executeJob(timer, now, logPrefix, warp)
 					if err != nil {
 						logreport.Printf("%s %v", logPrefix, err)
 					}
-				}(timers[t], now, source.Int63n(int64(120*time.Second)))
+				}(timers[t], now)
 				timers[t], timers[length-1] = timers[length-1], timers[t]
 				timers = timers[:length-1]
 			}
