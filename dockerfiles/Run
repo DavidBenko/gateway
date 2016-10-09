@@ -1,7 +1,7 @@
-# anypresence/gateway:run
-# version 5.1.0
+# nanoscale/gateway:run
+# version 5.2.0
 FROM debian:jessie
-MAINTAINER Jeff Bozek, jbozek@anypresence.com
+MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 ### Add Java ###
 

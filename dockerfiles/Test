@@ -1,7 +1,7 @@
-# anypresence/gateway:test
-# version 5.1.0
-FROM anypresence/gateway:compile-5.1.0
-MAINTAINER Jeff Bozek, jbozek@anypresence.com
+# nanoscale/gateway:test
+# version 5.2.0
+FROM nanoscale/gateway:compile-5.2.0
+MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 RUN apt-get install -y apt-transport-https ca-certificates && \
     apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D && \

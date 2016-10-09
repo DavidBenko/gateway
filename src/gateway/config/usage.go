@@ -167,7 +167,14 @@ var usageStrings = map[string]string{
 	"push-connect-timeout":  "The connect timeout for MQTT",
 	"push-mqtt-uri":         "The URI for the MQTT server",
 
-	"docker-memory":     "The amount of memory MB to allocate to each running docker container",
-	"docker-cpu-shares": "The CPU share weight to allocate to each running docker container",
-	"docker-host":       "The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.",
+	"docker-memory":             "The amount of memory MB to allocate to each running docker container. Default is 128MB.",
+	"docker-cpu-shares":         "The CPU share weight to allocate to each running docker container. Default is 1.",
+	"docker-host":               "The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.",
+	"docker-tls":                "Whether to use TLS when connecting to the provided Docker Host. Default is false.",
+	"docker-tls-cert":           "The cert PEM file to use when conneting to the Docker Host using TLS. Default is blank.",
+	"docker-tls-cacert":         "The CA cert PEM file to use when conneting to the Docker Host using TLS. Default is blank.",
+	"docker-tls-key":            "The key PEM file to use when conneting to the Docker Host using TLS. Default is blank.",
+	"docker-tls-cert-content":   "The base64 encoded cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
+	"docker-tls-cacert-content": "The base64 encoded CA cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
+	"docker-tls-key-content":    "The base64 encoded key PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
 }

@@ -75,9 +75,16 @@ type Store struct {
 
 // Docker specifies configuration options for docker remote endpoints
 type Docker struct {
-	Memory    int64  `flag:"docker-memory" default:"128"`
-	CPUShares int64  `flag:"docker-cpu-shares" default:"1024"`
-	Host      string `flag:"docker-host" default:""`
+	Memory           int64  `flag:"docker-memory" default:"128"`
+	CPUShares        int64  `flag:"docker-cpu-shares" default:"1"`
+	Host             string `flag:"docker-host" default:""`
+	Tls              bool   `flag:"docker-tls" default:"false"`
+	TlsCertFile      string `flag:"docker-tls-cert" default:""`
+	TlsCaCertFile    string `flag:"docker-tls-cacert" default:""`
+	TlsKeyFile       string `flag:"docker-tls-key" default:""`
+	TlsCertContent   string `flag:"docker-tls-cert-content" default:""`
+	TlsCaCertContent string `flag:"docker-tls-cacert-content" default:""`
+	TlsKeyContent    string `flag:"docker-tls-key-content" default:""`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

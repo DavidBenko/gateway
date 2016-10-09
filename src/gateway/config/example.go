@@ -258,10 +258,31 @@ const ExampleConfigurationFile = `##############################################
 # memory = 128
 
 # The CPU share weight to allocate to each running docker container.
-# cpuShares = 1024
+# cpuShares = 1
 
 # The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.
 # host = ''
+
+# Whether to use TLS when connecting to the provided Docker Host. Default is false.
+# tls = false
+
+# The cert PEM file to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsCert = ''
+
+# The CA cert PEM file to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsCacert = ''
+
+# The key PEM file to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsKey = ''
+
+# The base64 encoded cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsCertContent = ''
+
+# The base64 encoded CA cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsCacertContent = ''
+
+# The base64 encoded key PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.
+# tlsKeyContent = ''
 
 ## ---------- Logging ------------
 [bleve]

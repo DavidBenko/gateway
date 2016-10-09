@@ -1,7 +1,7 @@
-# anypresence/gateway:compile
-# version 5.1.0
-FROM golang:1.7.0
-MAINTAINER Jeff Bozek, jbozek@anypresence.com
+# nanoscale/gateway:compile
+# version 5.2.0
+FROM golang:1.7.1
+MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 # Install dependencies
 RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources.list && \
