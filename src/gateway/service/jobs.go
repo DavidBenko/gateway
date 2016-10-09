@@ -19,10 +19,14 @@ var (
 )
 
 func JobsService(conf config.Configuration, warp *core.Core) {
-	ticker := time.NewTicker(15 * time.Second)
+	if !conf.Job.Enable {
+		return
+	}
+
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	go func() {
-		for range ticker.C {
+		for {
+			time.Sleep(time.Second + time.Duration(source.Intn(7*int(time.Second))))
 			now, err := warp.OwnDb.CurrentTime()
 			if err != nil {
 				logreport.Printf("%s %v", config.Job, err)
@@ -97,6 +101,7 @@ func executeJob(timer *model.Timer, now time.Time, logPrefix string, warp *core.
 	}
 
 	logreport.Printf("%s %s", logPrefix, fresh.Name)
+	model.IncrementJobsExecuted()
 
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
 		if fresh.Once {

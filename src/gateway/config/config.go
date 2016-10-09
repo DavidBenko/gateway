@@ -100,6 +100,7 @@ type ProxyServer struct {
 
 // BackgroundJob specifies configuration options that apply to jobs.
 type BackgroundJob struct {
+	Enable      bool `flag:"job-enable" default:"true"`
 	EnableOSEnv bool `flag:"job-enable-os-env" default:"false"`
 
 	CodeTimeout   int64 `flag:"job-code-timeout" default:"5"`
