@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"gateway/config"
-	modelt "gateway/model/testing"
 	apsql "gateway/sql"
 
 	gc "gopkg.in/check.v1"
@@ -33,9 +32,9 @@ func (m *AdminSuite) SetUpTest(c *gc.C) {
 		c.Assert(db.Close(), gc.IsNil)
 	}
 
-	m.db = modelt.NewDB(c, config.Database{
+	m.db = newDB(c, config.Database{
 		Driver:           "postgres",
-		ConnectionString: "postgres://localhost:5432/gateway_test?sslmode=disable",
+		ConnectionString: "postgres://localhost/gateway_test?sslmode=disable",
 	})
 }
 
