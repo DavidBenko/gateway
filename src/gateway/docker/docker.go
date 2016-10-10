@@ -2,7 +2,9 @@ package docker
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gateway/config"
 	"gateway/logreport"
@@ -42,7 +44,30 @@ func ConfigureDockerClient(dockerConfig config.Docker) error {
 		if dockerConfig.Host == "" {
 			client, err = dockerclient.NewClientFromEnv()
 		} else {
-			client, err = dockerclient.NewClient(dockerConfig.Host)
+			if dockerConfig.Tls {
+				if dockerConfig.TlsCertFile != "" {
+					if dockerConfig.TlsKeyFile == "" || dockerConfig.TlsCaCertFile == "" {
+						err = errors.New("Both a key file and ca cert file are required when Docker TLS is configured and a cert file is provided")
+						return
+					}
+					client, err = dockerclient.NewTLSClient(dockerConfig.Host, dockerConfig.TlsCertFile, dockerConfig.TlsKeyFile, dockerConfig.TlsCaCertFile)
+				} else if dockerConfig.TlsCertContent != "" {
+					if dockerConfig.TlsKeyContent == "" || dockerConfig.TlsCaCertContent == "" {
+						err = errors.New("Both key file content and ca cert file content are required when Docker TLS is configured and cert file content is provided")
+						return
+					}
+					var certContents, caCertContents, keyContents []byte
+					certContents, err = base64.StdEncoding.DecodeString(dockerConfig.TlsCertContent)
+					caCertContents, err = base64.StdEncoding.DecodeString(dockerConfig.TlsCaCertContent)
+					keyContents, err = base64.StdEncoding.DecodeString(dockerConfig.TlsKeyContent)
+					client, err = dockerclient.NewTLSClientFromBytes(dockerConfig.Host, certContents, keyContents, caCertContents)
+				} else {
+					err = errors.New("Docker TLS is configured but no cert file or cert file content is provided")
+					return
+				}
+			} else {
+				client, err = dockerclient.NewClient(dockerConfig.Host)
+			}
 		}
 	})
 

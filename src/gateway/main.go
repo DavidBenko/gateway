@@ -180,18 +180,18 @@ func main() {
 
 	// Configure Docker
 	if conf.RemoteEndpoint.DockerEnabled {
-		logreport.Printf("Configuring Docker remote endpoint support...")
+		logreport.Printf("%s Configuring Docker remote endpoint support...", config.System)
 		err = docker.ConfigureDockerClient(conf.Docker)
 		if err != nil {
 			conf.RemoteEndpoint.DockerEnabled = false
-			logreport.Printf("Unable to configure Docker due to error: %v.  Docker remote endpoints will not be enabled.", err)
+			logreport.Printf("%s Unable to configure Docker due to error: %v.  Docker remote endpoints will not be enabled.", config.System, err)
 		} else {
 			info, err := docker.DockerClientInfo()
 			if err != nil {
 				conf.RemoteEndpoint.DockerEnabled = false
-				logreport.Printf("Unable to connect to Docker host to get info: %v.  Docker remote endpoints will not be enabled.", err)
+				logreport.Printf("%s Unable to connect to Docker host to get info: %v.  Docker remote endpoints will not be enabled.", config.System, err)
 			} else {
-				logreport.Println("Docker remote endpoint support configured:\n", info)
+				logreport.Printf("%s Docker remote endpoint support configured:\n%v", config.System, info)
 			}
 		}
 	}

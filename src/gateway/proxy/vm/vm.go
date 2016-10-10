@@ -55,10 +55,10 @@ func NewVM(
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
 	timeout int64,
+	keyStore *core.KeyStore,
 ) (*ProxyVM, error) {
-
 	vm := &ProxyVM{
-		Otto:                    core.VMCopy(),
+		Otto:                    core.VMCopy(proxyEndpoint.AccountID, keyStore),
 		conf:                    conf,
 		LogPrint:                logPrint,
 		LogPrefix:               logPrefix,
