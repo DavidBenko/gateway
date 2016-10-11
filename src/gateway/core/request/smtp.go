@@ -12,7 +12,11 @@ import (
 type SmtpRequest struct {
 	Config  *smtp.Spec `json:"config"`
 	Body    string     `json:"body"`
-	Address string     `json:"address"`
+	To      []string   `json:"to"`
+	Cc      []string   `json:"cc"`
+	Bcc     []string   `json:"bcc"`
+	Subject string     `json:"subject"`
+	HTML    bool       `json:"html"`
 	mailer  smtp.Mailer
 }
 
@@ -54,10 +58,10 @@ func (r *SmtpRequest) JSON() ([]byte, error) {
 }
 
 func (r *SmtpRequest) Log(devMode bool) string {
-	s := fmt.Sprintf("To: %s\n", r.Address)
+	s := fmt.Sprintf("to: %s from: %s ", r.To, r.Config.Sender)
 
 	if devMode {
-		s += fmt.Sprintf("Body: %s\nConfiguration: %+v\n", r.Body, r.Config)
+		s += fmt.Sprintf("configuration: %s@%s:%d", r.Config.Username, r.Config.Host, r.Config.Port)
 	}
 
 	return s
@@ -69,7 +73,7 @@ func (r *SmtpRequest) Perform() Response {
 
 	data["success"] = true
 
-	err := r.mailer.Send(r.Address, r.Body)
+	err := r.mailer.Send(r.To, r.Cc, r.Bcc, r.Body, r.Subject, r.HTML)
 
 	if err != nil {
 		logreport.Print(err)
@@ -96,5 +100,5 @@ func (r *SmtpResponse) JSON() ([]byte, error) {
 }
 
 func (r *SmtpResponse) Log() string {
-	return fmt.Sprintf("Success: %t", r.Data["success"])
+	return fmt.Sprintf("success: %t", r.Data["success"])
 }
