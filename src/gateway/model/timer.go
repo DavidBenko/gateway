@@ -241,7 +241,8 @@ func (t *Timer) ScheduleTime(now time.Time) {
 		return
 	}
 
-	next := t.FindNext(now)
+	location := time.FixedZone(fmt.Sprintf("fz%v", t.TimeZone), int(t.TimeZone)*60*60)
+	next := t.FindNext(now.In(location))
 	t.Next = next.Unix()
 }
 
