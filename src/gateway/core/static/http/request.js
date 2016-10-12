@@ -1269,10 +1269,10 @@ AP.Job.Request.prototype.request = function() {
  * Runs a job.
  *
  * @param {string} name The name of the job.
- * @param {Object} [attributes] Attributes for the job.
+ * @param {Object} [parameters] Parameters for the job.
  */
-AP.Job.Request.prototype.run = function(name, attributes) {
-  this.request("run", name, attributes);
+AP.Job.Request.prototype.run = function(name, parameters) {
+  this.request("run", name, parameters);
 }
 
 /**
@@ -1280,8 +1280,8 @@ AP.Job.Request.prototype.run = function(name, attributes) {
  *
  * @param {Number} time When to schedule the job for.
  * @param {string} name The name of the job.
- * @param {Object} [attributes] Attributes for the job.
+ * @param {Object} [parameters] Parameters for the job.
  */
-AP.Job.Request.prototype.schedule = function(time, name, attributes) {
-  this.request("schedule", Math.floor(time.getTime() / 1000), name, attributes);
+AP.Job.Request.prototype.schedule = function(time, name, parameters) {
+  this.request("schedule", Math.floor(time.getTime() / 1000), name, parameters);
 }

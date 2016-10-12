@@ -13,7 +13,7 @@ SET
   month = ?,
   day_of_week = ?,
   next = ?,
-  attributes = ?,
+  parameters = ?,
   data = ?
 WHERE timers.id = ?
   AND timers.api_id IN

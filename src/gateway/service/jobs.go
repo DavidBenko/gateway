@@ -113,10 +113,10 @@ func executeJob(timer *model.Timer, now time.Time, logPrefix string, warp *core.
 		return err
 	}
 
-	attributesJSON, err := timer.Attributes.MarshalJSON()
+	parametersJSON, err := timer.Parameters.MarshalJSON()
 	if err != nil {
 		return err
 	}
 
-	return warp.ExecuteJob(timer.JobID, timer.AccountID, timer.APIID, logPrefix, string(attributesJSON))
+	return warp.ExecuteJob(timer.JobID, timer.AccountID, timer.APIID, logPrefix, string(parametersJSON))
 }

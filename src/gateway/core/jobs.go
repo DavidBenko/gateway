@@ -10,7 +10,7 @@ import (
 	stripe "github.com/stripe/stripe-go"
 )
 
-func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, attributes string) (err error) {
+func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, parameters string) (err error) {
 	conf := &c.Conf.Job
 
 	job, err := model.FindProxyEndpointForProxy(c.OwnDb, jobID, model.ProxyEndpointTypeJob)
@@ -36,9 +36,9 @@ func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrefix, attributes s
 	vm := &vm.CoreVM{}
 	vm.InitCoreVM(VMCopy(accountID, c.KeyStore), logreport.Printf, logPrefix, conf, job, libraries, codeTimeout)
 
-	vm.Set("__ap_jobAttributesJSON", attributes)
+	vm.Set("__ap_jobParametersJSON", parameters)
 	scripts := []interface{}{
-		"var attributes = JSON.parse(__ap_jobAttributesJSON);",
+		"var parameters = JSON.parse(__ap_jobParametersJSON);",
 	}
 	if _, err = vm.RunAll(scripts); err != nil {
 		return err

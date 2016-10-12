@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "timers" (
   "month" TEXT NOT NULL,
   "day_of_week" TEXT NOT NULL,
   "next" BIGINT NOT NULL,
-  "attributes" JSONB NOT NULL,
+  "parameters" JSONB NOT NULL,
   "data" JSONB NOT NULL,
   UNIQUE ("name"),
   FOREIGN KEY("api_id") REFERENCES "apis"("id") ON DELETE CASCADE,

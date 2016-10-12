@@ -12,7 +12,7 @@ SELECT
   timers.month as month,
   timers.day_of_week as day_of_week,
   timers.next as next,
-  timers.attributes as attributes,
+  timers.parameters as parameters,
   timers.data as data
 FROM timers, apis
 WHERE timers.api_id = apis.id

@@ -12,7 +12,7 @@ import (
 	sql "gateway/sql"
 )
 
-type ExecuteJob func(jobID, accountID, apiID int64, logPrefix, attributes string) (err error)
+type ExecuteJob func(jobID, accountID, apiID int64, logPrefix, parameters string) (err error)
 
 type JobRequest struct {
 	Arguments  map[string]interface{} `json:"arguments"`
@@ -30,9 +30,9 @@ func storeOperationRun(request *JobRequest) error {
 		return errors.New("name is not a string")
 	}
 
-	attributes, valid := request.Arguments["2"].(interface{})
+	parameters, valid := request.Arguments["2"].(interface{})
 	if !valid {
-		return errors.New("attributes is not an Object")
+		return errors.New("parameters is not an Object")
 	}
 
 	endpoint := &model.ProxyEndpoint{
@@ -49,12 +49,12 @@ func storeOperationRun(request *JobRequest) error {
 	logPrefix := fmt.Sprintf("%s [act %d] [api %d] [end %d]", config.Job,
 		endpoint.AccountID, endpoint.APIID, endpoint.ID)
 
-	attributesJSON, err := json.Marshal(attributes)
+	parametersJSON, err := json.Marshal(parameters)
 	if err != nil {
 		return err
 	}
 
-	go request.ExecuteJob(endpoint.ID, endpoint.AccountID, endpoint.APIID, logPrefix, string(attributesJSON))
+	go request.ExecuteJob(endpoint.ID, endpoint.AccountID, endpoint.APIID, logPrefix, string(parametersJSON))
 
 	return nil
 }
@@ -70,9 +70,9 @@ func storeOperationSchedule(request *JobRequest) error {
 		return errors.New("name is not a string")
 	}
 
-	attributes, valid := request.Arguments["3"].(interface{})
+	parameters, valid := request.Arguments["3"].(interface{})
 	if !valid {
-		return errors.New("attributes is not an Object")
+		return errors.New("parameters is not an Object")
 	}
 
 	endpoint := &model.ProxyEndpoint{
@@ -91,7 +91,7 @@ func storeOperationSchedule(request *JobRequest) error {
 		return err
 	}
 
-	attributesJSON, err := json.Marshal(attributes)
+	parametersJSON, err := json.Marshal(parameters)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func storeOperationSchedule(request *JobRequest) error {
 		Name:       uuid,
 		Once:       true,
 		Next:       int64(time),
-		Attributes: attributesJSON,
+		Parameters: parametersJSON,
 	}
 	err = request.DB.DoInTransaction(func(tx *sql.Tx) error {
 		return timer.Insert(tx)

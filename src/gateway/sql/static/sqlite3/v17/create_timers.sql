@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `timers` (
   `month` TEXT NOT NULL,
   `day_of_week` TEXT NOT NULL,
   `next` INTEGER NOT NULL,
-  `attributes` TEXT NOT NULL,
+  `parameters` TEXT NOT NULL,
   `data` TEXT NOT NULL,
   UNIQUE (`name`) ON CONFLICT FAIL,
   FOREIGN KEY(`api_id`) REFERENCES `apis`(`id`) ON DELETE CASCADE,

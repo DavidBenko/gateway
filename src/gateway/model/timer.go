@@ -29,7 +29,7 @@ type Timer struct {
 	Month      string         `json:"month"`
 	DayOfWeek  string         `json:"day_of_week" db:"day_of_week"`
 	Next       int64          `json:"next"`
-	Attributes types.JsonText `json:"attributes"`
+	Parameters types.JsonText `json:"parameters"`
 	Data       types.JsonText `json:"-"`
 }
 
@@ -301,7 +301,7 @@ func (t *Timer) Insert(tx *apsql.Tx) error {
 		return err
 	}
 
-	attributes, err := marshaledForStorage(t.Attributes)
+	parameters, err := marshaledForStorage(t.Parameters)
 	if err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func (t *Timer) Insert(tx *apsql.Tx) error {
 		t.JobID, t.APIID,
 		t.Name, t.Once, t.TimeZone,
 		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
-		t.Next, attributes, data)
+		t.Next, parameters, data)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func (t *Timer) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	attributes, err := marshaledForStorage(t.Attributes)
+	parameters, err := marshaledForStorage(t.Parameters)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (t *Timer) Update(tx *apsql.Tx) error {
 		t.JobID, t.APIID,
 		t.Name, t.Once, t.TimeZone,
 		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
-		t.Next, attributes, data,
+		t.Next, parameters, data,
 		t.ID, t.APIID, t.AccountID)
 	if err != nil {
 		return err
@@ -353,7 +353,7 @@ func (t *Timer) Update(tx *apsql.Tx) error {
 func (t *Timer) UpdateTime(tx *apsql.Tx, now time.Time) error {
 	t.ScheduleTime(now)
 
-	attributes, err := marshaledForStorage(t.Attributes)
+	parameters, err := marshaledForStorage(t.Parameters)
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func (t *Timer) UpdateTime(tx *apsql.Tx, now time.Time) error {
 		t.JobID, t.APIID,
 		t.Name, t.Once, t.TimeZone,
 		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
-		t.Next, attributes, data,
+		t.Next, parameters, data,
 		t.ID, t.APIID, t.AccountID)
 	if err != nil {
 		return err

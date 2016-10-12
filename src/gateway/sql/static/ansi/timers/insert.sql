@@ -3,7 +3,7 @@ INSERT INTO timers (
   job_id,
   name, once, time_zone,
   minute, hour, day_of_month, month, day_of_week,
-  next, attributes, data
+  next, parameters, data
 )
 VALUES (
   (SELECT id FROM apis WHERE id = ? AND account_id = ?),
