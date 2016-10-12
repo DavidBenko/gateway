@@ -9,7 +9,7 @@ import (
 )
 
 type Mailer interface {
-	Send(addresses []string, cc []string, bcc []string, body string, subject string, html bool) error
+	Send(to, cc, bcc []string, body, subject string, html bool) error
 	ConnectionString() string
 }
 
