@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	"os"
 	"testing"
 
 	"gateway/config"
@@ -33,8 +34,8 @@ func (m *AdminSuite) SetUpTest(c *gc.C) {
 	}
 
 	m.db = newDB(c, config.Database{
-		Driver:           "postgres",
-		ConnectionString: "postgres://localhost/gateway_test?sslmode=disable",
+		Driver:           "sqlite3",
+		ConnectionString: "/tmp/stats",
 	})
 }
 
@@ -42,4 +43,5 @@ func (m *AdminSuite) TearDownTest(c *gc.C) {
 	if db := m.db; db != nil {
 		c.Assert(db.Close(), gc.IsNil)
 	}
+	os.Remove("/tmp/stats")
 }
