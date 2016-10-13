@@ -74,8 +74,16 @@ type Store struct {
 
 // Docker specifies configuration options for docker remote endpoints
 type Docker struct {
-	Memory    int64 `flag:"docker-memory" default:"128"`
-	CPUShares int64 `flag:"docker-cpu-shares" default:"1024"`
+	Memory           int64  `flag:"docker-memory" default:"128"`
+	CPUShares        int64  `flag:"docker-cpu-shares" default:"1"`
+	Host             string `flag:"docker-host" default:""`
+	Tls              bool   `flag:"docker-tls" default:"false"`
+	TlsCertFile      string `flag:"docker-tls-cert" default:""`
+	TlsCaCertFile    string `flag:"docker-tls-cacert" default:""`
+	TlsKeyFile       string `flag:"docker-tls-key" default:""`
+	TlsCertContent   string `flag:"docker-tls-cert-content" default:""`
+	TlsCaCertContent string `flag:"docker-tls-cacert-content" default:""`
+	TlsKeyContent    string `flag:"docker-tls-key-content" default:""`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.
@@ -103,15 +111,15 @@ type RemoteEndpoint struct {
 	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
 	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
 	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
-	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"true"`
-	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"true"`
-	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"false"`
+	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"true"`
 	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
 	HanaEnabled       bool `flag:"remote-endpoint-hana-enabled" default:"true"`
 	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
-	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"true"`
+	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
+	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
+	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

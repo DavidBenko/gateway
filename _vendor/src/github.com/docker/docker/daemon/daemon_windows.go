@@ -7,16 +7,17 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	pblkiodev "github.com/docker/docker/api/types/blkiodev"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/engine-api/types"
-	pblkiodev "github.com/docker/engine-api/types/blkiodev"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
@@ -57,6 +58,10 @@ func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]blkiodev.Thro
 }
 
 func setupInitLayer(initLayer string, rootUID, rootGID int) error {
+	return nil
+}
+
+func (daemon *Daemon) getLayerInit() func(string) error {
 	return nil
 }
 
@@ -101,33 +106,33 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	// TODO Windows: Add more validation of resource settings not supported on Windows
 
 	if resources.BlkioWeight > 0 {
-		warnings = append(warnings, "Windows does not support Block I/O weight. Weight discarded.")
-		logrus.Warn("Windows does not support Block I/O weight. --blkio-weight discarded.")
+		warnings = append(warnings, "Windows does not support Block I/O weight. Block I/O weight discarded.")
+		logrus.Warn("Windows does not support Block I/O weight. Block I/O weight discarded.")
 		resources.BlkioWeight = 0
 	}
 	if len(resources.BlkioWeightDevice) > 0 {
-		warnings = append(warnings, "Windows does not support Block I/O weight_device.")
-		logrus.Warn("Windows does not support Block I/O weight_device. --blkio-weight-device discarded.")
+		warnings = append(warnings, "Windows does not support Block I/O weight-device. Weight-device discarded.")
+		logrus.Warn("Windows does not support Block I/O weight-device. Weight-device discarded.")
 		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
 	}
 	if len(resources.BlkioDeviceReadBps) > 0 {
-		warnings = append(warnings, "Windows does not support Block read limit in bytes per second.")
-		logrus.Warn("Windows does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		warnings = append(warnings, "Windows does not support Block read limit in bytes per second. Device read bps discarded.")
+		logrus.Warn("Windows does not support Block I/O read limit in bytes per second. Device read bps discarded.")
 		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteBps) > 0 {
-		warnings = append(warnings, "Windows does not support Block write limit in bytes per second.")
-		logrus.Warn("Windows does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		warnings = append(warnings, "Windows does not support Block write limit in bytes per second. Device write bps discarded.")
+		logrus.Warn("Windows does not support Block I/O write limit in bytes per second. Device write bps discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 {
-		warnings = append(warnings, "Windows does not support Block read limit in IO per second.")
-		logrus.Warn("Windows does not support Block I/O read limit in IO per second. -device-read-iops discarded.")
+		warnings = append(warnings, "Windows does not support Block read limit in IO per second. Device read iops discarded.")
+		logrus.Warn("Windows does not support Block I/O read limit in IO per second. Device read iops discarded.")
 		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteIOps) > 0 {
-		warnings = append(warnings, "Windows does not support Block write limit in IO per second.")
-		logrus.Warn("Windows does not support Block I/O write limit in IO per second. --device-write-iops discarded.")
+		warnings = append(warnings, "Windows does not support Block write limit in IO per second. Device write iops discarded.")
+		logrus.Warn("Windows does not support Block I/O write limit in IO per second. Device write iops discarded.")
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	return warnings, nil
@@ -164,8 +169,8 @@ func checkSystem() error {
 	if osv.MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
-	if osv.Build < 14300 {
-		return fmt.Errorf("The Windows daemon requires Windows Server 2016 Technical Preview 5 build 14300 or later")
+	if osv.Build < 14393 {
+		return fmt.Errorf("The docker daemon requires build 14393 or later of Windows Server 2016 or Windows 10")
 	}
 	return nil
 }
@@ -221,6 +226,18 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		return nil, err
 	}
 
+	defaultNetworkExists := false
+
+	if network, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
+		options := network.Info().DriverOptions()
+		for _, v := range hnsresponse {
+			if options[winlibnetwork.HNSID] == v.Id {
+				defaultNetworkExists = true
+				break
+			}
+		}
+	}
+
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
@@ -237,6 +254,8 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		controller.WalkNetworks(s)
 		if n != nil {
 			v.Name = n.Name()
+			// This will not cause network delete from HNS as the network
+			// is not yet populated in the libnetwork windows driver
 			n.Delete()
 		}
 
@@ -254,10 +273,12 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		}
 
 		name := v.Name
-		// There is only one nat network supported in windows.
-		// If it exists with a different name add it as the default name
-		if runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
+
+		// If there is no nat network create one from the first NAT network
+		// encountered
+		if !defaultNetworkExists && runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
 			name = runconfig.DefaultDaemonNetworkMode().NetworkName()
+			defaultNetworkExists = true
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
@@ -292,26 +313,38 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		winlibnetwork.NetworkName: runconfig.DefaultDaemonNetworkMode().NetworkName(),
 	}
 
-	ipamV4Conf := libnetwork.IpamConf{}
-	if config.bridgeConfig.FixedCIDR == "" {
-		ipamV4Conf.PreferredPool = defaultNetworkSpace
+	var ipamOption libnetwork.NetworkOption
+	var subnetPrefix string
+
+	if config.bridgeConfig.FixedCIDR != "" {
+		subnetPrefix = config.bridgeConfig.FixedCIDR
 	} else {
-		ipamV4Conf.PreferredPool = config.bridgeConfig.FixedCIDR
+		// TP5 doesn't support properly detecting subnet
+		osv := system.GetOSVersion()
+		if osv.Build < 14360 {
+			subnetPrefix = defaultNetworkSpace
+		}
 	}
 
-	v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
-	v6Conf := []*libnetwork.IpamConf{}
+	if subnetPrefix != "" {
+		ipamV4Conf := libnetwork.IpamConf{}
+		ipamV4Conf.PreferredPool = subnetPrefix
+		v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
+		v6Conf := []*libnetwork.IpamConf{}
+		ipamOption = libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil)
+	}
 
 	_, err := controller.NewNetwork(string(runconfig.DefaultDaemonNetworkMode()), runconfig.DefaultDaemonNetworkMode().NetworkName(), "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 		}),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+		ipamOption,
 	)
 
 	if err != nil {
 		return fmt.Errorf("Error creating default network: %v", err)
 	}
+
 	return nil
 }
 
@@ -379,7 +412,62 @@ func driverOptions(config *Config) []nwconfig.Option {
 }
 
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
-	return nil, nil
+	if !c.IsRunning() {
+		return nil, errNotRunning{c.ID}
+	}
+
+	// Obtain the stats from HCS via libcontainerd
+	stats, err := daemon.containerd.Stats(c.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start with an empty structure
+	s := &types.StatsJSON{}
+
+	// Populate the CPU/processor statistics
+	s.CPUStats = types.CPUStats{
+		CPUUsage: types.CPUUsage{
+			TotalUsage:        stats.Processor.TotalRuntime100ns,
+			UsageInKernelmode: stats.Processor.RuntimeKernel100ns,
+			UsageInUsermode:   stats.Processor.RuntimeKernel100ns,
+		},
+	}
+
+	// Populate the memory statistics
+	s.MemoryStats = types.MemoryStats{
+		Commit:            stats.Memory.UsageCommitBytes,
+		CommitPeak:        stats.Memory.UsageCommitPeakBytes,
+		PrivateWorkingSet: stats.Memory.UsagePrivateWorkingSetBytes,
+	}
+
+	// Populate the storage statistics
+	s.StorageStats = types.StorageStats{
+		ReadCountNormalized:  stats.Storage.ReadCountNormalized,
+		ReadSizeBytes:        stats.Storage.ReadSizeBytes,
+		WriteCountNormalized: stats.Storage.WriteCountNormalized,
+		WriteSizeBytes:       stats.Storage.WriteSizeBytes,
+	}
+
+	// Populate the network statistics
+	s.Networks = make(map[string]types.NetworkStats)
+
+	for _, nstats := range stats.Network {
+		s.Networks[nstats.EndpointId] = types.NetworkStats{
+			RxBytes:   nstats.BytesReceived,
+			RxPackets: nstats.PacketsReceived,
+			RxDropped: nstats.DroppedPacketsIncoming,
+			TxBytes:   nstats.BytesSent,
+			TxPackets: nstats.PacketsSent,
+			TxDropped: nstats.DroppedPacketsOutgoing,
+		}
+	}
+
+	// Set the timestamp
+	s.Stats.Read = stats.Timestamp
+	s.Stats.NumProcs = platform.NumProcs()
+
+	return s, nil
 }
 
 // setDefaultIsolation determine the default isolation mode for the
@@ -426,12 +514,18 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		layers = append(layers, l.String())
 	}
 	return types.RootFS{
-		Type:      rootfs.Type,
-		Layers:    layers,
-		BaseLayer: rootfs.BaseLayer,
+		Type:   rootfs.Type,
+		Layers: layers,
 	}
 }
 
 func setupDaemonProcess(config *Config) error {
+	return nil
+}
+
+// verifyVolumesInfo is a no-op on windows.
+// This is called during daemon initialization to migrate volumes from pre-1.7.
+// volumes were not supported on windows pre-1.7
+func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	return nil
 }
