@@ -1165,21 +1165,42 @@ AP.Smtp = AP.Smtp || {};
  * @constructor
  * @param [request] - An incoming request to copy the parameters
  */
- AP.Smtp.Request = function() {
-   this.address = null;
-   this.body = null;
+AP.Smtp.Request = function() {
+  this.to = null;
+  this.body = null;
+  this.cc = null;
+  this.bcc = null;
+  this.subject = null;
+  this.html = false;
 
-   if (arguments.length == 1) {
-     var request = arguments[0];
-     this.address = _.clone(request.address);
-     this.body = _.clone(request.body);
-   }
- }
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.to = _.clone(request.addresses);
+    this.body = _.clone(request.body);
+    this.cc = _.clone(request.cc);
+    this.bcc = _.clone(request.bcc);
+    this.subject = _.clone(request.subject);
+    this.html = _.clone(request.html)
+  }
+}
 
- AP.Smtp.Request.prototype.send = function(address, body) {
-   this.address = address;
-   this.body = body;
- }
+AP.Smtp.Request.prototype.send = function(options) {
+  if (options.to && !_.isArray(options.to)) {
+    options.to = [options.to]
+  }
+  this.to = options.to || [];
+  if (options.cc && !_.isArray(options.cc)) {
+    options.cc = [options.cc];
+  }
+  this.cc = options.cc || [];
+  if (options.bcc && !_.isArray(options.bcc)) {
+    options.bcc = [options.bcc];
+  }
+  this.bcc = options.bcc || [];
+  this.body = options.body || "";
+  this.subject = options.subject || "";
+  this.html = options.html || false;
+}
 
  /**
   * Docker holds helper classes for Docker related tasks
