@@ -338,6 +338,10 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		endpoint.AccountID = a.AccountID
 		endpoint.UserID = a.UserID
 		endpoint.APIID = a.ID
+		// For legacy API imports we need to default to HTTP for the proxy endpoint type if it is blank.
+		if endpoint.Type == "" {
+			endpoint.Type = ProxyEndpointTypeHTTP
+		}
 		if err := endpoint.Insert(tx); err != nil {
 			return aperrors.NewWrapped("Inserting proxy endpoint", err)
 		}
