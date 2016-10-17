@@ -286,13 +286,13 @@ vendor_get: vendor_clean
 	golang.org/x/net/http2 \
 	golang.org/x/crypto/pkcs12 \
 	github.com/sideshow/apns2 \
-	github.com/alexjlockwood/gcm \
 	github.com/garyburd/redigo \
 	github.com/fsouza/go-dockerclient \
 	github.com/AnyPresence/surgemq \
 	github.com/surge/glog \
 	github.com/stripe/stripe-go \
-	github.com/clbanning/mxj
+	github.com/clbanning/mxj \
+	github.com/google/go-gcm
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
