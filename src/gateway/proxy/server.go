@@ -182,7 +182,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
-	if s.Core.StatsDb != nil {
+	if s.conf.Stats.Collect {
 		defer func() {
 			go func() {
 				var proxiedRequestsDuration time.Duration
@@ -193,6 +193,13 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 				if httpErr != nil {
 					errResponse = httpErr.String()
 				}
+				var responseSize, responseCode int
+				if response != nil {
+					responseCode = response.StatusCode
+					if length, ok := response.Headers["Content-Length"]; ok {
+						responseSize = length.(int)
+					}
+				}
 				point := stats.Point{
 					Timestamp: time.Now(),
 					Values: map[string]interface{}{
@@ -201,8 +208,8 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 						"api.id":                        proxyEndpoint.Environment.APIID,
 						"api.name":                      proxyEndpoint.Environment.APIID,
 						"response.time":                 time.Since(start),
-						"response.size":                 response.Headers["Content-Length"],
-						"response.status":               response.StatusCode,
+						"response.size":                 responseSize,
+						"response.status":               responseCode,
 						"response.error":                errResponse,
 						"host.id":                       request.Host,
 						"host.name":                     request.Host,

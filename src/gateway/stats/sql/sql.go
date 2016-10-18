@@ -53,7 +53,7 @@ func Connect(conf config.Stats) (*SQL, error) {
 				conf.Driver)
 	}
 
-	logreport.Printf("%s Connecting to database", config.System)
+	logreport.Printf("%s Connecting to stats database", config.System)
 	sqlxDB, err := sqlx.Open(conf.Driver, conf.ConnectionString)
 	if err != nil {
 		return nil, err

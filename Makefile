@@ -236,7 +236,7 @@ test_integration_fast: build_tail
 	-rm ./tmp/gateway_test.db
 	-rm ./tmp/gateway_stats_test.db
 	./bin/gateway -config=./test/gateway.conf \
-	  -db-migrate \
+	  -db-migrate -stats-migrate \
 		-db-conn-string="./tmp/gateway_test.db" -stats-conn-string="./tmp/gateway_stats_test.db" > ./tmp/gateway_log.txt & \
 		echo "$$!" > ./tmp/server.pid
 

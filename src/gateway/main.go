@@ -121,7 +121,7 @@ func main() {
 
 	if conf.Stats.Collect {
 		// Setup the stats database
-		statsDb, err := statssql.Connect(conf.Stats)
+		statsDb, err = statssql.Connect(conf.Stats)
 		if err != nil {
 			logreport.Fatalf("%s Error connecting to stats database: %v", config.System, err)
 		}
