@@ -6,7 +6,6 @@ import (
 	"gateway/model"
 	"gateway/model/testing"
 	"gateway/stats"
-	"gateway/stats/sql"
 	"net/http"
 	"regexp"
 	"time"
@@ -14,16 +13,7 @@ import (
 	gc "gopkg.in/check.v1"
 )
 
-func (a *AdminSuite) prepare(c *gc.C) {
-	driver := sql.SQLite3
-	if a.db.Driver == "postgres" {
-		driver = sql.Postgres
-	}
-	c.Assert(sql.Migrate(a.db.DB, driver), gc.IsNil)
-}
-
 func (a *AdminSuite) TestSampleMethods(c *gc.C) {
-	a.prepare(c)
 	acc1 := testing.PrepareAccount(c, a.db, testing.JeffAccount)
 	user1 := testing.PrepareUser(c, a.db, acc1.ID, testing.JeffUser)
 	api1 := testing.PrepareAPI(c, a.db, acc1.ID, user1.ID, testing.API1)
@@ -33,9 +23,7 @@ func (a *AdminSuite) TestSampleMethods(c *gc.C) {
 	api2 := testing.PrepareAPI(c, a.db, acc2.ID, user2.ID, testing.API2)
 
 	controller := &admin.SamplesController{}
-	tx, err := a.db.Begin()
-	c.Assert(err, gc.IsNil)
-	sq := &sql.SQL{DB: a.db.DB}
+	sq := a.statsDb
 
 	point1 := stats.Point{
 		Timestamp: time.Now(),
@@ -114,7 +102,7 @@ func (a *AdminSuite) TestSampleMethods(c *gc.C) {
 	} {
 		c.Logf("test %d: should %s", i, t.should)
 
-		gotten := controller.BeforeValidate(t.given, tx)
+		gotten := controller.BeforeValidate(t.given, a.db)
 		if t.expectError != "" {
 			c.Check(gotten, gc.ErrorMatches, t.expectError)
 		} else {
@@ -157,16 +145,13 @@ func (a *AdminSuite) TestSampleMethods(c *gc.C) {
 	} {
 		c.Logf("test %d: should %s", i, t.should)
 
-		tx, err := a.db.Begin()
-		c.Assert(err, gc.IsNil)
-		gotten, er := controller.QueryStats(t.given, tx)
+		gotten, er := controller.QueryStats(t.given, a.db, a.statsDb)
 		if t.expectError != "" {
 			c.Check(er, gc.ErrorMatches, t.expectError)
 		} else {
 			c.Assert(er, gc.IsNil)
 			c.Assert(gotten, gc.DeepEquals, t.expected)
 		}
-		tx.Commit()
 
 	}
 }

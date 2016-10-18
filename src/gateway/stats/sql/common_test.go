@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"gateway/stats"
-	"gateway/stats/sql"
+	statssql "gateway/stats/sql"
 
 	"github.com/jmoiron/sqlx"
 	jc "github.com/juju/testing/checkers"
@@ -25,14 +25,14 @@ type SQLSuite struct {
 }
 
 const (
-	defaultPgString = "gateway_test"
+	defaultPgString = "gateway_stats_test"
 )
 
 var (
 	_ = gc.Suite(&SQLSuite{})
 
 	pgDBName = func() string {
-		if s := os.Getenv("POSTGRES_DB_NAME"); s != "" {
+		if s := os.Getenv("POSTGRES_STATS_DB_NAME"); s != "" {
 			return s
 		}
 		return defaultPgString
@@ -43,8 +43,8 @@ var (
 		"sslmode=disable",
 	}, " ")
 
-	_ = stats.Logger(&sql.SQL{})
-	_ = stats.Sampler(&sql.SQL{})
+	_ = stats.Logger(&statssql.SQL{})
+	_ = stats.Sampler(&statssql.SQL{})
 )
 
 func (s *SQLSuite) TearDownTest(c *gc.C) {
@@ -286,20 +286,22 @@ func (s *SQLSuite) setup(c *gc.C) {
 	c.Log("    >>DB: Connecting to in-memory sqlite3 database")
 
 	sqliteDB, err := sqlx.Open("sqlite3", ":memory:")
+	var sqliteStatsWrapper = statssql.SQL{NAME: "global", DB: sqliteDB}
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(sqliteDB.Ping(), jc.ErrorIsNil)
 	s.sqlite = sqliteDB
 	s.teardownSqlite(c)
-	c.Assert(sql.Migrate(sqliteDB, sql.SQLite3), jc.ErrorIsNil)
+	c.Assert(sqliteStatsWrapper.Migrate(), jc.ErrorIsNil)
 
 	c.Logf("    >>DB: Connecting to pq using connection string %q", pgConnString)
 
 	pgDB, err := sqlx.Open("postgres", pgConnString)
+	var pgStatsWrapper = statssql.SQL{NAME: "global", DB: pgDB}
 	c.Assert(err, jc.ErrorIsNil)
 	c.Assert(pgDB.Ping(), jc.ErrorIsNil)
 	s.postgres = pgDB
 	s.teardownPostgres(c)
-	c.Assert(sql.Migrate(pgDB, sql.Postgres), jc.ErrorIsNil)
+	c.Assert(pgStatsWrapper.Migrate(), jc.ErrorIsNil)
 }
 
 func (s *SQLSuite) teardown(c *gc.C) {

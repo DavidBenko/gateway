@@ -38,6 +38,7 @@ type Configuration struct {
 	SMTP           SMTP
 	Push           Push
 	Docker         Docker
+	Stats          Stats
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -84,6 +85,15 @@ type Docker struct {
 	TlsCertContent   string `flag:"docker-tls-cert-content" default:""`
 	TlsCaCertContent string `flag:"docker-tls-cacert-content" default:""`
 	TlsKeyContent    string `flag:"docker-tls-key-content" default:""`
+}
+
+// Stats database configuration.
+type Stats struct {
+	Collect          bool   `flag:"stats-collect"     default:"true"`
+	Migrate          bool   `flag:"stats-migrate"     default:"false"`
+	Driver           string `flag:"stats-driver"      default:"sqlite3"`
+	ConnectionString string `flag:"stats-conn-string" default:"gateway-stats.db"`
+	MaxConnections   int64  `flag:"stats-max-connections" default:"50"`
 }
 
 // ProxyServer specifies configuration options that apply to the proxy.

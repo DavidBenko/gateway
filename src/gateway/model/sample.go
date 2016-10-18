@@ -35,9 +35,9 @@ type Sample struct {
 
 // ValidateConstraints validates the given constraints against the user's
 // privileges.
-func (s *Sample) ValidateConstraints(tx *apsql.Tx) error {
+func (s *Sample) ValidateConstraints(db *apsql.DB) error {
 	var ownedAPIs []int64
-	err := tx.Select(&ownedAPIs, `
+	err := db.Select(&ownedAPIs, `
   SELECT DISTINCT a.id
     FROM users u, apis a
    WHERE u.account_id = a.account_id

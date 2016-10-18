@@ -17,6 +17,7 @@ import (
 	"gateway/push"
 	"gateway/smtp"
 	sql "gateway/sql"
+	statssql "gateway/stats/sql"
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
@@ -35,6 +36,7 @@ type Core struct {
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
 	KeyStore   *KeyStore
+	StatsDb    *statssql.SQL
 }
 
 func (s *Core) PrepareRequest(

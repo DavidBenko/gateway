@@ -28,6 +28,7 @@ import (
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
+	statssql "gateway/stats/sql"
 	"gateway/store"
 	"gateway/version"
 	"github.com/stripe/stripe-go"
@@ -112,6 +113,28 @@ func main() {
 			logreport.Fatalf("%s The database is not up to date. "+
 				"Please migrate by invoking with the -db-migrate flag.",
 				config.System)
+		}
+	}
+
+	var statsDb *statssql.SQL
+
+	if conf.Stats.Collect {
+		// Setup the stats database
+		statsDb, err := statssql.Connect(conf.Stats)
+		if err != nil {
+			logreport.Fatalf("%s Error connecting to stats database: %v", config.System, err)
+		}
+		// Make sure the stats db is up-to-date and migrated.
+		if !statsDb.UpToDate() {
+			if conf.Stats.Migrate || conf.DevMode() {
+				if err = statsDb.Migrate(); err != nil {
+					logreport.Fatalf("Error migrating stats database: %v", err)
+				}
+			} else {
+				logreport.Fatalf("%s The stats database is not up to date. "+
+					"Please migrate by invoking with the -stats-migrate flag.",
+					config.System)
+			}
 		}
 	}
 
@@ -235,7 +258,7 @@ func main() {
 
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
-	proxy := proxy.NewServer(conf, db, objectStore)
+	proxy := proxy.NewServer(conf, db, objectStore, statsDb)
 	go proxy.Run()
 
 	sigs := make(chan os.Signal, 1)

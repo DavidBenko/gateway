@@ -22,6 +22,8 @@ import (
 	"gateway/push"
 	"gateway/smtp"
 	sql "gateway/sql"
+	"gateway/stats"
+	statssql "gateway/stats/sql"
 	"gateway/store"
 
 	"github.com/gorilla/context"
@@ -45,7 +47,7 @@ type Server struct {
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server {
+func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store, statsDb *statssql.SQL) *Server {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	var source proxyDataSource
@@ -72,6 +74,7 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 			Push:       push.NewPushPool(conf.Push),
 			Smtp:       smtp.NewSmtpPool(),
 			KeyStore:   keyStore,
+			StatsDb:    statsDb,
 		},
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,
@@ -202,6 +205,46 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
+	}
+
+	if s.Core.StatsDb != nil {
+		defer func() {
+			go func() {
+				var proxiedRequestsDuration time.Duration
+				if vm != nil {
+					proxiedRequestsDuration = vm.ProxiedRequestsDuration
+				}
+				var errResponse string
+				if httpErr != nil {
+					errResponse = httpErr.String()
+				}
+				point := stats.Point{
+					Timestamp: time.Now(),
+					Values: map[string]interface{}{
+						"request.size":                  request.ContentLength,
+						"request.id":                    requestID,
+						"api.id":                        proxyEndpoint.Environment.APIID,
+						"api.name":                      proxyEndpoint.Environment.APIID,
+						"response.time":                 time.Since(start),
+						"response.size":                 response.Headers["Content-Length"],
+						"response.status":               response.StatusCode,
+						"response.error":                errResponse,
+						"host.id":                       request.Host,
+						"host.name":                     request.Host,
+						"proxy.id":                      proxyEndpoint.ID,
+						"proxy.name":                    proxyEndpoint.Name,
+						"proxy.env.id":                  proxyEndpoint.EnvironmentID,
+						"proxy.env.name":                proxyEndpoint.EnvironmentID,
+						"proxy.route.path":              r.URL.Path,
+						"proxy.route.verb":              r.Method,
+						"proxy.group.id":                proxyEndpoint.EndpointGroupID,
+						"proxy.group.name":              proxyEndpoint.Name,
+						"remote_endpoint.response.time": proxiedRequestsDuration,
+					},
+				}
+				s.Core.StatsDb.Log(point)
+			}()
+		}()
 	}
 
 	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {

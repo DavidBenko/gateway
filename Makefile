@@ -28,6 +28,9 @@ endif
 ifndef POSTGRES_DB_NAME
 	POSTGRES_DB_NAME = "gateway_test"
 endif
+ifndef POSTGRES_STATS_DB_NAME
+	POSTGRES_STATS_DB_NAME = "gateway_stats_test"
+endif
 
 default: run
 
@@ -172,10 +175,12 @@ test: build
 test_api_sqlite_fast: build_tail
 	mkdir -p tmp
 	-rm ./tmp/gateway_test.db
+	-rm ./tmp/gateway_stats_test.db
 	-rm ./tmp/gateway_log.txt
 	./bin/gateway -config=./test/gateway.conf \
-	  -db-migrate \
+	  -db-migrate -stats-migrate \
 	  -db-conn-string="./tmp/gateway_test.db" \
+		-stats-conn-string="./tmp/gateway_stats_test.db" \
 	  -proxy-domain="example.com" \
 	  -server="true" \
 		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
@@ -194,10 +199,15 @@ test_api_postgres_fast: build_tail
 	-rm ./tmp/gateway_log.txt
 	-dropdb $(POSTGRES_DB_NAME)
 	-createdb $(POSTGRES_DB_NAME)
+	-dropdb $(POSTGRES_STATS_DB_NAME)
+	-createdb $(POSTGRES_STATS_DB_NAME)
 	./bin/gateway -config=./test/gateway.conf \
 	  -db-migrate \
 	  -db-driver=postgres \
 	  -db-conn-string="dbname=$(POSTGRES_DB_NAME) sslmode=disable" \
+		-stats-migrate \
+	  -stats-driver=postgres \
+	  -stats-conn-string="dbname=$(POSTGRES_STATS_DB_NAME) sslmode=disable" \
 	  -proxy-domain="example.com" \
 	  -server="true" \
 		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
@@ -224,9 +234,10 @@ test_integration_fast: build_tail
 	mkdir -p tmp
 	-rm ./tmp/gateway_log.txt
 	-rm ./tmp/gateway_test.db
+	-rm ./tmp/gateway_stats_test.db
 	./bin/gateway -config=./test/gateway.conf \
 	  -db-migrate \
-		-db-conn-string="./tmp/gateway_test.db" > ./tmp/gateway_log.txt & \
+		-db-conn-string="./tmp/gateway_test.db" -stats-conn-string="./tmp/gateway_stats_test.db" > ./tmp/gateway_log.txt & \
 		echo "$$!" > ./tmp/server.pid
 
 	./bin/tail -file ./tmp/gateway_log.txt "Server listening" || (kill `cat ./tmp/server.pid`; docker kill `cat ./tmp/.containerid`)

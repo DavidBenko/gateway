@@ -3,10 +3,13 @@ package sql
 //go:generate go-bindata -o sql_gen.go -nocompress -pkg sql static/...
 
 import (
+	drvr "database/sql/driver"
 	"fmt"
-	"time"
-
+	"gateway/config"
+	"gateway/logreport"
 	"github.com/jmoiron/sqlx"
+	sqlite3 "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 // Driver is the driver to be used for the given stats logger / sampler.  This
@@ -36,6 +39,57 @@ type SQL struct {
 	// NAME is the name of the given node.
 	NAME string
 	*sqlx.DB
+}
+
+// Connect opens and returns a database connection.
+func Connect(conf config.Stats) (*SQL, error) {
+	var driver Driver
+	switch conf.Driver {
+	case "sqlite3", "postgres":
+		driver = Driver(conf.Driver)
+	default:
+		return nil,
+			fmt.Errorf("Database driver must be sqlite3 or postgres (got '%v')",
+				conf.Driver)
+	}
+
+	logreport.Printf("%s Connecting to database", config.System)
+	sqlxDB, err := sqlx.Open(conf.Driver, conf.ConnectionString)
+	if err != nil {
+		return nil, err
+	}
+
+	sqlxDB.SetMaxOpenConns(int(conf.MaxConnections))
+
+	db := SQL{"global", sqlxDB}
+
+	switch driver {
+	case SQLite3:
+		// Foreign key support is disabled by default for each new sqlite connection.
+		// Before actually establishing the connection (by calling 'Ping'),
+		// add a ConnectHook that turns foreign_keys on.  This ensures that any
+		// new sqlite connection that is added to the connection pool has foreign
+		// keys enabled.
+		if sqliteDriver, ok := db.DB.Driver().(*sqlite3.SQLiteDriver); ok {
+			sqliteDriver.ConnectHook = func(conn *sqlite3.SQLiteConn) error {
+				_, err := conn.Exec("PRAGMA foreign_keys=ON;", []drvr.Value{})
+				return err
+			}
+		}
+		// ConnectHook is set up successfully, so Ping to establish the connection
+		err := db.Ping()
+		if err != nil {
+			return nil, err
+		}
+	case Postgres:
+		// Establish the connection by executing the Ping first
+		err := db.Ping()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &db, nil
 }
 
 // quoteCol quotes a column name correctly depending on driver.

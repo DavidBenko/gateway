@@ -154,17 +154,12 @@ func (m *ModelSuite) TestSampleValidateConstraints(c *gc.C) {
 	}} {
 		c.Logf("test %d: should %s", i, t.should)
 
-		tx, err := m.db.Begin()
-		c.Assert(err, gc.IsNil)
-
 		given := &model.Sample{
 			AccountID:   t.givenAccountID,
 			UserID:      t.givenUserID,
 			Constraints: t.given,
 		}
-		err = given.ValidateConstraints(tx)
-
-		c.Assert(tx.Commit(), gc.IsNil)
+		err := given.ValidateConstraints(m.db)
 
 		if t.expectError != "" {
 			c.Check(err, gc.ErrorMatches, t.expectError)
