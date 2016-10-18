@@ -16,11 +16,13 @@ import (
 	"log"
 
 	"github.com/blevesearch/bleve"
+	_ "github.com/blevesearch/bleve/config"
 )
 
 var indexPath = flag.String("index", "", "index path")
 var mappingFile = flag.String("mapping", "", "mapping file")
-var storeType = flag.String("store", "", "store type")
+var storeType = flag.String("store", bleve.Config.DefaultKVStore, "store type")
+var indexType = flag.String("indexType", bleve.Config.DefaultIndexType, "index type")
 
 func main() {
 
@@ -44,13 +46,7 @@ func main() {
 	}
 
 	// create the index
-	var index bleve.Index
-	var err error
-	if *storeType != "" {
-		index, err = bleve.NewUsing(*indexPath, mapping, *storeType, nil)
-	} else {
-		index, err = bleve.New(*indexPath, mapping)
-	}
+	index, err := bleve.NewUsing(*indexPath, mapping, *indexType, *storeType, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

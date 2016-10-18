@@ -46,6 +46,8 @@ var RESOURCE_MAP = map[string]string{
 	"push_channel_messages":     "push-channel-message",
 	"push_messages":             "push-channel-device-message",
 	"push_devices":              "push-device",
+	"jobs":                      "job",
+	"timers":                    "timer",
 }
 
 var ACTION_MAP = [...]string{

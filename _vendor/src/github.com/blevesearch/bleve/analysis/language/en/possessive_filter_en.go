@@ -10,12 +10,14 @@
 package en
 
 import (
-	"bytes"
+	"unicode/utf8"
 
 	"github.com/blevesearch/bleve/analysis"
 	"github.com/blevesearch/bleve/registry"
 )
 
+// PossessiveName is the name PossessiveFilter is registered as
+// in the bleve registry.
 const PossessiveName = "possessive_en"
 
 const rightSingleQuotationMark = '’'
@@ -24,6 +26,11 @@ const fullWidthApostrophe = '＇'
 
 const apostropheChars = rightSingleQuotationMark + apostrophe + fullWidthApostrophe
 
+// PossessiveFilter implements a TokenFilter which
+// strips the English possessive suffix ('s) from tokens.
+// It handle a variety of apostrophe types, is case-insensitive
+// and doesn't distinguish between possessive and contraction.
+// (ie "She's So Rad" becomes "She So Rad")
 type PossessiveFilter struct {
 }
 
@@ -33,15 +40,13 @@ func NewPossessiveFilter() *PossessiveFilter {
 
 func (s *PossessiveFilter) Filter(input analysis.TokenStream) analysis.TokenStream {
 	for _, token := range input {
-		runes := bytes.Runes(token.Term)
-		if len(runes) >= 2 {
-			secondToLastRune := runes[len(runes)-2]
-			lastRune := runes[len(runes)-1]
-			if (secondToLastRune == rightSingleQuotationMark ||
-				secondToLastRune == apostrophe ||
-				secondToLastRune == fullWidthApostrophe) &&
-				(lastRune == 's' || lastRune == 'S') {
-				token.Term = analysis.TruncateRunes(token.Term, 2)
+		lastRune, lastRuneSize := utf8.DecodeLastRune(token.Term)
+		if lastRune == 's' || lastRune == 'S' {
+			nextLastRune, nextLastRuneSize := utf8.DecodeLastRune(token.Term[:len(token.Term)-lastRuneSize])
+			if nextLastRune == rightSingleQuotationMark ||
+				nextLastRune == apostrophe ||
+				nextLastRune == fullWidthApostrophe {
+				token.Term = token.Term[:len(token.Term)-lastRuneSize-nextLastRuneSize]
 			}
 		}
 	}

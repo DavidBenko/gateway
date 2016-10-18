@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 16
+const currentVersion = 17
 
 type driverType string
 
@@ -82,6 +82,7 @@ func (db *DB) Migrate() error {
 		migrateToV14,
 		migrateToV15,
 		migrateToV16,
+		migrateToV17,
 	}
 
 	for i := version; i < currentVersion; i++ {
@@ -136,6 +137,17 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 // Queryx wraps sqlx's Queryx with driver-specific query modifications.
 func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	return db.DB.Queryx(db.q(query), args...)
+}
+
+// CurrentTime gets the current time for the database
+func (db *DB) CurrentTime() (time.Time, error) {
+	if db.Driver == Sqlite3 {
+		return time.Now(), nil
+	}
+
+	current := struct{ Current time.Time }{}
+	err := db.Get(&current, "SELECT CURRENT_TIMESTAMP as current;")
+	return current.Current, err
 }
 
 // RegisterListener registers a listener with the database

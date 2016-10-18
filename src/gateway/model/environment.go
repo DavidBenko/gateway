@@ -66,7 +66,14 @@ func (e *Environment) ValidateFromDatabaseError(err error) aperrors.Errors {
 // AllEnvironmentsForAPIIDAndAccountID returns all environments on the Account's API in default order.
 func AllEnvironmentsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*Environment, error) {
 	environments := []*Environment{}
-	err := db.Select(&environments, db.SQL("environments/all"), apiID, accountID)
+	var err error
+	if apiID > 0 && accountID > 0 {
+		err = db.Select(&environments, db.SQL("environments/all"), apiID, accountID)
+	} else if accountID > 0 {
+		err = db.Select(&environments, db.SQL("environments/all_account"), accountID)
+	} else {
+		return nil, errors.New("Not enough information for environment all.")
+	}
 	return environments, err
 }
 

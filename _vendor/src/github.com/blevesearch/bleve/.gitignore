@@ -4,7 +4,10 @@
 .#*
 .project
 .settings
+**/.idea/
+**/*.iml
 .DS_Store
+query_string.y.go.tmp
 /analysis/token_filters/cld2/cld2-read-only
 /analysis/token_filters/cld2/libcld2_full.a
 /utils/bleve_create/bleve_create
@@ -14,4 +17,8 @@
 /utils/bleve_index/index.bleve/
 /utils/bleve_query/bleve_query
 /utils/bleve_registry/bleve_registry
+vendor/**
+!vendor/manifest
 /y.output
+*.test
+tags

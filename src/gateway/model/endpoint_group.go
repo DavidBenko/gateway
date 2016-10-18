@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
@@ -38,7 +39,14 @@ func (e *EndpointGroup) ValidateFromDatabaseError(err error) aperrors.Errors {
 // AllEndpointGroupsForAPIIDAndAccountID returns all endpointGroups on the Account's API in default order.
 func AllEndpointGroupsForAPIIDAndAccountID(db *apsql.DB, apiID, accountID int64) ([]*EndpointGroup, error) {
 	endpointGroups := []*EndpointGroup{}
-	err := db.Select(&endpointGroups, db.SQL("endpoint_groups/all"), apiID, accountID)
+	var err error
+	if apiID > 0 && accountID > 0 {
+		err = db.Select(&endpointGroups, db.SQL("endpoint_groups/all"), apiID, accountID)
+	} else if accountID > 0 {
+		err = db.Select(&endpointGroups, db.SQL("endpoint_groups/all_account"), accountID)
+	} else {
+		return nil, errors.New("Not enough information for endpoint group all.")
+	}
 	return endpointGroups, err
 }
 

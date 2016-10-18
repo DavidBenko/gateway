@@ -29,6 +29,7 @@ type Configuration struct {
 	Airbrake       Airbrake
 	Database       Database
 	Proxy          ProxyServer
+	Job            BackgroundJob
 	Admin          ProxyAdmin
 	Elastic        ElasticLogging
 	Bleve          BleveLogging
@@ -114,6 +115,15 @@ type ProxyServer struct {
 	HealthCheckPath string `flag:"proxy-health-check-path" default:"/__gw-health-check"`
 }
 
+// BackgroundJob specifies configuration options that apply to jobs.
+type BackgroundJob struct {
+	Enable      bool `flag:"job-enable" default:"true"`
+	EnableOSEnv bool `flag:"job-enable-os-env" default:"false"`
+
+	CodeTimeout   int64 `flag:"job-code-timeout" default:"5"`
+	NumErrorLines int64 `flag:"job-code-error-lines" default:"2"`
+}
+
 // RemoteEndpoint specifies which types of remote endpionts are available
 type RemoteEndpoint struct {
 	HTTPEnabled       bool `flag:"remote-endpoint-http-enabled" default:"true"`
@@ -127,6 +137,7 @@ type RemoteEndpoint struct {
 	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
 	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
 	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
+	JobEnabled        bool `flag:"remote-endpoint-job-enabled" default:"true"`
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
 	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
@@ -307,6 +318,30 @@ func envValueForFlag(name string) string {
 
 func (c Configuration) DevMode() bool {
 	return !c.Server
+}
+
+func (p *ProxyServer) GetEnableOSEnv() bool {
+	return p.EnableOSEnv
+}
+
+func (p *ProxyServer) GetCodeTimeout() int64 {
+	return p.CodeTimeout
+}
+
+func (p *ProxyServer) GetNumErrorLines() int64 {
+	return p.NumErrorLines
+}
+
+func (j *BackgroundJob) GetEnableOSEnv() bool {
+	return j.EnableOSEnv
+}
+
+func (j *BackgroundJob) GetCodeTimeout() int64 {
+	return j.CodeTimeout
+}
+
+func (j *BackgroundJob) GetNumErrorLines() int64 {
+	return j.NumErrorLines
 }
 
 func (config *ProxyAdmin) XPub() string {

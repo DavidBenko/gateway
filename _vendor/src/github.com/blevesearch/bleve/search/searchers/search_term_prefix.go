@@ -30,13 +30,20 @@ func NewTermPrefixSearcher(indexReader index.IndexReader, prefix string, field s
 	qsearchers := make([]search.Searcher, 0, 25)
 	tfd, err := fieldDict.Next()
 	for err == nil && tfd != nil {
-		qsearcher, err := NewTermSearcher(indexReader, string(tfd.Term), field, 1.0, explain)
+		var qsearcher *TermSearcher
+		qsearcher, err = NewTermSearcher(indexReader, string(tfd.Term), field, 1.0, explain)
 		if err != nil {
 			return nil, err
 		}
 		qsearchers = append(qsearchers, qsearcher)
 		tfd, err = fieldDict.Next()
 	}
+
+	err = fieldDict.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	// build disjunction searcher of these ranges
 	searcher, err := NewDisjunctionSearcher(indexReader, qsearchers, 0, explain)
 	if err != nil {
@@ -63,13 +70,13 @@ func (s *TermPrefixSearcher) SetQueryNorm(qnorm float64) {
 	s.searcher.SetQueryNorm(qnorm)
 }
 
-func (s *TermPrefixSearcher) Next() (*search.DocumentMatch, error) {
-	return s.searcher.Next()
+func (s *TermPrefixSearcher) Next(ctx *search.SearchContext) (*search.DocumentMatch, error) {
+	return s.searcher.Next(ctx)
 
 }
 
-func (s *TermPrefixSearcher) Advance(ID string) (*search.DocumentMatch, error) {
-	return s.searcher.Next()
+func (s *TermPrefixSearcher) Advance(ctx *search.SearchContext, ID index.IndexInternalID) (*search.DocumentMatch, error) {
+	return s.searcher.Advance(ctx, ID)
 }
 
 func (s *TermPrefixSearcher) Close() error {
@@ -78,4 +85,8 @@ func (s *TermPrefixSearcher) Close() error {
 
 func (s *TermPrefixSearcher) Min() int {
 	return 0
+}
+
+func (s *TermPrefixSearcher) DocumentMatchPoolSize() int {
+	return s.searcher.DocumentMatchPoolSize()
 }

@@ -15,30 +15,51 @@ import (
 )
 
 type Reader struct {
-	store *Store
-	tx    *bolt.Tx
-}
-
-func (r *Reader) BytesSafeAfterClose() bool {
-	return false
+	store  *Store
+	tx     *bolt.Tx
+	bucket *bolt.Bucket
 }
 
 func (r *Reader) Get(key []byte) ([]byte, error) {
-	rv := r.tx.Bucket([]byte(r.store.bucket)).Get(key)
+	var rv []byte
+	v := r.bucket.Get(key)
+	if v != nil {
+		rv = make([]byte, len(v))
+		copy(rv, v)
+	}
 	return rv, nil
 }
 
-func (r *Reader) Iterator(key []byte) store.KVIterator {
-	b := r.tx.Bucket([]byte(r.store.bucket))
-	cursor := b.Cursor()
+func (r *Reader) MultiGet(keys [][]byte) ([][]byte, error) {
+	return store.MultiGet(r, keys)
+}
+
+func (r *Reader) PrefixIterator(prefix []byte) store.KVIterator {
+	cursor := r.bucket.Cursor()
 
 	rv := &Iterator{
 		store:  r.store,
 		tx:     r.tx,
 		cursor: cursor,
+		prefix: prefix,
 	}
 
-	rv.Seek(key)
+	rv.Seek(prefix)
+	return rv
+}
+
+func (r *Reader) RangeIterator(start, end []byte) store.KVIterator {
+	cursor := r.bucket.Cursor()
+
+	rv := &Iterator{
+		store:  r.store,
+		tx:     r.tx,
+		cursor: cursor,
+		start:  start,
+		end:    end,
+	}
+
+	rv.Seek(start)
 	return rv
 }
 

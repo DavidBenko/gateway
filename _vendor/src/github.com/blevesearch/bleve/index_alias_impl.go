@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/blevesearch/bleve/document"
 	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/index/store"
@@ -21,6 +23,7 @@ import (
 )
 
 type indexAliasImpl struct {
+	name    string
 	indexes []Index
 	mutex   sync.RWMutex
 	open    bool
@@ -30,6 +33,7 @@ type indexAliasImpl struct {
 // Index objects.
 func NewIndexAlias(indexes ...Index) *indexAliasImpl {
 	return &indexAliasImpl{
+		name:    "alias",
 		indexes: indexes,
 		open:    true,
 	}
@@ -120,16 +124,20 @@ func (i *indexAliasImpl) DocCount() (uint64, error) {
 
 	for _, index := range i.indexes {
 		otherCount, err := index.DocCount()
-		if err != nil {
-			return 0, err
+		if err == nil {
+			rv += otherCount
 		}
-		rv += otherCount
+		// tolerate errors to produce partial counts
 	}
 
 	return rv, nil
 }
 
 func (i *indexAliasImpl) Search(req *SearchRequest) (*SearchResult, error) {
+	return i.SearchInContext(context.Background(), req)
+}
+
+func (i *indexAliasImpl) SearchInContext(ctx context.Context, req *SearchRequest) (*SearchResult, error) {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
@@ -143,10 +151,10 @@ func (i *indexAliasImpl) Search(req *SearchRequest) (*SearchResult, error) {
 
 	// short circuit the simple case
 	if len(i.indexes) == 1 {
-		return i.indexes[0].Search(req)
+		return i.indexes[0].SearchInContext(ctx, req)
 	}
 
-	return MultiSearch(req, i.indexes...)
+	return MultiSearch(ctx, req, i.indexes...)
 }
 
 func (i *indexAliasImpl) Fields() ([]string, error) {
@@ -243,54 +251,6 @@ func (i *indexAliasImpl) FieldDictPrefix(field string, termPrefix []byte) (index
 	}, nil
 }
 
-func (i *indexAliasImpl) DumpAll() chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-
-	err := i.isAliasToSingleIndex()
-	if err != nil {
-		return nil
-	}
-
-	return i.indexes[0].DumpAll()
-}
-
-func (i *indexAliasImpl) DumpDoc(id string) chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-
-	err := i.isAliasToSingleIndex()
-	if err != nil {
-		return nil
-	}
-
-	return i.indexes[0].DumpDoc(id)
-}
-
-func (i *indexAliasImpl) DumpFields() chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-
-	err := i.isAliasToSingleIndex()
-	if err != nil {
-		return nil
-	}
-
-	return i.indexes[0].DumpFields()
-}
-
 func (i *indexAliasImpl) Close() error {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
@@ -329,6 +289,22 @@ func (i *indexAliasImpl) Stats() *IndexStat {
 	}
 
 	return i.indexes[0].Stats()
+}
+
+func (i *indexAliasImpl) StatsMap() map[string]interface{} {
+	i.mutex.RLock()
+	defer i.mutex.RUnlock()
+
+	if !i.open {
+		return nil
+	}
+
+	err := i.isAliasToSingleIndex()
+	if err != nil {
+		return nil
+	}
+
+	return i.indexes[0].StatsMap()
 }
 
 func (i *indexAliasImpl) GetInternal(key []byte) ([]byte, error) {
@@ -436,7 +412,7 @@ func (i *indexAliasImpl) Swap(in, out []Index) {
 // createChildSearchRequest creates a separate
 // request from the original
 // For now, avoid data race on req structure.
-// TODO disable highligh/field load on child
+// TODO disable highlight/field load on child
 // requests, and add code to do this only on
 // the actual final results.
 // Perhaps that part needs to be optional,
@@ -450,75 +426,106 @@ func createChildSearchRequest(req *SearchRequest) *SearchRequest {
 		Fields:    req.Fields,
 		Facets:    req.Facets,
 		Explain:   req.Explain,
+		Sort:      req.Sort,
 	}
 	return &rv
 }
 
+type asyncSearchResult struct {
+	Name   string
+	Result *SearchResult
+	Err    error
+}
+
+func wrapSearch(ctx context.Context, in Index, req *SearchRequest) *asyncSearchResult {
+	rv := asyncSearchResult{Name: in.Name()}
+	rv.Result, rv.Err = in.SearchInContext(ctx, req)
+	return &rv
+}
+
+func wrapSearchTimeout(ctx context.Context, in Index, req *SearchRequest) *asyncSearchResult {
+	reschan := make(chan *asyncSearchResult)
+	go func() { reschan <- wrapSearch(ctx, in, req) }()
+	select {
+	case res := <-reschan:
+		return res
+	case <-ctx.Done():
+		return &asyncSearchResult{Name: in.Name(), Err: ctx.Err()}
+	}
+}
+
 // MultiSearch executes a SearchRequest across multiple
 // Index objects, then merges the results.
-func MultiSearch(req *SearchRequest, indexes ...Index) (*SearchResult, error) {
+func MultiSearch(ctx context.Context, req *SearchRequest, indexes ...Index) (*SearchResult, error) {
+
 	searchStart := time.Now()
-	results := make(chan *SearchResult)
-	errs := make(chan error)
+	asyncResults := make(chan *asyncSearchResult)
 
 	// run search on each index in separate go routine
 	var waitGroup sync.WaitGroup
 
-	var searchChildIndex = func(waitGroup *sync.WaitGroup, in Index, results chan *SearchResult, errs chan error) {
-		go func() {
-			defer waitGroup.Done()
-			childReq := createChildSearchRequest(req)
-			searchResult, err := in.Search(childReq)
-			if err != nil {
-				errs <- err
-			} else {
-				results <- searchResult
-			}
-		}()
+	var searchChildIndex = func(waitGroup *sync.WaitGroup, in Index, asyncResults chan *asyncSearchResult) {
+		childReq := createChildSearchRequest(req)
+		if ia, ok := in.(IndexAlias); ok {
+			// if the child index is another alias, trust it returns promptly on timeout/cancel
+			go func() {
+				defer waitGroup.Done()
+				asyncResults <- wrapSearch(ctx, ia, childReq)
+			}()
+		} else {
+			// if the child index is not an alias, enforce timeout here
+			go func() {
+				defer waitGroup.Done()
+				asyncResults <- wrapSearchTimeout(ctx, in, childReq)
+			}()
+		}
 	}
 
 	for _, in := range indexes {
 		waitGroup.Add(1)
-		searchChildIndex(&waitGroup, in, results, errs)
+		searchChildIndex(&waitGroup, in, asyncResults)
 	}
 
 	// on another go routine, close after finished
 	go func() {
 		waitGroup.Wait()
-		close(results)
-		close(errs)
+		close(asyncResults)
 	}()
 
 	var sr *SearchResult
-	var err error
-	var result *SearchResult
-	ok := true
-	for ok {
-		select {
-		case result, ok = <-results:
-			if ok {
-				if sr == nil {
-					// first result
-					sr = result
-				} else {
-					// merge with previous
-					sr.Merge(result)
-				}
+	indexErrors := make(map[string]error)
+
+	for asr := range asyncResults {
+		if asr.Err == nil {
+			if sr == nil {
+				// first result
+				sr = asr.Result
+			} else {
+				// merge with previous
+				sr.Merge(asr.Result)
 			}
-		case err, ok = <-errs:
-			// for now stop on any error
-			// FIXME offer other behaviors
-			if err != nil {
-				return nil, err
-			}
+		} else {
+			indexErrors[asr.Name] = asr.Err
 		}
 	}
 
 	// merge just concatenated all the hits
 	// now lets clean it up
 
-	// first sort it by score
-	sort.Sort(sr.Hits)
+	// handle case where no results were successful
+	if sr == nil {
+		sr = &SearchResult{
+			Status: &SearchStatus{
+				Errors: make(map[string]error),
+			},
+		}
+	}
+
+	// sort all hits with the requested order
+	if len(req.Sort) > 0 {
+		sorter := newMultiSearchHitSorter(req.Sort, sr.Hits)
+		sort.Sort(sorter)
+	}
 
 	// now skip over the correct From
 	if req.From > 0 && len(sr.Hits) > req.From {
@@ -542,6 +549,18 @@ func MultiSearch(req *SearchRequest, indexes ...Index) (*SearchResult, error) {
 	searchDuration := time.Since(searchStart)
 	sr.Took = searchDuration
 
+	// fix up errors
+	if len(indexErrors) > 0 {
+		if sr.Status.Errors == nil {
+			sr.Status.Errors = make(map[string]error)
+		}
+		for indexName, indexErr := range indexErrors {
+			sr.Status.Errors[indexName] = indexErr
+			sr.Status.Total++
+			sr.Status.Failed++
+		}
+	}
+
 	return sr, nil
 }
 
@@ -561,6 +580,14 @@ func (i *indexAliasImpl) NewBatch() *Batch {
 	return i.indexes[0].NewBatch()
 }
 
+func (i *indexAliasImpl) Name() string {
+	return i.name
+}
+
+func (i *indexAliasImpl) SetName(name string) {
+	i.name = name
+}
+
 type indexAliasImplFieldDict struct {
 	index     *indexAliasImpl
 	fieldDict index.FieldDict
@@ -573,4 +600,27 @@ func (f *indexAliasImplFieldDict) Next() (*index.DictEntry, error) {
 func (f *indexAliasImplFieldDict) Close() error {
 	defer f.index.mutex.RUnlock()
 	return f.fieldDict.Close()
+}
+
+type multiSearchHitSorter struct {
+	hits          search.DocumentMatchCollection
+	sort          search.SortOrder
+	cachedScoring []bool
+	cachedDesc    []bool
+}
+
+func newMultiSearchHitSorter(sort search.SortOrder, hits search.DocumentMatchCollection) *multiSearchHitSorter {
+	return &multiSearchHitSorter{
+		sort:          sort,
+		hits:          hits,
+		cachedScoring: sort.CacheIsScore(),
+		cachedDesc:    sort.CacheDescending(),
+	}
+}
+
+func (m *multiSearchHitSorter) Len() int      { return len(m.hits) }
+func (m *multiSearchHitSorter) Swap(i, j int) { m.hits[i], m.hits[j] = m.hits[j], m.hits[i] }
+func (m *multiSearchHitSorter) Less(i, j int) bool {
+	c := m.sort.Compare(m.cachedScoring, m.cachedDesc, m.hits[i], m.hits[j])
+	return c < 0
 }

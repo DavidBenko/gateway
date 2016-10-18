@@ -15,6 +15,7 @@ import (
 
 	"gateway/admin"
 	"gateway/config"
+	"gateway/core"
 	"gateway/docker"
 	"gateway/errors/report"
 	"gateway/http"
@@ -31,7 +32,8 @@ import (
 	statssql "gateway/stats/sql"
 	"gateway/store"
 	"gateway/version"
-	"github.com/stripe/stripe-go"
+
+	stripe "github.com/stripe/stripe-go"
 )
 
 func init() {
@@ -185,11 +187,14 @@ func main() {
 		}
 	}
 
+	warp := core.NewCore(conf, db, statsDb)
+
 	service.ElasticLoggingService(conf)
 	service.BleveLoggingService(conf.Bleve)
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
+	service.JobsService(conf, warp)
 
 	model.InitializeRemoteEndpointTypes(conf.RemoteEndpoint)
 
@@ -244,21 +249,11 @@ func main() {
 		model.StartDockerEndpointUpdateListener(db)
 	}
 
-	// Configure the object store
-	objectStore, err := store.Configure(conf.Store)
-	if err != nil {
-		logreport.Fatalf("Unable to configure the object store: %v", err)
-	}
-	err = objectStore.Migrate()
-	if err != nil {
-		logreport.Fatalf("Unable to migrate the object store: %v", err)
-	}
-
 	model.ConfigureDefaultAPIAccessScheme(conf.Admin.DefaultAPIAccessScheme)
 
 	// Start the proxy
 	logreport.Printf("%s Starting server", config.System)
-	proxy := proxy.NewServer(conf, db, objectStore, statsDb)
+	proxy := proxy.NewServer(conf, db, warp)
 	go proxy.Run()
 
 	sigs := make(chan os.Signal, 1)
@@ -272,7 +267,9 @@ func main() {
 			logreport.Printf("Error shutting down SOAP service: %v", err)
 		}
 
-		objectStore.Shutdown()
+		service.StopJobsService()
+
+		warp.Shutdown()
 
 		done <- true
 	}()
@@ -439,9 +436,10 @@ var commands = map[string]Command{
 			{"stripe_name", true},
 			{"max_users", true},
 			{"javascript_timeout", true},
+			{"job_timeout", true},
 			{"price", true},
 		},
-		"plans:create name:\"<name>\" stripe_name:<stripe_name> max_users:<max_users> javascript_timeout:<javascript_timeout> price:<price>",
+		"plans:create name:\"<name>\" stripe_name:<stripe_name> max_users:<max_users> javascript_timeout:<javascript_timeout> job_timeout:<job_timeout> price:<price>",
 		plansCreate,
 	},
 	"plans:update": {
@@ -451,9 +449,10 @@ var commands = map[string]Command{
 			{"stripe_name", false},
 			{"max_users", false},
 			{"javascript_timeout", false},
+			{"job_timeout", false},
 			{"price", false},
 		},
-		"plans:update <id> [name:\"<name>\"] [email:<email>] [stripe_name:<stripe_name>] [max_users:<max_users>] [javascript_timeout:<javascript_timeout>] [price:<price>]",
+		"plans:update <id> [name:\"<name>\"] [email:<email>] [stripe_name:<stripe_name>] [max_users:<max_users>] [javascript_timeout:<javascript_timeout>] [job_timeout:<job_timeout>] [price:<price>]",
 		plansUpdate,
 	},
 	"plans:destroy": {
@@ -771,6 +770,10 @@ func plansCreate(params map[string]string, conf config.Configuration, db *sql.DB
 	if err != nil {
 		logreport.Fatal(err)
 	}
+	jobTimeout, err := strconv.Atoi(params["job_timeout"])
+	if err != nil {
+		logreport.Fatal(err)
+	}
 	price, err := strconv.Atoi(params["price"])
 	if err != nil {
 		logreport.Fatal(err)
@@ -780,6 +783,7 @@ func plansCreate(params map[string]string, conf config.Configuration, db *sql.DB
 		StripeName:        params["stripe_name"],
 		MaxUsers:          int64(maxUsers),
 		JavascriptTimeout: int64(javascriptTimeout),
+		JobTimeout:        int64(jobTimeout),
 		Price:             int64(price),
 	}
 	err = db.DoInTransaction(func(tx *sql.Tx) error {
@@ -812,6 +816,13 @@ func plansUpdate(params map[string]string, conf config.Configuration, db *sql.DB
 			logreport.Fatal(err)
 		}
 		plan.JavascriptTimeout = int64(javascripTimeout)
+	}
+	if params["job_timeout"] != "" {
+		jobTimeout, err := strconv.Atoi(params["job_timeout"])
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		plan.JobTimeout = int64(jobTimeout)
 	}
 	if params["price"] != "" {
 		price, err := strconv.Atoi(params["price"])

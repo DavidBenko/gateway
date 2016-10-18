@@ -15,7 +15,8 @@ import (
 //go:generate ./controller.rb --model Host --account --api
 //go:generate ./controller.rb --model Library --account --api
 //go:generate ./controller.rb --model SharedComponent --account --api
-//go:generate ./controller.rb --model ProxyEndpoint --account --api
+//go:generate ./controller.rb --model ProxyEndpoint --reflect
+//go:generate ./controller.rb --model Job --reflect
 //go:generate ./controller.rb --model RemoteEndpoint --account --api --check-delete
 //go:generate ./controller.rb --model User --account --after-insert-hook --check-delete --transform-method c.sanitize --transform-type sanitizedUser
 //go:generate ./controller.rb --model RemoteEndpointType
@@ -28,6 +29,7 @@ import (
 //go:generate ./controller.rb --model PushChannelMessage --reflect
 //go:generate ./controller.rb --model Plan --allow-create=false --allow-update=false --allow-delete=false
 //go:generate ./controller.rb --model Sample --account
+//go:generate ./controller.rb --model Timer --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource

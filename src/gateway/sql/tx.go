@@ -12,6 +12,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	// LockSetJobs jobs lock set
+	LockSetJobs int64 = 1
+)
+
 // PostCommitHook represents a function that will be called after the tx is
 // committed successfully
 type PostCommitHook func(tx *Tx)
@@ -87,6 +92,28 @@ func (tx *Tx) UpdateOne(query string, args ...interface{}) error {
 // with DELETE sql queries
 func (tx *Tx) DeleteOne(query string, args ...interface{}) error {
 	return tx.UpdateOne(query, args...)
+}
+
+// TryLock tries to obtain a lock for a given set and id
+func (tx *Tx) TryLock(set, id int64) (bool, error) {
+	if tx.DB.Driver == Sqlite3 {
+		return true, nil
+	}
+
+	locked := struct{ Locked bool }{}
+	err := tx.Get(&locked, "SELECT pg_try_advisory_lock(?, ?) as locked;", set, id)
+	return locked.Locked, err
+}
+
+// Unlock unlocks a lock
+func (tx *Tx) Unlock(set, id int64) (bool, error) {
+	if tx.DB.Driver == Sqlite3 {
+		return true, nil
+	}
+
+	unlocked := struct{ Unlocked bool }{}
+	err := tx.Get(&unlocked, "SELECT pg_advisory_unlock(?, ?) as unlocked;", set, id)
+	return unlocked.Unlocked, err
 }
 
 // PushTag pushes a tag for notifications
