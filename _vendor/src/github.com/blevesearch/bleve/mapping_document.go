@@ -39,7 +39,7 @@ type DocumentMapping struct {
 	DefaultAnalyzer string                      `json:"default_analyzer"`
 }
 
-func (dm *DocumentMapping) validate(cache *registry.Cache) error {
+func (dm *DocumentMapping) Validate(cache *registry.Cache) error {
 	var err error
 	if dm.DefaultAnalyzer != "" {
 		_, err := cache.AnalyzerNamed(dm.DefaultAnalyzer)
@@ -48,7 +48,7 @@ func (dm *DocumentMapping) validate(cache *registry.Cache) error {
 		}
 	}
 	for _, property := range dm.Properties {
-		err = property.validate(cache)
+		err = property.Validate(cache)
 		if err != nil {
 			return err
 		}
@@ -67,7 +67,7 @@ func (dm *DocumentMapping) validate(cache *registry.Cache) error {
 			}
 		}
 		switch field.Type {
-		case "text", "datetime", "number":
+		case "text", "datetime", "number", "boolean":
 		default:
 			return fmt.Errorf("unknown field type: '%s'", field.Type)
 		}
@@ -75,54 +75,101 @@ func (dm *DocumentMapping) validate(cache *registry.Cache) error {
 	return nil
 }
 
+// analyzerNameForPath attempts to first find the field
+// described by this path, then returns the analyzer
+// configured for that field
 func (dm *DocumentMapping) analyzerNameForPath(path string) string {
-	pathElements := decodePath(path)
-	last := false
-	current := dm
-OUTER:
-	for i, pathElement := range pathElements {
-		if i == len(pathElements)-1 {
-			last = true
-		}
-		for name, subDocMapping := range current.Properties {
-			for _, field := range subDocMapping.Fields {
-				if field.Name == "" && name == pathElement {
-					if last {
-						return field.Analyzer
-					}
-					current = subDocMapping
-					continue OUTER
-				} else if field.Name == pathElement {
-					if last {
-						return field.Analyzer
-					}
-					current = subDocMapping
-					continue OUTER
-				}
-			}
-		}
-		return ""
+	field := dm.fieldDescribedByPath(path)
+	if field != nil {
+		return field.Analyzer
 	}
 	return ""
 }
 
+func (dm *DocumentMapping) fieldDescribedByPath(path string) *FieldMapping {
+	pathElements := decodePath(path)
+	if len(pathElements) > 1 {
+		// easy case, there is more than 1 path element remaining
+		// the next path element must match a property name
+		// at this level
+		for propName, subDocMapping := range dm.Properties {
+			if propName == pathElements[0] {
+				return subDocMapping.fieldDescribedByPath(encodePath(pathElements[1:]))
+			}
+		}
+	} else {
+		// just 1 path elememnt
+		// first look for property name with empty field
+		for propName, subDocMapping := range dm.Properties {
+			if propName == pathElements[0] {
+				// found property name match, now look at its fields
+				for _, field := range subDocMapping.Fields {
+					if field.Name == "" || field.Name == pathElements[0] {
+						// match
+						return field
+					}
+				}
+			}
+		}
+		// next, walk the properties again, looking for field overriding the name
+		for propName, subDocMapping := range dm.Properties {
+			if propName != pathElements[0] {
+				// property name isn't a match, but field name could override it
+				for _, field := range subDocMapping.Fields {
+					if field.Name == pathElements[0] {
+						return field
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// documentMappingForPath only returns EXACT matches for a sub document
+// or for an explicitly mapped field, if you want to find the
+// closest document mapping to a field not explicitly mapped
+// use closestDocMapping
 func (dm *DocumentMapping) documentMappingForPath(path string) *DocumentMapping {
+	pathElements := decodePath(path)
+	current := dm
+OUTER:
+	for i, pathElement := range pathElements {
+		for name, subDocMapping := range current.Properties {
+			if name == pathElement {
+				current = subDocMapping
+				continue OUTER
+			}
+		}
+		// no subDocMapping matches this pathElement
+		// only if this is the last element check for field name
+		if i == len(pathElements)-1 {
+			for _, field := range current.Fields {
+				if field.Name == pathElement {
+					break
+				}
+			}
+		}
+
+		return nil
+	}
+	return current
+}
+
+// closestDocMapping findest the most specific document mapping that matches
+// part of the provided path
+func (dm *DocumentMapping) closestDocMapping(path string) *DocumentMapping {
 	pathElements := decodePath(path)
 	current := dm
 OUTER:
 	for _, pathElement := range pathElements {
 		for name, subDocMapping := range current.Properties {
-			for _, field := range subDocMapping.Fields {
-				if field.Name == "" && name == pathElement {
-					current = subDocMapping
-					continue OUTER
-				} else if field.Name == pathElement {
-					current = subDocMapping
-					continue OUTER
-				}
+			if name == pathElement {
+				current = subDocMapping
+				continue OUTER
 			}
 		}
-		return nil
 	}
 	return current
 }
@@ -192,45 +239,56 @@ func (dm *DocumentMapping) AddFieldMapping(fm *FieldMapping) {
 	dm.Fields = append(dm.Fields, fm)
 }
 
-// UnmarshalJSON deserializes a JSON representation
-// of the DocumentMapping.
+// UnmarshalJSON offers custom unmarshaling with optional strict validation
 func (dm *DocumentMapping) UnmarshalJSON(data []byte) error {
-	var tmp struct {
-		Enabled         *bool                       `json:"enabled"`
-		Dynamic         *bool                       `json:"dynamic"`
-		Properties      map[string]*DocumentMapping `json:"properties"`
-		Fields          []*FieldMapping             `json:"fields"`
-		DefaultAnalyzer string                      `json:"default_analyzer"`
-	}
+
+	var tmp map[string]json.RawMessage
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
 
+	// set defaults for fields which might have been omitted
 	dm.Enabled = true
-	if tmp.Enabled != nil {
-		dm.Enabled = *tmp.Enabled
-	}
-
 	dm.Dynamic = true
-	if tmp.Dynamic != nil {
-		dm.Dynamic = *tmp.Dynamic
+
+	var invalidKeys []string
+	for k, v := range tmp {
+		switch k {
+		case "enabled":
+			err := json.Unmarshal(v, &dm.Enabled)
+			if err != nil {
+				return err
+			}
+		case "dynamic":
+			err := json.Unmarshal(v, &dm.Dynamic)
+			if err != nil {
+				return err
+			}
+		case "default_analyzer":
+			err := json.Unmarshal(v, &dm.DefaultAnalyzer)
+			if err != nil {
+				return err
+			}
+		case "properties":
+			err := json.Unmarshal(v, &dm.Properties)
+			if err != nil {
+				return err
+			}
+		case "fields":
+			err := json.Unmarshal(v, &dm.Fields)
+			if err != nil {
+				return err
+			}
+		default:
+			invalidKeys = append(invalidKeys, k)
+		}
 	}
 
-	dm.DefaultAnalyzer = tmp.DefaultAnalyzer
+	if MappingJSONStrict && len(invalidKeys) > 0 {
+		return fmt.Errorf("document mapping contains invalid keys: %v", invalidKeys)
+	}
 
-	if tmp.Properties != nil {
-		dm.Properties = make(map[string]*DocumentMapping, len(tmp.Properties))
-	}
-	for propName, propMapping := range tmp.Properties {
-		dm.Properties[propName] = propMapping
-	}
-	if tmp.Fields != nil {
-		dm.Fields = make([]*FieldMapping, len(tmp.Fields))
-	}
-	for i, field := range tmp.Fields {
-		dm.Fields[i] = field
-	}
 	return nil
 }
 
@@ -267,6 +325,10 @@ func (dm *DocumentMapping) walkDocument(data interface{}, path []string, indexes
 		for i := 0; i < val.NumField(); i++ {
 			field := typ.Field(i)
 			fieldName := field.Name
+			// anonymous fields of type struct can elide the type name
+			if field.Anonymous && field.Type.Kind() == reflect.Struct {
+				fieldName = ""
+			}
 
 			// if the field has a JSON name, prefer that
 			jsonTag := field.Tag.Get("json")
@@ -274,13 +336,18 @@ func (dm *DocumentMapping) walkDocument(data interface{}, path []string, indexes
 			if jsonFieldName == "-" {
 				continue
 			}
-			if jsonFieldName != "" {
+			// allow json tag to set field name to empty, only if anonymous
+			if field.Tag != "" && (jsonFieldName != "" || field.Anonymous) {
 				fieldName = jsonFieldName
 			}
 
 			if val.Field(i).CanInterface() {
 				fieldVal := val.Field(i).Interface()
-				dm.processProperty(fieldVal, append(path, fieldName), indexes, context)
+				newpath := path
+				if fieldName != "" {
+					newpath = append(path, fieldName)
+				}
+				dm.processProperty(fieldVal, newpath, indexes, context)
 			}
 		}
 	case reflect.Slice, reflect.Array:
@@ -295,13 +362,25 @@ func (dm *DocumentMapping) walkDocument(data interface{}, path []string, indexes
 		if ptrElem.IsValid() && ptrElem.CanInterface() {
 			dm.processProperty(ptrElem.Interface(), path, indexes, context)
 		}
+	case reflect.String:
+		dm.processProperty(val.String(), path, indexes, context)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dm.processProperty(float64(val.Int()), path, indexes, context)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		dm.processProperty(float64(val.Uint()), path, indexes, context)
+	case reflect.Float32, reflect.Float64:
+		dm.processProperty(float64(val.Float()), path, indexes, context)
+	case reflect.Bool:
+		dm.processProperty(val.Bool(), path, indexes, context)
 	}
+
 }
 
 func (dm *DocumentMapping) processProperty(property interface{}, path []string, indexes []uint64, context *walkContext) {
 	pathString := encodePath(path)
 	// look to see if there is a mapping for this field
 	subDocMapping := dm.documentMappingForPath(pathString)
+	closestDocMapping := dm.closestDocMapping(pathString)
 
 	// check to see if we even need to do further processing
 	if subDocMapping != nil && !subDocMapping.Enabled {
@@ -322,7 +401,7 @@ func (dm *DocumentMapping) processProperty(property interface{}, path []string, 
 			for _, fieldMapping := range subDocMapping.Fields {
 				fieldMapping.processString(propertyValueString, pathString, path, indexes, context)
 			}
-		} else {
+		} else if closestDocMapping.Dynamic {
 			// automatic indexing behavior
 
 			// first see if it can be parsed by the default date parser
@@ -331,26 +410,44 @@ func (dm *DocumentMapping) processProperty(property interface{}, path []string, 
 				parsedDateTime, err := dateTimeParser.ParseDateTime(propertyValueString)
 				if err != nil {
 					// index as text
-					fieldMapping := NewTextFieldMapping()
+					fieldMapping := newTextFieldMappingDynamic(context.im)
 					fieldMapping.processString(propertyValueString, pathString, path, indexes, context)
 				} else {
 					// index as datetime
-					fieldMapping := NewDateTimeFieldMapping()
+					fieldMapping := newDateTimeFieldMappingDynamic(context.im)
 					fieldMapping.processTime(parsedDateTime, pathString, path, indexes, context)
 				}
 			}
 		}
-	case reflect.Float64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dm.processProperty(float64(propertyValue.Int()), path, indexes, context)
+		return
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		dm.processProperty(float64(propertyValue.Uint()), path, indexes, context)
+		return
+	case reflect.Float64, reflect.Float32:
 		propertyValFloat := propertyValue.Float()
 		if subDocMapping != nil {
 			// index by explicit mapping
 			for _, fieldMapping := range subDocMapping.Fields {
 				fieldMapping.processFloat64(propertyValFloat, pathString, path, indexes, context)
 			}
-		} else {
+		} else if closestDocMapping.Dynamic {
 			// automatic indexing behavior
-			fieldMapping := NewNumericFieldMapping()
+			fieldMapping := newNumericFieldMappingDynamic(context.im)
 			fieldMapping.processFloat64(propertyValFloat, pathString, path, indexes, context)
+		}
+	case reflect.Bool:
+		propertyValBool := propertyValue.Bool()
+		if subDocMapping != nil {
+			// index by explicit mapping
+			for _, fieldMapping := range subDocMapping.Fields {
+				fieldMapping.processBoolean(propertyValBool, pathString, path, indexes, context)
+			}
+		} else if closestDocMapping.Dynamic {
+			// automatic indexing behavior
+			fieldMapping := newBooleanFieldMappingDynamic(context.im)
+			fieldMapping.processBoolean(propertyValBool, pathString, path, indexes, context)
 		}
 	case reflect.Struct:
 		switch property := property.(type) {
@@ -361,8 +458,8 @@ func (dm *DocumentMapping) processProperty(property interface{}, path []string, 
 				for _, fieldMapping := range subDocMapping.Fields {
 					fieldMapping.processTime(property, pathString, path, indexes, context)
 				}
-			} else {
-				fieldMapping := NewDateTimeFieldMapping()
+			} else if closestDocMapping.Dynamic {
+				fieldMapping := newDateTimeFieldMappingDynamic(context.im)
 				fieldMapping.processTime(property, pathString, path, indexes, context)
 			}
 		default:

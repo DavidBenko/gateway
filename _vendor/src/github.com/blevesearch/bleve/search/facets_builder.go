@@ -18,6 +18,7 @@ import (
 type FacetBuilder interface {
 	Update(index.FieldTerms)
 	Result() *FacetResult
+	Field() string
 }
 
 type FacetsBuilder struct {
@@ -37,12 +38,27 @@ func (fb *FacetsBuilder) Add(name string, facetBuilder FacetBuilder) {
 }
 
 func (fb *FacetsBuilder) Update(docMatch *DocumentMatch) error {
-	fieldTerms, err := fb.indexReader.DocumentFieldTerms(docMatch.ID)
-	if err != nil {
-		return err
+	var fields []string
+	for _, facetBuilder := range fb.facets {
+		fields = append(fields, facetBuilder.Field())
+	}
+
+	if len(fields) > 0 {
+		// find out which fields haven't been loaded yet
+		fieldsToLoad := docMatch.CachedFieldTerms.FieldsNotYetCached(fields)
+		// look them up
+		fieldTerms, err := fb.indexReader.DocumentFieldTerms(docMatch.IndexInternalID, fieldsToLoad)
+		if err != nil {
+			return err
+		}
+		// cache these as well
+		if docMatch.CachedFieldTerms == nil {
+			docMatch.CachedFieldTerms = make(map[string][]string)
+		}
+		docMatch.CachedFieldTerms.Merge(fieldTerms)
 	}
 	for _, facetBuilder := range fb.facets {
-		facetBuilder.Update(fieldTerms)
+		facetBuilder.Update(docMatch.CachedFieldTerms)
 	}
 	return nil
 }
@@ -66,9 +82,14 @@ func (tf TermFacets) Add(termFacet *TermFacet) TermFacets {
 	return tf
 }
 
-func (tf TermFacets) Len() int           { return len(tf) }
-func (tf TermFacets) Swap(i, j int)      { tf[i], tf[j] = tf[j], tf[i] }
-func (tf TermFacets) Less(i, j int) bool { return tf[i].Count > tf[j].Count }
+func (tf TermFacets) Len() int      { return len(tf) }
+func (tf TermFacets) Swap(i, j int) { tf[i], tf[j] = tf[j], tf[i] }
+func (tf TermFacets) Less(i, j int) bool {
+	if tf[i].Count == tf[j].Count {
+		return tf[i].Term < tf[j].Term
+	}
+	return tf[i].Count > tf[j].Count
+}
 
 type NumericRangeFacet struct {
 	Name  string   `json:"name"`
@@ -91,9 +112,14 @@ func (nrf NumericRangeFacets) Add(numericRangeFacet *NumericRangeFacet) NumericR
 	return nrf
 }
 
-func (nrf NumericRangeFacets) Len() int           { return len(nrf) }
-func (nrf NumericRangeFacets) Swap(i, j int)      { nrf[i], nrf[j] = nrf[j], nrf[i] }
-func (nrf NumericRangeFacets) Less(i, j int) bool { return nrf[i].Count > nrf[j].Count }
+func (nrf NumericRangeFacets) Len() int      { return len(nrf) }
+func (nrf NumericRangeFacets) Swap(i, j int) { nrf[i], nrf[j] = nrf[j], nrf[i] }
+func (nrf NumericRangeFacets) Less(i, j int) bool {
+	if nrf[i].Count == nrf[j].Count {
+		return nrf[i].Name < nrf[j].Name
+	}
+	return nrf[i].Count > nrf[j].Count
+}
 
 type DateRangeFacet struct {
 	Name  string  `json:"name"`
@@ -102,11 +128,34 @@ type DateRangeFacet struct {
 	Count int     `json:"count"`
 }
 
+func (drf *DateRangeFacet) Same(other *DateRangeFacet) bool {
+	if drf.Start == nil && other.Start != nil {
+		return false
+	}
+	if drf.Start != nil && other.Start == nil {
+		return false
+	}
+	if drf.Start != nil && other.Start != nil && *drf.Start != *other.Start {
+		return false
+	}
+	if drf.End == nil && other.End != nil {
+		return false
+	}
+	if drf.End != nil && other.End == nil {
+		return false
+	}
+	if drf.End != nil && other.End != nil && *drf.End != *other.End {
+		return false
+	}
+
+	return true
+}
+
 type DateRangeFacets []*DateRangeFacet
 
 func (drf DateRangeFacets) Add(dateRangeFacet *DateRangeFacet) DateRangeFacets {
 	for _, existingDr := range drf {
-		if dateRangeFacet.Start == existingDr.Start && dateRangeFacet.End == existingDr.End {
+		if dateRangeFacet.Same(existingDr) {
 			existingDr.Count += dateRangeFacet.Count
 			return drf
 		}
@@ -116,9 +165,14 @@ func (drf DateRangeFacets) Add(dateRangeFacet *DateRangeFacet) DateRangeFacets {
 	return drf
 }
 
-func (drf DateRangeFacets) Len() int           { return len(drf) }
-func (drf DateRangeFacets) Swap(i, j int)      { drf[i], drf[j] = drf[j], drf[i] }
-func (drf DateRangeFacets) Less(i, j int) bool { return drf[i].Count > drf[j].Count }
+func (drf DateRangeFacets) Len() int      { return len(drf) }
+func (drf DateRangeFacets) Swap(i, j int) { drf[i], drf[j] = drf[j], drf[i] }
+func (drf DateRangeFacets) Less(i, j int) bool {
+	if drf[i].Count == drf[j].Count {
+		return drf[i].Name < drf[j].Name
+	}
+	return drf[i].Count > drf[j].Count
+}
 
 type FacetResult struct {
 	Field         string             `json:"field"`

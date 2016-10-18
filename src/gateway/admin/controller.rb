@@ -136,6 +136,7 @@ import (
 // <%= controller %> manages <%= plural %>.
 type <%= controller %> struct {
   BaseController
+  Type string
 }
 
 <% if allow_list %>
@@ -440,6 +441,9 @@ func (c *<%= controller %>) mapFields(r *http.Request, object *model.<%= singula
   if c.userID != nil {
     mapUserID(c.userID(r), object)
   }
+  if typed, ok := interface{}(object).(model.Typed); ok {
+    typed.SetType(c.Type)
+  }
   mapFromPath(r, object)
 }
 
@@ -489,20 +493,20 @@ func (c *<%= controller %>) serializeCollection(collection []*model.<%= singular
   return serialize(wrapped, w)
 }
 <% else %>
-func (c *<%= controller %>) serializeInstance(instance *model.<%= singular %>,
+func (c *<%= controller %>) serializeInstance(instance interface{},
   w http.ResponseWriter) aphttp.Error {
 
   wrapped := struct {
-    <%= singular %> *model.<%= singular %> `json:"<%= json_singular %>"`
+    <%= singular %> interface{} `json:"<%= json_singular %>"`
   }{instance}
   return serialize(wrapped, w)
 }
 
-func (c *<%= controller %>) serializeCollection(collection []*model.<%= singular %>,
+func (c *<%= controller %>) serializeCollection(collection interface{},
   w http.ResponseWriter) aphttp.Error {
 
   wrapped := struct {
-    <%= plural %> []*model.<%= singular %> `json:"<%= json_plural %>"`
+    <%= plural %> interface{} `json:"<%= json_plural %>"`
   }{collection}
   return serialize(wrapped, w)
 }

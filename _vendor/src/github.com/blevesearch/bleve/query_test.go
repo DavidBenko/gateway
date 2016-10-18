@@ -11,6 +11,7 @@ package bleve
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -34,18 +35,36 @@ func TestParseQuery(t *testing.T) {
 			output: NewMatchQuery("beer").SetField("desc"),
 		},
 		{
+			input:  []byte(`{"match":"beer","field":"desc","operator":"or"}`),
+			output: NewMatchQuery("beer").SetField("desc"),
+		},
+		{
+			input:  []byte(`{"match":"beer","field":"desc","operator":"and"}`),
+			output: NewMatchQueryOperator("beer", MatchQueryOperatorAnd).SetField("desc"),
+		},
+		{
+			input:  []byte(`{"match":"beer","field":"desc","operator":"or"}`),
+			output: NewMatchQueryOperator("beer", MatchQueryOperatorOr).SetField("desc"),
+		},
+		{
+			input:  []byte(`{"match":"beer","field":"desc","operator":"does not exist"}`),
+			output: nil,
+			err:    matchQueryOperatorUnmarshalError("does not exist"),
+		},
+		{
 			input:  []byte(`{"match_phrase":"light beer","field":"desc"}`),
 			output: NewMatchPhraseQuery("light beer").SetField("desc"),
 		},
 		{
 			input: []byte(`{"must":{"conjuncts": [{"match":"beer","field":"desc"}]},"should":{"disjuncts": [{"match":"water","field":"desc"}],"min":1.0},"must_not":{"disjuncts": [{"match":"devon","field":"desc"}]}}`),
-			output: NewBooleanQuery(
+			output: NewBooleanQueryMinShould(
 				[]Query{NewMatchQuery("beer").SetField("desc")},
 				[]Query{NewMatchQuery("water").SetField("desc")},
-				[]Query{NewMatchQuery("devon").SetField("desc")}),
+				[]Query{NewMatchQuery("devon").SetField("desc")},
+				1.0),
 		},
 		{
-			input:  []byte(`{"terms":[{"term":"watered","field":"desc"},{"term":"down","field":"desc"}]}`),
+			input:  []byte(`{"terms":["watered","down"],"field":"desc"}`),
 			output: NewPhraseQuery([]string{"watered", "down"}, "desc"),
 		},
 		{
@@ -63,6 +82,18 @@ func TestParseQuery(t *testing.T) {
 		{
 			input:  []byte(`{"prefix":"budwei","field":"desc"}`),
 			output: NewPrefixQuery("budwei").SetField("desc"),
+		},
+		{
+			input:  []byte(`{"match_all":{}}`),
+			output: NewMatchAllQuery(),
+		},
+		{
+			input:  []byte(`{"match_none":{}}`),
+			output: NewMatchNoneQuery(),
+		},
+		{
+			input:  []byte(`{"ids":["a","b","c"]}`),
+			output: NewDocIDQuery([]string{"a", "b", "c"}),
 		},
 		{
 			input:  []byte(`{"madeitup":"queryhere"}`),
@@ -83,7 +114,6 @@ func TestParseQuery(t *testing.T) {
 
 		if !reflect.DeepEqual(test.output, actual) {
 			t.Errorf("expected: %#v, got: %#v", test.output, actual)
-			// t.Errorf("expected: %#v, got: %#v", test.output.(*BooleanQuery).Should, actual.(*BooleanQuery).Should)
 		}
 	}
 }
@@ -223,6 +253,10 @@ func TestQueryValidate(t *testing.T) {
 				2.0),
 			err: ErrorDisjunctionFewerThanMinClauses,
 		},
+		{
+			query: NewDocIDQuery(nil).SetBoost(25),
+			err:   nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -230,5 +264,56 @@ func TestQueryValidate(t *testing.T) {
 		if !reflect.DeepEqual(actual, test.err) {
 			t.Errorf("expected error: %#v got %#v", test.err, actual)
 		}
+	}
+}
+
+func TestDumpQuery(t *testing.T) {
+	mapping := &IndexMapping{}
+	q := NewQueryStringQuery("+water -light beer")
+	s, err := DumpQuery(mapping, q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s = strings.TrimSpace(s)
+	wanted := strings.TrimSpace(`{
+  "must": {
+    "conjuncts": [
+      {
+        "match": "water",
+        "boost": 1,
+        "prefix_length": 0,
+        "fuzziness": 0
+      }
+    ],
+    "boost": 1
+  },
+  "should": {
+    "disjuncts": [
+      {
+        "match": "beer",
+        "boost": 1,
+        "prefix_length": 0,
+        "fuzziness": 0
+      }
+    ],
+    "boost": 1,
+    "min": 0
+  },
+  "must_not": {
+    "disjuncts": [
+      {
+        "match": "light",
+        "boost": 1,
+        "prefix_length": 0,
+        "fuzziness": 0
+      }
+    ],
+    "boost": 1,
+    "min": 0
+  },
+  "boost": 1
+}`)
+	if wanted != s {
+		t.Fatalf("query:\n%s\ndiffers from expected:\n%s", s, wanted)
 	}
 }

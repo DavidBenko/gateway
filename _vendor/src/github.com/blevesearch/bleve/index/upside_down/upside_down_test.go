@@ -10,17 +10,22 @@
 package upside_down
 
 import (
-	"os"
+	"log"
 	"reflect"
 	"regexp"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/blevesearch/bleve/analysis"
+	"github.com/blevesearch/bleve/analysis/analyzers/standard_analyzer"
 	"github.com/blevesearch/bleve/analysis/tokenizers/regexp_tokenizer"
 	"github.com/blevesearch/bleve/document"
 	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/index/store/boltdb"
+	"github.com/blevesearch/bleve/index/store/null"
+	"github.com/blevesearch/bleve/registry"
 )
 
 var testAnalyzer = &analysis.Analyzer{
@@ -29,33 +34,42 @@ var testAnalyzer = &analysis.Analyzer{
 
 func TestIndexOpenReopen(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
 
 	var expectedCount uint64
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// opening the database should have inserted a version
 	expectedLength := uint64(1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -69,9 +83,10 @@ func TestIndexOpenReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store = boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	idx = NewUpsideDownCouch(store, analysisQueue)
+	idx, err = NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
@@ -86,17 +101,18 @@ func TestIndexOpenReopen(t *testing.T) {
 
 func TestIndexInsert(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -108,12 +124,20 @@ func TestIndexInsert(t *testing.T) {
 	}()
 
 	var expectedCount uint64
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	doc := document.NewDocument("1")
@@ -124,17 +148,25 @@ func TestIndexInsert(t *testing.T) {
 	}
 	expectedCount++
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// should have 4 rows (1 for version, 1 for schema field, and 1 for single term, and 1 for the term count, and 1 for the back index entry)
 	expectedLength := uint64(1 + 1 + 1 + 1 + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -145,17 +177,18 @@ func TestIndexInsert(t *testing.T) {
 
 func TestIndexInsertThenDelete(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -167,12 +200,20 @@ func TestIndexInsertThenDelete(t *testing.T) {
 	}()
 
 	var expectedCount uint64
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	doc := document.NewDocument("1")
@@ -191,12 +232,20 @@ func TestIndexInsertThenDelete(t *testing.T) {
 	}
 	expectedCount++
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = idx.Delete("1")
@@ -205,12 +254,20 @@ func TestIndexInsertThenDelete(t *testing.T) {
 	}
 	expectedCount--
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = idx.Delete("2")
@@ -219,17 +276,25 @@ func TestIndexInsertThenDelete(t *testing.T) {
 	}
 	expectedCount--
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// should have 2 rows (1 for version, 1 for schema field, 1 for dictionary row garbage)
 	expectedLength := uint64(1 + 1 + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -240,17 +305,18 @@ func TestIndexInsertThenDelete(t *testing.T) {
 
 func TestIndexInsertThenUpdate(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -278,7 +344,7 @@ func TestIndexInsertThenUpdate(t *testing.T) {
 
 	// should have 2 rows (1 for version, 1 for schema field, and 2 for the two term, and 2 for the term counts, and 1 for the back index entry)
 	expectedLength := uint64(1 + 1 + 2 + 2 + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -296,7 +362,7 @@ func TestIndexInsertThenUpdate(t *testing.T) {
 
 	// should have 2 rows (1 for version, 1 for schema field, and 1 for the remaining term, and 2 for the term diciontary, and 1 for the back index entry)
 	expectedLength = uint64(1 + 1 + 1 + 2 + 1)
-	rowCount, err = idx.rowCount()
+	rowCount, err = idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -307,17 +373,18 @@ func TestIndexInsertThenUpdate(t *testing.T) {
 
 func TestIndexInsertMultiple(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -342,7 +409,7 @@ func TestIndexInsertMultiple(t *testing.T) {
 
 	// should have 4 rows (1 for version, 1 for schema field, and 2 for single term, and 1 for the term count, and 2 for the back index entries)
 	expectedLength := uint64(1 + 1 + 2 + 1 + 2)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -356,12 +423,13 @@ func TestIndexInsertMultiple(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store = boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	idx = NewUpsideDownCouch(store, analysisQueue)
+	idx, err = NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = idx.Open()
 	if err != nil {
-		t.Errorf("error opening index: %v", err)
+		t.Fatalf("error opening index: %v", err)
 	}
 	defer func() {
 		err := idx.Close()
@@ -378,28 +446,37 @@ func TestIndexInsertMultiple(t *testing.T) {
 	}
 	expectedCount++
 
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
-		t.Errorf("expected doc count: %d, got %d", expectedCount, docCount)
+		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestIndexInsertWithStore(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -411,12 +488,20 @@ func TestIndexInsertWithStore(t *testing.T) {
 	}()
 
 	var expectedCount uint64
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	doc := document.NewDocument("1")
@@ -427,17 +512,25 @@ func TestIndexInsertWithStore(t *testing.T) {
 	}
 	expectedCount++
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// should have 6 rows (1 for version, 1 for schema field, and 1 for single term, and 1 for the stored field and 1 for the term count, and 1 for the back index entry)
 	expectedLength := uint64(1 + 1 + 1 + 1 + 1 + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -475,17 +568,18 @@ func TestIndexInsertWithStore(t *testing.T) {
 
 func TestIndexInternalCRUD(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -568,17 +662,18 @@ func TestIndexInternalCRUD(t *testing.T) {
 
 func TestIndexBatch(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -639,25 +734,28 @@ func TestIndexBatch(t *testing.T) {
 		}
 	}()
 
-	docCount := indexReader.DocCount()
+	docCount, err := indexReader.DocCount()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
 
-	docIDReader, err := indexReader.DocIDReader("", "")
+	docIDReader, err := indexReader.DocIDReaderAll()
 	if err != nil {
 		t.Error(err)
 	}
-	docIds := make([]string, 0)
+	var docIds []index.IndexInternalID
 	docID, err := docIDReader.Next()
-	for docID != "" && err == nil {
+	for docID != nil && err == nil {
 		docIds = append(docIds, docID)
 		docID, err = docIDReader.Next()
 	}
 	if err != nil {
 		t.Error(err)
 	}
-	expectedDocIds := []string{"2", "3"}
+	expectedDocIds := []index.IndexInternalID{index.IndexInternalID("2"), index.IndexInternalID("3")}
 	if !reflect.DeepEqual(docIds, expectedDocIds) {
 		t.Errorf("expected ids: %v, got ids: %v", expectedDocIds, docIds)
 	}
@@ -665,17 +763,18 @@ func TestIndexBatch(t *testing.T) {
 
 func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -687,12 +786,20 @@ func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	}()
 
 	var expectedCount uint64
-	docCount, err := idx.DocCount()
+	reader, err := idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err := reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	doc := document.NewDocument("1")
@@ -709,12 +816,20 @@ func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	}
 	expectedCount++
 
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
+	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	// should have 72 rows
@@ -729,7 +844,7 @@ func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	// 16 for date term counts
 	// 1 for the back index entry
 	expectedLength := uint64(1 + 3 + 1 + (64 / document.DefaultPrecisionStep) + (64 / document.DefaultPrecisionStep) + 3 + 1 + (64 / document.DefaultPrecisionStep) + (64 / document.DefaultPrecisionStep) + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -802,7 +917,10 @@ func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	}
 
 	// expected doc count shouldn't have changed
-	docCount = indexReader2.DocCount()
+	docCount, err = indexReader2.DocCount()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
@@ -846,28 +964,37 @@ func TestIndexInsertUpdateDeleteWithMultipleTypesStored(t *testing.T) {
 	expectedCount--
 
 	// expected doc count shouldn't have changed
-	docCount, err = idx.DocCount()
+	reader, err = idx.Reader()
+	if err != nil {
+		t.Fatal(err)
+	}
+	docCount, err = reader.DocCount()
 	if err != nil {
 		t.Error(err)
 	}
 	if docCount != expectedCount {
 		t.Errorf("Expected document count to be %d got %d", expectedCount, docCount)
 	}
+	err = reader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestIndexInsertFields(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -916,17 +1043,18 @@ func TestIndexInsertFields(t *testing.T) {
 
 func TestIndexUpdateComposites(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -954,7 +1082,7 @@ func TestIndexUpdateComposites(t *testing.T) {
 	// 4 for the text term count
 	// 1 for the back index entry
 	expectedLength := uint64(1 + 3 + 4 + 2 + 4 + 1)
-	rowCount, err := idx.rowCount()
+	rowCount, err := idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1001,7 +1129,7 @@ func TestIndexUpdateComposites(t *testing.T) {
 
 	// should have the same row count as before, plus 4 term dictionary garbage rows
 	expectedLength += 4
-	rowCount, err = idx.rowCount()
+	rowCount, err = idx.(*UpsideDownCouch).rowCount()
 	if err != nil {
 		t.Error(err)
 	}
@@ -1012,17 +1140,18 @@ func TestIndexUpdateComposites(t *testing.T) {
 
 func TestIndexFieldsMisc(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -1041,15 +1170,15 @@ func TestIndexFieldsMisc(t *testing.T) {
 		t.Errorf("Error updating index: %v", err)
 	}
 
-	fieldName1 := idx.fieldIndexCache.FieldName(1)
+	fieldName1 := idx.(*UpsideDownCouch).fieldCache.FieldIndexed(0)
 	if fieldName1 != "name" {
 		t.Errorf("expected field named 'name', got '%s'", fieldName1)
 	}
-	fieldName2 := idx.fieldIndexCache.FieldName(2)
+	fieldName2 := idx.(*UpsideDownCouch).fieldCache.FieldIndexed(1)
 	if fieldName2 != "title" {
 		t.Errorf("expected field named 'title', got '%s'", fieldName2)
 	}
-	fieldName3 := idx.fieldIndexCache.FieldName(3)
+	fieldName3 := idx.(*UpsideDownCouch).fieldCache.FieldIndexed(2)
 	if fieldName3 != "" {
 		t.Errorf("expected field named '', got '%s'", fieldName3)
 	}
@@ -1058,17 +1187,18 @@ func TestIndexFieldsMisc(t *testing.T) {
 
 func TestIndexTermReaderCompositeFields(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -1099,17 +1229,17 @@ func TestIndexTermReaderCompositeFields(t *testing.T) {
 		}
 	}()
 
-	termFieldReader, err := indexReader.TermFieldReader([]byte("mister"), "_all")
+	termFieldReader, err := indexReader.TermFieldReader([]byte("mister"), "_all", true, true, true)
 	if err != nil {
 		t.Error(err)
 	}
 
-	tfd, err := termFieldReader.Next()
+	tfd, err := termFieldReader.Next(nil)
 	for tfd != nil && err == nil {
-		if tfd.ID != "1" {
+		if !tfd.ID.Equals(index.IndexInternalID("1")) {
 			t.Errorf("expected to find document id 1")
 		}
-		tfd, err = termFieldReader.Next()
+		tfd, err = termFieldReader.Next(nil)
 	}
 	if err != nil {
 		t.Error(err)
@@ -1118,17 +1248,18 @@ func TestIndexTermReaderCompositeFields(t *testing.T) {
 
 func TestIndexDocumentFieldTerms(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	store := boltdb.New("test", "bleve")
-	store.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(store, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -1158,7 +1289,7 @@ func TestIndexDocumentFieldTerms(t *testing.T) {
 		}
 	}()
 
-	fieldTerms, err := indexReader.DocumentFieldTerms("1")
+	fieldTerms, err := indexReader.DocumentFieldTerms(index.IndexInternalID("1"), []string{"name", "title"})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1168,5 +1299,137 @@ func TestIndexDocumentFieldTerms(t *testing.T) {
 	}
 	if !reflect.DeepEqual(fieldTerms, expectedFieldTerms) {
 		t.Errorf("expected field terms: %#v, got: %#v", expectedFieldTerms, fieldTerms)
+	}
+}
+
+func BenchmarkBatch(b *testing.B) {
+
+	cache := registry.NewCache()
+	analyzer, err := cache.AnalyzerNamed(standard_analyzer.Name)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(null.Name, nil, analysisQueue)
+	if err != nil {
+		b.Fatal(err)
+	}
+	err = idx.Open()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	batch := index.NewBatch()
+	for i := 0; i < 100; i++ {
+		d := document.NewDocument(strconv.Itoa(i))
+		f := document.NewTextFieldWithAnalyzer("desc", nil, bleveWikiArticle1K, analyzer)
+		d.AddField(f)
+		batch.Update(d)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		err = idx.Batch(batch)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestConcurrentUpdate(t *testing.T) {
+	defer func() {
+		err := DestroyTest()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
+	if err != nil {
+		t.Errorf("error opening index: %v", err)
+	}
+	defer func() {
+		err := idx.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// do some concurrent updates
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(i int) {
+			doc := document.NewDocument("1")
+			doc.AddField(document.NewTextFieldWithIndexingOptions(strconv.Itoa(i), []uint64{}, []byte(strconv.Itoa(i)), document.StoreField))
+			err := idx.Update(doc)
+			if err != nil {
+				t.Errorf("Error updating index: %v", err)
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+
+	// now load the name field and see what we get
+	r, err := idx.Reader()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	doc, err := r.Document("1")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(doc.Fields) > 1 {
+		t.Errorf("expected single field, found %d", len(doc.Fields))
+	}
+}
+
+func TestLargeField(t *testing.T) {
+	defer func() {
+		err := DestroyTest()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
+	if err != nil {
+		t.Errorf("error opening index: %v", err)
+	}
+	defer func() {
+		err := idx.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	var largeFieldValue []byte
+	for len(largeFieldValue) < RowBufferSize {
+		largeFieldValue = append(largeFieldValue, bleveWikiArticle1K...)
+	}
+	t.Logf("large field size: %d", len(largeFieldValue))
+
+	d := document.NewDocument("large")
+	f := document.NewTextFieldWithIndexingOptions("desc", nil, largeFieldValue, document.IndexField|document.StoreField)
+	d.AddField(f)
+
+	err = idx.Update(d)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

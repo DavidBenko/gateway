@@ -10,30 +10,36 @@
 package collectors
 
 import (
+	"github.com/blevesearch/bleve/document"
+	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/search"
 )
 
 type stubSearcher struct {
 	index   int
-	matches search.DocumentMatchCollection
+	matches []*search.DocumentMatch
 }
 
-func (ss *stubSearcher) Next() (*search.DocumentMatch, error) {
+func (ss *stubSearcher) Next(ctx *search.SearchContext) (*search.DocumentMatch, error) {
 	if ss.index < len(ss.matches) {
-		rv := ss.matches[ss.index]
+		rv := ctx.DocumentMatchPool.Get()
+		rv.IndexInternalID = ss.matches[ss.index].IndexInternalID
+		rv.Score = ss.matches[ss.index].Score
 		ss.index++
 		return rv, nil
 	}
 	return nil, nil
 }
 
-func (ss *stubSearcher) Advance(ID string) (*search.DocumentMatch, error) {
+func (ss *stubSearcher) Advance(ctx *search.SearchContext, ID index.IndexInternalID) (*search.DocumentMatch, error) {
 
-	for ss.index < len(ss.matches) && ss.matches[ss.index].ID < ID {
+	for ss.index < len(ss.matches) && ss.matches[ss.index].IndexInternalID.Compare(ID) < 0 {
 		ss.index++
 	}
 	if ss.index < len(ss.matches) {
-		rv := ss.matches[ss.index]
+		rv := ctx.DocumentMatchPool.Get()
+		rv.IndexInternalID = ss.matches[ss.index].IndexInternalID
+		rv.Score = ss.matches[ss.index].Score
 		ss.index++
 		return rv, nil
 	}
@@ -57,4 +63,78 @@ func (ss *stubSearcher) Count() uint64 {
 
 func (ss *stubSearcher) Min() int {
 	return 0
+}
+
+func (ss *stubSearcher) DocumentMatchPoolSize() int {
+	return 0
+}
+
+type stubReader struct{}
+
+func (sr *stubReader) TermFieldReader(term []byte, field string, includeFreq, includeNorm, includeTermVectors bool) (index.TermFieldReader, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) DocIDReaderAll() (index.DocIDReader, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) DocIDReaderOnly(ids []string) (index.DocIDReader, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) FieldDict(field string) (index.FieldDict, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) FieldDictRange(field string, startTerm []byte, endTerm []byte) (index.FieldDict, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) FieldDictPrefix(field string, termPrefix []byte) (index.FieldDict, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) Document(id string) (*document.Document, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) DocumentFieldTerms(id index.IndexInternalID, fields []string) (index.FieldTerms, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) Fields() ([]string, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) GetInternal(key []byte) ([]byte, error) {
+	return nil, nil
+}
+
+func (sr *stubReader) DocCount() (uint64, error) {
+	return 0, nil
+}
+
+func (sr *stubReader) ExternalID(id index.IndexInternalID) (string, error) {
+	return string(id), nil
+}
+
+func (sr *stubReader) InternalID(id string) (index.IndexInternalID, error) {
+	return []byte(id), nil
+}
+
+func (sr *stubReader) DumpAll() chan interface{} {
+	return nil
+}
+
+func (sr *stubReader) DumpDoc(id string) chan interface{} {
+	return nil
+}
+
+func (sr *stubReader) DumpFields() chan interface{} {
+	return nil
+}
+
+func (sr *stubReader) Close() error {
+	return nil
 }

@@ -78,6 +78,11 @@ var usageStrings = map[string]string{
 
 	"proxy-health-check-path": "The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.",
 
+	"job-enable":           "Enable execution of jobs.",
+	"job-enable-os-env":    "Whether or not to expose the OS's ENV to job code.",
+	"job-code-timeout":     "The timeout in seconds to use for job script code.",
+	"job-code-error-lines": "The number of lines of code to show around script errors in dev mode.",
+
 	"remote-endpoint-http-enabled":       "Whether or not http remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-sqlserver-enabled":  "Whether or not MS SQLServer remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-mysql-enabled":      "Whether or not MySQL remote endpoints are enabled. Defaults to true.",
@@ -89,6 +94,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-push-enabled":       "Whether or not Push remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-redis-enabled":      "Whether or not Redis remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-smtp-enabled":       "Whether or not SMTP remote endpoints are enabled. Defaults to true.",
+	"remote-endpoint-job-enabled":        "Whether or not Job remote endpoints are enabled. Defaults to true.",
 	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to false.",

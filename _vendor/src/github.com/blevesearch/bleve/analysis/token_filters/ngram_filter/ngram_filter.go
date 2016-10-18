@@ -43,7 +43,7 @@ func (s *NgramFilter) Filter(input analysis.TokenStream) analysis.TokenStream {
 			for ngramSize := s.minLength; ngramSize <= s.maxLength; ngramSize++ {
 				// build an ngram of this size starting at i
 				if i+ngramSize <= runeCount {
-					ngramTerm := buildTermFromRunes(runes[i : i+ngramSize])
+					ngramTerm := analysis.BuildTermFromRunes(runes[i : i+ngramSize])
 					token := analysis.Token{
 						Position: token.Position,
 						Start:    token.Start,
@@ -60,31 +60,49 @@ func (s *NgramFilter) Filter(input analysis.TokenStream) analysis.TokenStream {
 	return rv
 }
 
-func buildTermFromRunes(runes []rune) []byte {
-	rv := make([]byte, 0, len(runes)*4)
-	for _, r := range runes {
-		runeBytes := make([]byte, utf8.RuneLen(r))
-		utf8.EncodeRune(runeBytes, r)
-		rv = append(rv, runeBytes...)
-	}
-	return rv
-}
-
 func NgramFilterConstructor(config map[string]interface{}, cache *registry.Cache) (analysis.TokenFilter, error) {
-	minVal, ok := config["min"].(float64)
+	minVal, ok := config["min"]
 	if !ok {
 		return nil, fmt.Errorf("must specify min")
 	}
-	min := int(minVal)
-	maxVal, ok := config["max"].(float64)
+
+	min, err := convertToInt(minVal)
+	if err != nil {
+		return nil, err
+	}
+
+	maxVal, ok := config["max"]
 	if !ok {
 		return nil, fmt.Errorf("must specify max")
 	}
-	max := int(maxVal)
+
+	max, err := convertToInt(maxVal)
+	if err != nil {
+		return nil, err
+	}
 
 	return NewNgramFilter(min, max), nil
 }
 
 func init() {
 	registry.RegisterTokenFilter(Name, NgramFilterConstructor)
+}
+
+// Expects either an int or a flaot64 value
+func convertToInt(val interface{}) (int, error) {
+	var intVal int
+	var floatVal float64
+	var ok bool
+
+	intVal, ok = val.(int)
+	if ok {
+		return intVal, nil
+	}
+
+	floatVal, ok = val.(float64)
+	if ok {
+		return int(floatVal), nil
+	}
+
+	return 0, fmt.Errorf("failed to convert to int value")
 }

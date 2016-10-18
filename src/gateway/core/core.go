@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/core/conversion"
@@ -26,6 +27,7 @@ import (
 )
 
 type Core struct {
+	DevMode    bool
 	HTTPClient *http.Client
 	DBPools    *pools.Pools
 	OwnDb      *sql.DB // in-application datastore
@@ -35,6 +37,45 @@ type Core struct {
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
 	KeyStore   *KeyStore
+	Conf       config.Configuration
+}
+
+func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
+	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
+
+	keyStore := NewKeyStore(ownDb)
+	ownDb.RegisterListener(keyStore)
+
+	pools := pools.MakePools()
+	ownDb.RegisterListener(pools)
+
+	// Configure the object store
+	objectStore, err := store.Configure(conf.Store)
+	if err != nil {
+		logreport.Fatalf("Unable to configure the object store: %v", err)
+	}
+	err = objectStore.Migrate()
+	if err != nil {
+		logreport.Fatalf("Unable to migrate the object store: %v", err)
+	}
+
+	return &Core{
+		DevMode:    conf.DevMode(),
+		HTTPClient: &http.Client{Timeout: httpTimeout},
+		DBPools:    pools,
+		OwnDb:      ownDb,
+		SoapConf:   conf.Soap,
+		DockerConf: conf.Docker,
+		Store:      objectStore,
+		Push:       push.NewPushPool(conf.Push),
+		Smtp:       smtp.NewSmtpPool(),
+		KeyStore:   keyStore,
+		Conf:       conf,
+	}
+}
+
+func (c *Core) Shutdown() {
+	c.Store.Shutdown()
 }
 
 func (s *Core) PrepareRequest(
@@ -82,6 +123,8 @@ func (s *Core) PrepareRequest(
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
 	case model.RemoteEndpointTypeDocker:
 		return request.NewDockerRequest(endpoint, data, s.DockerConf)
+	case model.RemoteEndpointTypeJob:
+		return request.NewJobRequest(s.OwnDb, endpoint, s.ExecuteJob, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

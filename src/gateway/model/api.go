@@ -155,12 +155,17 @@ func FindAPIForAccountIDForSwagger(db *apsql.DB, id, accountID int64) (*API, err
 		return nil, aperrors.NewWrapped("Finding API", err)
 	}
 
-	api.ProxyEndpoints, err = AllProxyEndpointsForAPIIDAndAccountID(db, id, accountID)
+	proxyEndpoint := ProxyEndpoint{
+		AccountID: accountID,
+		APIID:     id,
+		Type:      ProxyEndpointTypeHTTP,
+	}
+	api.ProxyEndpoints, err = proxyEndpoint.All(db)
 	if err != nil {
 		return nil, aperrors.NewWrapped("Fetching proxy endpoints", err)
 	}
 	for index, endpoint := range api.ProxyEndpoints {
-		api.ProxyEndpoints[index], err = FindProxyEndpointForAPIIDAndAccountID(db, endpoint.ID, id, accountID)
+		api.ProxyEndpoints[index], err = endpoint.Find(db)
 		if err != nil {
 			return nil, aperrors.NewWrapped("Fetching proxy endpoint", err)
 		}

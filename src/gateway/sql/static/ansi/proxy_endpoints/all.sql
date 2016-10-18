@@ -1,6 +1,7 @@
 SELECT
-  proxy_endpoints.api_id as api_id,  
+  proxy_endpoints.api_id as api_id,
   proxy_endpoints.id as id,
+  proxy_endpoints.type as type,
   proxy_endpoints.name as name,
   proxy_endpoints.description as description,
   proxy_endpoints.endpoint_group_id as endpoint_group_id,

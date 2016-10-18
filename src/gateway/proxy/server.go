@@ -14,21 +14,16 @@ import (
 	"gateway/admin"
 	"gateway/config"
 	"gateway/core"
-	"gateway/db/pools"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	"gateway/model"
 	apvm "gateway/proxy/vm"
-	"gateway/push"
-	"gateway/smtp"
 	sql "gateway/sql"
-	"gateway/store"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx/types"
 	"github.com/robertkrimen/otto"
-	"github.com/stripe/stripe-go"
+	stripe "github.com/stripe/stripe-go"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -45,9 +40,7 @@ type Server struct {
 }
 
 // NewServer builds a new proxy server.
-func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server {
-	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
-
+func NewServer(conf config.Configuration, ownDb *sql.DB, warp *core.Core) *Server {
 	var source proxyDataSource
 	if conf.Proxy.CacheAPIs {
 		source = newCachingProxyDataSource(ownDb)
@@ -55,24 +48,8 @@ func NewServer(conf config.Configuration, ownDb *sql.DB, s store.Store) *Server 
 		source = newPassthroughProxyDataSource(ownDb)
 	}
 
-	keyStore := core.NewKeyStore(ownDb)
-	ownDb.RegisterListener(keyStore)
-
-	pools := pools.MakePools()
-	ownDb.RegisterListener(pools)
-
 	return &Server{
-		Core: &core.Core{
-			HTTPClient: &http.Client{Timeout: httpTimeout},
-			DBPools:    pools,
-			OwnDb:      ownDb,
-			SoapConf:   conf.Soap,
-			DockerConf: conf.Docker,
-			Store:      s,
-			Push:       push.NewPushPool(conf.Push),
-			Smtp:       smtp.NewSmtpPool(),
-			KeyStore:   keyStore,
-		},
+		Core:      warp,
 		devMode:   conf.DevMode(),
 		proxyConf: conf.Proxy,
 		adminConf: conf.Admin,
@@ -241,7 +218,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		return
 	}
 
-	if err = s.runComponents(vm, proxyEndpoint.Components); err != nil {
+	if err = s.RunComponents(&vm.CoreVM, proxyEndpoint.Components); err != nil {
 		if err.Error() == "JavaScript took too long to execute" {
 			logPrint("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, codeTimeout)
 		}
@@ -385,15 +362,6 @@ func (s *Server) accessLoggingNotFoundHandler() http.Handler {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 		}))
-}
-
-func (s *Server) runStoredJSONScript(vm *apvm.ProxyVM, jsonScript types.JsonText) error {
-	script, err := strconv.Unquote(string(jsonScript))
-	if err != nil || script == "" {
-		return err
-	}
-	_, err = vm.Run(script)
-	return err
 }
 
 func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,

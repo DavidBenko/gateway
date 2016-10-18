@@ -12,6 +12,7 @@ package searchers
 import (
 	"testing"
 
+	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/search"
 )
 
@@ -47,25 +48,25 @@ func TestMatchAllSearch(t *testing.T) {
 			searcher:  allSearcher,
 			queryNorm: 1.0,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "2",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("2"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "4",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("4"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "5",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("5"),
+					Score:           1.0,
 				},
 			},
 		},
@@ -73,25 +74,25 @@ func TestMatchAllSearch(t *testing.T) {
 			searcher:  allSearcher2,
 			queryNorm: 0.8333333,
 			results: []*search.DocumentMatch{
-				&search.DocumentMatch{
-					ID:    "1",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("1"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "2",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("2"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "3",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("3"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "4",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("4"),
+					Score:           1.0,
 				},
-				&search.DocumentMatch{
-					ID:    "5",
-					Score: 1.0,
+				{
+					IndexInternalID: index.IndexInternalID("5"),
+					Score:           1.0,
 				},
 			},
 		},
@@ -109,19 +110,23 @@ func TestMatchAllSearch(t *testing.T) {
 			}
 		}()
 
-		next, err := test.searcher.Next()
+		ctx := &search.SearchContext{
+			DocumentMatchPool: search.NewDocumentMatchPool(test.searcher.DocumentMatchPoolSize(), 0),
+		}
+		next, err := test.searcher.Next(ctx)
 		i := 0
 		for err == nil && next != nil {
 			if i < len(test.results) {
-				if next.ID != test.results[i].ID {
-					t.Errorf("expected result %d to have id %s got %s for test %d", i, test.results[i].ID, next.ID, testIndex)
+				if !next.IndexInternalID.Equals(test.results[i].IndexInternalID) {
+					t.Errorf("expected result %d to have id %s got %s for test %d", i, test.results[i].IndexInternalID, next.IndexInternalID, testIndex)
 				}
 				if !scoresCloseEnough(next.Score, test.results[i].Score) {
 					t.Errorf("expected result %d to have score %v got  %v for test %d", i, test.results[i].Score, next.Score, testIndex)
 					t.Logf("scoring explanation: %s", next.Expl)
 				}
 			}
-			next, err = test.searcher.Next()
+			ctx.DocumentMatchPool.Put(next)
+			next, err = test.searcher.Next(ctx)
 			i++
 		}
 		if err != nil {
