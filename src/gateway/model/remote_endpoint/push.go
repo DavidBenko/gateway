@@ -18,10 +18,14 @@ const (
 	PushTypeOSX  = "osx"
 	PushTypeIOS  = "ios"
 	PushTypeGCM  = "gcm"
+	PushTypeFCM  = "fcm"
 	PushTypeMQTT = "mqtt"
 
 	PushCertificateTypePKCS12 = "application/x-pkcs12"
 	PushCertificateTypeX509   = "application/x-x509-ca-cert"
+
+	GCMService = "https://gcm-http.googleapis.com/gcm/send"
+	FCMService = "https://fcm.googleapis.com/fcm/send"
 )
 
 type Push struct {
@@ -104,10 +108,10 @@ func validateCertificate(cert tls.Certificate, errors aperrors.Errors) {
 	}
 }
 
-func validateKey(key string, errors aperrors.Errors) {
+func validateKey(key string, errors aperrors.Errors, service string) {
 	client := &http.Client{}
 	body := bytes.NewReader([]byte(`{"registration_ids":["ABC"]}`))
-	req, err := http.NewRequest("POST", "https://gcm-http.googleapis.com/gcm/send", body)
+	req, err := http.NewRequest("POST", service, body)
 	if err != nil {
 		errors.Add("api_key", fmt.Sprintf("validate key: %v", err))
 	}
@@ -179,7 +183,14 @@ func (p *Push) Validate() aperrors.Errors {
 				errors.Add("api_key", "must not be blank")
 				continue
 			}
-			validateKey(key, errors)
+			validateKey(key, errors, GCMService)
+		case PushTypeFCM:
+			key := p.PushPlatforms[i].APIKey
+			if key == "" {
+				errors.Add("api_key", "must not be blank")
+				continue
+			}
+			validateKey(key, errors, FCMService)
 		case PushTypeMQTT:
 			if p.PushPlatforms[i].ConnectTimeout == 0 {
 				errors.Add("connect_timeout", "must not be zero")
