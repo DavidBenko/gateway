@@ -20,8 +20,6 @@ import (
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
 	"gateway/stats"
-	statssql "gateway/stats/sql"
-	"gateway/store"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -219,7 +217,11 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 						"remote_endpoint.response.time": proxiedRequestsDuration,
 					},
 				}
-				s.Core.StatsDb.Log(point)
+				statsErr := s.Core.StatsDb.Log(point)
+				if statsErr != nil {
+					logPrint("%s error collecting stats for request: %s",
+						logPrefix, statsErr.Error())
+				}
 			}()
 		}()
 	}

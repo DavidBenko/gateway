@@ -30,7 +30,6 @@ import (
 	"gateway/soap"
 	"gateway/sql"
 	statssql "gateway/stats/sql"
-	"gateway/store"
 	"gateway/version"
 
 	stripe "github.com/stripe/stripe-go"
