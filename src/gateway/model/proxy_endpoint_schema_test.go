@@ -93,6 +93,7 @@ func TestProxyEndpointSchema(t *testing.T) {
 		APIID:         api.ID,
 		EnvironmentID: environment.ID,
 		Name:          "Test",
+		Type:          model.ProxyEndpointTypeHTTP,
 	}
 	transaction("insert proxy endpoint", func(tx *apsql.Tx) error {
 		return proxy_endpoint.Insert(tx)

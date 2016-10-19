@@ -80,6 +80,30 @@ type FacetRequest struct {
 	DateTimeRanges []*dateTimeRange `json:"date_ranges,omitempty"`
 }
 
+func (fr *FacetRequest) Validate() error {
+	if len(fr.NumericRanges) > 0 && len(fr.DateTimeRanges) > 0 {
+		return fmt.Errorf("facet can only conain numeric ranges or date ranges, not both")
+	}
+
+	nrNames := map[string]interface{}{}
+	for _, nr := range fr.NumericRanges {
+		if _, ok := nrNames[nr.Name]; ok {
+			return fmt.Errorf("numeric ranges contains duplicate name '%s'", nr.Name)
+		}
+		nrNames[nr.Name] = struct{}{}
+	}
+
+	drNames := map[string]interface{}{}
+	for _, dr := range fr.DateTimeRanges {
+		if _, ok := drNames[dr.Name]; ok {
+			return fmt.Errorf("date ranges contains duplicate name '%s'", dr.Name)
+		}
+		drNames[dr.Name] = struct{}{}
+	}
+
+	return nil
+}
+
 // NewFacetRequest creates a facet on the specified
 // field that limits the number of entries to the
 // specified size.
@@ -115,6 +139,16 @@ func (fr *FacetRequest) AddNumericRange(name string, min, max *float64) {
 // FacetsRequest groups together all the
 // FacetRequest objects for a single query.
 type FacetsRequest map[string]*FacetRequest
+
+func (fr FacetsRequest) Validate() error {
+	for _, v := range fr {
+		err := v.Validate()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // HighlightRequest describes how field matches
 // should be highlighted.
@@ -152,10 +186,12 @@ func (h *HighlightRequest) AddField(field string) {
 // Highlight describes optional search result
 // highlighting.
 // Fields describes a list of field values which
-// should be retrieved for result documents.
+// should be retrieved for result documents, provided they
+// were stored while indexing.
 // Facets describe the set of facets to be computed.
 // Explain triggers inclusion of additional search
 // result score explanations.
+// Sort describes the desired order for the results to be returned.
 //
 // A special field named "*" can be used to return all fields.
 type SearchRequest struct {
@@ -166,6 +202,16 @@ type SearchRequest struct {
 	Fields    []string          `json:"fields"`
 	Facets    FacetsRequest     `json:"facets"`
 	Explain   bool              `json:"explain"`
+	Sort      search.SortOrder  `json:"sort"`
+}
+
+func (sr *SearchRequest) Validate() error {
+	err := sr.Query.Validate()
+	if err != nil {
+		return err
+	}
+
+	return sr.Facets.Validate()
 }
 
 // AddFacet adds a FacetRequest to this SearchRequest
@@ -176,17 +222,33 @@ func (r *SearchRequest) AddFacet(facetName string, f *FacetRequest) {
 	r.Facets[facetName] = f
 }
 
+// SortBy changes the request to use the requested sort order
+// this form uses the simplified syntax with an array of strings
+// each string can either be a field name
+// or the magic value _id and _score which refer to the doc id and search score
+// any of these values can optionally be prefixed with - to reverse the order
+func (r *SearchRequest) SortBy(order []string) {
+	so := search.ParseSortOrderStrings(order)
+	r.Sort = so
+}
+
+// SortByCustom changes the request to use the requested sort order
+func (r *SearchRequest) SortByCustom(order search.SortOrder) {
+	r.Sort = order
+}
+
 // UnmarshalJSON deserializes a JSON representation of
 // a SearchRequest
 func (r *SearchRequest) UnmarshalJSON(input []byte) error {
 	var temp struct {
 		Q         json.RawMessage   `json:"query"`
-		Size      int               `json:"size"`
+		Size      *int              `json:"size"`
 		From      int               `json:"from"`
 		Highlight *HighlightRequest `json:"highlight"`
 		Fields    []string          `json:"fields"`
 		Facets    FacetsRequest     `json:"facets"`
 		Explain   bool              `json:"explain"`
+		Sort      []json.RawMessage `json:"sort"`
 	}
 
 	err := json.Unmarshal(input, &temp)
@@ -194,7 +256,19 @@ func (r *SearchRequest) UnmarshalJSON(input []byte) error {
 		return err
 	}
 
-	r.Size = temp.Size
+	if temp.Size == nil {
+		r.Size = 10
+	} else {
+		r.Size = *temp.Size
+	}
+	if temp.Sort == nil {
+		r.Sort = search.SortOrder{&search.SortScore{Desc: true}}
+	} else {
+		r.Sort, err = search.ParseSortOrderJSON(temp.Sort)
+		if err != nil {
+			return err
+		}
+	}
 	r.From = temp.From
 	r.Explain = temp.Explain
 	r.Highlight = temp.Highlight
@@ -226,18 +300,70 @@ func NewSearchRequest(q Query) *SearchRequest {
 // NewSearchRequestOptions creates a new SearchRequest
 // for the Query, with the requested size, from
 // and explanation search parameters.
+// By default results are ordered by score, descending.
 func NewSearchRequestOptions(q Query, size, from int, explain bool) *SearchRequest {
 	return &SearchRequest{
 		Query:   q,
 		Size:    size,
 		From:    from,
 		Explain: explain,
+		Sort:    search.SortOrder{&search.SortScore{Desc: true}},
+	}
+}
+
+// IndexErrMap tracks errors with the name of the index where it occurred
+type IndexErrMap map[string]error
+
+// MarshalJSON seralizes the error into a string for JSON consumption
+func (iem IndexErrMap) MarshalJSON() ([]byte, error) {
+	tmp := make(map[string]string, len(iem))
+	for k, v := range iem {
+		tmp[k] = v.Error()
+	}
+	return json.Marshal(tmp)
+}
+
+func (iem IndexErrMap) UnmarshalJSON(data []byte) error {
+	var tmp map[string]string
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return err
+	}
+	for k, v := range tmp {
+		iem[k] = fmt.Errorf("%s", v)
+	}
+	return nil
+}
+
+// SearchStatus is a secion in the SearchResult reporting how many
+// underlying indexes were queried, how many were successful/failed
+// and a map of any errors that were encountered
+type SearchStatus struct {
+	Total      int         `json:"total"`
+	Failed     int         `json:"failed"`
+	Successful int         `json:"successful"`
+	Errors     IndexErrMap `json:"errors,omitempty"`
+}
+
+// Merge will merge together multiple SearchStatuses during a MultiSearch
+func (ss *SearchStatus) Merge(other *SearchStatus) {
+	ss.Total += other.Total
+	ss.Failed += other.Failed
+	ss.Successful += other.Successful
+	if len(other.Errors) > 0 {
+		if ss.Errors == nil {
+			ss.Errors = make(map[string]error)
+		}
+		for otherIndex, otherError := range other.Errors {
+			ss.Errors[otherIndex] = otherError
+		}
 	}
 }
 
 // A SearchResult describes the results of executing
 // a SearchRequest.
 type SearchResult struct {
+	Status   *SearchStatus                  `json:"status"`
 	Request  *SearchRequest                 `json:"request"`
 	Hits     search.DocumentMatchCollection `json:"hits"`
 	Total    uint64                         `json:"total_hits"`
@@ -287,7 +413,9 @@ func (sr *SearchResult) String() string {
 	return rv
 }
 
+// Merge will merge together multiple SearchResults during a MultiSearch
 func (sr *SearchResult) Merge(other *SearchResult) {
+	sr.Status.Merge(other.Status)
 	sr.Hits = append(sr.Hits, other.Hits...)
 	sr.Total += other.Total
 	if other.MaxScore > sr.MaxScore {

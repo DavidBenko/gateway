@@ -21,12 +21,12 @@ import (
 // if your application relies on them, you're doing something wrong
 // they may change or be removed at any time
 
-func (udc *UpsideDownCouch) dumpPrefix(kvreader store.KVReader, rv chan interface{}, prefix []byte) {
+func dumpPrefix(kvreader store.KVReader, rv chan interface{}, prefix []byte) {
 	start := prefix
 	if start == nil {
 		start = []byte{0}
 	}
-	it := kvreader.Iterator(start)
+	it := kvreader.PrefixIterator(start)
 	defer func() {
 		cerr := it.Close()
 		if cerr != nil {
@@ -35,12 +35,11 @@ func (udc *UpsideDownCouch) dumpPrefix(kvreader store.KVReader, rv chan interfac
 	}()
 	key, val, valid := it.Current()
 	for valid {
-
-		if prefix != nil && !bytes.HasPrefix(key, prefix) {
-			break
-		}
-
-		row, err := ParseFromKeyValue(key, val)
+		ck := make([]byte, len(key))
+		copy(ck, key)
+		cv := make([]byte, len(val))
+		copy(cv, val)
+		row, err := ParseFromKeyValue(ck, cv)
 		if err != nil {
 			rv <- err
 			return
@@ -52,48 +51,46 @@ func (udc *UpsideDownCouch) dumpPrefix(kvreader store.KVReader, rv chan interfac
 	}
 }
 
-func (udc *UpsideDownCouch) DumpAll() chan interface{} {
-	rv := make(chan interface{})
-	go func() {
-		defer close(rv)
-
-		// start an isolated reader for use during the dump
-		kvreader, err := udc.store.Reader()
+func dumpRange(kvreader store.KVReader, rv chan interface{}, start, end []byte) {
+	it := kvreader.RangeIterator(start, end)
+	defer func() {
+		cerr := it.Close()
+		if cerr != nil {
+			rv <- cerr
+		}
+	}()
+	key, val, valid := it.Current()
+	for valid {
+		ck := make([]byte, len(key))
+		copy(ck, key)
+		cv := make([]byte, len(val))
+		copy(cv, val)
+		row, err := ParseFromKeyValue(ck, cv)
 		if err != nil {
 			rv <- err
 			return
 		}
-		defer func() {
-			cerr := kvreader.Close()
-			if cerr != nil {
-				rv <- cerr
-			}
-		}()
+		rv <- row
 
-		udc.dumpPrefix(kvreader, rv, nil)
+		it.Next()
+		key, val, valid = it.Current()
+	}
+}
+
+func (i *IndexReader) DumpAll() chan interface{} {
+	rv := make(chan interface{})
+	go func() {
+		defer close(rv)
+		dumpRange(i.kvreader, rv, nil, nil)
 	}()
 	return rv
 }
 
-func (udc *UpsideDownCouch) DumpFields() chan interface{} {
+func (i *IndexReader) DumpFields() chan interface{} {
 	rv := make(chan interface{})
 	go func() {
 		defer close(rv)
-
-		// start an isolated reader for use during the dump
-		kvreader, err := udc.store.Reader()
-		if err != nil {
-			rv <- err
-			return
-		}
-		defer func() {
-			cerr := kvreader.Close()
-			if cerr != nil {
-				rv <- cerr
-			}
-		}()
-
-		udc.dumpPrefix(kvreader, rv, []byte{'f'})
+		dumpPrefix(i.kvreader, rv, []byte{'f'})
 	}()
 	return rv
 }
@@ -105,26 +102,15 @@ func (k keyset) Swap(i, j int)      { k[i], k[j] = k[j], k[i] }
 func (k keyset) Less(i, j int) bool { return bytes.Compare(k[i], k[j]) < 0 }
 
 // DumpDoc returns all rows in the index related to this doc id
-func (udc *UpsideDownCouch) DumpDoc(id string) chan interface{} {
+func (i *IndexReader) DumpDoc(id string) chan interface{} {
+	idBytes := []byte(id)
+
 	rv := make(chan interface{})
 
 	go func() {
 		defer close(rv)
 
-		// start an isolated reader for use during the dump
-		kvreader, err := udc.store.Reader()
-		if err != nil {
-			rv <- err
-			return
-		}
-		defer func() {
-			cerr := kvreader.Close()
-			if cerr != nil {
-				rv <- cerr
-			}
-		}()
-
-		back, err := udc.backIndexRowForDoc(kvreader, id)
+		back, err := backIndexRowForDoc(i.kvreader, []byte(id))
 		if err != nil {
 			rv <- err
 			return
@@ -137,19 +123,19 @@ func (udc *UpsideDownCouch) DumpDoc(id string) chan interface{} {
 		// build sorted list of term keys
 		keys := make(keyset, 0)
 		for _, entry := range back.termEntries {
-			tfr := NewTermFrequencyRow([]byte(*entry.Term), uint16(*entry.Field), id, 0, 0)
+			tfr := NewTermFrequencyRow([]byte(*entry.Term), uint16(*entry.Field), idBytes, 0, 0)
 			key := tfr.Key()
 			keys = append(keys, key)
 		}
 		sort.Sort(keys)
 
 		// first add all the stored rows
-		storedRowPrefix := NewStoredRow(id, 0, []uint64{}, 'x', []byte{}).ScanPrefixForDoc()
-		udc.dumpPrefix(kvreader, rv, storedRowPrefix)
+		storedRowPrefix := NewStoredRow(idBytes, 0, []uint64{}, 'x', []byte{}).ScanPrefixForDoc()
+		dumpPrefix(i.kvreader, rv, storedRowPrefix)
 
 		// now walk term keys in order and add them as well
 		if len(keys) > 0 {
-			it := kvreader.Iterator(keys[0])
+			it := i.kvreader.RangeIterator(keys[0], nil)
 			defer func() {
 				cerr := it.Close()
 				if cerr != nil {
@@ -163,7 +149,11 @@ func (udc *UpsideDownCouch) DumpDoc(id string) chan interface{} {
 				if !valid {
 					break
 				}
-				row, err := ParseFromKeyValue(rkey, rval)
+				rck := make([]byte, len(rkey))
+				copy(rck, key)
+				rcv := make([]byte, len(rval))
+				copy(rcv, rval)
+				row, err := ParseFromKeyValue(rck, rcv)
 				if err != nil {
 					rv <- err
 					return

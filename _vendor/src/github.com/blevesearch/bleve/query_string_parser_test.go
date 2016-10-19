@@ -11,6 +11,7 @@ package bleve
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,7 @@ func TestQuerySyntaxParserValid(t *testing.T) {
 	fivePointOh := 5.0
 	theTruth := true
 	theFalsehood := false
+	theDate := "2006-01-02T15:04:05Z07:00"
 	tests := []struct {
 		input   string
 		result  Query
@@ -324,17 +326,222 @@ func TestQuerySyntaxParserValid(t *testing.T) {
 				},
 				nil),
 		},
+		{
+			input:   `field:>"2006-01-02T15:04:05Z07:00"`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewDateRangeInclusiveQuery(&theDate, nil, &theFalsehood, nil).SetField("field"),
+				},
+				nil),
+		},
+		{
+			input:   `field:>="2006-01-02T15:04:05Z07:00"`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewDateRangeInclusiveQuery(&theDate, nil, &theTruth, nil).SetField("field"),
+				},
+				nil),
+		},
+		{
+			input:   `field:<"2006-01-02T15:04:05Z07:00"`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewDateRangeInclusiveQuery(nil, &theDate, nil, &theFalsehood).SetField("field"),
+				},
+				nil),
+		},
+		{
+			input:   `field:<="2006-01-02T15:04:05Z07:00"`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewDateRangeInclusiveQuery(nil, &theDate, nil, &theTruth).SetField("field"),
+				},
+				nil),
+		},
+		{
+			input:   `/mar.*ty/`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewRegexpQuery("mar.*ty"),
+				},
+				nil),
+		},
+		{
+			input:   `name:/mar.*ty/`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewRegexpQuery("mar.*ty").SetField("name"),
+				},
+				nil),
+		},
+		{
+			input:   `mart*`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewWildcardQuery("mart*"),
+				},
+				nil),
+		},
+		{
+			input:   `name:mart*`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewWildcardQuery("mart*").SetField("name"),
+				},
+				nil),
+		},
+
+		// tests for escaping
+
+		// escape : as field delimeter
+		{
+			input:   `name\:marty`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery("name:marty"),
+				},
+				nil),
+		},
+		// first colon delimiter, second escaped
+		{
+			input:   `name:marty\:couchbase`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery("marty:couchbase").SetField("name"),
+				},
+				nil),
+		},
+		// escape space, single arguemnt to match query
+		{
+			input:   `marty\ couchbase`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery("marty couchbase"),
+				},
+				nil),
+		},
+		// escape leading plus, not a must clause
+		{
+			input:   `\+marty`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery("+marty"),
+				},
+				nil),
+		},
+		// escape leading minus, not a must not clause
+		{
+			input:   `\-marty`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery("-marty"),
+				},
+				nil),
+		},
+		// escape quote inside of phrase
+		{
+			input:   `"what does \"quote\" mean"`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchPhraseQuery(`what does "quote" mean`),
+				},
+				nil),
+		},
+		// escaping an unsupported character retains backslash
+		{
+			input:   `can\ i\ escap\e`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery(`can i escap\e`),
+				},
+				nil),
+		},
+		// leading spaces
+		{
+			input:   `   what`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery(`what`),
+				},
+				nil),
+		},
+		// no boost value defaults to 1
+		{
+			input:   `term^`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery(`term`),
+				},
+				nil),
+		},
+		// weird lexer cases, something that starts like a number
+		// but contains escape and ends up as string
+		{
+			input:   `3.0\:`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery(`3.0:`),
+				},
+				nil),
+		},
+		{
+			input:   `3.0\a`,
+			mapping: NewIndexMapping(),
+			result: NewBooleanQuery(
+				nil,
+				[]Query{
+					NewMatchQuery(`3.0\a`),
+				},
+				nil),
+		},
 	}
 
 	// turn on lexer debugging
 	// debugLexer = true
-	// logger = log.New(os.Stderr, "bleve", log.LstdFlags)
+	// debugParser = true
+	// logger = log.New(os.Stderr, "bleve ", log.LstdFlags)
 
 	for _, test := range tests {
 
-		q, err := parseQuerySyntax(test.input, test.mapping)
+		q, err := parseQuerySyntax(test.input)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(q, test.result) {
 			t.Errorf("Expected %#v, got %#v: for %s", test.result, q, test.input)
@@ -358,6 +565,11 @@ func TestQuerySyntaxParserInvalid(t *testing.T) {
 		{"field:~text"},
 		{"field:^text"},
 		{"field::text"},
+		{`"this is the time`},
+		{`cat^3\:`},
+		{`cat^3\0`},
+		{`cat~3\:`},
+		{`cat~3\0`},
 	}
 
 	// turn on lexer debugging
@@ -365,9 +577,29 @@ func TestQuerySyntaxParserInvalid(t *testing.T) {
 	// logger = log.New(os.Stderr, "bleve", log.LstdFlags)
 
 	for _, test := range tests {
-		_, err := parseQuerySyntax(test.input, NewIndexMapping())
+		_, err := parseQuerySyntax(test.input)
 		if err == nil {
 			t.Errorf("expected error, got nil for `%s`", test.input)
 		}
 	}
+}
+
+func BenchmarkLexer(b *testing.B) {
+
+	for n := 0; n < b.N; n++ {
+		var tokenTypes []int
+		var tokens []yySymType
+		r := strings.NewReader(`+field4:"test phrase 1"`)
+		l := newQueryStringLex(r)
+		var lval yySymType
+		rv := l.Lex(&lval)
+		for rv > 0 {
+			tokenTypes = append(tokenTypes, rv)
+			tokens = append(tokens, lval)
+			lval.s = ""
+			lval.n = 0
+			rv = l.Lex(&lval)
+		}
+	}
+
 }

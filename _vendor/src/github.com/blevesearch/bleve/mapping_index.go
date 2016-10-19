@@ -11,18 +11,22 @@ package bleve
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/blevesearch/bleve/analysis"
+	"github.com/blevesearch/bleve/analysis/analyzers/standard_analyzer"
+	"github.com/blevesearch/bleve/analysis/datetime_parsers/datetime_optional"
 	"github.com/blevesearch/bleve/document"
 	"github.com/blevesearch/bleve/registry"
 )
 
+var MappingJSONStrict = false
+
 const defaultTypeField = "_type"
 const defaultType = "_default"
 const defaultField = "_all"
-const defaultAnalyzer = "standard"
-const defaultDateTimeParser = "dateTimeOptional"
-const defaultByteArrayConverter = "json"
+const defaultAnalyzer = standard_analyzer.Name
+const defaultDateTimeParser = datetime_optional.Name
 
 type customAnalysis struct {
 	CharFilters     map[string]map[string]interface{} `json:"char_filters,omitempty"`
@@ -44,7 +48,7 @@ func (c *customAnalysis) registerAll(i *IndexMapping) error {
 	if len(c.Tokenizers) > 0 {
 		// put all the names in map tracking work to do
 		todo := map[string]struct{}{}
-		for name, _ := range c.Tokenizers {
+		for name := range c.Tokenizers {
 			todo[name] = struct{}{}
 		}
 		registered := 1
@@ -53,7 +57,7 @@ func (c *customAnalysis) registerAll(i *IndexMapping) error {
 		for len(todo) > 0 && registered > 0 {
 			registered = 0
 			errs = []error{}
-			for name, _ := range todo {
+			for name := range todo {
 				config := c.Tokenizers[name]
 				_, err := i.cache.DefineTokenizer(name, config)
 				if err != nil {
@@ -123,7 +127,8 @@ type IndexMapping struct {
 	DefaultAnalyzer       string                      `json:"default_analyzer"`
 	DefaultDateTimeParser string                      `json:"default_datetime_parser"`
 	DefaultField          string                      `json:"default_field"`
-	ByteArrayConverter    string                      `json:"byte_array_converter"`
+	StoreDynamic          bool                        `json:"store_dynamic"`
+	IndexDynamic          bool                        `json:"index_dynamic"`
 	CustomAnalysis        *customAnalysis             `json:"analysis,omitempty"`
 	cache                 *registry.Cache
 }
@@ -168,7 +173,35 @@ func (im *IndexMapping) AddCustomTokenFilter(name string, config map[string]inte
 	return nil
 }
 
-// AddCustomAnalyzer defines a custom analyzer for use in this mapping
+// AddCustomAnalyzer defines a custom analyzer for use in this mapping. The
+// config map must have a "type" string entry to resolve the analyzer
+// constructor. The constructor is invoked with the remaining entries and
+// returned analyzer is registered in the IndexMapping.
+//
+// bleve comes with predefined analyzers, like
+// github.com/blevesearch/bleve/analysis/analyzers/custom_analyzer. They are
+// available only if their package is imported by client code. To achieve this,
+// use their metadata to fill configuration entries:
+//
+//   import (
+//       "github.com/blevesearch/bleve/analysis/analyzers/custom_analyzer"
+//       "github.com/blevesearch/bleve/analysis/char_filters/html_char_filter"
+//       "github.com/blevesearch/bleve/analysis/token_filters/lower_case_filter"
+//       "github.com/blevesearch/bleve/analysis/tokenizers/unicode"
+//   )
+//
+//   m := bleve.NewIndexMapping()
+//   err := m.AddCustomAnalyzer("html", map[string]interface{}{
+//       "type": custom_analyzer.Name,
+//       "char_filters": []string{
+//           html_char_filter.Name,
+//       },
+//       "tokenizer":     unicode.Name,
+//       "token_filters": []string{
+//           lower_case_filter.Name,
+//           ...
+//       },
+//   })
 func (im *IndexMapping) AddCustomAnalyzer(name string, config map[string]interface{}) error {
 	_, err := im.cache.DefineAnalyzer(name, config)
 	if err != nil {
@@ -198,7 +231,8 @@ func NewIndexMapping() *IndexMapping {
 		DefaultAnalyzer:       defaultAnalyzer,
 		DefaultDateTimeParser: defaultDateTimeParser,
 		DefaultField:          defaultField,
-		ByteArrayConverter:    defaultByteArrayConverter,
+		IndexDynamic:          IndexDynamic,
+		StoreDynamic:          StoreDynamic,
 		CustomAnalysis:        newCustomAnalysis(),
 		cache:                 registry.NewCache(),
 	}
@@ -206,7 +240,7 @@ func NewIndexMapping() *IndexMapping {
 
 // Validate will walk the entire structure ensuring the following
 // explicitly named and default analyzers can be built
-func (im *IndexMapping) validate() error {
+func (im *IndexMapping) Validate() error {
 	_, err := im.cache.AnalyzerNamed(im.DefaultAnalyzer)
 	if err != nil {
 		return err
@@ -215,12 +249,12 @@ func (im *IndexMapping) validate() error {
 	if err != nil {
 		return err
 	}
-	err = im.DefaultMapping.validate(im.cache)
+	err = im.DefaultMapping.Validate(im.cache)
 	if err != nil {
 		return err
 	}
 	for _, docMapping := range im.TypeMapping {
-		err = docMapping.validate(im.cache)
+		err = docMapping.Validate(im.cache)
 		if err != nil {
 			return err
 		}
@@ -241,86 +275,88 @@ func (im *IndexMapping) mappingForType(docType string) *DocumentMapping {
 	return docMapping
 }
 
-// UnmarshalJSON deserializes a JSON representation of the IndexMapping
+// UnmarshalJSON offers custom unmarshaling with optional strict validation
 func (im *IndexMapping) UnmarshalJSON(data []byte) error {
-	var tmp struct {
-		TypeMapping           map[string]*DocumentMapping `json:"types"`
-		DefaultMapping        *DocumentMapping            `json:"default_mapping"`
-		TypeField             string                      `json:"type_field"`
-		DefaultType           string                      `json:"default_type"`
-		DefaultAnalyzer       string                      `json:"default_analyzer"`
-		DefaultDateTimeParser string                      `json:"default_datetime_parser"`
-		DefaultField          string                      `json:"default_field"`
-		ByteArrayConverter    string                      `json:"byte_array_converter"`
-		CustomAnalysis        *customAnalysis             `json:"analysis"`
-	}
+
+	var tmp map[string]json.RawMessage
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
 		return err
 	}
 
+	// set defaults for fields which might have been omitted
 	im.cache = registry.NewCache()
-
 	im.CustomAnalysis = newCustomAnalysis()
-	if tmp.CustomAnalysis != nil {
-		if tmp.CustomAnalysis.CharFilters != nil {
-			im.CustomAnalysis.CharFilters = tmp.CustomAnalysis.CharFilters
-		}
-		if tmp.CustomAnalysis.Tokenizers != nil {
-			im.CustomAnalysis.Tokenizers = tmp.CustomAnalysis.Tokenizers
-		}
-		if tmp.CustomAnalysis.TokenMaps != nil {
-			im.CustomAnalysis.TokenMaps = tmp.CustomAnalysis.TokenMaps
-		}
-		if tmp.CustomAnalysis.TokenFilters != nil {
-			im.CustomAnalysis.TokenFilters = tmp.CustomAnalysis.TokenFilters
-		}
-		if tmp.CustomAnalysis.Analyzers != nil {
-			im.CustomAnalysis.Analyzers = tmp.CustomAnalysis.Analyzers
-		}
-		if tmp.CustomAnalysis.DateTimeParsers != nil {
-			im.CustomAnalysis.DateTimeParsers = tmp.CustomAnalysis.DateTimeParsers
-		}
-	}
-
 	im.TypeField = defaultTypeField
-	if tmp.TypeField != "" {
-		im.TypeField = tmp.TypeField
-	}
-
 	im.DefaultType = defaultType
-	if tmp.DefaultType != "" {
-		im.DefaultType = tmp.DefaultType
-	}
-
 	im.DefaultAnalyzer = defaultAnalyzer
-	if tmp.DefaultAnalyzer != "" {
-		im.DefaultAnalyzer = tmp.DefaultAnalyzer
-	}
-
 	im.DefaultDateTimeParser = defaultDateTimeParser
-	if tmp.DefaultDateTimeParser != "" {
-		im.DefaultDateTimeParser = tmp.DefaultDateTimeParser
-	}
-
 	im.DefaultField = defaultField
-	if tmp.DefaultField != "" {
-		im.DefaultField = tmp.DefaultField
-	}
-
-	im.ByteArrayConverter = defaultByteArrayConverter
-	if tmp.ByteArrayConverter != "" {
-		im.ByteArrayConverter = tmp.ByteArrayConverter
-	}
-
 	im.DefaultMapping = NewDocumentMapping()
-	if tmp.DefaultMapping != nil {
-		im.DefaultMapping = tmp.DefaultMapping
+	im.TypeMapping = make(map[string]*DocumentMapping)
+	im.StoreDynamic = StoreDynamic
+	im.IndexDynamic = IndexDynamic
+
+	var invalidKeys []string
+	for k, v := range tmp {
+		switch k {
+		case "analysis":
+			err := json.Unmarshal(v, &im.CustomAnalysis)
+			if err != nil {
+				return err
+			}
+		case "type_field":
+			err := json.Unmarshal(v, &im.TypeField)
+			if err != nil {
+				return err
+			}
+		case "default_type":
+			err := json.Unmarshal(v, &im.DefaultType)
+			if err != nil {
+				return err
+			}
+		case "default_analyzer":
+			err := json.Unmarshal(v, &im.DefaultAnalyzer)
+			if err != nil {
+				return err
+			}
+		case "default_datetime_parser":
+			err := json.Unmarshal(v, &im.DefaultDateTimeParser)
+			if err != nil {
+				return err
+			}
+		case "default_field":
+			err := json.Unmarshal(v, &im.DefaultField)
+			if err != nil {
+				return err
+			}
+		case "default_mapping":
+			err := json.Unmarshal(v, &im.DefaultMapping)
+			if err != nil {
+				return err
+			}
+		case "types":
+			err := json.Unmarshal(v, &im.TypeMapping)
+			if err != nil {
+				return err
+			}
+		case "store_dynamic":
+			err := json.Unmarshal(v, &im.StoreDynamic)
+			if err != nil {
+				return err
+			}
+		case "index_dynamic":
+			err := json.Unmarshal(v, &im.IndexDynamic)
+			if err != nil {
+				return err
+			}
+		default:
+			invalidKeys = append(invalidKeys, k)
+		}
 	}
 
-	im.TypeMapping = make(map[string]*DocumentMapping, len(tmp.TypeMapping))
-	for typeName, typeDocMapping := range tmp.TypeMapping {
-		im.TypeMapping[typeName] = typeDocMapping
+	if MappingJSONStrict && len(invalidKeys) > 0 {
+		return fmt.Errorf("index mapping contains invalid keys: %v", invalidKeys)
 	}
 
 	err = im.CustomAnalysis.registerAll(im)
@@ -332,7 +368,7 @@ func (im *IndexMapping) UnmarshalJSON(data []byte) error {
 }
 
 func (im *IndexMapping) determineType(data interface{}) string {
-	// first see if the object implements Identifier
+	// first see if the object implements Classifier
 	classifier, ok := data.(Classifier)
 	if ok {
 		return classifier.Type()
@@ -348,36 +384,18 @@ func (im *IndexMapping) determineType(data interface{}) string {
 }
 
 func (im *IndexMapping) mapDocument(doc *document.Document, data interface{}) error {
-	// see if the top level object is a byte array, and possibly run through a converter
-	byteArrayData, ok := data.([]byte)
-	if ok {
-		byteArrayConverterConstructor := registry.ByteArrayConverterByName(im.ByteArrayConverter)
-		if byteArrayConverterConstructor != nil {
-			byteArrayConverter, err := byteArrayConverterConstructor(nil, nil)
-			if err == nil {
-				convertedData, err := byteArrayConverter.Convert(byteArrayData)
-				if err != nil {
-					return err
-				}
-				data = convertedData
-			} else {
-				logger.Printf("error creating byte array converter: %v", err)
-			}
-		} else {
-			logger.Printf("no byte array converter named: %s", im.ByteArrayConverter)
-		}
-	}
-
 	docType := im.determineType(data)
 	docMapping := im.mappingForType(docType)
 	walkContext := im.newWalkContext(doc, docMapping)
-	docMapping.walkDocument(data, []string{}, []uint64{}, walkContext)
+	if docMapping.Enabled {
+		docMapping.walkDocument(data, []string{}, []uint64{}, walkContext)
 
-	// see if the _all field was disabled
-	allMapping := docMapping.documentMappingForPath("_all")
-	if allMapping == nil || (allMapping.Enabled != false) {
-		field := document.NewCompositeFieldWithIndexingOptions("_all", true, []string{}, walkContext.excludedFromAll, document.IndexField|document.IncludeTermVectors)
-		doc.AddField(field)
+		// see if the _all field was disabled
+		allMapping := docMapping.documentMappingForPath("_all")
+		if allMapping == nil || (allMapping.Enabled != false) {
+			field := document.NewCompositeFieldWithIndexingOptions("_all", true, []string{}, walkContext.excludedFromAll, document.IndexField|document.IncludeTermVectors)
+			doc.AddField(field)
+		}
 	}
 
 	return nil
@@ -475,4 +493,9 @@ func (im *IndexMapping) AnalyzeText(analyzerName string, text []byte) (analysis.
 		return nil, err
 	}
 	return analyzer.Analyze(text), nil
+}
+
+// FieldAnalyzer returns the name of the analyzer used on a field.
+func (im *IndexMapping) FieldAnalyzer(field string) string {
+	return im.analyzerNameForPath(field)
 }

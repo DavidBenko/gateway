@@ -16,8 +16,8 @@ import (
 
 const Name = "html"
 
-const defaultHTMLHighlightBefore = "<b>"
-const defaultHTMLHighlightAfter = "</b>"
+const defaultHTMLHighlightBefore = "<mark>"
+const defaultHTMLHighlightAfter = "</mark>"
 
 type FragmentFormatter struct {
 	before string
@@ -36,6 +36,10 @@ func (a *FragmentFormatter) Format(f *highlight.Fragment, orderedTermLocations h
 	curr := f.Start
 	for _, termLocation := range orderedTermLocations {
 		if termLocation == nil {
+			continue
+		}
+		// make sure the array positions match
+		if !highlight.SameArrayPositions(f.ArrayPositions, termLocation.ArrayPositions) {
 			continue
 		}
 		if termLocation.Start < curr {

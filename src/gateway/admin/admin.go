@@ -9,11 +9,12 @@ import (
 	"gateway/core"
 	aphttp "gateway/http"
 	"gateway/logreport"
-	//"gateway/model"
+	"gateway/model"
 	sql "gateway/sql"
 	"gateway/store"
+
 	"github.com/gorilla/mux"
-	"github.com/stripe/stripe-go"
+	stripe "github.com/stripe/stripe-go"
 )
 
 var (
@@ -37,7 +38,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 		// siteAdmin is additionally protected for the site owner
 		siteAdmin := aphttp.NewHTTPBasicRouter(conf.Username, conf.Password, conf.Realm, admin)
 		RouteResource(&AccountsController{}, "/accounts", siteAdmin, db, conf)
-		RouteResource(&UsersController{BaseController{accountID: accountIDFromPath, userID: userIDDummy,
+		RouteResource(&UsersController{BaseController: BaseController{accountID: accountIDFromPath, userID: userIDDummy,
 			auth: aphttp.AuthTypeSite}}, "/accounts/{accountID}/users", siteAdmin, db, conf)
 		// plans allow users to see plans when registering
 		RouteResource(&PlansController{}, "/plans", admin, db, conf)
@@ -74,14 +75,18 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteLogStream(stream, "/logs/socket", authAdmin)
 	RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
 	RouteLogStream(stream, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs/socket", authAdmin)
+	RouteLogStream(stream, "/apis/{apiID}/jobs/{endpointID}/logs/socket", authAdmin)
+	RouteLogStream(stream, "/timers/{timerID}/logs/socket", authAdmin)
 
 	search := &LogSearchController{configuration.Elastic, base}
 	RouteLogSearch(search, "/logs", authAdmin, db, conf)
 	RouteLogSearch(search, "/apis/{apiID}/logs", authAdmin, db, conf)
 	RouteLogSearch(search, "/apis/{apiID}/proxy_endpoints/{endpointID}/logs", authAdmin, db, conf)
+	RouteLogSearch(search, "/apis/{apiID}/jobs/{endpointID}/logs", authAdmin, db, conf)
+	RouteLogSearch(search, "/timers/{timerID}/logs", authAdmin, db, conf)
 
-	RouteSingularResource(&AccountController{base}, "/account", authAdminUser, db, conf)
-	RouteResource(&UsersController{base}, "/users", authAdminUser, db, conf)
+	RouteSingularResource(&AccountController{BaseController: base}, "/account", authAdminUser, db, conf)
+	RouteResource(&UsersController{BaseController: base}, "/users", authAdminUser, db, conf)
 	if conf.EnableRegistration {
 		RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
 		RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
@@ -93,7 +98,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 		RouteSubscriptions(&SubscriptionsController{base}, "/subscriptions", admin, db, conf)
 	}
 
-	apisController := &APIsController{base}
+	apisController := &APIsController{BaseController: base}
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
 	RouteResource(apisController, "/apis", authAdmin, db, conf)
 
@@ -101,29 +106,35 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteTest(testController, "/apis/{apiID}/proxy_endpoints/{endpointID}/tests/{testID}/test", authAdmin, db, conf)
 
 	RouteKeys(&KeysController{base}, "/keys", authAdmin, db, conf)
-	RouteResource(&HostsController{base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
-	RouteResource(&EnvironmentsController{base}, "/apis/{apiID}/environments", authAdmin, db, conf)
-	RouteResource(&LibrariesController{base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
-	RouteResource(&EndpointGroupsController{base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
-	RouteResource(&RemoteEndpointsController{base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
-	RouteRootRemoteEndpoints(&RootRemoteEndpointsController{base}, "/remote_endpoints", authAdmin, db, conf)
-	RouteResource(&ProxyEndpointsController{base}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
-	RouteResource(&ProxyEndpointSchemasController{base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
-	scratchPadController := &MetaScratchPadsController{ScratchPadsController{base}, c}
+	RouteSketch(&SketchController{base}, "/sketch", authAdmin, db, conf)
+	RouteResource(&HostsController{BaseController: base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
+	RouteResource(&EnvironmentsController{BaseController: base}, "/apis/{apiID}/environments", authAdmin, db, conf)
+	RouteRootEnvironments(&RootEnvironmentsController{BaseController: base}, "/environments", authAdmin, db, conf)
+	RouteResource(&LibrariesController{BaseController: base}, "/apis/{apiID}/libraries", authAdmin, db, conf)
+	RouteResource(&EndpointGroupsController{BaseController: base}, "/apis/{apiID}/endpoint_groups", authAdmin, db, conf)
+	RouteRootEndpointGroups(&RootEndpointGroupsController{BaseController: base}, "/endpoint_groups", authAdmin, db, conf)
+	RouteResource(&RemoteEndpointsController{BaseController: base}, "/apis/{apiID}/remote_endpoints", authAdmin, db, conf)
+	RouteRootRemoteEndpoints(&RootRemoteEndpointsController{BaseController: base}, "/remote_endpoints", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointsController{BaseController: base, Type: model.ProxyEndpointTypeHTTP}, "/apis/{apiID}/proxy_endpoints", authAdmin, db, conf)
+	RouteRootJobs(&RootJobsController{BaseController: base}, "/jobs", authAdmin, db, conf)
+	RouteResource(&JobsController{BaseController: base, Type: model.ProxyEndpointTypeJob}, "/apis/{apiID}/jobs", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointSchemasController{BaseController: base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
+	scratchPadController := &MetaScratchPadsController{ScratchPadsController{BaseController: base}, c}
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
-	pushChannelsController := &MetaPushChannelsController{PushChannelsController{base}, c}
+	pushChannelsController := &MetaPushChannelsController{PushChannelsController{BaseController: base}, c}
 	RoutePushChannels(pushChannelsController, "/push_channels", authAdmin, db, conf)
-	RouteResource(&PushChannelMessagesController{base}, "/push_channels/{pushChannelID}/push_channel_messages", authAdmin, db, conf)
-	RouteResource(&PushDevicesController{base}, "/push_channels/{pushChannelID}/push_devices", authAdmin, db, conf)
-	RouteResource(&PushMessagesController{base}, "/push_channels/{pushChannelID}/push_devices/{pushDeviceID}/push_messages", authAdmin, db, conf)
-	RouteResource(&PushDevicesController{base}, "/push_devices", authAdmin, db, conf)
-	RouteResource(&PushChannelMessagesController{base}, "/push_channel_messages", authAdmin, db, conf)
-	RouteResource(&SharedComponentsController{base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
+	RouteResource(&PushChannelMessagesController{BaseController: base}, "/push_channels/{pushChannelID}/push_channel_messages", authAdmin, db, conf)
+	RouteResource(&PushDevicesController{BaseController: base}, "/push_channels/{pushChannelID}/push_devices", authAdmin, db, conf)
+	RouteResource(&PushMessagesController{BaseController: base}, "/push_channels/{pushChannelID}/push_devices/{pushDeviceID}/push_messages", authAdmin, db, conf)
+	RouteResource(&PushDevicesController{BaseController: base}, "/push_devices", authAdmin, db, conf)
+	RouteResource(&PushChannelMessagesController{BaseController: base}, "/push_channel_messages", authAdmin, db, conf)
+	RouteResource(&SharedComponentsController{BaseController: base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
+	RouteResource(&TimersController{BaseController: base}, "/timers", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)
 
-	RouteResource(&RemoteEndpointTypesController{base}, "/remote_endpoint_types", authAdmin, db, conf)
+	RouteResource(&RemoteEndpointTypesController{BaseController: base}, "/remote_endpoint_types", authAdmin, db, conf)
 
 	// static assets for self-hosted systems
 	admin.Handle("/{path:.*}", http.HandlerFunc(adminStaticFileHandler(conf)))
@@ -145,7 +156,6 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	matcher := newHostMatcher(db)
 	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
 	RoutePush(&PushController{matcher, c}, "/push", public, db, conf)
-
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

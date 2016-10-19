@@ -36,6 +36,7 @@ const (
 	ACCOUNT_REGEXP  = ".*\\[act ([0-9]{1,})\\].*"
 	API_REGEXP      = ".*\\[api ([0-9]{1,})\\].*"
 	ENDPOINT_REGEXP = ".*\\[end ([0-9]{1,})\\].*"
+	TIMER_REGEXP    = ".*\\[timer ([0-9]{1,})\\].*"
 )
 
 type ElasticMessage struct {
@@ -44,6 +45,7 @@ type ElasticMessage struct {
 	Account  int    `json:"account"`
 	API      int    `json:"api"`
 	Endpoint int    `json:"endpoint"`
+	Timer    int    `json:"timer"`
 }
 
 func NewElasticMessage(message string) *ElasticMessage {
@@ -52,8 +54,8 @@ func NewElasticMessage(message string) *ElasticMessage {
 		return nil
 	}
 
-	var properties [3]int
-	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP} {
+	var properties [4]int
+	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP, TIMER_REGEXP} {
 		matches := regexp.MustCompile(re).FindStringSubmatch(message)
 		if len(matches) == 2 {
 			properties[i], _ = strconv.Atoi(matches[1])
@@ -68,6 +70,7 @@ func NewElasticMessage(message string) *ElasticMessage {
 		Account:  properties[0],
 		API:      properties[1],
 		Endpoint: properties[2],
+		Timer:    properties[3],
 	}
 }
 
@@ -162,6 +165,7 @@ type BleveMessage struct {
 	Account  float64   `json:"account"`
 	API      float64   `json:"api"`
 	Endpoint float64   `json:"endpoint"`
+	Timer    float64   `json:"timer"`
 }
 
 func NewBleveMessage(message string) *BleveMessage {
@@ -181,8 +185,8 @@ func NewBleveMessage(message string) *BleveMessage {
 	} else {
 		return nil
 	}
-	var properties [3]float64
-	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP} {
+	var properties [4]float64
+	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP, TIMER_REGEXP} {
 		matches := regexp.MustCompile(re).FindStringSubmatch(message)
 		if len(matches) == 2 {
 			val, _ := strconv.Atoi(matches[1])
@@ -198,6 +202,7 @@ func NewBleveMessage(message string) *BleveMessage {
 		Account:  properties[0],
 		API:      properties[1],
 		Endpoint: properties[2],
+		Timer:    properties[3],
 	}
 }
 

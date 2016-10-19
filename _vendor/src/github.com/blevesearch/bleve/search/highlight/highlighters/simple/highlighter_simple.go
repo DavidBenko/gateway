@@ -20,7 +20,7 @@ import (
 )
 
 const Name = "simple"
-const defaultSeparator = "…"
+const DefaultSeparator = "…"
 
 type Highlighter struct {
 	fragmenter highlight.Fragmenter
@@ -80,10 +80,9 @@ func (s *Highlighter) BestFragmentsInField(dm *search.DocumentMatch, doc *docume
 		if f.Name() == field {
 			_, ok := f.(*document.TextField)
 			if ok {
-
 				termLocationsSameArrayPosition := make(highlight.TermLocations, 0)
 				for _, otl := range orderedTermLocations {
-					if sameArrayPositions(f.ArrayPositions(), otl.ArrayPositions) {
+					if highlight.SameArrayPositions(f.ArrayPositions(), otl.ArrayPositions) {
 						termLocationsSameArrayPosition = append(termLocationsSameArrayPosition, otl)
 					}
 				}
@@ -152,18 +151,6 @@ func (s *Highlighter) BestFragmentsInField(dm *search.DocumentMatch, doc *docume
 	return formattedFragments
 }
 
-func sameArrayPositions(fieldArrayPositions []uint64, termLocationArrayPositions []float64) bool {
-	if len(fieldArrayPositions) != len(termLocationArrayPositions) {
-		return false
-	}
-	for i := 0; i < len(fieldArrayPositions); i++ {
-		if fieldArrayPositions[i] != uint64(termLocationArrayPositions[i]) {
-			return false
-		}
-	}
-	return true
-}
-
 // FragmentQueue implements heap.Interface and holds Items.
 type FragmentQueue []*highlight.Fragment
 
@@ -197,7 +184,7 @@ func (fq *FragmentQueue) Pop() interface{} {
 }
 
 func Constructor(config map[string]interface{}, cache *registry.Cache) (highlight.Highlighter, error) {
-	separator := defaultSeparator
+	separator := DefaultSeparator
 	separatorVal, ok := config["separator"].(string)
 	if ok {
 		separator = separatorVal

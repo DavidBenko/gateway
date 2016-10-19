@@ -14,8 +14,10 @@ import (
 	"testing"
 
 	"github.com/blevesearch/bleve/document"
-	"github.com/blevesearch/bleve/index/store/inmem"
+	"github.com/blevesearch/bleve/index"
+	"github.com/blevesearch/bleve/index/store/gtreap"
 	"github.com/blevesearch/bleve/index/upside_down"
+	"github.com/blevesearch/bleve/search"
 )
 
 func TestTermSearcher(t *testing.T) {
@@ -25,10 +27,12 @@ func TestTermSearcher(t *testing.T) {
 	var queryBoost = 3.0
 	var queryExplain = true
 
-	inMemStore, _ := inmem.New()
-	analysisQueue := upside_down.NewAnalysisQueue(1)
-	i := upside_down.NewUpsideDownCouch(inMemStore, analysisQueue)
-	err := i.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	i, err := upside_down.NewUpsideDownCouch(gtreap.Name, nil, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = i.Open()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +150,7 @@ func TestTermSearcher(t *testing.T) {
 	}()
 
 	searcher.SetQueryNorm(2.0)
-	docCount, err := i.DocCount()
+	docCount, err := indexReader.DocCount()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,23 +164,28 @@ func TestTermSearcher(t *testing.T) {
 		t.Errorf("expected count of 9, got %d", searcher.Count())
 	}
 
-	docMatch, err := searcher.Next()
+	ctx := &search.SearchContext{
+		DocumentMatchPool: search.NewDocumentMatchPool(1, 0),
+	}
+	docMatch, err := searcher.Next(ctx)
 	if err != nil {
 		t.Errorf("expected result, got %v", err)
 	}
-	if docMatch.ID != "a" {
-		t.Errorf("expected result ID to be 'a', got '%s", docMatch.ID)
+	if !docMatch.IndexInternalID.Equals(index.IndexInternalID("a")) {
+		t.Errorf("expected result ID to be 'a', got '%s", docMatch.IndexInternalID)
 	}
-	docMatch, err = searcher.Advance("c")
+	ctx.DocumentMatchPool.Put(docMatch)
+	docMatch, err = searcher.Advance(ctx, index.IndexInternalID("c"))
 	if err != nil {
 		t.Errorf("expected result, got %v", err)
 	}
-	if docMatch.ID != "c" {
-		t.Errorf("expected result ID to be 'c' got '%s'", docMatch.ID)
+	if !docMatch.IndexInternalID.Equals(index.IndexInternalID("c")) {
+		t.Errorf("expected result ID to be 'c' got '%s'", docMatch.IndexInternalID)
 	}
 
 	// try advancing past end
-	docMatch, err = searcher.Advance("z")
+	ctx.DocumentMatchPool.Put(docMatch)
+	docMatch, err = searcher.Advance(ctx, index.IndexInternalID("z"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +194,8 @@ func TestTermSearcher(t *testing.T) {
 	}
 
 	// try pushing next past end
-	docMatch, err = searcher.Next()
+	ctx.DocumentMatchPool.Put(docMatch)
+	docMatch, err = searcher.Next(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

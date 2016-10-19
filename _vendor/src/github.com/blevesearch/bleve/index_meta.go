@@ -13,19 +13,23 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+
+	"github.com/blevesearch/bleve/index/upside_down"
 )
 
 const metaFilename = "index_meta.json"
 
 type indexMeta struct {
-	Storage string                 `json:"storage"`
-	Config  map[string]interface{} `json:"config,omitempty"`
+	Storage   string                 `json:"storage"`
+	IndexType string                 `json:"index_type"`
+	Config    map[string]interface{} `json:"config,omitempty"`
 }
 
-func newIndexMeta(storage string, config map[string]interface{}) *indexMeta {
+func newIndexMeta(indexType string, storage string, config map[string]interface{}) *indexMeta {
 	return &indexMeta{
-		Storage: storage,
-		Config:  config,
+		IndexType: indexType,
+		Storage:   storage,
+		Config:    config,
 	}
 }
 
@@ -43,15 +47,21 @@ func openIndexMeta(path string) (*indexMeta, error) {
 	if err != nil {
 		return nil, ErrorIndexMetaCorrupt
 	}
+	if im.IndexType == "" {
+		im.IndexType = upside_down.Name
+	}
 	return &im, nil
 }
 
 func (i *indexMeta) Save(path string) (err error) {
 	indexMetaPath := indexMetaPath(path)
 	// ensure any necessary parent directories exist
-	err = os.Mkdir(path, 0700)
+	err = os.MkdirAll(path, 0700)
 	if err != nil {
-		return ErrorIndexPathExists
+		if os.IsExist(err) {
+			return ErrorIndexPathExists
+		}
+		return err
 	}
 	metaBytes, err := json.Marshal(i)
 	if err != nil {

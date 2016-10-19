@@ -17,20 +17,24 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/blevesearch/bleve/document"
 	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/index/store"
+	"github.com/blevesearch/bleve/index/store/gtreap"
 	"github.com/blevesearch/bleve/index/upside_down"
 	"github.com/blevesearch/bleve/registry"
 	"github.com/blevesearch/bleve/search"
 	"github.com/blevesearch/bleve/search/collectors"
 	"github.com/blevesearch/bleve/search/facets"
+	"github.com/blevesearch/bleve/search/highlight"
 )
 
 type indexImpl struct {
 	path  string
+	name  string
 	meta  *indexMeta
-	s     store.KVStore
 	i     index.Index
 	m     *IndexMapping
 	mutex sync.RWMutex
@@ -46,32 +50,31 @@ func indexStorePath(path string) string {
 	return path + string(os.PathSeparator) + storePath
 }
 
-func newMemIndex(mapping *IndexMapping) (*indexImpl, error) {
+func newMemIndex(indexType string, mapping *IndexMapping) (*indexImpl, error) {
 	rv := indexImpl{
-		path:  "",
-		m:     mapping,
-		meta:  newIndexMeta("mem", nil),
-		stats: &IndexStat{},
+		path: "",
+		name: "mem",
+		m:    mapping,
+		meta: newIndexMeta(indexType, gtreap.Name, nil),
 	}
 
-	storeConstructor := registry.KVStoreConstructorByName(rv.meta.Storage)
-	if storeConstructor == nil {
-		return nil, ErrorUnknownStorageType
+	rv.stats = &IndexStat{i: &rv}
+
+	// open the index
+	indexTypeConstructor := registry.IndexTypeConstructorByName(rv.meta.IndexType)
+	if indexTypeConstructor == nil {
+		return nil, ErrorUnknownIndexType
 	}
-	// now open the store
+
 	var err error
-	rv.s, err = storeConstructor(nil)
+	rv.i, err = indexTypeConstructor(rv.meta.Storage, nil, Config.analysisQueue)
 	if err != nil {
 		return nil, err
 	}
-
-	// open the index
-	rv.i = upside_down.NewUpsideDownCouch(rv.s, Config.analysisQueue)
 	err = rv.i.Open()
 	if err != nil {
 		return nil, err
 	}
-	rv.stats.indexStat = rv.i.Stats()
 
 	// now persist the mapping
 	mappingBytes, err := json.Marshal(mapping)
@@ -87,34 +90,36 @@ func newMemIndex(mapping *IndexMapping) (*indexImpl, error) {
 	rv.mutex.Lock()
 	defer rv.mutex.Unlock()
 	rv.open = true
+	indexStats.Register(&rv)
 	return &rv, nil
 }
 
-func newIndexUsing(path string, mapping *IndexMapping, kvstore string, kvconfig map[string]interface{}) (*indexImpl, error) {
+func newIndexUsing(path string, mapping *IndexMapping, indexType string, kvstore string, kvconfig map[string]interface{}) (*indexImpl, error) {
 	// first validate the mapping
-	err := mapping.validate()
+	err := mapping.Validate()
 	if err != nil {
 		return nil, err
 	}
 
 	if path == "" {
-		return newMemIndex(mapping)
+		return newMemIndex(indexType, mapping)
 	}
 
 	if kvconfig == nil {
 		kvconfig = map[string]interface{}{}
 	}
 
+	if kvstore == "" {
+		return nil, fmt.Errorf("bleve not configured for file based indexing")
+	}
+
 	rv := indexImpl{
-		path:  path,
-		m:     mapping,
-		meta:  newIndexMeta(kvstore, kvconfig),
-		stats: &IndexStat{},
+		path: path,
+		name: path,
+		m:    mapping,
+		meta: newIndexMeta(indexType, kvstore, kvconfig),
 	}
-	storeConstructor := registry.KVStoreConstructorByName(rv.meta.Storage)
-	if storeConstructor == nil {
-		return nil, ErrorUnknownStorageType
-	}
+	rv.stats = &IndexStat{i: &rv}
 	// at this point there is hope that we can be successful, so save index meta
 	err = rv.meta.Save(path)
 	if err != nil {
@@ -124,19 +129,23 @@ func newIndexUsing(path string, mapping *IndexMapping, kvstore string, kvconfig 
 	kvconfig["error_if_exists"] = true
 	kvconfig["path"] = indexStorePath(path)
 
-	// now create the store
-	rv.s, err = storeConstructor(kvconfig)
-	if err != nil {
-		return nil, err
+	// open the index
+	indexTypeConstructor := registry.IndexTypeConstructorByName(rv.meta.IndexType)
+	if indexTypeConstructor == nil {
+		return nil, ErrorUnknownIndexType
 	}
 
-	// open the index
-	rv.i = upside_down.NewUpsideDownCouch(rv.s, Config.analysisQueue)
-	err = rv.i.Open()
+	rv.i, err = indexTypeConstructor(rv.meta.Storage, kvconfig, Config.analysisQueue)
 	if err != nil {
 		return nil, err
 	}
-	rv.stats.indexStat = rv.i.Stats()
+	err = rv.i.Open()
+	if err != nil {
+		if err == index.ErrorUnknownStorageType {
+			return nil, ErrorUnknownStorageType
+		}
+		return nil, err
+	}
 
 	// now persist the mapping
 	mappingBytes, err := json.Marshal(mapping)
@@ -152,24 +161,25 @@ func newIndexUsing(path string, mapping *IndexMapping, kvstore string, kvconfig 
 	rv.mutex.Lock()
 	defer rv.mutex.Unlock()
 	rv.open = true
+	indexStats.Register(&rv)
 	return &rv, nil
 }
 
 func openIndexUsing(path string, runtimeConfig map[string]interface{}) (rv *indexImpl, err error) {
-
 	rv = &indexImpl{
-		path:  path,
-		stats: &IndexStat{},
+		path: path,
+		name: path,
 	}
+	rv.stats = &IndexStat{i: rv}
 
 	rv.meta, err = openIndexMeta(path)
 	if err != nil {
 		return nil, err
 	}
 
-	storeConstructor := registry.KVStoreConstructorByName(rv.meta.Storage)
-	if storeConstructor == nil {
-		return nil, ErrorUnknownStorageType
+	// backwards compatibility if index type is missing
+	if rv.meta.IndexType == "" {
+		rv.meta.IndexType = upside_down.Name
 	}
 
 	storeConfig := rv.meta.Config
@@ -184,19 +194,23 @@ func openIndexUsing(path string, runtimeConfig map[string]interface{}) (rv *inde
 		storeConfig[rck] = rcv
 	}
 
-	// now open the store
-	rv.s, err = storeConstructor(storeConfig)
-	if err != nil {
-		return nil, err
+	// open the index
+	indexTypeConstructor := registry.IndexTypeConstructorByName(rv.meta.IndexType)
+	if indexTypeConstructor == nil {
+		return nil, ErrorUnknownIndexType
 	}
 
-	// open the index
-	rv.i = upside_down.NewUpsideDownCouch(rv.s, Config.analysisQueue)
-	err = rv.i.Open()
+	rv.i, err = indexTypeConstructor(rv.meta.Storage, storeConfig, Config.analysisQueue)
 	if err != nil {
 		return nil, err
 	}
-	rv.stats.indexStat = rv.i.Stats()
+	err = rv.i.Open()
+	if err != nil {
+		if err == index.ErrorUnknownStorageType {
+			return nil, ErrorUnknownStorageType
+		}
+		return nil, err
+	}
 
 	// now load the mapping
 	indexReader, err := rv.i.Reader()
@@ -217,7 +231,7 @@ func openIndexUsing(path string, runtimeConfig map[string]interface{}) (rv *inde
 	var im IndexMapping
 	err = json.Unmarshal(mappingBytes, &im)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing mapping JSON: %v\nmapping contents:\n%s", err, string(mappingBytes))
 	}
 
 	// mark the index as open
@@ -226,7 +240,7 @@ func openIndexUsing(path string, runtimeConfig map[string]interface{}) (rv *inde
 	rv.open = true
 
 	// validate the mapping
-	err = im.validate()
+	err = im.Validate()
 	if err != nil {
 		// note even if the mapping is invalid
 		// we still return an open usable index
@@ -234,13 +248,18 @@ func openIndexUsing(path string, runtimeConfig map[string]interface{}) (rv *inde
 	}
 
 	rv.m = &im
+	indexStats.Register(rv)
 	return rv, err
 }
 
 // Advanced returns implementation internals
 // necessary ONLY for advanced usage.
 func (i *indexImpl) Advanced() (index.Index, store.KVStore, error) {
-	return i.i, i.s, nil
+	s, err := i.i.Advanced()
+	if err != nil {
+		return nil, nil, err
+	}
+	return i.i, s, nil
 }
 
 // Mapping returns the IndexMapping in use by this
@@ -252,7 +271,11 @@ func (i *indexImpl) Mapping() *IndexMapping {
 // Index the object with the specified identifier.
 // The IndexMapping for this index will determine
 // how the object is indexed.
-func (i *indexImpl) Index(id string, data interface{}) error {
+func (i *indexImpl) Index(id string, data interface{}) (err error) {
+	if id == "" {
+		return ErrorEmptyID
+	}
+
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
@@ -261,20 +284,21 @@ func (i *indexImpl) Index(id string, data interface{}) error {
 	}
 
 	doc := document.NewDocument(id)
-	err := i.m.mapDocument(doc, data)
+	err = i.m.mapDocument(doc, data)
 	if err != nil {
-		return err
+		return
 	}
 	err = i.i.Update(doc)
-	if err != nil {
-		return err
-	}
-	return nil
+	return
 }
 
 // Delete entries for the specified identifier from
 // the index.
-func (i *indexImpl) Delete(id string) error {
+func (i *indexImpl) Delete(id string) (err error) {
+	if id == "" {
+		return ErrorEmptyID
+	}
+
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
@@ -282,11 +306,8 @@ func (i *indexImpl) Delete(id string) error {
 		return ErrorIndexClosed
 	}
 
-	err := i.i.Delete(id)
-	if err != nil {
-		return err
-	}
-	return nil
+	err = i.i.Delete(id)
+	return
 }
 
 // Batch executes multiple Index and Delete
@@ -334,7 +355,7 @@ func (i *indexImpl) Document(id string) (doc *document.Document, err error) {
 
 // DocCount returns the number of documents in the
 // index.
-func (i *indexImpl) DocCount() (uint64, error) {
+func (i *indexImpl) DocCount() (count uint64, err error) {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
@@ -342,12 +363,30 @@ func (i *indexImpl) DocCount() (uint64, error) {
 		return 0, ErrorIndexClosed
 	}
 
-	return i.i.DocCount()
+	// open a reader for this search
+	indexReader, err := i.i.Reader()
+	if err != nil {
+		return 0, fmt.Errorf("error opening index reader %v", err)
+	}
+	defer func() {
+		if cerr := indexReader.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	count, err = indexReader.DocCount()
+	return
 }
 
 // Search executes a search request operation.
 // Returns a SearchResult object or an error.
 func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
+	return i.SearchInContext(context.Background(), req)
+}
+
+// SearchInContext executes a search request operation within the provided
+// Context.  Returns a SearchResult object or an error.
+func (i *indexImpl) SearchInContext(ctx context.Context, req *SearchRequest) (sr *SearchResult, err error) {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
@@ -357,7 +396,7 @@ func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
 		return nil, ErrorIndexClosed
 	}
 
-	collector := collectors.NewTopScorerSkipCollector(req.Size, req.From)
+	collector := collectors.NewTopNCollector(req.Size, req.From, req.Sort)
 
 	// open a reader for this search
 	indexReader, err := i.i.Reader()
@@ -408,16 +447,18 @@ func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
 		collector.SetFacetsBuilder(facetsBuilder)
 	}
 
-	err = collector.Collect(searcher)
+	err = collector.Collect(ctx, searcher, indexReader)
 	if err != nil {
 		return nil, err
 	}
 
 	hits := collector.Results()
 
+	var highlighter highlight.Highlighter
+
 	if req.Highlight != nil {
 		// get the right highlighter
-		highlighter, err := Config.Cache.HighlighterNamed(Config.DefaultHighlighter)
+		highlighter, err = Config.Cache.HighlighterNamed(Config.DefaultHighlighter)
 		if err != nil {
 			return nil, err
 		}
@@ -430,57 +471,64 @@ func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
 		if highlighter == nil {
 			return nil, fmt.Errorf("no highlighter named `%s` registered", *req.Highlight.Style)
 		}
-
-		for _, hit := range hits {
-			doc, err := indexReader.Document(hit.ID)
-			if err == nil {
-				highlightFields := req.Highlight.Fields
-				if highlightFields == nil {
-					// add all fields with matches
-					highlightFields = make([]string, 0, len(hit.Locations))
-					for k := range hit.Locations {
-						highlightFields = append(highlightFields, k)
-					}
-				}
-
-				for _, hf := range highlightFields {
-					highlighter.BestFragmentsInField(hit, doc, hf, 1)
-				}
-			}
-		}
 	}
 
-	if len(req.Fields) > 0 {
-		for _, hit := range hits {
-			// FIXME avoid loading doc second time
-			// if we already loaded it for highlighting
+	for _, hit := range hits {
+		if len(req.Fields) > 0 || highlighter != nil {
 			doc, err := indexReader.Document(hit.ID)
-			if err == nil {
-				for _, f := range req.Fields {
-					for _, docF := range doc.Fields {
-						if f == "*" || docF.Name() == f {
-							var value interface{}
-							switch docF := docF.(type) {
-							case *document.TextField:
-								value = string(docF.Value())
-							case *document.NumericField:
-								num, err := docF.Number()
-								if err == nil {
-									value = num
+			if err == nil && doc != nil {
+				if len(req.Fields) > 0 {
+					for _, f := range req.Fields {
+						for _, docF := range doc.Fields {
+							if f == "*" || docF.Name() == f {
+								var value interface{}
+								switch docF := docF.(type) {
+								case *document.TextField:
+									value = string(docF.Value())
+								case *document.NumericField:
+									num, err := docF.Number()
+									if err == nil {
+										value = num
+									}
+								case *document.DateTimeField:
+									datetime, err := docF.DateTime()
+									if err == nil {
+										value = datetime.Format(time.RFC3339)
+									}
+								case *document.BooleanField:
+									boolean, err := docF.Boolean()
+									if err == nil {
+										value = boolean
+									}
 								}
-							case *document.DateTimeField:
-								datetime, err := docF.DateTime()
-								if err == nil {
-									value = datetime.Format(time.RFC3339)
+								if value != nil {
+									hit.AddFieldValue(docF.Name(), value)
 								}
-							}
-							if value != nil {
-								hit.AddFieldValue(docF.Name(), value)
 							}
 						}
 					}
 				}
+				if highlighter != nil {
+					highlightFields := req.Highlight.Fields
+					if highlightFields == nil {
+						// add all fields with matches
+						highlightFields = make([]string, 0, len(hit.Locations))
+						for k := range hit.Locations {
+							highlightFields = append(highlightFields, k)
+						}
+					}
+					for _, hf := range highlightFields {
+						highlighter.BestFragmentsInField(hit, doc, hf, 1)
+					}
+				}
+			} else if doc == nil {
+				// unexpected case, a doc ID that was found as a search hit
+				// was unable to be found during document lookup
+				return nil, ErrorIndexReadInconsistency
 			}
+		}
+		if i.name != "" {
+			hit.Index = i.name
 		}
 	}
 
@@ -493,6 +541,12 @@ func (i *indexImpl) Search(req *SearchRequest) (sr *SearchResult, err error) {
 	}
 
 	return &SearchResult{
+		Status: &SearchStatus{
+			Total:      1,
+			Failed:     0,
+			Successful: 1,
+			Errors:     make(map[string]error),
+		},
 		Request:  req,
 		Hits:     hits,
 		Total:    collector.Total(),
@@ -610,51 +664,11 @@ func (i *indexImpl) FieldDictPrefix(field string, termPrefix []byte) (index.Fiel
 	}, nil
 }
 
-// DumpAll writes all index rows to a channel.
-// INTERNAL: do not rely on this function, it is
-// only intended to be used by the debug utilities
-func (i *indexImpl) DumpAll() chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-
-	return i.i.DumpAll()
-}
-
-// DumpFields writes all field rows in the index
-// to a channel.
-// INTERNAL: do not rely on this function, it is
-// only intended to be used by the debug utilities
-func (i *indexImpl) DumpFields() chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-	return i.i.DumpFields()
-}
-
-// DumpDoc writes all rows in the index associated
-// with the specified identifier to a channel.
-// INTERNAL: do not rely on this function, it is
-// only intended to be used by the debug utilities
-func (i *indexImpl) DumpDoc(id string) chan interface{} {
-	i.mutex.RLock()
-	defer i.mutex.RUnlock()
-
-	if !i.open {
-		return nil
-	}
-	return i.i.DumpDoc(id)
-}
-
 func (i *indexImpl) Close() error {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
+
+	indexStats.UnRegister(i)
 
 	i.open = false
 	return i.i.Close()
@@ -662,6 +676,10 @@ func (i *indexImpl) Close() error {
 
 func (i *indexImpl) Stats() *IndexStat {
 	return i.stats
+}
+
+func (i *indexImpl) StatsMap() map[string]interface{} {
+	return i.stats.statsMap()
 }
 
 func (i *indexImpl) GetInternal(key []byte) (val []byte, err error) {
@@ -717,6 +735,16 @@ func (i *indexImpl) NewBatch() *Batch {
 		index:    i,
 		internal: index.NewBatch(),
 	}
+}
+
+func (i *indexImpl) Name() string {
+	return i.name
+}
+
+func (i *indexImpl) SetName(name string) {
+	indexStats.UnRegister(i)
+	i.name = name
+	indexStats.Register(i)
 }
 
 type indexImplFieldDict struct {

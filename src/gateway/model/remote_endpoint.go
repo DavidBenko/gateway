@@ -134,6 +134,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateSMTP(errors)
 	case RemoteEndpointTypeDocker:
 		e.ValidateDocker(errors)
+	case RemoteEndpointTypeJob:
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}

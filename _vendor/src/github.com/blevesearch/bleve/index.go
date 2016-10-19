@@ -13,6 +13,7 @@ import (
 	"github.com/blevesearch/bleve/document"
 	"github.com/blevesearch/bleve/index"
 	"github.com/blevesearch/bleve/index/store"
+	"golang.org/x/net/context"
 )
 
 // A Batch groups together multiple Index and Delete
@@ -30,6 +31,9 @@ type Batch struct {
 // batch.  NOTE: the bleve Index is not updated
 // until the batch is executed.
 func (b *Batch) Index(id string, data interface{}) error {
+	if id == "" {
+		return ErrorEmptyID
+	}
 	doc := document.NewDocument(id)
 	err := b.index.Mapping().mapDocument(doc, data)
 	if err != nil {
@@ -43,7 +47,9 @@ func (b *Batch) Index(id string, data interface{}) error {
 // batch.  NOTE: the bleve Index is not updated until
 // the batch is executed.
 func (b *Batch) Delete(id string) {
-	b.internal.Delete(id)
+	if id != "" {
+		b.internal.Delete(id)
+	}
 }
 
 // SetInternal adds the specified set internal
@@ -66,7 +72,7 @@ func (b *Batch) Size() int {
 	return len(b.internal.IndexOps) + len(b.internal.InternalOps)
 }
 
-// String prints a user friendly string represenation of what
+// String prints a user friendly string representation of what
 // is inside this batch.
 func (b *Batch) String() string {
 	return b.internal.String()
@@ -81,17 +87,88 @@ func (b *Batch) Reset() {
 // An Index implements all the indexing and searching
 // capabilities of bleve.  An Index can be created
 // using the New() and Open() methods.
+//
+// Index() takes an input value, deduces a DocumentMapping for its type,
+// assigns string paths to its fields or values then applies field mappings on
+// them.
+//
+// If the value is a []byte, the indexer attempts to convert it to something
+// else using the ByteArrayConverter registered as
+// IndexMapping.ByteArrayConverter. By default, it interprets the value as a
+// JSON payload and unmarshals it to map[string]interface{}.
+//
+// The DocumentMapping used to index a value is deduced by the following rules:
+// 1) If value implements Classifier interface, resolve the mapping from Type().
+// 2) If value has a string field or value at IndexMapping.TypeField.
+// (defaulting to "_type"), use it to resolve the mapping. Fields addressing
+// is described below.
+// 3) If IndexMapping.DefaultType is registered, return it.
+// 4) Return IndexMapping.DefaultMapping.
+//
+// Each field or nested field of the value is identified by a string path, then
+// mapped to one or several FieldMappings which extract the result for analysis.
+//
+// Struct values fields are identified by their "json:" tag, or by their name.
+// Nested fields are identified by prefixing with their parent identifier,
+// separated by a dot.
+//
+// Map values entries are identified by their string key. Entries not indexed
+// by strings are ignored. Entry values are identified recursively like struct
+// fields.
+//
+// Slice and array values are identified by their field name. Their elements
+// are processed sequentially with the same FieldMapping.
+//
+// String, float64 and time.Time values are identified by their field name.
+// Other types are ignored.
+//
+// Each value identifier is decomposed in its parts and recursively address
+// SubDocumentMappings in the tree starting at the root DocumentMapping.  If a
+// mapping is found, all its FieldMappings are applied to the value. If no
+// mapping is found and the root DocumentMapping is dynamic, default mappings
+// are used based on value type and IndexMapping default configurations.
+//
+// Finally, mapped values are analyzed, indexed or stored. See
+// FieldMapping.Analyzer to know how an analyzer is resolved for a given field.
+//
+// Examples:
+//
+//  type Date struct {
+//    Day string `json:"day"`
+//    Month string
+//    Year string
+//  }
+//
+//  type Person struct {
+//    FirstName string `json:"first_name"`
+//    LastName string
+//    BirthDate Date `json:"birth_date"`
+//  }
+//
+// A Person value FirstName is mapped by the SubDocumentMapping at
+// "first_name". Its LastName is mapped by the one at "LastName". The day of
+// BirthDate is mapped to the SubDocumentMapping "day" of the root
+// SubDocumentMapping "birth_date". It will appear as the "birth_date.day"
+// field in the index. The month is mapped to "birth_date.Month".
 type Index interface {
+	// Index analyzes, indexes or stores mapped data fields. Supplied
+	// identifier is bound to analyzed data and will be retrieved by search
+	// requests. See Index interface documentation for details about mapping
+	// rules.
 	Index(id string, data interface{}) error
 	Delete(id string) error
 
 	NewBatch() *Batch
 	Batch(b *Batch) error
 
+	// Document returns specified document or nil if the document is not
+	// indexed or stored.
 	Document(id string) (*document.Document, error)
+	// DocCount returns the number of documents in the index.
 	DocCount() (uint64, error)
 
 	Search(req *SearchRequest) (*SearchResult, error)
+	SearchInContext(ctx context.Context, req *SearchRequest) (*SearchResult, error)
 
 	Fields() ([]string, error)
 
@@ -99,20 +176,24 @@ type Index interface {
 	FieldDictRange(field string, startTerm []byte, endTerm []byte) (index.FieldDict, error)
 	FieldDictPrefix(field string, termPrefix []byte) (index.FieldDict, error)
 
-	DumpAll() chan interface{}
-	DumpDoc(id string) chan interface{}
-	DumpFields() chan interface{}
-
 	Close() error
 
 	Mapping() *IndexMapping
 
 	Stats() *IndexStat
+	StatsMap() map[string]interface{}
 
 	GetInternal(key []byte) ([]byte, error)
 	SetInternal(key, val []byte) error
 	DeleteInternal(key []byte) error
 
+	// Name returns the name of the index (by default this is the path)
+	Name() string
+	// SetName lets you assign your own logical name to this index
+	SetName(string)
+
+	// Advanced returns the indexer and data store, exposing lower level
+	// methods to enumerate records and access data.
 	Advanced() (index.Index, store.KVStore, error)
 }
 
@@ -126,18 +207,19 @@ type Classifier interface {
 // The provided mapping will be used for all
 // Index/Search operations.
 func New(path string, mapping *IndexMapping) (Index, error) {
-	return newIndexUsing(path, mapping, Config.DefaultKVStore, nil)
+	return newIndexUsing(path, mapping, Config.DefaultIndexType, Config.DefaultKVStore, nil)
 }
 
 // NewUsing creates index at the specified path,
 // which must not already exist.
 // The provided mapping will be used for all
 // Index/Search operations.
-// The specified kvstore implemenation will be used
+// The specified index type will be used
+// The specified kvstore implementation will be used
 // and the provided kvconfig will be passed to its
 // constructor.
-func NewUsing(path string, mapping *IndexMapping, kvstore string, kvconfig map[string]interface{}) (Index, error) {
-	return newIndexUsing(path, mapping, kvstore, kvconfig)
+func NewUsing(path string, mapping *IndexMapping, indexType string, kvstore string, kvconfig map[string]interface{}) (Index, error) {
+	return newIndexUsing(path, mapping, indexType, kvstore, kvconfig)
 }
 
 // Open index at the specified path, must exist.

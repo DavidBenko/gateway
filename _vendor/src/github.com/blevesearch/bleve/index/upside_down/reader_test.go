@@ -10,7 +10,6 @@
 package upside_down
 
 import (
-	"os"
 	"reflect"
 	"testing"
 
@@ -21,17 +20,18 @@ import (
 
 func TestIndexReader(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	s := boltdb.New("test", "bleve")
-	s.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(s, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestIndexReader(t *testing.T) {
 	}()
 
 	// first look for a term that doesn't exist
-	reader, err := indexReader.TermFieldReader([]byte("nope"), "name")
+	reader, err := indexReader.TermFieldReader([]byte("nope"), "name", true, true, true)
 	if err != nil {
 		t.Errorf("Error accessing term field reader: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestIndexReader(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reader, err = indexReader.TermFieldReader([]byte("test"), "name")
+	reader, err = indexReader.TermFieldReader([]byte("test"), "name", true, true, true)
 	if err != nil {
 		t.Errorf("Error accessing term field reader: %v", err)
 	}
@@ -98,9 +98,9 @@ func TestIndexReader(t *testing.T) {
 
 	var match *index.TermFieldDoc
 	var actualCount uint64
-	match, err = reader.Next()
+	match, err = reader.Next(nil)
 	for err == nil && match != nil {
-		match, err = reader.Next()
+		match, err = reader.Next(nil)
 		if err != nil {
 			t.Errorf("unexpected error reading next")
 		}
@@ -111,11 +111,11 @@ func TestIndexReader(t *testing.T) {
 	}
 
 	expectedMatch := &index.TermFieldDoc{
-		ID:   "2",
+		ID:   index.IndexInternalID("2"),
 		Freq: 1,
 		Norm: 0.5773502588272095,
 		Vectors: []*index.TermFieldVector{
-			&index.TermFieldVector{
+			{
 				Field: "desc",
 				Pos:   3,
 				Start: 9,
@@ -123,11 +123,11 @@ func TestIndexReader(t *testing.T) {
 			},
 		},
 	}
-	tfr, err := indexReader.TermFieldReader([]byte("rice"), "desc")
+	tfr, err := indexReader.TermFieldReader([]byte("rice"), "desc", true, true, true)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	match, err = tfr.Next()
+	match, err = tfr.Next(nil)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -140,22 +140,22 @@ func TestIndexReader(t *testing.T) {
 	}
 
 	// now test usage of advance
-	reader, err = indexReader.TermFieldReader([]byte("test"), "name")
+	reader, err = indexReader.TermFieldReader([]byte("test"), "name", true, true, true)
 	if err != nil {
 		t.Errorf("Error accessing term field reader: %v", err)
 	}
 
-	match, err = reader.Advance("2")
+	match, err = reader.Advance(index.IndexInternalID("2"), nil)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if match == nil {
 		t.Fatalf("Expected match, got nil")
 	}
-	if match.ID != "2" {
+	if !match.ID.Equals(index.IndexInternalID("2")) {
 		t.Errorf("Expected ID '2', got '%s'", match.ID)
 	}
-	match, err = reader.Advance("3")
+	match, err = reader.Advance(index.IndexInternalID("3"), nil)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestIndexReader(t *testing.T) {
 	}
 
 	// now test creating a reader for a field that doesn't exist
-	reader, err = indexReader.TermFieldReader([]byte("water"), "doesnotexist")
+	reader, err = indexReader.TermFieldReader([]byte("water"), "doesnotexist", true, true, true)
 	if err != nil {
 		t.Errorf("Error accessing term field reader: %v", err)
 	}
@@ -176,14 +176,14 @@ func TestIndexReader(t *testing.T) {
 	if count != 0 {
 		t.Errorf("expected count 0 for reader of non-existant field")
 	}
-	match, err = reader.Next()
+	match, err = reader.Next(nil)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	if match != nil {
 		t.Errorf("expected nil, got %v", match)
 	}
-	match, err = reader.Advance("anywhere")
+	match, err = reader.Advance(index.IndexInternalID("anywhere"), nil)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -195,17 +195,18 @@ func TestIndexReader(t *testing.T) {
 
 func TestIndexDocIdReader(t *testing.T) {
 	defer func() {
-		err := os.RemoveAll("test")
+		err := DestroyTest()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	s := boltdb.New("test", "bleve")
-	s.SetMergeOperator(&mergeOperator)
-	analysisQueue := NewAnalysisQueue(1)
-	idx := NewUpsideDownCouch(s, analysisQueue)
-	err := idx.Open()
+	analysisQueue := index.NewAnalysisQueue(1)
+	idx, err := NewUpsideDownCouch(boltdb.Name, boltTestConfig, analysisQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = idx.Open()
 	if err != nil {
 		t.Errorf("error opening index: %v", err)
 	}
@@ -246,7 +247,7 @@ func TestIndexDocIdReader(t *testing.T) {
 	}()
 
 	// first get all doc ids
-	reader, err := indexReader.DocIDReader("", "")
+	reader, err := indexReader.DocIDReaderAll()
 	if err != nil {
 		t.Errorf("Error accessing doc id reader: %v", err)
 	}
@@ -259,7 +260,7 @@ func TestIndexDocIdReader(t *testing.T) {
 
 	id, err := reader.Next()
 	count := uint64(0)
-	for id != "" {
+	for id != nil {
 		count++
 		id, err = reader.Next()
 	}
@@ -268,7 +269,7 @@ func TestIndexDocIdReader(t *testing.T) {
 	}
 
 	// try it again, but jump to the second doc this time
-	reader2, err := indexReader.DocIDReader("", "")
+	reader2, err := indexReader.DocIDReaderAll()
 	if err != nil {
 		t.Errorf("Error accessing doc id reader: %v", err)
 	}
@@ -279,19 +280,19 @@ func TestIndexDocIdReader(t *testing.T) {
 		}
 	}()
 
-	id, err = reader2.Advance("2")
+	id, err = reader2.Advance(index.IndexInternalID("2"))
 	if err != nil {
 		t.Error(err)
 	}
-	if id != "2" {
+	if !id.Equals(index.IndexInternalID("2")) {
 		t.Errorf("expected to find id '2', got '%s'", id)
 	}
 
-	id, err = reader2.Advance("3")
+	id, err = reader2.Advance(index.IndexInternalID("3"))
 	if err != nil {
 		t.Error(err)
 	}
-	if id != "" {
+	if id != nil {
 		t.Errorf("expected to find id '', got '%s'", id)
 	}
 }

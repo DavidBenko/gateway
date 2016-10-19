@@ -10,6 +10,7 @@
 package bleve
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -73,6 +74,11 @@ func TestSearchResultString(t *testing.T) {
 
 func TestSearchResultMerge(t *testing.T) {
 	l := &SearchResult{
+		Status: &SearchStatus{
+			Total:      1,
+			Successful: 1,
+			Errors:     make(map[string]error),
+		},
 		Total:    1,
 		MaxScore: 1,
 		Hits: search.DocumentMatchCollection{
@@ -84,6 +90,11 @@ func TestSearchResultMerge(t *testing.T) {
 	}
 
 	r := &SearchResult{
+		Status: &SearchStatus{
+			Total:      1,
+			Successful: 1,
+			Errors:     make(map[string]error),
+		},
 		Total:    1,
 		MaxScore: 2,
 		Hits: search.DocumentMatchCollection{
@@ -95,6 +106,11 @@ func TestSearchResultMerge(t *testing.T) {
 	}
 
 	expected := &SearchResult{
+		Status: &SearchStatus{
+			Total:      2,
+			Successful: 2,
+			Errors:     make(map[string]error),
+		},
 		Total:    2,
 		MaxScore: 2,
 		Hits: search.DocumentMatchCollection{
@@ -113,5 +129,52 @@ func TestSearchResultMerge(t *testing.T) {
 
 	if !reflect.DeepEqual(l, expected) {
 		t.Errorf("expected %#v, got %#v", expected, l)
+	}
+}
+
+func TestUnmarshalingSearchResult(t *testing.T) {
+
+	searchResponse := []byte(`{
+    "status":{
+      "total":1,
+      "failed":1,
+      "successful":0,
+      "errors":{
+        "default_index_362ce020b3d62b13_348f5c3c":"context deadline exceeded"
+      }
+    },
+    "request":{
+      "query":{
+        "match":"emp",
+        "field":"type",
+        "boost":1,
+        "prefix_length":0,
+        "fuzziness":0
+      },
+    "size":10000000,
+    "from":0,
+    "highlight":null,
+    "fields":[],
+    "facets":null,
+    "explain":false
+  },
+  "hits":null,
+  "total_hits":0,
+  "max_score":0,
+  "took":0,
+  "facets":null
+}`)
+
+	rv := &SearchResult{
+		Status: &SearchStatus{
+			Errors: make(map[string]error),
+		},
+	}
+	err = json.Unmarshal(searchResponse, rv)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(rv.Status.Errors) != 1 {
+		t.Errorf("expected 1 error, got %d", len(rv.Status.Errors))
 	}
 }

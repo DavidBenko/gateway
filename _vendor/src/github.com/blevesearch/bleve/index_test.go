@@ -13,12 +13,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
+
+	"strconv"
+
+	"github.com/blevesearch/bleve/analysis/analyzers/keyword_analyzer"
+	"github.com/blevesearch/bleve/index"
+	"github.com/blevesearch/bleve/index/store/null"
+	"github.com/blevesearch/bleve/search"
 )
 
 func TestCrud(t *testing.T) {
@@ -181,7 +192,7 @@ func TestCrud(t *testing.T) {
 		"name": false,
 		"desc": false,
 	}
-	if len(fields) != len(expectedFields) {
+	if len(fields) < len(expectedFields) {
 		t.Fatalf("expected %d fields got %d", len(expectedFields), len(fields))
 	}
 	for _, f := range fields {
@@ -333,6 +344,36 @@ func TestClosedIndex(t *testing.T) {
 	}
 }
 
+type slowQuery struct {
+	actual Query
+	delay  time.Duration
+}
+
+func (s *slowQuery) Boost() float64 {
+	return s.actual.Boost()
+}
+
+func (s *slowQuery) SetBoost(b float64) Query {
+	return s.actual.SetBoost(b)
+}
+
+func (s *slowQuery) Field() string {
+	return s.actual.Field()
+}
+
+func (s *slowQuery) SetField(f string) Query {
+	return s.actual.SetField(f)
+}
+
+func (s *slowQuery) Searcher(i index.IndexReader, m *IndexMapping, explain bool) (search.Searcher, error) {
+	time.Sleep(s.delay)
+	return s.actual.Searcher(i, m, explain)
+}
+
+func (s *slowQuery) Validate() error {
+	return s.actual.Validate()
+}
+
 func TestSlowSearch(t *testing.T) {
 	defer func() {
 		err := os.RemoveAll("testidx")
@@ -373,6 +414,11 @@ func TestSlowSearch(t *testing.T) {
 		t.Errorf("expected to not see slow query logged, but did")
 	}
 
+	sq := &slowQuery{
+		actual: query,
+		delay:  50 * time.Millisecond, // on Windows timer resolution is 15ms
+	}
+	req.Query = sq
 	Config.SlowSearchLogThreshold = 1 * time.Microsecond
 	_, err = index.Search(req)
 	if err != nil {
@@ -415,6 +461,8 @@ func TestStoredFieldPreserved(t *testing.T) {
 	doca := map[string]interface{}{
 		"name": "Marty",
 		"desc": "GopherCON India",
+		"bool": true,
+		"num":  float64(1),
 	}
 	err = index.Index("a", doca)
 	if err != nil {
@@ -423,23 +471,27 @@ func TestStoredFieldPreserved(t *testing.T) {
 
 	q := NewTermQuery("marty")
 	req := NewSearchRequest(q)
-	req.Fields = []string{"name", "desc"}
+	req.Fields = []string{"name", "desc", "bool", "num"}
 	res, err := index.Search(req)
 	if err != nil {
 		t.Error(err)
 	}
 
 	if len(res.Hits) != 1 {
-		t.Errorf("expected 1 hit, got %d", len(res.Hits))
+		t.Fatalf("expected 1 hit, got %d", len(res.Hits))
 	}
-
 	if res.Hits[0].Fields["name"] != "Marty" {
 		t.Errorf("expected 'Marty' got '%s'", res.Hits[0].Fields["name"])
 	}
 	if res.Hits[0].Fields["desc"] != "GopherCON India" {
 		t.Errorf("expected 'GopherCON India' got '%s'", res.Hits[0].Fields["desc"])
 	}
-
+	if res.Hits[0].Fields["num"] != float64(1) {
+		t.Errorf("expected '1' got '%v'", res.Hits[0].Fields["num"])
+	}
+	if res.Hits[0].Fields["bool"] != true {
+		t.Errorf("expected 'true' got '%v'", res.Hits[0].Fields["bool"])
+	}
 }
 
 func TestDict(t *testing.T) {
@@ -581,6 +633,12 @@ func TestBatchString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err := index.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	batch := index.NewBatch()
 	err = batch.Index("a", []byte("{}"))
@@ -622,12 +680,24 @@ func TestIndexMetadataRaceBug198(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err := index.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
+	done := make(chan struct{})
 	go func() {
 		for {
-			_, err := index.DocCount()
-			if err != nil {
-				t.Fatal(err)
+			select {
+			case <-done:
+				return
+			default:
+				_, err := index.DocCount()
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 		}
 	}()
@@ -643,7 +713,55 @@ func TestIndexMetadataRaceBug198(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	close(done)
+}
 
+func TestSortMatchSearch(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	index, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names := []string{"Noam", "Uri", "David", "Yosef", "Eitan", "Itay", "Ariel", "Daniel", "Omer", "Yogev", "Yehonatan", "Moshe", "Mohammed", "Yusuf", "Omar"}
+	days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+	numbers := []string{"One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"}
+	for i := 0; i < 200; i++ {
+		doc := make(map[string]interface{})
+		doc["Name"] = names[i%len(names)]
+		doc["Day"] = days[i%len(days)]
+		doc["Number"] = numbers[i%len(numbers)]
+		err = index.Index(fmt.Sprintf("%d", i), doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	req := NewSearchRequest(NewMatchQuery("One"))
+	req.SortBy([]string{"Day", "Name"})
+	req.Fields = []string{"*"}
+	sr, err := index.Search(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev := ""
+	for _, hit := range sr.Hits {
+		val := hit.Fields["Day"].(string)
+		if prev > val {
+			t.Errorf("Hits must be sorted by 'Day'. Found '%s' before '%s'", prev, val)
+		}
+		prev = val
+	}
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestIndexCountMatchSearch(t *testing.T) {
@@ -874,7 +992,7 @@ func TestKeywordSearchBug207(t *testing.T) {
 	}()
 
 	f := NewTextFieldMapping()
-	f.Analyzer = "keyword"
+	f.Analyzer = keyword_analyzer.Name
 
 	m := NewIndexMapping()
 	m.DefaultMapping = NewDocumentMapping()
@@ -1034,5 +1152,584 @@ func TestTermVectorArrayPositions(t *testing.T) {
 	err = index.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDocumentStaticMapping(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	m := NewIndexMapping()
+	m.DefaultMapping = NewDocumentStaticMapping()
+	m.DefaultMapping.AddFieldMappingsAt("Text", NewTextFieldMapping())
+	m.DefaultMapping.AddFieldMappingsAt("Date", NewDateTimeFieldMapping())
+	m.DefaultMapping.AddFieldMappingsAt("Numeric", NewNumericFieldMapping())
+
+	index, err := New("testidx", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doc1 := struct {
+		Text           string
+		IgnoredText    string
+		Numeric        float64
+		IgnoredNumeric float64
+		Date           time.Time
+		IgnoredDate    time.Time
+	}{
+		Text:           "valid text",
+		IgnoredText:    "ignored text",
+		Numeric:        10,
+		IgnoredNumeric: 20,
+		Date:           time.Unix(1, 0),
+		IgnoredDate:    time.Unix(2, 0),
+	}
+
+	err = index.Index("a", doc1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fields, err := index.Fields()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(fields)
+	expectedFields := []string{"Date", "Numeric", "Text", "_all"}
+	if len(fields) < len(expectedFields) {
+		t.Fatalf("invalid field count: %d", len(fields))
+	}
+	for i, expected := range expectedFields {
+		if expected != fields[i] {
+			t.Fatalf("unexpected field[%d]: %s", i, fields[i])
+		}
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIndexEmptyDocId(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	index, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := index.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	doc := map[string]interface{}{
+		"body": "nodocid",
+	}
+
+	err = index.Index("", doc)
+	if err != ErrorEmptyID {
+		t.Errorf("expect index empty doc id to fail")
+	}
+
+	err = index.Delete("")
+	if err != ErrorEmptyID {
+		t.Errorf("expect delete empty doc id to fail")
+	}
+
+	batch := index.NewBatch()
+	err = batch.Index("", doc)
+	if err != ErrorEmptyID {
+		t.Errorf("expect index empty doc id in batch to fail")
+	}
+
+	batch.Delete("")
+	if batch.Size() > 0 {
+		t.Errorf("expect delete empty doc id in batch to be ignored")
+	}
+}
+
+func TestDateTimeFieldMappingIssue287(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	f := NewDateTimeFieldMapping()
+
+	m := NewIndexMapping()
+	m.DefaultMapping = NewDocumentMapping()
+	m.DefaultMapping.AddFieldMappingsAt("Date", f)
+
+	index, err := New("testidx", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type doc struct {
+		Date time.Time
+	}
+
+	now := time.Now()
+
+	// 3hr ago to 1hr ago
+	for i := 0; i < 3; i++ {
+		d := doc{now.Add(time.Duration((i - 3)) * time.Hour)}
+
+		err = index.Index(strconv.FormatInt(int64(i), 10), d)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// search range across all docs
+	start := now.Add(-4 * time.Hour).Format(time.RFC3339)
+	end := now.Format(time.RFC3339)
+	sreq := NewSearchRequest(NewDateRangeQuery(&start, &end))
+	sres, err := index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 3 {
+		t.Errorf("expected 3 results, got %d", sres.Total)
+	}
+
+	// search range includes only oldest
+	start = now.Add(-4 * time.Hour).Format(time.RFC3339)
+	end = now.Add(-121 * time.Minute).Format(time.RFC3339)
+	sreq = NewSearchRequest(NewDateRangeQuery(&start, &end))
+	sres, err = index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 1 {
+		t.Errorf("expected 1 results, got %d", sres.Total)
+	}
+	if sres.Total > 0 && sres.Hits[0].ID != "0" {
+		t.Errorf("expecated id '0', got '%s'", sres.Hits[0].ID)
+	}
+
+	// search range includes only newest
+	start = now.Add(-61 * time.Minute).Format(time.RFC3339)
+	end = now.Format(time.RFC3339)
+	sreq = NewSearchRequest(NewDateRangeQuery(&start, &end))
+	sres, err = index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 1 {
+		t.Errorf("expected 1 results, got %d", sres.Total)
+	}
+	if sres.Total > 0 && sres.Hits[0].ID != "2" {
+		t.Errorf("expecated id '2', got '%s'", sres.Hits[0].ID)
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDocumentFieldArrayPositionsBug295(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	index, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// index a document with an array of strings
+	err = index.Index("k", struct {
+		Messages []string
+		Another  string
+		MoreData []string
+	}{
+		Messages: []string{
+			"bleve",
+			"bleve",
+		},
+		Another: "text",
+		MoreData: []string{
+			"a",
+			"b",
+			"c",
+			"bleve",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// search for it in the messages field
+	tq := NewTermQuery("bleve").SetField("Messages")
+	tsr := NewSearchRequest(tq)
+	results, err := index.Search(tsr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results.Total != 1 {
+		t.Fatalf("expected 1 result, got %d", results.Total)
+	}
+	if len(results.Hits[0].Locations["Messages"]["bleve"]) != 2 {
+		t.Fatalf("expected 2 locations of 'bleve', got %d", len(results.Hits[0].Locations["Messages"]["bleve"]))
+	}
+	if results.Hits[0].Locations["Messages"]["bleve"][0].ArrayPositions[0] != 0 {
+		t.Errorf("expected array position to be 0")
+	}
+	if results.Hits[0].Locations["Messages"]["bleve"][1].ArrayPositions[0] != 1 {
+		t.Errorf("expected array position to be 1")
+	}
+
+	// search for it in all
+	tq = NewTermQuery("bleve")
+	tsr = NewSearchRequest(tq)
+	results, err = index.Search(tsr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results.Total != 1 {
+		t.Fatalf("expected 1 result, got %d", results.Total)
+	}
+	if len(results.Hits[0].Locations["Messages"]["bleve"]) != 2 {
+		t.Fatalf("expected 2 locations of 'bleve', got %d", len(results.Hits[0].Locations["Messages"]["bleve"]))
+	}
+	if results.Hits[0].Locations["Messages"]["bleve"][0].ArrayPositions[0] != 0 {
+		t.Errorf("expected array position to be 0")
+	}
+	if results.Hits[0].Locations["Messages"]["bleve"][1].ArrayPositions[0] != 1 {
+		t.Errorf("expected array position to be 1")
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBooleanFieldMappingIssue109(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	m := NewIndexMapping()
+	m.DefaultMapping = NewDocumentMapping()
+	m.DefaultMapping.AddFieldMappingsAt("Bool", NewBooleanFieldMapping())
+
+	index, err := New("testidx", m)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type doc struct {
+		Bool bool
+	}
+	err = index.Index("true", &doc{Bool: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = index.Index("false", &doc{Bool: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sreq := NewSearchRequest(NewBoolFieldQuery(true).SetField("Bool"))
+	sres, err := index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 1 {
+		t.Errorf("expected 1 results, got %d", sres.Total)
+	}
+
+	sreq = NewSearchRequest(NewBoolFieldQuery(false).SetField("Bool"))
+	sres, err = index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 1 {
+		t.Errorf("expected 1 results, got %d", sres.Total)
+	}
+
+	sreq = NewSearchRequest(NewBoolFieldQuery(true))
+	sres, err = index.Search(sreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sres.Total != 1 {
+		t.Errorf("expected 1 results, got %d", sres.Total)
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSearchTimeout(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	index, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := index.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// first run a search with an absurdly long timeout (should succeeed)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	query := NewTermQuery("water")
+	req := NewSearchRequest(query)
+	_, err = index.SearchInContext(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// now run a search again with an absurdly low timeout (should timeout)
+	ctx, _ = context.WithTimeout(context.Background(), 1*time.Microsecond)
+	sq := &slowQuery{
+		actual: query,
+		delay:  50 * time.Millisecond, // on Windows timer resolution is 15ms
+	}
+	req.Query = sq
+	_, err = index.SearchInContext(ctx, req)
+	if err != context.DeadlineExceeded {
+		t.Fatalf("exected %v, got: %v", context.DeadlineExceeded, err)
+	}
+
+	// now run a search with a long timeout, but with a long query, and cancel it
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	sq = &slowQuery{
+		actual: query,
+		delay:  100 * time.Millisecond, // on Windows timer resolution is 15ms
+	}
+	req = NewSearchRequest(sq)
+	cancel()
+	_, err = index.SearchInContext(ctx, req)
+	if err != context.Canceled {
+		t.Fatalf("exected %v, got: %v", context.Canceled, err)
+	}
+}
+
+// TestConfigCache exposes a concurrent map write with go 1.6
+func TestConfigCache(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		go func() {
+			_, err := Config.Cache.HighlighterNamed(Config.DefaultHighlighter)
+			if err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+}
+
+func TestBatchRaceBug260(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	i, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := i.NewBatch()
+	err = b.Index("1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = i.Batch(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Reset()
+	err = b.Index("2", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = i.Batch(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Reset()
+}
+
+func BenchmarkBatchOverhead(b *testing.B) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}()
+	m := NewIndexMapping()
+	i, err := NewUsing("testidx", m, Config.DefaultIndexType, null.Name, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		// put 1000 items in a batch
+		batch := i.NewBatch()
+		for i := 0; i < 1000; i++ {
+			err = batch.Index(fmt.Sprintf("%d", i), map[string]interface{}{"name": "bleve"})
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		err = i.Batch(batch)
+		if err != nil {
+			b.Fatal(err)
+		}
+		batch.Reset()
+	}
+}
+
+func TestOpenReadonlyMultiple(t *testing.T) {
+	defer func() {
+		err := os.RemoveAll("testidx")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// build an index and close it
+	index, err := New("testidx", NewIndexMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doca := map[string]interface{}{
+		"name": "marty",
+		"desc": "gophercon india",
+	}
+	err = index.Index("a", doca)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// now open it read-only
+	index, err = OpenUsing("testidx", map[string]interface{}{
+		"read_only": true,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// now open it again
+	index2, err := OpenUsing("testidx", map[string]interface{}{
+		"read_only": true,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = index.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = index2.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestBug408 tests for VERY large values of size, even though actual result
+// set may be reasonable size
+func TestBug408(t *testing.T) {
+	type TestStruct struct {
+		ID     string  `json:"id"`
+		UserID *string `json:"user_id"`
+	}
+
+	docMapping := NewDocumentMapping()
+	docMapping.AddFieldMappingsAt("id", NewTextFieldMapping())
+	docMapping.AddFieldMappingsAt("user_id", NewTextFieldMapping())
+
+	indexMapping := NewIndexMapping()
+	indexMapping.DefaultMapping = docMapping
+
+	index, err := New("", indexMapping)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numToTest := 10
+	matchUserID := "match"
+	noMatchUserID := "no_match"
+	matchingDocIds := make(map[string]struct{})
+
+	for i := 0; i < numToTest; i++ {
+		ds := &TestStruct{"id_" + strconv.Itoa(i), nil}
+		if i%2 == 0 {
+			ds.UserID = &noMatchUserID
+		} else {
+			ds.UserID = &matchUserID
+			matchingDocIds[ds.ID] = struct{}{}
+		}
+		err = index.Index(ds.ID, ds)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cnt, err := index.DocCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int(cnt) != numToTest {
+		t.Fatalf("expected %d documents in index, got %d", numToTest, cnt)
+	}
+
+	q := NewTermQuery(matchUserID).SetField("user_id")
+	searchReq := NewSearchRequestOptions(q, math.MaxInt32, 0, false)
+	results, err := index.Search(searchReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int(results.Total) != numToTest/2 {
+		t.Fatalf("expected %d search hits, got %d", numToTest/2, results.Total)
+	}
+
+	for _, result := range results.Hits {
+		if _, found := matchingDocIds[result.ID]; !found {
+			t.Fatalf("document with ID %s not in results as expected", result.ID)
+		}
 	}
 }

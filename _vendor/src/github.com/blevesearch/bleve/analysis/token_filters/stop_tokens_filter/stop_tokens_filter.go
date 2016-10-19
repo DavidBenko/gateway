@@ -7,6 +7,13 @@
 //  either express or implied. See the License for the specific language governing permissions
 //  and limitations under the License.
 
+// package stop_tokens_filter implements a TokenFilter removing tokens found in
+// a TokenMap.
+//
+// It constructor takes the following arguments:
+//
+// "stop_token_map" (string): the name of the token map identifying tokens to
+// remove.
 package stop_tokens_filter
 
 import (
@@ -29,16 +36,16 @@ func NewStopTokensFilter(stopTokens analysis.TokenMap) *StopTokensFilter {
 }
 
 func (f *StopTokensFilter) Filter(input analysis.TokenStream) analysis.TokenStream {
-	rv := make(analysis.TokenStream, 0, len(input))
-
+	j := 0
 	for _, token := range input {
 		_, isStopToken := f.stopTokens[string(token.Term)]
 		if !isStopToken {
-			rv = append(rv, token)
+			input[j] = token
+			j++
 		}
 	}
 
-	return rv
+	return input[:j]
 }
 
 func StopTokensFilterConstructor(config map[string]interface{}, cache *registry.Cache) (analysis.TokenFilter, error) {

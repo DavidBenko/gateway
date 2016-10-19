@@ -57,11 +57,14 @@ func NewNumericRangeSearcher(indexReader index.IndexReader, min *float64, max *f
 	// FIXME hard-coded precision, should match field declaration
 	termRanges := splitInt64Range(minInt64, maxInt64, 4)
 	terms := termRanges.Enumerate()
+	if tooManyClauses(len(terms)) {
+		return nil, tooManyClausesErr()
+	}
 	// enumerate all the terms in the range
 	qsearchers := make([]search.Searcher, len(terms))
 	for i, term := range terms {
 		var err error
-		qsearchers[i], err = NewTermSearcher(indexReader, string(term), field, 1.0, explain)
+		qsearchers[i], err = NewTermSearcher(indexReader, string(term), field, boost, explain)
 		if err != nil {
 			return nil, err
 		}
@@ -93,12 +96,12 @@ func (s *NumericRangeSearcher) SetQueryNorm(qnorm float64) {
 	s.searcher.SetQueryNorm(qnorm)
 }
 
-func (s *NumericRangeSearcher) Next() (*search.DocumentMatch, error) {
-	return s.searcher.Next()
+func (s *NumericRangeSearcher) Next(ctx *search.SearchContext) (*search.DocumentMatch, error) {
+	return s.searcher.Next(ctx)
 }
 
-func (s *NumericRangeSearcher) Advance(ID string) (*search.DocumentMatch, error) {
-	return s.searcher.Advance(ID)
+func (s *NumericRangeSearcher) Advance(ctx *search.SearchContext, ID index.IndexInternalID) (*search.DocumentMatch, error) {
+	return s.searcher.Advance(ctx, ID)
 }
 
 func (s *NumericRangeSearcher) Close() error {
@@ -126,7 +129,7 @@ func incrementBytes(in []byte) []byte {
 	for i := len(rv) - 1; i >= 0; i-- {
 		rv[i] = rv[i] + 1
 		if rv[i] != 0 {
-			// didnt' overflow, so stop
+			// didn't overflow, so stop
 			break
 		}
 	}
@@ -211,4 +214,8 @@ func newRangeBytes(minBytes, maxBytes []byte) *termRange {
 
 func (s *NumericRangeSearcher) Min() int {
 	return 0
+}
+
+func (s *NumericRangeSearcher) DocumentMatchPoolSize() int {
+	return s.searcher.DocumentMatchPoolSize()
 }
