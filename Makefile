@@ -292,7 +292,8 @@ vendor_get: vendor_clean
 	github.com/surge/glog \
 	github.com/stripe/stripe-go \
 	github.com/clbanning/mxj \
-	github.com/google/go-gcm
+	github.com/google/go-gcm \
+	github.com/edganiukov/fcm
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
