@@ -98,6 +98,8 @@ func (p *PushPool) Connection(platform *re.PushPlatform) Pusher {
 		pusher = NewApplePusher(platform)
 	case re.PushTypeGCM:
 		pusher = NewGooglePusher(platform)
+	case re.PushTypeFCM:
+		pusher = NewFCMPusher(platform)
 	case re.PushTypeMQTT:
 		pusher = NewMQTTPusher(p, platform)
 	}
