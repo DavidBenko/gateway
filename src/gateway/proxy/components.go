@@ -2,10 +2,13 @@ package proxy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/robertkrimen/otto"
 
 	"gateway/model"
 	"gateway/proxy/vm"
@@ -96,8 +99,42 @@ func (s *Server) runJSComponentCore(vm *vm.ProxyVM, component *model.ProxyEndpoi
 	if err != nil || script == "" {
 		return err
 	}
-	_, err = vm.Run(script)
-	return err
+	wrappedScript, getter := wrapJSComponent(vm, script)
+	_, err = vm.Run(wrappedScript)
+	if err != nil {
+		return err
+	}
+	return getter()
+}
+
+func wrapJSComponent(vm *vm.ProxyVM, script string) (string, func() error) {
+	breakVar := "__vm_break_value"
+	hash := "8a52973428f63bb0135a3abf535fec0f15b4c8eda1e9a2f1431f0a1f759babd3"
+	vm.Run(fmt.Sprintf("const break = '%s';", hash))
+
+	wrapped := fmt.Sprintf("var %s = (function() {%s})();", breakVar, script)
+
+	undefined := otto.Value{}
+	fn := func() error {
+		v, err := vm.Get(breakVar)
+		if err != nil {
+			return err
+		}
+		val, err := v.Export()
+		if err != nil {
+			return err
+		}
+		if v == undefined {
+			return nil
+		}
+		e, err := json.Marshal(val)
+		if err != nil {
+			return err
+		}
+		return errors.New(string(e[:]))
+	}
+
+	return wrapped, fn
 }
 
 func (s *Server) runCallComponentSetup(vm *vm.ProxyVM, component *model.ProxyEndpointComponent) error {

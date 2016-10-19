@@ -392,8 +392,12 @@ func (s *Server) runStoredJSONScript(vm *apvm.ProxyVM, jsonScript types.JsonText
 	if err != nil || script == "" {
 		return err
 	}
-	_, err = vm.Run(script)
-	return err
+	wrappedScript, getter := wrapJSComponent(vm, script)
+	_, err = vm.Run(wrappedScript)
+	if err != nil {
+		return err
+	}
+	return getter()
 }
 
 func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
