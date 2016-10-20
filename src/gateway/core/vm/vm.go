@@ -2,6 +2,7 @@ package vm
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -111,7 +112,62 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 	if err != nil {
 		return value, &jsError{err, script, c.GetNumErrorLines()}
 	}
+
 	return
+}
+
+func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, err error) {
+	if s, ok := script.(string); ok {
+		wrapped, stopper := WrapJSComponent(c, s)
+		value, err = c.Otto.Run(wrapped)
+		if err != nil {
+			return value, stop, &jsError{err, script, c.GetNumErrorLines()}
+		}
+		stop, err = stopper()
+		if err != nil {
+			return value, stop, &jsError{err, script, c.GetNumErrorLines()}
+		}
+	}
+	return
+}
+
+func WrapJSComponent(c *CoreVM, script string) (string, func() (bool, error)) {
+	stopVal := "8a52973428f63bb0135a3abf535fec0f15b4c8eda1e9a2f1431f0a1f759babd3"
+	resultVar := "__exec_result"
+	wrapped := fmt.Sprintf("var stop = '%s'; var %s = (function() {%s})();", stopVal, resultVar, script)
+
+	fn := func() (bool, error) {
+		v, err := c.Get(resultVar)
+		if err != nil {
+			return false, err
+		}
+
+		if !v.IsUndefined() || !v.IsNull() {
+			export, err := v.Export()
+			if err != nil {
+				return false, err
+			}
+			if val, ok := export.(string); ok {
+				if val == stopVal {
+					fmt.Println("RECEIVED STOP RETURN!")
+					return true, nil
+				}
+			}
+
+			if export == nil {
+				return false, nil
+			}
+
+			fmt.Printf("\n\n%+v\n\n", export)
+			e, err := json.Marshal(export)
+			if err != nil {
+				return false, err
+			}
+			return false, errors.New(string(e[:]))
+		}
+		return false, nil
+	}
+	return wrapped, fn
 }
 
 // RunAll runs all the given scripts
@@ -137,7 +193,7 @@ func (c *CoreVM) runStoredJSONScript(jsonScript types.JsonText) error {
 	if err != nil || script == "" {
 		return err
 	}
-	_, err = c.Run(script)
+	_, _, err = c.RunWithStop(script)
 	return err
 }
 

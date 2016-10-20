@@ -364,19 +364,6 @@ func (s *Server) accessLoggingNotFoundHandler() http.Handler {
 		}))
 }
 
-func (s *Server) runStoredJSONScript(vm *apvm.ProxyVM, jsonScript types.JsonText) error {
-	script, err := strconv.Unquote(string(jsonScript))
-	if err != nil || script == "" {
-		return err
-	}
-	wrappedScript, getter := wrapJSComponent(vm, script)
-	_, err = vm.Run(wrappedScript)
-	if err != nil {
-		return err
-	}
-	return getter()
-}
-
 func (s *Server) matchingRouteForOptions(endpoint *model.ProxyEndpoint,
 	r *http.Request) (*model.ProxyEndpointRoute, error) {
 	routes, err := endpoint.GetRoutes()
