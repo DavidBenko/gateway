@@ -149,7 +149,6 @@ func WrapJSComponent(c *CoreVM, script string) (string, func() (bool, error)) {
 			}
 			if val, ok := export.(string); ok {
 				if val == stopVal {
-					fmt.Println("RECEIVED STOP RETURN!")
 					return true, nil
 				}
 			}
@@ -158,7 +157,6 @@ func WrapJSComponent(c *CoreVM, script string) (string, func() (bool, error)) {
 				return false, nil
 			}
 
-			fmt.Printf("\n\n%+v\n\n", export)
 			e, err := json.Marshal(export)
 			if err != nil {
 				return false, err

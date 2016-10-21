@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"gateway/core/vm"
-	"gateway/logreport"
 
 	"gateway/model"
 )
@@ -29,7 +28,6 @@ import (
 
 func (s *Core) RunComponents(vm *vm.CoreVM, components []*model.ProxyEndpointComponent) error {
 	connections := make(map[int64]io.Closer)
-	logreport.Print("\n\nRunning Components\n\n")
 
 	for _, c := range components {
 		if sh := c.SharedComponentHandle; sh != nil {
