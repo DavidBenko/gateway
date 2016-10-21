@@ -217,7 +217,7 @@ NEXT:
 		}
 	}
 
-	return next.Add(time.Duration(rand.Intn(16 * int(time.Second))))
+	return next.Add(time.Duration(rand.Intn(16)) * time.Second)
 }
 
 func (t *Timer) Schedule(tx *apsql.Tx) error {
