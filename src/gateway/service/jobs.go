@@ -26,7 +26,7 @@ func JobsService(conf config.Configuration, warp *core.Core) {
 	source := rand.New(rand.NewSource(time.Now().Unix()))
 	go func() {
 		for {
-			time.Sleep(time.Second + time.Duration(source.Intn(7*int(time.Second))))
+			time.Sleep(time.Second + (time.Duration(source.Intn(7)) * time.Second))
 			now, err := warp.OwnDb.CurrentTime()
 			if err != nil {
 				logreport.Printf("%s %v", config.Job, err)
