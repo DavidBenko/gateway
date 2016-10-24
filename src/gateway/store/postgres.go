@@ -602,7 +602,7 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64
 	if err := jql.Parse(); err != nil {
 		return nil, err
 	}
-	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
+	ast, buffer := jql.AST(), []rune(jql.Buffer)
 	query, length := pgProcess(ast, &Context{buffer, nil, params}).s, len(params)
 	params = append(params, accountID, collectionID)
 	query = fmt.Sprintf(`SELECT id, account_id, collection_id, data FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,

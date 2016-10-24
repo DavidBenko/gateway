@@ -868,7 +868,7 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		return nil, err
 	}
 
-	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
+	ast, buffer := jql.AST(), []rune(jql.Buffer)
 	constraints := getConstraints(ast, &Context{buffer, nil, params})
 	var results []*Object
 	if len(constraints.order.path) > 0 {
