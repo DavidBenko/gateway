@@ -258,7 +258,7 @@ const ExampleConfigurationFile = `##############################################
 # memory = 128
 
 # The CPU share weight to allocate to each running docker container.
-# cpuShares = 1
+# cpuShares = 0
 
 # The host to connect to when performing Docker client operations. Default is blank which then uses the env to configure the Docker client.
 # host = ''

@@ -77,7 +77,7 @@ type Store struct {
 // Docker specifies configuration options for docker remote endpoints
 type Docker struct {
 	Memory           int64  `flag:"docker-memory" default:"128"`
-	CPUShares        int64  `flag:"docker-cpu-shares" default:"1"`
+	CPUShares        int64  `flag:"docker-cpu-shares" default:"0"`
 	Host             string `flag:"docker-host" default:""`
 	Tls              bool   `flag:"docker-tls" default:"false"`
 	TlsCertFile      string `flag:"docker-tls-cert" default:""`

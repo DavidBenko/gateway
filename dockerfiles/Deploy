@@ -79,6 +79,7 @@ ENV STORE_ENABLED true
 ENV DOCKER_ENABLED false
 ENV SMTP_ENABLED true
 ENV SOAP_ENABLED true
+ENV JOBS_ENABLED true
 
 # PUSH CONFIG
 ENV ENABLE_PUSH_BROKER true
@@ -91,7 +92,7 @@ ENV PUSH_MQTT_URI "tcp://:1883"
 
 # DOCKER CONFIG
 ENV DOCKER_MEMORY 128
-ENV DOCKER_CPU_SHARES 1
+ENV DOCKER_CPU_SHARES 0
 ENV DOCKER_HOST ""
 ENV DOCKER_TLS false
 ENV DOCKER_TLS_CERT_CONTENT ""
@@ -103,6 +104,12 @@ ENV STRIPE_SECRET_KEY ""
 ENV STRIPE_PUBLISHABLE_KEY ""
 ENV STRIPE_FALLBACK_PLAN ""
 ENV STRIPE_MIGRATE_ACCOUNTS false
+
+# JOBS CONFIG
+ENV JOBS_EXECUTE true
+ENV JOBS_ENABLE_OS_ENV false
+ENV JOBS_CODE_TIMEOUT 5
+ENV JOBS_NUM_ERR_LINES 2
 
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
 ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STORE_MIGRATE -proxy-cache-apis=$CACHE_APIS \
@@ -122,4 +129,5 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -remote-endpoint-smtp-enabled=$SMTP_ENABLED -remote-endpoint-soap-enabled=$SOAP_ENABLED \
   -admin-api-host=$ADMIN_API_HOST -admin-cors-enabled=$ADMIN_CORS_ENABLED -admin-cors-origin="$ADMIN_CORS_ORIGIN" -admin-username="$ADMIN_BASIC_AUTH_USER" -admin-password="$ADMIN_BASIC_AUTH_PASSWORD" \
   -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
-  -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI
+  -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI \
+  -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED
