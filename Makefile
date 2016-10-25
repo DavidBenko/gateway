@@ -293,7 +293,8 @@ vendor_get: vendor_clean
 	github.com/stripe/stripe-go \
 	github.com/clbanning/mxj \
 	github.com/google/go-gcm \
-	github.com/edganiukov/fcm
+	github.com/edganiukov/fcm \
+	github.com/Microsoft/go-winio
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
