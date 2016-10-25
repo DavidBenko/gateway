@@ -603,24 +603,52 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64
 		return nil, err
 	}
 	ast, buffer := jql.AST(), []rune(jql.Buffer)
-	query, length := pgProcess(ast, &Context{buffer, nil, params}).s, len(params)
+	q, length := pgProcess(ast, &Context{buffer, nil, params}), len(params)
 	params = append(params, accountID, collectionID)
-	query = fmt.Sprintf(`SELECT id, account_id, collection_id, data FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
-		length+1, length+2, query)
-
-	rows, err := tx.Queryx(query, params...)
-	if err != nil {
-		return nil, err
-	}
-
 	var objects []*Object
-	for rows.Next() {
-		object := &Object{}
-		err = rows.StructScan(object)
+	if q.aggregate == "" {
+		query := fmt.Sprintf(`SELECT id, account_id, collection_id, data FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
+			length+1, length+2, q.s)
+
+		rows, err := tx.Queryx(query, params...)
 		if err != nil {
 			return nil, err
 		}
-		objects = append(objects, object)
+
+		for rows.Next() {
+			object := &Object{}
+			err = rows.StructScan(object)
+			if err != nil {
+				return nil, err
+			}
+			objects = append(objects, object)
+		}
+	} else {
+		query := fmt.Sprintf(`SELECT %v FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
+			q.aggregate, length+1, length+2, q.s)
+
+		rows, err := tx.Queryx(query, params...)
+		if err != nil {
+			return nil, err
+		}
+
+		for rows.Next() {
+			result := make(map[string]interface{})
+			err := rows.MapScan(result)
+			if err != nil {
+				return nil, err
+			}
+			data, err := json.Marshal(&result)
+			if err != nil {
+				return nil, err
+			}
+			object := &Object{
+				AccountID:    accountID,
+				CollectionID: collectionID,
+				Data:         data,
+			}
+			objects = append(objects, object)
+		}
 	}
 
 	return objects, nil
@@ -668,8 +696,8 @@ func (s *PostgresStore) Shutdown() {
 }
 
 type Query struct {
-	s      string
-	errors []error
+	s, aggregate string
+	errors       []error
 }
 
 func pgProcess(node *node32, context *Context) (q Query) {
@@ -690,6 +718,9 @@ func pgProcess(node *node32, context *Context) (q Query) {
 		case ruleoffset:
 			x := pgProcessOffset(node.up, context)
 			q.s += " " + x.s
+		case ruleaggregate:
+			x := pgProcessAggregate(node.up, context)
+			q.aggregate = x.aggregate
 		}
 		node = node.next
 	}
@@ -757,6 +788,53 @@ func pgProcessOffset(node *node32, context *Context) (q Query) {
 	for node != nil {
 		if node.pegRule == rulevalue1 {
 			q.s += "OFFSET " + strings.TrimSpace(string(context.buffer[node.begin:node.end]))
+		}
+		node = node.next
+	}
+	return
+}
+
+func pgProcessAggregate(node *node32, context *Context) (q Query) {
+	for node != nil {
+		if node.pegRule == ruleaggregate_clause {
+			x := pgProcessAggregateClause(node.up, context)
+			q.aggregate += " " + x.aggregate
+		}
+		node = node.next
+	}
+	return
+}
+
+func pgProcessAggregateClause(node *node32, context *Context) (q Query) {
+	function := ""
+	for node != nil {
+		switch node.pegRule {
+		case rulefunction:
+			function = context.Node(node)
+			q.aggregate += function + "( "
+		case ruleselector:
+			selector := pgProcessSelector(node, context).aggregate
+			if function == "count" {
+				q.aggregate += selector + " )"
+			} else {
+				q.aggregate += "CAST( " + selector + "as float ) )"
+			}
+		case ruleword:
+			q.aggregate += " as " + context.Node(node)
+		}
+		node = node.next
+	}
+	return
+}
+
+func pgProcessSelector(node *node32, context *Context) (q Query) {
+	for node != nil {
+		switch node.pegRule {
+		case rulepath:
+			x := pgProcessPath(node, context)
+			q.aggregate = x.s
+		case rulewildcard:
+			q.aggregate = context.Node(node)
 		}
 		node = node.next
 	}

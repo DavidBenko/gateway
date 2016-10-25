@@ -1017,6 +1017,10 @@ type Context struct {
 	param  []interface{}
 }
 
+func (c *Context) Node(node *node32) string {
+	return strings.TrimSpace(string(c.buffer[node.begin:node.end]))
+}
+
 type Results struct {
 	results []*Object
 	path    []string
