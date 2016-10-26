@@ -130,6 +130,9 @@ docker_build_armv7:
 docker_pack_executables:
 	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.2.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
 
+docker_brute_pack_executables:
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.2.0 /bin/bash -c ". /root/.bashrc && upx --brute ./build/gateway-*"
+
 docker_build_all_full: docker_build_prereqs docker_build_all docker_clean_bin
 
 docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7 docker_pack_executables
@@ -292,7 +295,9 @@ vendor_get: vendor_clean
 	github.com/surge/glog \
 	github.com/stripe/stripe-go \
 	github.com/clbanning/mxj \
-	github.com/google/go-gcm
+	github.com/google/go-gcm \
+	github.com/edganiukov/fcm \
+	github.com/Microsoft/go-winio
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
