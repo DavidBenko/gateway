@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strconv"
@@ -942,6 +943,34 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		}
 	}
 
+	aggregations := &Aggregations{}
+	aggregations.Process(ast, &Context{buffer, nil, params})
+	if len(aggregations.Aggregations) > 0 {
+		for _, result := range results {
+			var _json interface{}
+			err := json.Unmarshal(result.Data, &_json)
+			if err != nil {
+				return nil, err
+			}
+			for _, aggregation := range aggregations.Aggregations {
+				aggregation.Accumulate(_json)
+			}
+		}
+		result := make(map[string]float64)
+		for name, aggregation := range aggregations.Aggregations {
+			result[name] = aggregation.Compute()
+		}
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return nil, err
+		}
+		results = []*Object{&Object{
+			AccountID:    collection.AccountID,
+			CollectionID: collection.ID,
+			Data:         data,
+		}}
+	}
+
 	return results, nil
 }
 
@@ -991,6 +1020,262 @@ func itob(i uint64) []byte {
 
 func btoi(b []byte) uint64 {
 	return binary.BigEndian.Uint64(b)
+}
+
+type Aggregation interface {
+	Accumulate(_json interface{})
+	Compute() float64
+}
+
+type Aggregations struct {
+	Aggregations map[string]Aggregation
+}
+
+func getFloat64(path *node32, _json interface{}, context *Context) (value float64, valid bool) {
+	for path != nil {
+		if path.pegRule == ruleword {
+			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
+			if !valid {
+				return 0, valid
+			}
+		}
+		path = path.next
+	}
+	switch value := _json.(type) {
+	case float64:
+		return value, true
+	case string:
+		v, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return 0, false
+		}
+		return v, true
+	case bool:
+		if value {
+			return 1, true
+		}
+		return 0, true
+	}
+	return 0, false
+}
+
+func getValid(path *node32, _json interface{}, context *Context) (valid bool) {
+	for path != nil {
+		if path.pegRule == ruleword {
+			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
+			if !valid {
+				return valid
+			}
+		}
+		path = path.next
+	}
+	return true
+}
+
+type SumAggregation struct {
+	path    *node32
+	context *Context
+	sum     float64
+}
+
+func (a *SumAggregation) Accumulate(_json interface{}) {
+	if value, valid := getFloat64(a.path, _json, a.context); valid {
+		a.sum += value
+	}
+}
+
+func (a *SumAggregation) Compute() float64 {
+	return a.sum
+}
+
+type CountAggregation struct {
+	path    *node32
+	context *Context
+	count   uint64
+}
+
+func (a *CountAggregation) Accumulate(_json interface{}) {
+	if getValid(a.path, _json, a.context) {
+		a.count++
+	}
+}
+
+func (a *CountAggregation) Compute() float64 {
+	return float64(a.count)
+}
+
+type CountAllAggregation struct {
+	count uint64
+}
+
+func (a *CountAllAggregation) Accumulate(_json interface{}) {
+	a.count++
+}
+
+func (a *CountAllAggregation) Compute() float64 {
+	return float64(a.count)
+}
+
+type AvgAggregation struct {
+	path    *node32
+	context *Context
+	sum     float64
+	count   uint64
+}
+
+func (a *AvgAggregation) Accumulate(_json interface{}) {
+	if value, valid := getFloat64(a.path, _json, a.context); valid {
+		a.sum += value
+		a.count++
+	}
+}
+
+func (a *AvgAggregation) Compute() float64 {
+	return a.sum / float64(a.count)
+}
+
+type StdDevAggregation struct {
+	path            *node32
+	context         *Context
+	sum, sumSquared float64
+	count           uint64
+}
+
+func (a *StdDevAggregation) Accumulate(_json interface{}) {
+	if value, valid := getFloat64(a.path, _json, a.context); valid {
+		a.sum += value
+		a.sumSquared += value * value
+		a.count++
+	}
+}
+
+func (a *StdDevAggregation) Compute() float64 {
+	count := float64(a.count)
+	avg := a.sum / count
+	return math.Sqrt((a.sumSquared / count) - avg*avg)
+}
+
+type MinAggregation struct {
+	path    *node32
+	context *Context
+	min     float64
+}
+
+func (a *MinAggregation) Accumulate(_json interface{}) {
+	if value, valid := getFloat64(a.path, _json, a.context); valid && value < a.min {
+		a.min = value
+	}
+}
+
+func (a *MinAggregation) Compute() float64 {
+	return a.min
+}
+
+type MaxAggregation struct {
+	path    *node32
+	context *Context
+	max     float64
+}
+
+func (a *MaxAggregation) Accumulate(_json interface{}) {
+	if value, valid := getFloat64(a.path, _json, a.context); valid && value > a.max {
+		a.max = value
+	}
+}
+
+func (a *MaxAggregation) Compute() float64 {
+	return a.max
+}
+
+func (a *Aggregations) Process(node *node32, context *Context) {
+	for node != nil {
+		switch node.pegRule {
+		case rulee:
+			a.Process(node.up, context)
+		case ruleaggregate:
+			a.ProcessAggregate(node.up, context)
+		}
+		node = node.next
+	}
+	return
+}
+
+func (a *Aggregations) ProcessAggregate(node *node32, context *Context) {
+	for node != nil {
+		if node.pegRule == ruleaggregate_clause {
+			a.ProcessAggregateClause(node.up, context)
+		}
+		node = node.next
+	}
+	return
+}
+
+func (a *Aggregations) ProcessAggregateClause(node *node32, context *Context) {
+	function, typ := "", ruleUnknown
+	var selector *node32
+	for node != nil {
+		switch node.pegRule {
+		case rulefunction:
+			function = context.Node(node)
+		case ruleselector:
+			typ, selector = a.ProcessSelector(node.up, context)
+		case ruleword:
+			name := context.Node(node)
+			switch function {
+			case "sum":
+				a.Aggregations[name] = &SumAggregation{
+					path:    selector,
+					context: context,
+				}
+			case "count":
+				switch typ {
+				case rulepath:
+					a.Aggregations[name] = &CountAggregation{
+						path:    selector,
+						context: context,
+					}
+				case rulewildcard:
+					a.Aggregations[name] = &CountAllAggregation{}
+				}
+			case "avg":
+				a.Aggregations[name] = &AvgAggregation{
+					path:    selector,
+					context: context,
+				}
+			case "stddev":
+				a.Aggregations[name] = &StdDevAggregation{
+					path:    selector,
+					context: context,
+				}
+			case "min":
+				a.Aggregations[name] = &MinAggregation{
+					path:    selector,
+					context: context,
+					min:     math.MaxFloat64,
+				}
+			case "max":
+				a.Aggregations[name] = &MaxAggregation{
+					path:    selector,
+					context: context,
+				}
+			}
+		}
+		node = node.next
+	}
+	return
+}
+
+func (a *Aggregations) ProcessSelector(node *node32, context *Context) (typ pegRule, value *node32) {
+	for node != nil {
+		switch node.pegRule {
+		case rulepath:
+			return rulepath, node
+		case rulewildcard:
+			return rulewildcard, node
+		}
+		node = node.next
+	}
+	return
 }
 
 type Value struct {

@@ -813,7 +813,7 @@ func pgProcessAggregateClause(node *node32, context *Context) (q Query) {
 			function = context.Node(node)
 			q.aggregate += function + "( "
 		case ruleselector:
-			selector := pgProcessSelector(node, context).aggregate
+			selector := pgProcessSelector(node.up, context).aggregate
 			if function == "count" {
 				q.aggregate += selector + " )"
 			} else {
@@ -831,7 +831,7 @@ func pgProcessSelector(node *node32, context *Context) (q Query) {
 	for node != nil {
 		switch node.pegRule {
 		case rulepath:
-			x := pgProcessPath(node, context)
+			x := pgProcessPath(node.up, context)
 			q.aggregate = x.s
 		case rulewildcard:
 			q.aggregate = context.Node(node)
