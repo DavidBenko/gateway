@@ -795,10 +795,12 @@ func pgProcessOffset(node *node32, context *Context) (q Query) {
 }
 
 func pgProcessAggregate(node *node32, context *Context) (q Query) {
+	comma := ""
 	for node != nil {
 		if node.pegRule == ruleaggregate_clause {
 			x := pgProcessAggregateClause(node.up, context)
-			q.aggregate += " " + x.aggregate
+			q.aggregate += comma + " " + x.aggregate
+			comma = ","
 		}
 		node = node.next
 	}
@@ -811,6 +813,9 @@ func pgProcessAggregateClause(node *node32, context *Context) (q Query) {
 		switch node.pegRule {
 		case rulefunction:
 			function = context.Node(node)
+			if function == "stddev" {
+				function = "stddev_pop"
+			}
 			q.aggregate += function + "( "
 		case ruleselector:
 			selector := pgProcessSelector(node.up, context).aggregate

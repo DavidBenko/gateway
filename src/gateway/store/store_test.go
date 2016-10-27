@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -20,6 +21,7 @@ import (
 var testStore store.Store
 
 func testPostgres(m *testing.M) int {
+	fmt.Println("testPostgres")
 	var postgresStore store.Store
 	conf := config.Store{
 		Type: "postgres",
@@ -41,6 +43,7 @@ func testPostgres(m *testing.M) int {
 }
 
 func testBolt(m *testing.M) int {
+	fmt.Println("testBolt")
 	var boltStore store.Store
 	file := make([]byte, 8)
 	binary.BigEndian.PutUint64(file, uint64(rand.Int63()))
@@ -601,5 +604,47 @@ func TestSelectUnderscore(t *testing.T) {
 	}
 	if len(objects) != 1 {
 		t.Fatal("there should be 1 object")
+	}
+}
+
+func TestAggregation(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	objects := parse(t)
+	for _, obj := range objects {
+		objects, err := s.Insert(0, "people", obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		object := objects[0]
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
+	}
+	objects, err := s.Select(0, "people", `true | count(name.first) as count,
+		count(*) as countall, sum(age) as sum, avg(age) as avg,
+		stddev(age) as stddev, min(age) as min, max(age) as max`)
+	t.Log(objects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 1 {
+		t.Fatal("there should be 1 objects")
+	}
+	valid := map[string]string{
+		"count":    "3.00",
+		"countall": "3.00",
+		"sum":      "64.00",
+		"avg":      "21.33",
+		"stddev":   "2.87",
+		"min":      "18.00",
+		"max":      "25.00",
+	}
+	results := objects[0].(map[string]interface{})
+	for name, value := range valid {
+		if s := fmt.Sprintf("%.2f", results[name].(float64)); s != value {
+			t.Fatal(fmt.Sprintf("%v should be equal to %v not %v", name, value, s))
+		}
 	}
 }

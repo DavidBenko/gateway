@@ -943,7 +943,7 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		}
 	}
 
-	aggregations := &Aggregations{}
+	aggregations := &Aggregations{Aggregations: make(map[string]Aggregation)}
 	aggregations.Process(ast, &Context{buffer, nil, params})
 	if len(aggregations.Aggregations) > 0 {
 		for _, result := range results {
@@ -1131,6 +1131,9 @@ func (a *AvgAggregation) Accumulate(_json interface{}) {
 }
 
 func (a *AvgAggregation) Compute() float64 {
+	if a.count == 0 {
+		return 0
+	}
 	return a.sum / float64(a.count)
 }
 
@@ -1150,6 +1153,9 @@ func (a *StdDevAggregation) Accumulate(_json interface{}) {
 }
 
 func (a *StdDevAggregation) Compute() float64 {
+	if a.count == 0 {
+		return 0
+	}
 	count := float64(a.count)
 	avg := a.sum / count
 	return math.Sqrt((a.sumSquared / count) - avg*avg)
@@ -1269,9 +1275,9 @@ func (a *Aggregations) ProcessSelector(node *node32, context *Context) (typ pegR
 	for node != nil {
 		switch node.pegRule {
 		case rulepath:
-			return rulepath, node
+			return rulepath, node.up
 		case rulewildcard:
-			return rulewildcard, node
+			return rulewildcard, node.up
 		}
 		node = node.next
 	}

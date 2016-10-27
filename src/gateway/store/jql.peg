@@ -17,8 +17,8 @@ e3 <- expression
     / open e1 close
 expression <- path op value2
             / boolean sp
-aggregate <- '|' sp aggregate_clause*
-aggregate_clause <- sp function '(' sp selector ')' sp 'as' sp word sp
+aggregate <- '|' sp aggregate_clause ( ',' sp aggregate_clause )*
+aggregate_clause <- function '(' sp selector ')' sp 'as' sp word sp
 function <- ( 'sum' / 'count' / 'avg' / 'stddev' / 'min' / 'max' ) sp
 selector <- ( path / wildcard )
 op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
@@ -37,4 +37,4 @@ and <- 'and' sp
 or <- 'or' sp
 open <- '(' sp
 close <- ')' sp
-sp <- ( ' ' / '\t' )*
+sp <- ( ' ' / '\t' / '\n' / '\r' )*
