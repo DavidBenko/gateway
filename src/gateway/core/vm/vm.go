@@ -157,3 +157,17 @@ func osEnvironmentScript() string {
 		strings.Join(keypairs, ",\n"))
 	return script
 }
+
+// GetArgument returns the proper exported value from an Otto VM function call at the
+// supplied index. I.e. the 0th index is the first function argument, the 1st index
+// is the second function argument, etc.
+func GetArgument(call otto.FunctionCall, index int) (interface{}, error) {
+	arg := call.Argument(index)
+	// otto.Value is equivalent to undefined in javascript
+	undefined := otto.Value{}
+	if arg == undefined {
+		return nil, errors.New("undefined argument")
+	}
+
+	return arg.Export()
+}
