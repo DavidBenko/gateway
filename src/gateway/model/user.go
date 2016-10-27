@@ -287,9 +287,9 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	u.ID, err = tx.InsertOne(
-		`INSERT INTO users (account_id, name, email, admin, token, confirmed, hashed_password)
-		 VALUES (?, ?, ?, ?, '', ?, ?)`,
-		u.AccountID, u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword)
+		`INSERT INTO users (account_id, name, email, admin, token, confirmed, hashed_password, created_at)
+		 VALUES (?, ?, ?, ?, '', ?, ?, ?)`,
+		u.AccountID, u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword, time.Now().UTC())
 	if err != nil {
 		return err
 	}
@@ -325,9 +325,9 @@ func (u *User) Update(tx *apsql.Tx) error {
 		}
 		err = tx.UpdateOne(
 			`UPDATE users
-			 SET name = ?, email = ?, admin = ?, confirmed = ?, hashed_password = ?
+			 SET name = ?, email = ?, admin = ?, confirmed = ?, hashed_password = ?, updated_at = ?
 			 WHERE id = ? AND account_id = ?;`,
-			u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword, u.ID, u.AccountID)
+			u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword, time.Now().UTC(), u.ID, u.AccountID)
 		if err != nil {
 			return err
 		}
@@ -337,9 +337,9 @@ func (u *User) Update(tx *apsql.Tx) error {
 
 	err = tx.UpdateOne(
 		`UPDATE users
-			 SET name = ?, email = ?, admin = ?, confirmed = ?
+			 SET name = ?, email = ?, admin = ?, confirmed = ?, updated_at = ?
 			 WHERE id = ? AND account_id = ?;`,
-		u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.ID, u.AccountID)
+		u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, time.Now().UTC(), u.ID, u.AccountID)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,8 @@ INSERT INTO scratch_pads (
   environment_data_id,
   name,
   code,
-  data
+  data,
+  created_at
 )
 VALUES (
   (SELECT remote_endpoint_environment_data.id
@@ -13,6 +14,7 @@ VALUES (
       AND remote_endpoints.api_id = ?
       AND remote_endpoints.api_id = apis.id
       AND apis.account_id = ?),
+  ?,
   ?,
   ?,
   ?

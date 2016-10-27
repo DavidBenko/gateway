@@ -316,7 +316,7 @@ func (t *Timer) Insert(tx *apsql.Tx) error {
 		t.JobID, t.APIID,
 		t.Name, t.Once, t.TimeZone,
 		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
-		t.Next, parameters, data)
+		t.Next, parameters, data, time.Now().UTC())
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (t *Timer) Update(tx *apsql.Tx) error {
 		t.JobID, t.APIID,
 		t.Name, t.Once, t.TimeZone,
 		t.Minute, t.Hour, t.DayOfMonth, t.Month, t.DayOfWeek,
-		t.Next, parameters, data,
+		t.Next, parameters, data, time.Now().UTC(),
 		t.ID, t.APIID, t.AccountID)
 	if err != nil {
 		return err

@@ -8,7 +8,8 @@ SET
     (SELECT id FROM environments WHERE id = ? AND api_id = ?),
   active = ?,
   cors_enabled = ?,
-  routes = ?
+  routes = ?,
+  updated_at = ?
 WHERE proxy_endpoints.id = ?
   AND proxy_endpoints.type = ?
   AND proxy_endpoints.api_id IN
