@@ -80,6 +80,10 @@ func DockerClientInfo() (string, error) {
 	return string(prettyInfo), err
 }
 
+func Available() bool {
+	return client != nil
+}
+
 // Pull pulls the image from the repository
 func (dc *DockerConfig) PullOrRefresh() error {
 	var perr error
