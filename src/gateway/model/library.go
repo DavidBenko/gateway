@@ -3,8 +3,8 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
-
 	"github.com/jmoiron/sqlx/types"
+	"time"
 )
 
 // Library represents a library the API is available on.
@@ -76,7 +76,7 @@ func (l *Library) Insert(tx *apsql.Tx) error {
 		return err
 	}
 	l.ID, err = tx.InsertOne(tx.SQL("libraries/insert"),
-		l.APIID, l.AccountID, l.Name, l.Description, data)
+		l.APIID, l.AccountID, l.Name, l.Description, data, time.Now().UTC())
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (l *Library) Update(tx *apsql.Tx) error {
 		return err
 	}
 	err = tx.UpdateOne(tx.SQL("libraries/update"),
-		l.Name, l.Description, data, l.ID, l.APIID, l.AccountID)
+		l.Name, l.Description, data, time.Now().UTC(), l.ID, l.APIID, l.AccountID)
 	if err != nil {
 		return err
 	}

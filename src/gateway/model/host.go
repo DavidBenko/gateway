@@ -4,6 +4,7 @@ import (
 	"errors"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+	"time"
 )
 
 // Host represents a host the API is available on.
@@ -92,7 +93,7 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID i
 // Insert inserts the host into the database as a new row.
 func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	h.ID, err = tx.InsertOne(tx.SQL("hosts/insert"),
-		h.APIID, h.AccountID, h.Name, h.Hostname)
+		h.APIID, h.AccountID, h.Name, h.Hostname, time.Now().UTC())
 	if err != nil {
 		return err
 	}
@@ -107,7 +108,7 @@ func (h *Host) Insert(tx *apsql.Tx) (err error) {
 // Update updates the host in the database.
 func (h *Host) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("hosts/update"),
-		h.Name, h.Hostname, h.ID, h.APIID, h.AccountID)
+		h.Name, h.Hostname, time.Now().UTC(), h.ID, h.APIID, h.AccountID)
 	if err != nil {
 		return err
 	}

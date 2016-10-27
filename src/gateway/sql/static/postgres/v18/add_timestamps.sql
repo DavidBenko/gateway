@@ -1,0 +1,38 @@
+ALTER TABLE accounts ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE accounts ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE apis ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE apis ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE endpoint_groups ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE endpoint_groups ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE environments ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE environments ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE hosts ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE hosts ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE keys ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE keys ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE libraries ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE libraries ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE plans ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE plans ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE proxy_endpoints ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE proxy_endpoints ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE remote_endpoints ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE remote_endpoints ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE scratch_pads ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE scratch_pads ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE timers ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE timers ADD COLUMN updated_at TIMESTAMP;
+
+ALTER TABLE users ADD COLUMN created_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN updated_at TIMESTAMP;

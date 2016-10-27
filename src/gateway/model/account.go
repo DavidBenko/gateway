@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	aperrors "gateway/errors"
 	"gateway/license"
@@ -166,9 +167,9 @@ func (a *Account) Insert(tx *sql.Tx) (err error) {
 		if err != nil {
 			return err
 		}
-		a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name, a.PlanID, c.ID, c.Subs.Values[0].ID)
+		a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name, a.PlanID, c.ID, c.Subs.Values[0].ID, time.Now().UTC())
 	} else {
-		a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name, nil, nil, nil)
+		a.ID, err = tx.InsertOne(tx.SQL("accounts/insert"), a.Name, nil, nil, nil, time.Now().UTC())
 	}
 	if err != nil {
 		return err
@@ -208,7 +209,7 @@ func (a *Account) Update(tx *sql.Tx) (err error) {
 			currentAccount.StripeSubscriptionID.String = c.Subs.Values[0].ID
 			currentAccount.StripeSubscriptionID.Valid = true
 			currentAccount.PlanID.Int64 = plan.ID
-			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.PlanID.Int64, a.ID)
+			err = tx.UpdateOne(tx.SQL("accounts/update_stripe_customer_details"), c.ID, c.Subs.Values[0].ID, a.PlanID.Int64, time.Now().UTC(), a.ID)
 			if err != nil {
 				return err
 			}
@@ -241,9 +242,9 @@ func (a *Account) Update(tx *sql.Tx) (err error) {
 				}
 			}
 		}
-		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, a.ID)
+		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, a.PlanID, time.Now().UTC(), a.ID)
 	} else {
-		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, a.ID)
+		err = tx.UpdateOne(tx.SQL("accounts/update"), a.Name, nil, time.Now().UTC(), a.ID)
 	}
 	if err != nil {
 		return err

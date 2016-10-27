@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"gateway/model"
 	apsql "gateway/sql"
-	"log"
-
 	"github.com/jmoiron/sqlx"
+	"log"
+	"time"
 )
 
 const numAccounts = 25000
@@ -63,13 +63,14 @@ func createAccount(accountNum int) {
 func createUsersForAccount(accountNum int, account *model.Account) {
 	for i := 0; i < numUsersPerAccount; i++ {
 		_, err := tx.InsertOne(
-			"INSERT INTO users(account_id, name, email, admin, confirmed, hashed_password) VALUES (?, ?, ?, ?, ?, ?)",
+			"INSERT INTO users(account_id, name, email, admin, confirmed, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			account.ID,
 			fmt.Sprintf("User_%d_%d", accountNum, i),
 			fmt.Sprintf("user_%d_%d@example.com", accountNum, i),
 			(i%numUsersPerAccount == 0),
 			true,
 			fmt.Sprintf("$2a$10$Rsj4BIPDKarA2yktRtUBOOL6h0RzqFVxAbPvMorb2YDdYjK/8rJUK%d", i),
+			time.Now().UTC(),
 		)
 		if err != nil {
 			log.Fatalf("Uh-oh: Unable to insert user for account: %v", err)

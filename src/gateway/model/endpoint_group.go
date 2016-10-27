@@ -4,6 +4,7 @@ import (
 	"errors"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+	"time"
 )
 
 // EndpointGroup is an optional grouping of proxy endpoints.
@@ -69,7 +70,7 @@ func DeleteEndpointGroupForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID,
 // Insert inserts the endpointGroup into the database as a new row.
 func (e *EndpointGroup) Insert(tx *apsql.Tx) (err error) {
 	e.ID, err = tx.InsertOne(tx.SQL("endpoint_groups/insert"),
-		e.APIID, e.AccountID, e.Name, e.Description)
+		e.APIID, e.AccountID, e.Name, e.Description, time.Now().UTC())
 	if err != nil {
 		return
 	}
@@ -80,7 +81,7 @@ func (e *EndpointGroup) Insert(tx *apsql.Tx) (err error) {
 // Update updates the endpointGroup in the database.
 func (e *EndpointGroup) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("endpoint_groups/update"),
-		e.Name, e.Description, e.ID, e.APIID, e.AccountID)
+		e.Name, e.Description, time.Now().UTC(), e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
 	}

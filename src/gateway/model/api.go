@@ -5,6 +5,7 @@ import (
 	aperrors "gateway/errors"
 	"gateway/logreport"
 	apsql "gateway/sql"
+	"time"
 )
 
 var defaultAPIAccessScheme string
@@ -197,7 +198,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 	}
 	a.ID, err = tx.InsertOne(tx.SQL("apis/insert"),
 		a.AccountID, a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger)
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger, time.Now().UTC())
 	if err != nil {
 		return
 	}
@@ -210,7 +211,7 @@ func (a *API) Insert(tx *apsql.Tx) (err error) {
 func (a *API) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("apis/update"),
 		a.Name, a.Description, a.CORSAllowOrigin, a.CORSAllowHeaders,
-		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger,
+		a.CORSAllowCredentials, a.CORSRequestHeaders, a.CORSMaxAge, a.EnableSwagger, time.Now().UTC(),
 		a.ID, a.AccountID)
 	if err != nil {
 		return err
