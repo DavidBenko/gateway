@@ -106,6 +106,9 @@ func (r *proxyRouter) rebuildHosts() error {
 		route := router.NewRoute()
 		route.Name(strconv.FormatInt(api.ID, 10))
 		route.Host(fmt.Sprintf("%v.example.com", api.ID))
+		if _, exists := accountIDs[api.ID]; !exists {
+			accountIDs[api.ID] = api.AccountID
+		}
 	}
 
 	defer r.hostsRouterMutex.Unlock()
