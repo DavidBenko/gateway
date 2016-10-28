@@ -2,10 +2,9 @@ package model
 
 import (
 	"errors"
-	"strings"
-
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+	"strings"
 
 	"github.com/jmoiron/sqlx/types"
 )
