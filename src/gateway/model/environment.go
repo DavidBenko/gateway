@@ -5,7 +5,6 @@ import (
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	apsql "gateway/sql"
-	"time"
 
 	"github.com/jmoiron/sqlx/types"
 )
@@ -127,7 +126,7 @@ func (e *Environment) Insert(tx *apsql.Tx) error {
 		e.APIID, e.AccountID, e.Name, e.Description, data,
 		e.SessionType, e.SessionHeader,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors, time.Now().UTC())
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors)
 	if err != nil {
 		return err
 	}
@@ -144,7 +143,7 @@ func (e *Environment) Update(tx *apsql.Tx) error {
 		e.Name, e.Description, data,
 		e.SessionType, e.SessionHeader,
 		e.SessionName, e.SessionAuthKey, e.SessionEncryptionKey,
-		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors, time.Now().UTC(),
+		e.SessionAuthKeyRotate, e.SessionEncryptionKeyRotate, e.ShowJavascriptErrors,
 		e.ID, e.APIID, e.AccountID)
 	if err != nil {
 		return err
