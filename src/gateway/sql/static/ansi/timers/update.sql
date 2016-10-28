@@ -14,7 +14,8 @@ SET
   day_of_week = ?,
   next = ?,
   parameters = ?,
-  data = ?
+  data = ?,
+  updated_at = CURRENT_TIMESTAMP
 WHERE timers.id = ?
   AND timers.api_id IN
       (SELECT id FROM apis WHERE id = ? AND account_id = ?);
