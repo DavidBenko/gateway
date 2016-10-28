@@ -3,7 +3,6 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
-
 	"github.com/jmoiron/sqlx/types"
 )
 
