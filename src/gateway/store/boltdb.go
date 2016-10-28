@@ -6,11 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 
 	"gateway/config"
@@ -870,7 +867,11 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 	}
 
 	ast, buffer := jql.AST(), []rune(jql.Buffer)
-	constraints := getConstraints(ast, &Context{buffer, nil, params})
+	constraints := Constraints{
+		context: context{buffer},
+		param:   params,
+	}
+	constraints.process(ast)
 	var results []*Object
 	if len(constraints.order.path) > 0 {
 		cursor := bucket.Cursor()
@@ -883,7 +884,12 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			if err != nil {
 				return nil, err
 			}
-			if process(ast, &Context{buffer, _json, params}).b {
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
 				_value := make([]byte, len(value))
 				copy(_value, value)
 				object := &Object{
@@ -925,7 +931,12 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			if err != nil {
 				return nil, err
 			}
-			if process(ast, &Context{buffer, _json, params}).b {
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
 				_value := make([]byte, len(value))
 				copy(_value, value)
 				object := &Object{
@@ -943,8 +954,11 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		}
 	}
 
-	aggregations := &Aggregations{Aggregations: make(map[string]Aggregation)}
-	aggregations.Process(ast, &Context{buffer, nil, params})
+	aggregations := Aggregations{
+		context:      context{buffer},
+		Aggregations: make(map[string]Aggregation),
+	}
+	aggregations.Process(ast)
 	if len(aggregations.Aggregations) > 0 {
 		for _, result := range results {
 			var _json interface{}
@@ -1022,296 +1036,6 @@ func btoi(b []byte) uint64 {
 	return binary.BigEndian.Uint64(b)
 }
 
-type Aggregation interface {
-	Accumulate(_json interface{})
-	Compute() float64
-}
-
-type Aggregations struct {
-	Aggregations map[string]Aggregation
-}
-
-func getFloat64(path *node32, _json interface{}, context *Context) (value float64, valid bool) {
-	for path != nil {
-		if path.pegRule == ruleword {
-			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
-			if !valid {
-				return 0, valid
-			}
-		}
-		path = path.next
-	}
-	switch value := _json.(type) {
-	case float64:
-		return value, true
-	case string:
-		v, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return 0, false
-		}
-		return v, true
-	case bool:
-		if value {
-			return 1, true
-		}
-		return 0, true
-	}
-	return 0, false
-}
-
-func getValid(path *node32, _json interface{}, context *Context) (valid bool) {
-	for path != nil {
-		if path.pegRule == ruleword {
-			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
-			if !valid {
-				return valid
-			}
-		}
-		path = path.next
-	}
-	return true
-}
-
-type SumAggregation struct {
-	path    *node32
-	context *Context
-	sum     float64
-}
-
-func (a *SumAggregation) Accumulate(_json interface{}) {
-	if value, valid := getFloat64(a.path, _json, a.context); valid {
-		a.sum += value
-	}
-}
-
-func (a *SumAggregation) Compute() float64 {
-	return a.sum
-}
-
-type CountAggregation struct {
-	path    *node32
-	context *Context
-	count   uint64
-}
-
-func (a *CountAggregation) Accumulate(_json interface{}) {
-	if getValid(a.path, _json, a.context) {
-		a.count++
-	}
-}
-
-func (a *CountAggregation) Compute() float64 {
-	return float64(a.count)
-}
-
-type CountAllAggregation struct {
-	count uint64
-}
-
-func (a *CountAllAggregation) Accumulate(_json interface{}) {
-	a.count++
-}
-
-func (a *CountAllAggregation) Compute() float64 {
-	return float64(a.count)
-}
-
-type AvgAggregation struct {
-	path    *node32
-	context *Context
-	sum     float64
-	count   uint64
-}
-
-func (a *AvgAggregation) Accumulate(_json interface{}) {
-	if value, valid := getFloat64(a.path, _json, a.context); valid {
-		a.sum += value
-		a.count++
-	}
-}
-
-func (a *AvgAggregation) Compute() float64 {
-	if a.count == 0 {
-		return 0
-	}
-	return a.sum / float64(a.count)
-}
-
-type StdDevAggregation struct {
-	path            *node32
-	context         *Context
-	sum, sumSquared float64
-	count           uint64
-}
-
-func (a *StdDevAggregation) Accumulate(_json interface{}) {
-	if value, valid := getFloat64(a.path, _json, a.context); valid {
-		a.sum += value
-		a.sumSquared += value * value
-		a.count++
-	}
-}
-
-func (a *StdDevAggregation) Compute() float64 {
-	if a.count == 0 {
-		return 0
-	}
-	count := float64(a.count)
-	avg := a.sum / count
-	return math.Sqrt((a.sumSquared / count) - avg*avg)
-}
-
-type MinAggregation struct {
-	path    *node32
-	context *Context
-	min     float64
-}
-
-func (a *MinAggregation) Accumulate(_json interface{}) {
-	if value, valid := getFloat64(a.path, _json, a.context); valid && value < a.min {
-		a.min = value
-	}
-}
-
-func (a *MinAggregation) Compute() float64 {
-	return a.min
-}
-
-type MaxAggregation struct {
-	path    *node32
-	context *Context
-	max     float64
-}
-
-func (a *MaxAggregation) Accumulate(_json interface{}) {
-	if value, valid := getFloat64(a.path, _json, a.context); valid && value > a.max {
-		a.max = value
-	}
-}
-
-func (a *MaxAggregation) Compute() float64 {
-	return a.max
-}
-
-func (a *Aggregations) Process(node *node32, context *Context) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			a.Process(node.up, context)
-		case ruleaggregate:
-			a.ProcessAggregate(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func (a *Aggregations) ProcessAggregate(node *node32, context *Context) {
-	for node != nil {
-		if node.pegRule == ruleaggregate_clause {
-			a.ProcessAggregateClause(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func (a *Aggregations) ProcessAggregateClause(node *node32, context *Context) {
-	function, typ := "", ruleUnknown
-	var selector *node32
-	for node != nil {
-		switch node.pegRule {
-		case rulefunction:
-			function = context.Node(node)
-		case ruleselector:
-			typ, selector = a.ProcessSelector(node.up, context)
-		case ruleword:
-			name := context.Node(node)
-			switch function {
-			case "sum":
-				a.Aggregations[name] = &SumAggregation{
-					path:    selector,
-					context: context,
-				}
-			case "count":
-				switch typ {
-				case rulepath:
-					a.Aggregations[name] = &CountAggregation{
-						path:    selector,
-						context: context,
-					}
-				case rulewildcard:
-					a.Aggregations[name] = &CountAllAggregation{}
-				}
-			case "avg":
-				a.Aggregations[name] = &AvgAggregation{
-					path:    selector,
-					context: context,
-				}
-			case "stddev":
-				a.Aggregations[name] = &StdDevAggregation{
-					path:    selector,
-					context: context,
-				}
-			case "min":
-				a.Aggregations[name] = &MinAggregation{
-					path:    selector,
-					context: context,
-					min:     math.MaxFloat64,
-				}
-			case "max":
-				a.Aggregations[name] = &MaxAggregation{
-					path:    selector,
-					context: context,
-				}
-			}
-		}
-		node = node.next
-	}
-	return
-}
-
-func (a *Aggregations) ProcessSelector(node *node32, context *Context) (typ pegRule, value *node32) {
-	for node != nil {
-		switch node.pegRule {
-		case rulepath:
-			return rulepath, node.up
-		case rulewildcard:
-			return rulewildcard, node.up
-		}
-		node = node.next
-	}
-	return
-}
-
-type Value struct {
-	b      bool
-	errors []error
-}
-
-type Constraints struct {
-	errors []error
-	order  struct {
-		path    []string
-		dir     string
-		numeric bool
-	}
-	hasLimit  bool
-	limit     int
-	hasOffset bool
-	offset    int
-}
-
-type Context struct {
-	buffer []rune
-	json   interface{}
-	param  []interface{}
-}
-
-func (c *Context) Node(node *node32) string {
-	return strings.TrimSpace(string(c.buffer[node.begin:node.end]))
-}
-
 type Results struct {
 	results []*Object
 	path    []string
@@ -1360,286 +1084,4 @@ func (r *Results) Less(i, j int) bool {
 
 func (r *Results) Swap(i, j int) {
 	r.results[i], r.results[j] = r.results[j], r.results[i]
-}
-
-func getConstraints(node *node32, context *Context) (c Constraints) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			return getConstraints(node.up, context)
-		case ruleorder:
-			c.processOrder(node.up, context)
-		case rulelimit:
-			c.processLimit(node.up, context)
-		case ruleoffset:
-			c.processOffset(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func (c *Constraints) processOrder(node *node32, context *Context) {
-	for node != nil {
-		switch node.pegRule {
-		case rulepath:
-			c.processPath(node.up, context)
-		case rulecast:
-			c.processCast(node.up, context)
-		case ruleasc:
-			c.order.dir = string(context.buffer[node.begin:node.end])
-		case ruledesc:
-			c.order.dir = string(context.buffer[node.begin:node.end])
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processCast(node *node32, context *Context) {
-	c.order.numeric = true
-	for node != nil {
-		if node.pegRule == rulepath {
-			c.processPath(node.up, context)
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processPath(node *node32, context *Context) {
-	for node != nil {
-		if node.pegRule == ruleword {
-			c.order.path = append(c.order.path, string(context.buffer[node.begin:node.end]))
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processLimit(node *node32, context *Context) {
-	c.hasLimit = true
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			var err error
-			c.limit, err = processValue1(node.up, context)
-			if err != nil {
-				c.errors = append(c.errors, err)
-			}
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processOffset(node *node32, context *Context) {
-	c.hasOffset = true
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			var err error
-			c.offset, err = processValue1(node.up, context)
-			if err != nil {
-				c.errors = append(c.errors, err)
-			}
-		}
-		node = node.next
-	}
-}
-
-func processValue1(node *node32, context *Context) (int, error) {
-	for node != nil {
-		switch node.pegRule {
-		case ruleplaceholder:
-			placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
-			if err != nil {
-				return -1, err
-			}
-			if placeholder > len(context.param) {
-				return -1, errors.New("placholder too large")
-			}
-			if holder, valid := context.param[placeholder-1].(int); valid {
-				return holder, nil
-			} else {
-				return -1, errors.New("value must be type int")
-			}
-		case rulewhole:
-			whole, err := strconv.Atoi(string(context.buffer[node.begin:node.end]))
-			if err != nil {
-				return -1, err
-			}
-			return whole, nil
-		}
-		node = node.next
-	}
-	return -1, errors.New("no value")
-}
-
-func process(node *node32, context *Context) (v Value) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			return process(node.up, context)
-		case rulee1:
-			v = processRulee1(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee1(node *node32, context *Context) (v Value) {
-	for node != nil {
-		if node.pegRule == rulee2 {
-			if !v.b {
-				x := processRulee2(node.up, context)
-				v.b = v.b || x.b
-				v.errors = append(v.errors, x.errors...)
-			}
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee2(node *node32, context *Context) (v Value) {
-	v.b = true
-	for node != nil {
-		if node.pegRule == rulee3 {
-			if v.b {
-				x := processRulee3(node.up, context)
-				v.b = v.b && x.b
-				v.errors = append(v.errors, x.errors...)
-			}
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee3(node *node32, context *Context) (v Value) {
-	if node.pegRule == ruleexpression {
-		return processExpression(node.up, context)
-	}
-	return process(node.next.up, context)
-}
-
-func compareString(op, a, b string) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	case ">":
-		return a > b
-	case "<":
-		return a < b
-	case ">=":
-		return a >= b
-	case "<=":
-		return a <= b
-	}
-	return false
-}
-
-func compareRat(op string, a, b *big.Rat) bool {
-	switch op {
-	case "=":
-		return a.Cmp(b) == 0
-	case "!=":
-		return a.Cmp(b) != 0
-	case ">":
-		return a.Cmp(b) > 0
-	case "<":
-		return a.Cmp(b) < 0
-	case ">=":
-		return a.Cmp(b) >= 0
-	case "<=":
-		return a.Cmp(b) <= 0
-	}
-	return false
-}
-
-func compareBool(op string, a, b bool) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	}
-	return false
-}
-
-func compareNull(op string, a, b interface{}) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	}
-	return false
-}
-
-func processExpression(node *node32, context *Context) (v Value) {
-	if node.pegRule == ruleboolean {
-		v.b = string(context.buffer[node.begin:node.end]) == "true"
-		return
-	}
-
-	path, _json, valid := node.up, context.json, false
-	for path != nil {
-		if path.pegRule == ruleword {
-			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
-			if !valid {
-				return
-			}
-		}
-		path = path.next
-	}
-	node = node.next
-	op := strings.TrimSpace(string(context.buffer[node.begin:node.end]))
-	node = node.next.up
-	_a := fmt.Sprintf("%v", _json)
-	switch node.pegRule {
-	case ruleplaceholder:
-		placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
-		if err != nil {
-			v.errors = append(v.errors, err)
-			return
-		}
-
-		if placeholder > len(context.param) {
-			v.errors = append(v.errors, errors.New("placholder to large"))
-			return
-		}
-		switch _b := context.param[placeholder-1].(type) {
-		case string:
-			v.b = compareString(op, _a, _b)
-		case float64:
-			a, b := &big.Rat{}, &big.Rat{}
-			a.SetString(_a)
-			b.SetFloat64(_b)
-			v.b = compareRat(op, a, b)
-		case int:
-			a, b := &big.Rat{}, &big.Rat{}
-			a.SetString(_a)
-			b.SetInt64(int64(_b))
-			v.b = compareRat(op, a, b)
-		case bool:
-			v.b = compareBool(op, _a == "true", _b)
-		default:
-			v.b = compareNull(op, _json, _b)
-		}
-	case rulestring:
-		b := string(context.buffer[node.begin+1 : node.end-1])
-		v.b = compareString(op, _a, b)
-	case rulenumber:
-		_b := string(context.buffer[node.begin:node.end])
-		b := &big.Rat{}
-		b.SetString(_b)
-		a := &big.Rat{}
-		a.SetString(_a)
-		v.b = compareRat(op, a, b)
-	case ruleboolean:
-		b := string(context.buffer[node.begin:node.end])
-		v.b = compareBool(op, _a == "true", b == "true")
-	case rulenull:
-		v.b = compareNull(op, _json, nil)
-	}
-	return
 }
