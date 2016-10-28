@@ -6,19 +6,19 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
-	"strings"
-
 	"gateway/code"
 	"gateway/config"
 	"gateway/db"
+	"gateway/docker"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	re "gateway/model/remote_endpoint"
 	"gateway/soap"
 	apsql "gateway/sql"
+	"net/url"
+	"os"
+	"strings"
 
 	"github.com/jmoiron/sqlx/types"
 	"github.com/vincent-petithory/dataurl"
@@ -330,6 +330,10 @@ func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
 
 // Validate Docker endpoint configuration
 func (e *RemoteEndpoint) ValidateDocker(errors aperrors.Errors) {
+	if !docker.Available() {
+		errors.Add("base", "Docker is not currently available.")
+		return
+	}
 	docker := &re.Docker{}
 
 	if err := json.Unmarshal(e.Data, docker); err != nil {
@@ -843,8 +847,8 @@ func (e *RemoteEndpoint) Insert(tx *apsql.Tx) error {
 	}
 
 	e.ID, err = tx.InsertOne(
-		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, status, status_message, data)
-		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?,?,?)`,
+		`INSERT INTO remote_endpoints (api_id, name, codename, description, type, status, status_message, data, created_at)
+		VALUES ((SELECT id FROM apis WHERE id = ? AND account_id = ?),?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`,
 		e.APIID, e.AccountID, e.Name, e.Codename, e.Description, e.Type, e.Status, e.StatusMessage, encodedData)
 	if err != nil {
 		return err
@@ -982,7 +986,7 @@ func (e *RemoteEndpoint) update(tx *apsql.Tx, fireLifecycleHooks bool) error {
 
 	err = tx.UpdateOne(
 		`UPDATE remote_endpoints
-		SET name = ?, codename = ?, description = ?, status = ?, status_message = ?, data = ?
+		SET name = ?, codename = ?, description = ?, status = ?, status_message = ?, data = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE remote_endpoints.id = ?
 			AND remote_endpoints.api_id IN
 				(SELECT id FROM apis WHERE id = ? AND account_id = ?);`,

@@ -3,14 +3,13 @@ package model
 import (
 	"errors"
 	"fmt"
-	"math/rand"
-	"strings"
-	"time"
-
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/license"
 	apsql "gateway/sql"
+	"math/rand"
+	"strings"
+	"time"
 
 	"github.com/stripe/stripe-go"
 	"golang.org/x/crypto/bcrypt"
@@ -287,8 +286,8 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	u.ID, err = tx.InsertOne(
-		`INSERT INTO users (account_id, name, email, admin, token, confirmed, hashed_password)
-		 VALUES (?, ?, ?, ?, '', ?, ?)`,
+		`INSERT INTO users (account_id, name, email, admin, token, confirmed, hashed_password, created_at)
+		 VALUES (?, ?, ?, ?, '', ?, ?, CURRENT_TIMESTAMP)`,
 		u.AccountID, u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword)
 	if err != nil {
 		return err
@@ -325,7 +324,7 @@ func (u *User) Update(tx *apsql.Tx) error {
 		}
 		err = tx.UpdateOne(
 			`UPDATE users
-			 SET name = ?, email = ?, admin = ?, confirmed = ?, hashed_password = ?
+			 SET name = ?, email = ?, admin = ?, confirmed = ?, hashed_password = ?, updated_at = CURRENT_TIMESTAMP
 			 WHERE id = ? AND account_id = ?;`,
 			u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.HashedPassword, u.ID, u.AccountID)
 		if err != nil {
@@ -337,7 +336,7 @@ func (u *User) Update(tx *apsql.Tx) error {
 
 	err = tx.UpdateOne(
 		`UPDATE users
-			 SET name = ?, email = ?, admin = ?, confirmed = ?
+			 SET name = ?, email = ?, admin = ?, confirmed = ?, updated_at = CURRENT_TIMESTAMP
 			 WHERE id = ? AND account_id = ?;`,
 		u.Name, strings.ToLower(u.Email), u.Admin, u.Confirmed, u.ID, u.AccountID)
 	if err != nil {

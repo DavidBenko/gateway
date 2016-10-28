@@ -2,7 +2,8 @@ UPDATE scratch_pads
 SET
   name = ?,
   code = ?,
-  data = ?
+  data = ?,
+  updated_at = CURRENT_TIMESTAMP
 WHERE scratch_pads.id = ?
   AND scratch_pads.environment_data_id IN
     (SELECT remote_endpoint_environment_data.id
