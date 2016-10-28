@@ -13,6 +13,7 @@ import (
 	"gateway/code"
 	"gateway/config"
 	"gateway/db"
+	"gateway/docker"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/logreport"
@@ -330,6 +331,10 @@ func (e *RemoteEndpoint) ValidateSMTP(errors aperrors.Errors) {
 
 // Validate Docker endpoint configuration
 func (e *RemoteEndpoint) ValidateDocker(errors aperrors.Errors) {
+	if !docker.Available() {
+		errors.Add("base", "Docker is not currently available.")
+		return
+	}
 	docker := &re.Docker{}
 
 	if err := json.Unmarshal(e.Data, docker); err != nil {
