@@ -4,4 +4,4 @@ INSERT INTO apis (account_id, name, description,
 VALUES (
   ?, ?, ?,
   ?, ?, ?,
-  ?, ?, ?, ?)
+  ?, ?, ?, CURRENT_TIMESTAMP)

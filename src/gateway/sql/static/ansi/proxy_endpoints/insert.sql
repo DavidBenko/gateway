@@ -10,5 +10,5 @@ VALUES (
   ?, ?, ?,
   (SELECT id FROM endpoint_groups WHERE id = ? AND api_id = ?),
   (SELECT id FROM environments WHERE id = ? AND api_id = ?),
-  ?, ?, ?, ?
+  ?, ?, ?, CURRENT_TIMESTAMP
 )

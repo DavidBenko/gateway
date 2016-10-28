@@ -4,7 +4,6 @@ import (
 	aperrors "gateway/errors"
 	"gateway/sql"
 	stripe "github.com/stripe/stripe-go"
-	"time"
 )
 
 // Plan represents a set of usage rules for an account.
@@ -77,7 +76,7 @@ func FindPlanByAccountID(db *sql.DB, accountID int64) (*Plan, error) {
 
 // Insert the plan into the database as a new row.
 func (p *Plan) Insert(tx *sql.Tx) (err error) {
-	p.ID, err = tx.InsertOne(tx.SQL("plans/insert"), p.Name, p.StripeName, p.MaxUsers, p.JavascriptTimeout, p.JobTimeout, p.Price, time.Now().UTC())
+	p.ID, err = tx.InsertOne(tx.SQL("plans/insert"), p.Name, p.StripeName, p.MaxUsers, p.JavascriptTimeout, p.JobTimeout, p.Price)
 	if err != nil {
 		return err
 	}
@@ -86,7 +85,7 @@ func (p *Plan) Insert(tx *sql.Tx) (err error) {
 
 // Update updates the plan in the database.
 func (p *Plan) Update(tx *sql.Tx) error {
-	err := tx.UpdateOne(tx.SQL("plans/update"), p.Name, p.StripeName, p.MaxUsers, p.JavascriptTimeout, p.JobTimeout, p.Price, time.Now().UTC(), p.ID)
+	err := tx.UpdateOne(tx.SQL("plans/update"), p.Name, p.StripeName, p.MaxUsers, p.JavascriptTimeout, p.JobTimeout, p.Price, p.ID)
 	if err != nil {
 		return err
 	}

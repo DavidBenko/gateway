@@ -7,7 +7,6 @@ import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"strings"
-	"time"
 )
 
 type Key struct {
@@ -63,7 +62,7 @@ func FindKeyByAccountIdAndName(accountID int64, name string, db *apsql.DB) (*Key
 }
 
 func (k *Key) Insert(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
-	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key, k.AccountID, time.Now().UTC()); err != nil {
+	if k.ID, err = tx.InsertOne(tx.SQL("keys/insert"), k.Name, k.Key, k.AccountID); err != nil {
 		return
 	}
 	err = afterKeyInsert(k, accountID, userID, apiID, tx)

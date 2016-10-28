@@ -6,7 +6,6 @@ import (
 	apsql "gateway/sql"
 	"github.com/jmoiron/sqlx"
 	"log"
-	"time"
 )
 
 const numAccounts = 25000
@@ -63,14 +62,13 @@ func createAccount(accountNum int) {
 func createUsersForAccount(accountNum int, account *model.Account) {
 	for i := 0; i < numUsersPerAccount; i++ {
 		_, err := tx.InsertOne(
-			"INSERT INTO users(account_id, name, email, admin, confirmed, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			"INSERT INTO users(account_id, name, email, admin, confirmed, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
 			account.ID,
 			fmt.Sprintf("User_%d_%d", accountNum, i),
 			fmt.Sprintf("user_%d_%d@example.com", accountNum, i),
 			(i%numUsersPerAccount == 0),
 			true,
 			fmt.Sprintf("$2a$10$Rsj4BIPDKarA2yktRtUBOOL6h0RzqFVxAbPvMorb2YDdYjK/8rJUK%d", i),
-			time.Now().UTC(),
 		)
 		if err != nil {
 			log.Fatalf("Uh-oh: Unable to insert user for account: %v", err)
@@ -81,7 +79,7 @@ func createUsersForAccount(accountNum int, account *model.Account) {
 func createApisForAccount(accountNum int, account *model.Account) {
 	for i := 0; i < numApisPerAccount; i++ {
 		id, err := tx.InsertOne(
-			"INSERT INTO apis(account_id, name, description, cors_allow_origin, cors_allow_headers, cors_allow_credentials, cors_request_headers, cors_max_age, enable_swagger) VALUES (?,?,?,?,?,?,?,?,?)",
+			"INSERT INTO apis(account_id, name, description, cors_allow_origin, cors_allow_headers, cors_allow_credentials, cors_request_headers, cors_max_age, enable_swagger, created_at) VALUES (?,?,?,?,?,?,?,?,?, CURRENT_TIMESTAMP)",
 			account.ID,
 			fmt.Sprintf("API_%d_%d", accountNum, i),
 			fmt.Sprintf("Description %d %d", accountNum, i),
@@ -105,7 +103,7 @@ func createApisForAccount(accountNum int, account *model.Account) {
 
 func createLibraryForAPI(accountNum int, apiNum int, apiID int64) {
 	_, err := tx.InsertOne(
-		"INSERT INTO libraries(api_id, name, description, data) VALUES(?, ?, ?, ?)",
+		"INSERT INTO libraries(api_id, name, description, data, created_at) VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP)",
 		apiID,
 		fmt.Sprintf("Lib%d", apiID),
 		fmt.Sprintf("Library for API %d", apiID),
@@ -118,7 +116,7 @@ func createLibraryForAPI(accountNum int, apiNum int, apiID int64) {
 
 func createHostForAPI(accountNum int, apiNum int, apiID int64) {
 	_, err := tx.InsertOne(
-		"INSERT INTO hosts(api_id, name, hostname) VALUES(?, ?, ?)",
+		"INSERT INTO hosts(api_id, name, hostname, created_at) VALUES(?, ?, ?, CURRENT_TIMESTAMP)",
 		apiID,
 		fmt.Sprintf("foo%d", apiID),
 		fmt.Sprintf("foo%d.lvh.me", apiID),
@@ -130,7 +128,7 @@ func createHostForAPI(accountNum int, apiNum int, apiID int64) {
 
 func createEnvironmentForAPI(accountNum int, apiNum int, apiID int64, endpointGroupID int64) {
 	envID, err := tx.InsertOne(
-		"INSERT INTO environments(api_id, name, description, data, session_name, session_auth_key, session_encryption_key, session_auth_key_rotate, session_encryption_key_rotate, show_javascript_errors) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO environments(api_id, name, description, data, session_name, session_auth_key, session_encryption_key, session_auth_key_rotate, session_encryption_key_rotate, show_javascript_errors, created_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
 		apiID,
 		fmt.Sprintf("Environment_%d_%d", apiID, 1),
 		fmt.Sprintf("Environment %d for API ID %d", 1, apiID),
@@ -153,8 +151,8 @@ func createProxyEndpointsForEnvironment(accountNum int, apiNum int, apiID int64,
 	for i := 0; i < numProxyEndpointsPerEnvironment; i++ {
 		proxyEndpointID, err := tx.InsertOne(
 			`INSERT INTO proxy_endpoints(api_id, endpoint_group_id, environment_id,
-       name, description, active, cors_enabled, routes)
-       VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+       name, description, active, cors_enabled, routes, created_at)
+       VALUES(?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
 			apiID,
 			environmentID,
 			endpointGroupID,
@@ -254,7 +252,7 @@ func createProxyEndpointChildren(proxyEndpointID int64, remoteEndpointID int64) 
 
 func createRemoteEndpointForProxyEndpoint(proxyEndpointID int64, apiID int64, environmentID int64) int64 {
 	remoteEndpointID, err := tx.InsertOne(
-		`INSERT INTO remote_endpoints(api_id, name, codename, description, type, data) VALUES(?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO remote_endpoints(api_id, name, codename, description, type, data, created_at) VALUES(?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
 		apiID,
 		fmt.Sprintf("RemoteEndpoint%d", proxyEndpointID),
 		"endpoint",
@@ -292,7 +290,7 @@ func createRemoteEndpointForProxyEndpoint(proxyEndpointID int64, apiID int64, en
 
 func createEndpointGroupForAPI(accountNum int, apiNum int, apiID int64) int64 {
 	id, err := tx.InsertOne(
-		"INSERT INTO endpoint_groups(api_id, name, description) VALUES (?,?,?)",
+		"INSERT INTO endpoint_groups(api_id, name, description, created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)",
 		apiID,
 		fmt.Sprintf("Endpoint_Group_%d", apiID),
 		fmt.Sprintf("Endpoint group for api ID %d", apiID),

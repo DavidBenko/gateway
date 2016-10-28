@@ -3,7 +3,7 @@ SET
   name = ?,
   code = ?,
   data = ?,
-  updated_at = ?
+  updated_at = CURRENT_TIMESTAMP
 WHERE scratch_pads.id = ?
   AND scratch_pads.environment_data_id IN
     (SELECT remote_endpoint_environment_data.id

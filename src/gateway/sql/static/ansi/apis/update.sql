@@ -7,6 +7,6 @@ UPDATE apis
       cors_request_headers = ?,
       cors_max_age = ?,
       enable_swagger = ?,
-      updated_at = ?
+      updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
   AND account_id = ?;

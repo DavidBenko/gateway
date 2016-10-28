@@ -5,7 +5,6 @@ import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx/types"
 )
@@ -93,7 +92,7 @@ func (s *ScratchPad) Insert(tx *apsql.Tx) error {
 
 	s.ID, err = tx.InsertOne(tx.SQL("scratch_pads/insert"),
 		s.EnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID,
-		s.Name, s.Code, data, time.Now().UTC())
+		s.Name, s.Code, data)
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func (s *ScratchPad) Update(tx *apsql.Tx) error {
 		return err
 	}
 
-	err = tx.UpdateOne(tx.SQL("scratch_pads/update"), s.Name, s.Code, data, time.Now().UTC(), s.ID,
+	err = tx.UpdateOne(tx.SQL("scratch_pads/update"), s.Name, s.Code, data, s.ID,
 		s.EnvironmentDataID, s.RemoteEndpointID, s.APIID, s.AccountID)
 	if err != nil {
 		return err

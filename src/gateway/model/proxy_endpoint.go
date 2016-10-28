@@ -6,7 +6,6 @@ import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx/types"
 )
@@ -263,7 +262,7 @@ func (e *ProxyEndpoint) Insert(tx *apsql.Tx) error {
 
 	e.ID, err = tx.InsertOne(tx.SQL("proxy_endpoints/insert"),
 		e.APIID, e.AccountID, e.Type, e.Name, e.Description, e.EndpointGroupID, e.APIID,
-		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, routes, time.Now().UTC())
+		e.EnvironmentID, e.APIID, e.Active, e.CORSEnabled, routes)
 	if err != nil {
 		return err
 	}
@@ -299,7 +298,7 @@ func (e *ProxyEndpoint) Update(tx *apsql.Tx) error {
 		e.EndpointGroupID, e.APIID,
 		e.EnvironmentID, e.APIID,
 		e.Active, e.CORSEnabled,
-		routes, time.Now().UTC(),
+		routes,
 		e.ID, e.Type, e.APIID, e.AccountID)
 	if err != nil {
 		return err

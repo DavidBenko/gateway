@@ -17,5 +17,5 @@ VALUES (
   ?,
   ?,
   ?,
-  ?
+  CURRENT_TIMESTAMP
 )

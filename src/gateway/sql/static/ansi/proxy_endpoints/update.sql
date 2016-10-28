@@ -9,7 +9,7 @@ SET
   active = ?,
   cors_enabled = ?,
   routes = ?,
-  updated_at = ?
+  updated_at = CURRENT_TIMESTAMP
 WHERE proxy_endpoints.id = ?
   AND proxy_endpoints.type = ?
   AND proxy_endpoints.api_id IN
