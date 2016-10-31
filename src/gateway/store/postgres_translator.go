@@ -125,7 +125,8 @@ func (t *Translator) ProcessAggregate(node *node32) (q Query) {
 }
 
 func (t *Translator) ProcessAggregateClause(node *node32) (q Query) {
-	function, comma := "", ""
+	function := ""
+	var selectors []string
 	for node != nil {
 		switch node.pegRule {
 		case rulefunction:
@@ -138,18 +139,29 @@ func (t *Translator) ProcessAggregateClause(node *node32) (q Query) {
 			case "cov":
 				function = "covar_pop"
 			}
-			q.aggregate += function + "("
 		case ruleselector:
-			q.aggregate += comma + " "
-			selector := t.ProcessSelector(node.up).aggregate
-			if function == "count" {
-				q.aggregate += selector
-			} else {
-				q.aggregate += "CAST( " + selector + "as float )"
-			}
-			comma = ","
+			selectors = append(selectors, t.ProcessSelector(node.up).aggregate)
 		case ruleword:
-			q.aggregate += " ) as " + t.Node(node)
+			if function == "regr" {
+				if len(selectors) == 2 {
+					name := t.Node(node)
+					q.aggregate += fmt.Sprintf("regr_slope( CAST( %v as float ), CAST( %v as float ) ) as %v$a", selectors[0], selectors[1], name)
+					q.aggregate += fmt.Sprintf(", regr_intercept( CAST( %v as float ), CAST( %v as float ) ) as %v$b", selectors[0], selectors[1], name)
+				}
+			} else {
+				q.aggregate += function + "("
+				comma := ""
+				for _, selector := range selectors {
+					q.aggregate += comma + " "
+					if function == "count" {
+						q.aggregate += selector
+					} else {
+						q.aggregate += "CAST( " + selector + " as float )"
+					}
+					comma = ","
+				}
+				q.aggregate += " ) as " + t.Node(node)
+			}
 		}
 		node = node.next
 	}

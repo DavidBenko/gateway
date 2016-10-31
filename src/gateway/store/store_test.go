@@ -628,7 +628,8 @@ func TestAggregation(t *testing.T) {
 	objects, err := s.Select(0, "people", `true | count(name.first) as count,
 		count(*) as countall, sum(age) as sum, avg(age) as avg,
 		stddev(age) as stddev, min(age) as min, max(age) as max,
-		corr(age, salary) as corr, cov(age, salary) as cov, var(age) as var`)
+		corr(salary, age) as corr, cov(salary, age) as cov, var(age) as var,
+		regr(salary, age) as regr`)
 	t.Log(objects)
 	if err != nil {
 		t.Fatal(err)
@@ -636,7 +637,7 @@ func TestAggregation(t *testing.T) {
 	if len(objects) != 1 {
 		t.Fatal("there should be 1 objects")
 	}
-	valid := map[string]string{
+	valid := map[string]interface{}{
 		"count":    "3.00",
 		"countall": "3.00",
 		"sum":      "64.00",
@@ -647,11 +648,24 @@ func TestAggregation(t *testing.T) {
 		"corr":     "1.00",
 		"cov":      "16.44",
 		"var":      "8.22",
+		"regr": map[string]string{
+			"a": "2.00",
+			"b": "1.00",
+		},
 	}
 	results := objects[0].(map[string]interface{})
 	for name, value := range valid {
-		if s := fmt.Sprintf("%.2f", results[name].(float64)); s != value {
-			t.Fatal(fmt.Sprintf("%v should be equal to %v not %v", name, value, s))
+		switch value := value.(type) {
+		case string:
+			if s := fmt.Sprintf("%.2f", results[name].(float64)); s != value {
+				t.Fatal(fmt.Sprintf("%v should be equal to %v not %v", name, value, s))
+			}
+		case map[string]string:
+			for name2, value2 := range value {
+				if s := fmt.Sprintf("%.2f", results[name].(map[string]interface{})[name2].(float64)); s != value2 {
+					t.Fatal(fmt.Sprintf("%v.%v should be equal to %v not %v", name, name2, value2, s))
+				}
+			}
 		}
 	}
 }

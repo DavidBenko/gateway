@@ -19,7 +19,7 @@ expression <- path op value2
             / boolean sp
 aggregate <- '|' sp aggregate_clause ( ',' sp aggregate_clause )*
 aggregate_clause <- function '(' sp selector ( ',' sp selector )* ')' sp 'as' sp word sp
-function <- ( 'sum' / 'count' / 'avg' / 'var' / 'stddev' / 'min' / 'max' / 'corr' / 'cov' ) sp
+function <- ( 'sum' / 'count' / 'avg' / 'var' / 'stddev' / 'min' / 'max' / 'corr' / 'cov' / 'regr' ) sp
 selector <- ( path / wildcard )
 op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
 path <- word ('.' word)* sp

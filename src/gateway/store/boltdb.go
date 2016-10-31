@@ -973,7 +973,7 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 				aggregation.Accumulate(_json)
 			}
 		}
-		result := make(map[string]float64)
+		result := make(map[string]interface{})
 		for name, aggregation := range aggregations.Aggregations {
 			result[name] = aggregation.Compute()
 		}

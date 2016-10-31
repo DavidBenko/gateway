@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"gateway/config"
@@ -639,6 +640,18 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64
 			err := rows.MapScan(result)
 			if err != nil {
 				return nil, err
+			}
+			for k, v := range result {
+				if keys := strings.Split(k, "$"); len(keys) == 2 {
+					if multi, ok := result[keys[0]]; ok {
+						multi.(map[string]interface{})[keys[1]] = v
+					} else {
+						multi := make(map[string]interface{})
+						multi[keys[1]] = v
+						result[keys[0]] = multi
+					}
+					delete(result, k)
+				}
 			}
 			data, err := json.Marshal(&result)
 			if err != nil {
