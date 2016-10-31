@@ -1,6 +1,9 @@
 package store
 
-import "math"
+import (
+	"errors"
+	"math"
+)
 
 type Aggregation interface {
 	Accumulate(_json interface{})
@@ -9,6 +12,7 @@ type Aggregation interface {
 
 type Aggregations struct {
 	context
+	errors       []error
 	Aggregations map[string]Aggregation
 }
 
@@ -77,6 +81,30 @@ func (a *AvgAggregation) Compute() float64 {
 	return a.sum / float64(a.count)
 }
 
+type VarAggregation struct {
+	context
+	path            *node32
+	sum, sumSquared float64
+	count           uint64
+}
+
+func (a *VarAggregation) Accumulate(_json interface{}) {
+	if value, valid := a.getFloat64(a.path, _json); valid {
+		a.sum += value
+		a.sumSquared += value * value
+		a.count++
+	}
+}
+
+func (a *VarAggregation) Compute() float64 {
+	if a.count == 0 {
+		return 0
+	}
+	count := float64(a.count)
+	avg := a.sum / count
+	return (a.sumSquared / count) - avg*avg
+}
+
 type StdDevAggregation struct {
 	context
 	path            *node32
@@ -133,6 +161,73 @@ func (a *MaxAggregation) Compute() float64 {
 	return a.max
 }
 
+type CorrAggregation struct {
+	context
+	paths             []*node32
+	xsum, xsumSquared float64
+	ysum, ysumSquared float64
+	xysum             float64
+	count             uint64
+}
+
+func (a *CorrAggregation) Accumulate(_json interface{}) {
+	x, xvalid := a.getFloat64(a.paths[0], _json)
+	y, yvalid := a.getFloat64(a.paths[1], _json)
+	if !(xvalid && yvalid) {
+		return
+	}
+	a.xsum += x
+	a.xsumSquared += x * x
+	a.ysum += y
+	a.ysumSquared += y * y
+	a.xysum += x * y
+	a.count++
+}
+
+func (a *CorrAggregation) Compute() float64 {
+	if a.count == 0 {
+		return 0
+	}
+	count := float64(a.count)
+	xavg, yavg := a.xsum/count, a.ysum/count
+	xstddev := math.Sqrt((a.xsumSquared / count) - xavg*xavg)
+	ystddev := math.Sqrt((a.ysumSquared / count) - yavg*yavg)
+	if xstddev == 0 || ystddev == 0 {
+		return 0
+	}
+	return (a.xysum/count - xavg*yavg) / (xstddev * ystddev)
+}
+
+type CovAggregation struct {
+	context
+	paths []*node32
+	xsum  float64
+	ysum  float64
+	xysum float64
+	count uint64
+}
+
+func (a *CovAggregation) Accumulate(_json interface{}) {
+	x, xvalid := a.getFloat64(a.paths[0], _json)
+	y, yvalid := a.getFloat64(a.paths[1], _json)
+	if !(xvalid && yvalid) {
+		return
+	}
+	a.xsum += x
+	a.ysum += y
+	a.xysum += x * y
+	a.count++
+}
+
+func (a *CovAggregation) Compute() float64 {
+	if a.count == 0 {
+		return 0
+	}
+	count := float64(a.count)
+	xavg, yavg := a.xsum/count, a.ysum/count
+	return a.xysum/count - xavg*yavg
+}
+
 func (a *Aggregations) Process(node *node32) {
 	for node != nil {
 		switch node.pegRule {
@@ -157,52 +252,99 @@ func (a *Aggregations) ProcessAggregate(node *node32) {
 }
 
 func (a *Aggregations) ProcessAggregateClause(node *node32) {
-	function, typ := "", ruleUnknown
-	var selector *node32
+	function := ""
+	type Selector struct {
+		typ      pegRule
+		selector *node32
+	}
+	var selectors []Selector
 	for node != nil {
 		switch node.pegRule {
 		case rulefunction:
 			function = a.Node(node)
 		case ruleselector:
-			typ, selector = a.ProcessSelector(node.up)
+			typ, selector := a.ProcessSelector(node.up)
+			selectors = append(selectors, Selector{typ, selector})
 		case ruleword:
 			name := a.Node(node)
 			switch function {
 			case "sum":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("sum takes 1 parameter"))
+				}
 				a.Aggregations[name] = &SumAggregation{
 					context: a.context,
-					path:    selector,
+					path:    selectors[0].selector,
 				}
 			case "count":
-				switch typ {
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("count takes 1 parameter"))
+				}
+				switch selectors[0].typ {
 				case rulepath:
 					a.Aggregations[name] = &CountAggregation{
 						context: a.context,
-						path:    selector,
+						path:    selectors[0].selector,
 					}
 				case rulewildcard:
 					a.Aggregations[name] = &CountAllAggregation{}
 				}
 			case "avg":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("avg takes 1 parameter"))
+				}
 				a.Aggregations[name] = &AvgAggregation{
 					context: a.context,
-					path:    selector,
+					path:    selectors[0].selector,
+				}
+			case "var":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("var takes 1 parameter"))
+				}
+				a.Aggregations[name] = &VarAggregation{
+					context: a.context,
+					path:    selectors[0].selector,
 				}
 			case "stddev":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("stddev takes 1 parameter"))
+				}
 				a.Aggregations[name] = &StdDevAggregation{
 					context: a.context,
-					path:    selector,
+					path:    selectors[0].selector,
 				}
 			case "min":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("min takes 1 parameter"))
+				}
 				a.Aggregations[name] = &MinAggregation{
 					context: a.context,
-					path:    selector,
+					path:    selectors[0].selector,
 					min:     math.MaxFloat64,
 				}
 			case "max":
+				if len(selectors) != 1 {
+					a.errors = append(a.errors, errors.New("max takes 1 parameter"))
+				}
 				a.Aggregations[name] = &MaxAggregation{
 					context: a.context,
-					path:    selector,
+					path:    selectors[0].selector,
+				}
+			case "corr":
+				if len(selectors) != 2 {
+					a.errors = append(a.errors, errors.New("corr takes 2 parameters"))
+				}
+				a.Aggregations[name] = &CorrAggregation{
+					context: a.context,
+					paths:   []*node32{selectors[0].selector, selectors[1].selector},
+				}
+			case "cov":
+				if len(selectors) != 2 {
+					a.errors = append(a.errors, errors.New("cov takes 2 parameters"))
+				}
+				a.Aggregations[name] = &CovAggregation{
+					context: a.context,
+					paths:   []*node32{selectors[0].selector, selectors[1].selector},
 				}
 			}
 		}

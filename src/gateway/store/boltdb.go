@@ -959,6 +959,9 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		Aggregations: make(map[string]Aggregation),
 	}
 	aggregations.Process(ast)
+	if len(aggregations.errors) > 0 {
+		return nil, aggregations.errors[0]
+	}
 	if len(aggregations.Aggregations) > 0 {
 		for _, result := range results {
 			var _json interface{}

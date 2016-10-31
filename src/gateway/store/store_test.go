@@ -85,21 +85,24 @@ var testJson = []string{
 			"first": "John",
 			"last": "Doe"
 		},
-		"age": 25
+		"age": 25,
+		"salary": 51
 	}`,
 	`{
 		"name": {
 			"first": "Jane",
 			"last": "Doe"
 		},
-		"age": 21
+		"age": 21,
+		"salary": 43
 	}`,
 	`{
 		"name": {
 			"first": "Joe",
 			"last": "Schmo"
 		},
-		"age": 18
+		"age": 18,
+		"salary": 37
 	}`,
 }
 
@@ -624,7 +627,8 @@ func TestAggregation(t *testing.T) {
 	}
 	objects, err := s.Select(0, "people", `true | count(name.first) as count,
 		count(*) as countall, sum(age) as sum, avg(age) as avg,
-		stddev(age) as stddev, min(age) as min, max(age) as max`)
+		stddev(age) as stddev, min(age) as min, max(age) as max,
+		corr(age, salary) as corr, cov(age, salary) as cov, var(age) as var`)
 	t.Log(objects)
 	if err != nil {
 		t.Fatal(err)
@@ -640,6 +644,9 @@ func TestAggregation(t *testing.T) {
 		"stddev":   "2.87",
 		"min":      "18.00",
 		"max":      "25.00",
+		"corr":     "1.00",
+		"cov":      "16.44",
+		"var":      "8.22",
 	}
 	results := objects[0].(map[string]interface{})
 	for name, value := range valid {

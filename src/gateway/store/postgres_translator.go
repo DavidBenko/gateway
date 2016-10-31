@@ -125,24 +125,31 @@ func (t *Translator) ProcessAggregate(node *node32) (q Query) {
 }
 
 func (t *Translator) ProcessAggregateClause(node *node32) (q Query) {
-	function := ""
+	function, comma := "", ""
 	for node != nil {
 		switch node.pegRule {
 		case rulefunction:
 			function = t.Node(node)
-			if function == "stddev" {
+			switch function {
+			case "var":
+				function = "var_pop"
+			case "stddev":
 				function = "stddev_pop"
+			case "cov":
+				function = "covar_pop"
 			}
-			q.aggregate += function + "( "
+			q.aggregate += function + "("
 		case ruleselector:
+			q.aggregate += comma + " "
 			selector := t.ProcessSelector(node.up).aggregate
 			if function == "count" {
-				q.aggregate += selector + " )"
+				q.aggregate += selector
 			} else {
-				q.aggregate += "CAST( " + selector + "as float ) )"
+				q.aggregate += "CAST( " + selector + "as float )"
 			}
+			comma = ","
 		case ruleword:
-			q.aggregate += " as " + t.Node(node)
+			q.aggregate += " ) as " + t.Node(node)
 		}
 		node = node.next
 	}
