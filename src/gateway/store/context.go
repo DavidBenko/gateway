@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,12 @@ func (c *context) getFloat64(path *node32, _json interface{}) (value float64, va
 		path = path.next
 	}
 	switch value := _json.(type) {
+	case json.Number:
+		v, err := value.Float64()
+		if err != nil {
+			return 0, false
+		}
+		return v, true
 	case float64:
 		return value, true
 	case string:

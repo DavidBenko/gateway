@@ -866,16 +866,49 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		return nil, err
 	}
 
+	var results []*Object
+
 	ast, buffer := jql.AST(), []rune(jql.Buffer)
 	constraints := Constraints{
 		context: context{buffer},
 		param:   params,
 	}
 	constraints.process(ast)
-	var results []*Object
+
+	aggregations := Aggregations{
+		context:      context{buffer},
+		Aggregations: make(map[string]Aggregation),
+	}
+	aggregations.Process(ast)
+	if len(aggregations.errors) > 0 {
+		return nil, aggregations.errors[0]
+	}
+	accumulateAggregations := func(_json interface{}) {
+		for _, aggregation := range aggregations.Aggregations {
+			aggregation.Accumulate(_json)
+		}
+	}
+	computeAggregations := func() error {
+		result := make(map[string]interface{})
+		for name, aggregation := range aggregations.Aggregations {
+			result[name] = aggregation.Compute()
+		}
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return err
+		}
+		results = []*Object{&Object{
+			AccountID:    collection.AccountID,
+			CollectionID: collection.ID,
+			Data:         data,
+		}}
+
+		return nil
+	}
+
+	cursor := bucket.Cursor()
+	key, value := cursor.First()
 	if len(constraints.order.path) > 0 {
-		cursor := bucket.Cursor()
-		key, value := cursor.First()
 		for key != nil {
 			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
@@ -908,21 +941,65 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			sorted = sort.Reverse(sorted)
 		}
 		sort.Sort(sorted)
-		if constraints.hasOffset && constraints.offset < len(results) {
-			results = results[constraints.offset:]
-		}
-		if constraints.hasLimit && constraints.limit <= len(results) {
-			results = results[:constraints.limit]
-		}
-	} else {
-		cursor := bucket.Cursor()
-		key, value := cursor.First()
 		if constraints.hasOffset {
-			offset := 0
-			for key != nil && offset < constraints.offset {
-				key, value = cursor.Next()
+			offset := constraints.offset
+			if length := len(results); offset >= length {
+				offset = length
+			}
+			results = results[offset:]
+		}
+		if constraints.hasLimit {
+			limit := constraints.limit
+			if length := len(results); limit > length {
+				limit = length
+			}
+			results = results[:limit]
+		}
+		if len(aggregations.Aggregations) > 0 {
+			for _, result := range results {
+				var _json interface{}
+				err := json.Unmarshal(result.Data, &_json)
+				if err != nil {
+					return nil, err
+				}
+				accumulateAggregations(_json)
+			}
+			err := computeAggregations()
+			if err != nil {
+				return nil, err
 			}
 		}
+
+		return results, nil
+	}
+
+	if constraints.hasOffset {
+		offset := 0
+		for key != nil && offset < constraints.offset {
+			decoder := json.NewDecoder(bytes.NewReader(value))
+			decoder.UseNumber()
+			var _json interface{}
+			err = decoder.Decode(&_json)
+			if err != nil {
+				return nil, err
+			}
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
+				offset++
+			}
+			key, value = cursor.Next()
+		}
+	}
+	if constraints.hasLimit && constraints.limit == 0 {
+		return results, nil
+	}
+
+	if len(aggregations.Aggregations) > 0 {
+		limit := 0
 		for key != nil {
 			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
@@ -937,55 +1014,50 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 				param:   params,
 			}
 			if selector.process(ast).b {
-				_value := make([]byte, len(value))
-				copy(_value, value)
-				object := &Object{
-					ID:           int64(btoi(key)),
-					AccountID:    collection.AccountID,
-					CollectionID: collection.ID,
-					Data:         _value,
-				}
-				results = append(results, object)
-				if constraints.hasLimit && len(results) == constraints.limit {
+				accumulateAggregations(_json)
+				limit++
+				if constraints.hasLimit && limit >= constraints.limit {
 					break
 				}
 			}
 			key, value = cursor.Next()
 		}
-	}
-
-	aggregations := Aggregations{
-		context:      context{buffer},
-		Aggregations: make(map[string]Aggregation),
-	}
-	aggregations.Process(ast)
-	if len(aggregations.errors) > 0 {
-		return nil, aggregations.errors[0]
-	}
-	if len(aggregations.Aggregations) > 0 {
-		for _, result := range results {
-			var _json interface{}
-			err := json.Unmarshal(result.Data, &_json)
-			if err != nil {
-				return nil, err
-			}
-			for _, aggregation := range aggregations.Aggregations {
-				aggregation.Accumulate(_json)
-			}
-		}
-		result := make(map[string]interface{})
-		for name, aggregation := range aggregations.Aggregations {
-			result[name] = aggregation.Compute()
-		}
-		data, err := json.Marshal(&result)
+		err := computeAggregations()
 		if err != nil {
 			return nil, err
 		}
-		results = []*Object{&Object{
-			AccountID:    collection.AccountID,
-			CollectionID: collection.ID,
-			Data:         data,
-		}}
+
+		return results, nil
+	}
+
+	for key != nil {
+		decoder := json.NewDecoder(bytes.NewReader(value))
+		decoder.UseNumber()
+		var _json interface{}
+		err = decoder.Decode(&_json)
+		if err != nil {
+			return nil, err
+		}
+		selector := Selector{
+			context: context{buffer},
+			json:    _json,
+			param:   params,
+		}
+		if selector.process(ast).b {
+			_value := make([]byte, len(value))
+			copy(_value, value)
+			object := &Object{
+				ID:           int64(btoi(key)),
+				AccountID:    collection.AccountID,
+				CollectionID: collection.ID,
+				Data:         _value,
+			}
+			results = append(results, object)
+			if constraints.hasLimit && len(results) >= constraints.limit {
+				break
+			}
+		}
+		key, value = cursor.Next()
 	}
 
 	return results, nil
