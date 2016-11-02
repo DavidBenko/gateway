@@ -141,6 +141,7 @@ type RemoteEndpoint struct {
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
 	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
+	ScrubData         bool `flag:"remote-endpoint-scrub-data"     default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

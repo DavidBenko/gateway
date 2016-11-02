@@ -98,6 +98,7 @@ var usageStrings = map[string]string{
 	"remote-endpoint-script-enabled":     "Whether or not script remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-soap-enabled":       "Whether or not soap remote endpoints are enabled. Defaults to false.",
 	"remote-endpoint-docker-enabled":     "Whether or not Docker remote endpoints are enabled. Defaults to false.",
+	"remote-endpoint-scrub-data":         "Whether or not to scrub the remote endpoint data saved in the database (for pre-5.2.0 remote endpoint data). Defaults to false.",
 
 	"admin-path-prefix": "The path prefix the administrative area is accessible under",
 	"admin-host":        "The host the administrative area is accessible via",

@@ -15,7 +15,6 @@ type redisSpec interface {
 
 // Spec implements db.Specifier for Redis connection parameters.
 type Spec struct {
-	redisSpec
 	Username  string `json:"username"`
 	Password  string `json:"password"`
 	Host      string `json:"host"`

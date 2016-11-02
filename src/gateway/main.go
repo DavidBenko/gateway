@@ -139,6 +139,15 @@ func main() {
 		}
 	}
 
+	if conf.RemoteEndpoint.ScrubData {
+		logreport.Printf("%s Scrubbing remote endpoint data...", config.System)
+		err = model.ScrubExistingRemoteEndpointData(db)
+		if err != nil {
+			logreport.Fatal(err)
+		}
+		logreport.Printf("%s Remote endpoint data scrubbing complete.", config.System)
+	}
+
 	if !conf.DevMode() {
 		if license.DeveloperVersion {
 			logreport.Fatalf("Developer version does not allow running in server mode.")
