@@ -80,6 +80,7 @@ ENV DOCKER_ENABLED false
 ENV SMTP_ENABLED true
 ENV SOAP_ENABLED true
 ENV JOBS_ENABLED true
+ENV REMOTE_ENDPOINT_SCRUB_DATA false
 
 # PUSH CONFIG
 ENV ENABLE_PUSH_BROKER true
@@ -130,4 +131,4 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -admin-api-host=$ADMIN_API_HOST -admin-cors-enabled=$ADMIN_CORS_ENABLED -admin-cors-origin="$ADMIN_CORS_ORIGIN" -admin-username="$ADMIN_BASIC_AUTH_USER" -admin-password="$ADMIN_BASIC_AUTH_PASSWORD" \
   -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
   -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI \
-  -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED
+  -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED -remote-endpoint-scrub-data=$REMOTE_ENDPOINT_SCRUB_DATA
