@@ -270,6 +270,7 @@ func ScrubExistingRemoteEndpointData(db *apsql.DB) error {
 	}
 	for _, remoteEndpoint := range remoteEndpoints {
 		logreport.Printf("%s Scrubbing remote endpoint id: %d", config.System, remoteEndpoint.ID)
+		addEnvironmentData(db, []*RemoteEndpoint{remoteEndpoint})
 		if err = remoteEndpoint.Scrub(); err != nil {
 			return err
 		}
@@ -288,6 +289,7 @@ func ScrubExistingRemoteEndpointData(db *apsql.DB) error {
 			return err
 		}
 		for _, envData := range remoteEndpoint.EnvironmentData {
+			logreport.Printf("%s Scrubbing remote endpoint id: %d environment data id: %d", config.System, remoteEndpoint.ID, envData.ID)
 			encodedEnvData, err := marshaledForStorage(envData.Data)
 			if err != nil {
 				return err
