@@ -315,7 +315,7 @@ install_peg:
 	if hash peg 2>/dev/null; then : ; else go install github.com/pointlander/peg; fi;
 
 install_vet:
-	if hash peg 2>/dev/null; then : ; else go get golang.org/x/tools/cmd/vet; fi;
+	if hash vet 2>/dev/null; then : ; else go get golang.org/x/tools/cmd/vet; fi;
 
 # http://godoc.org/code.google.com/p/go.tools/cmd/vet
 # go get code.google.com/p/go.tools/cmd/vet
