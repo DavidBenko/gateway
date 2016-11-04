@@ -793,19 +793,20 @@ func addEnvironmentData(db *apsql.DB, remoteEndpoints []*RemoteEndpoint) error {
 }
 
 // CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
-func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
+func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoint_calls
 		 WHERE remote_endpoint_id = ?;`, id); err != nil {
-		return errors.New("Could not check if endpoint could be deleted.")
+		errors.Add("base", "Could not check if endpoint could be deleted.")
 	}
 
 	if count > 0 {
-		return errors.New("There are proxy endpoint calls that reference this endpoint.")
+		errors.Add("base", "There are proxy endpoint calls that reference this endpoint.")
 	}
 
-	return nil
+	return errors
 }
 
 func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {
