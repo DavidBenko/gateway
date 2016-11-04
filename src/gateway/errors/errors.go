@@ -52,6 +52,10 @@ func (e Errors) String() string {
 	return errs
 }
 
+func (e Errors) Error() string {
+	return e.String()
+}
+
 type WrappedError struct {
 	context string
 	err     error
