@@ -125,6 +125,7 @@ func FindAdminUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 }
 
 func CanDeleteUser(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
+	errors := make(aperrors.Errors)
 	if auth == aphttp.AuthTypeSite {
 		return nil
 	}
@@ -143,11 +144,11 @@ func CanDeleteUser(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) erro
 
 	if count == 1 {
 		if user.Admin {
-			return errors.New("There must be at least one admin user")
+			errors.Add("base", "There must be at least one admin user")
 		}
 	}
 
-	return nil
+	return errors
 }
 
 // DeleteUserForAccountID deletes the user with the id and account_id specified.
