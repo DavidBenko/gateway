@@ -38,10 +38,11 @@ func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 
 	w := &wrapped{}
 	if err := deserialize(&w, file); err != nil {
-		return nil, err
+		logreport.Printf("%s error deserializing key: %v\n", config.Admin, err)
+		return nil, aphttp.NewError(errors.New("could not deserialize key"), http.StatusBadRequest)
 	}
 	if w.Key == nil {
-		return nil, aphttp.NewError(errors.New("Could not deserialize key from JSON"), http.StatusBadRequest)
+		return nil, aphttp.NewError(errors.New("key not found"), http.StatusBadRequest)
 	}
 
 	data, err := dataurl.DecodeString(w.Key.Key)
@@ -58,10 +59,11 @@ func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 	if key.Mime == "application/x-pkcs12" {
 		block, err := parsePkcs12(data.Data, w.Key.Password)
 		if err != nil {
+			logreport.Printf("%s error deserializing pkcs12 key: %v\n", config.Admin, err)
 			return nil, aphttp.NewError(err, http.StatusBadRequest)
 		}
 		if block == nil {
-			return nil, aphttp.NewError(errors.New("could not find private key"), http.StatusBadRequest)
+			return nil, aphttp.NewError(errors.New("key not found"), http.StatusBadRequest)
 		}
 		key.Key = pem.EncodeToMemory(block)
 	}
