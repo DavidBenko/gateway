@@ -118,5 +118,5 @@ func executeJob(timer *model.Timer, now time.Time, logPrefix string, warp *core.
 		return err
 	}
 
-	return warp.ExecuteJob(timer.JobID, timer.AccountID, timer.APIID, logPrefix, string(parametersJSON))
+	return warp.ExecuteJob(timer.JobID, timer.AccountID, timer.APIID, logreport.Printf, logPrefix, string(parametersJSON))
 }
