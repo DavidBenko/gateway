@@ -147,30 +147,41 @@ func RouteConfirmation(controller *ConfirmationController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	routes := map[string]http.Handler{
-		"GET": write(db, controller.Confirmation),
+		"GET":  write(db, controller.Confirmation),
+		"POST": write(db, controller.Confirmation),
 	}
 	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path, handlers.MethodHandler(routes))
 }
 
 func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
-	err := r.ParseForm()
-	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+	var err error
+	var PasswordResetConfirmation struct {
+		Token string `json:"token"`
+	}
+	var token string
+	switch r.Method {
+	case "GET":
+		if err = r.ParseForm(); err != nil {
+			return aphttp.NewError(err, http.StatusBadRequest)
+		}
+		if len(r.Form["token"]) != 1 {
+			return aphttp.NewError(errors.New("token is required"), http.StatusBadRequest)
+		}
+		token = r.Form["token"][0]
+	default:
+		if aperr := deserialize(&PasswordResetConfirmation, r.Body); aperr != nil {
+			return aphttp.NewError(aperr.Error(), http.StatusBadRequest)
+		}
+		token = PasswordResetConfirmation.Token
 	}
 
-	if len(r.Form["token"]) != 1 {
-		return aphttp.NewError(errors.New("token is required"), http.StatusBadRequest)
-	}
-
-	token := r.Form["token"][0]
 	user, err := model.ValidateUserToken(tx, token, true)
 	if err != nil {
-		http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
-		return nil
+		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
 	user.Confirmed = true
@@ -183,7 +194,11 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
-
-	http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
+	switch r.Method {
+	case "GET":
+		http.Redirect(w, r, c.conf.PathPrefix, http.StatusFound)
+	default:
+		w.WriteHeader(http.StatusOK)
+	}
 	return nil
 }
