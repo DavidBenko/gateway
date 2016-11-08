@@ -35,12 +35,18 @@ func (p *PubSocket) Bind(path string) error {
 	if s == nil {
 		return fmt.Errorf("mangos PubSocket couldn't Bind to %s: nil socket", path)
 	}
+	if err := s.SetOption(mangos.OptionBestEffort, true); err != nil {
+		return fmt.Errorf("mangos PubSocket couldn't set BestEffort option: %s", err.Error())
+	}
 
 	switch {
 	case p.raw:
 		// In case of a raw channel, don't start the send loop.
 		return s.Listen(path)
 	case p.useBroker:
+		if err := s.SetOption(mangos.OptionMaxReconnectTime, 5*time.Minute); err != nil {
+			return fmt.Errorf("mangos broker PubSocket dial couldn't set MaxReconnectTime option: %s", err.Error())
+		}
 		if err := s.Dial(path); err != nil {
 			return err
 		}

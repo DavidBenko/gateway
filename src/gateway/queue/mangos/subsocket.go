@@ -45,6 +45,9 @@ func (s *SubSocket) Connect(path string) error {
 		// If we're in raw mode, don't start the receive loop
 		return sock.Listen(path)
 	default:
+		if err := sock.SetOption(mangos.OptionMaxReconnectTime, 5*time.Minute); err != nil {
+			return fmt.Errorf("mangos SubSocket dial couldn't set MaxReconnectTime option: %s", err.Error())
+		}
 		if err := sock.Dial(path); err != nil {
 			return err
 		}
