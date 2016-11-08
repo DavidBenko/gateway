@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 
@@ -16,6 +17,9 @@ type JobTest struct {
 	ID         int64          `json:"id,omitempty" path:"id"`
 	Name       string         `json:"name"`
 	Parameters types.JsonText `json:"parameters,omitempty"`
+
+	// Export Indices
+	ExportJobIndex int `json:"job_index,omitempty"`
 }
 
 func (t *JobTest) Validate(isInsert bool) aperrors.Errors {
@@ -36,7 +40,16 @@ func (t *JobTest) ValidateFromDatabaseError(err error) aperrors.Errors {
 
 func (t *JobTest) All(db *apsql.DB) ([]*JobTest, error) {
 	tests := []*JobTest{}
-	err := db.Select(&tests, db.SQL("job_tests/all"), t.JobID, t.APIID, t.AccountID)
+	var err error
+	if t.APIID > 0 && t.AccountID > 0 {
+		if t.JobID > 0 {
+			err = db.Select(&tests, db.SQL("job_tests/all"), t.JobID, t.APIID, t.AccountID)
+		} else {
+			err = db.Select(&tests, db.SQL("job_tests/all_api"), t.APIID, t.AccountID)
+		}
+	} else {
+		err = errors.New("APIID and AccountID required for All")
+	}
 	if err != nil {
 		return nil, err
 	}
