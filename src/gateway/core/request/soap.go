@@ -25,12 +25,13 @@ type SoapRequest struct {
 	ActionName              string                   `json:"actionName,omitempty"`
 	Params                  *json.RawMessage         `json:"params"`
 	URL                     string                   `json:"url,omitempty"`
-	JarURL                  string                   `json:"jarUrl"`
+	JarURL                  string                   `json:"wsdl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
-
-	soapConf       config.Soap
-	remoteEndpoint *model.RemoteEndpoint
-	db             *sql.DB
+	Key                     string                   `json:"key"`
+	KeyAlias                string                   `json:"keyAlias"`
+	soapConf                config.Soap
+	remoteEndpoint          *model.RemoteEndpoint
+	db                      *sql.DB
 }
 
 // WssePasswordCredentials represents credentials for a SOAP request as specified
@@ -105,6 +106,14 @@ func (soapRequest *SoapRequest) updateWith(other *SoapRequest) {
 		soapRequest.URL = other.URL
 	}
 
+	if other.KeyAlias != "" {
+		soapRequest.KeyAlias = other.KeyAlias
+	}
+
+	if other.Key != "" {
+		soapRequest.Key = other.Key
+	}
+
 	if other.WssePasswordCredentials != nil {
 		soapRequest.WssePasswordCredentials = other.WssePasswordCredentials
 	}
@@ -132,6 +141,8 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 				))
 		}
 		buffer.WriteString(fmt.Sprintf("\nParams: %v\n", soapRequest.Params))
+		buffer.WriteString(fmt.Sprintf("\nKeyAlias: %v\n", soapRequest.KeyAlias))
+		buffer.WriteString(fmt.Sprintf("\nWsdl: %v\n", soapRequest.JarURL))
 	} else {
 		buffer.WriteString(
 			fmt.Sprintf("%s, %s, %s, %s, %s",

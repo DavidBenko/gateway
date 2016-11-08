@@ -1,0 +1,3 @@
+ALTER TABLE soap_remote_endpoints RENAME COLUMN generated_jar TO wsdl_content;
+
+ALTER TABLE soap_remote_endpoints RENAME COLUMN generated_jar_thumbprint TO wsdl_content_thumbprint;

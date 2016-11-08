@@ -1089,7 +1089,7 @@ func (e *RemoteEndpoint) beforeUpdate(tx *apsql.Tx) error {
 	}
 
 	soapRemoteEndpoint.Wsdl = newWsdlValue
-	soapRemoteEndpoint.GeneratedJarThumbprint = apsql.MakeNullStringNull()
+	soapRemoteEndpoint.WsdlContentThumbprint = apsql.MakeNullStringNull()
 	soapRemoteEndpoint.RemoteEndpoint = e
 
 	e.Status = apsql.MakeNullString(RemoteEndpointStatusPending)

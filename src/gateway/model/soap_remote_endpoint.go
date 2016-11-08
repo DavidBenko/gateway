@@ -27,10 +27,10 @@ const (
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"-" db:"remote_endpoint_id"`
 
-	ID                     int64  `json:"-" db:"id"`
-	Wsdl                   string `json:"-"`
-	generatedJar           []byte
-	GeneratedJarThumbprint apsql.NullString `json:"-" db:"generated_jar_thumbprint"`
+	ID                    int64  `json:"-" db:"id"`
+	Wsdl                  string `json:"-"`
+	wsdlContent           []byte
+	WsdlContentThumbprint apsql.NullString `json:"-" db:"wsdl_content_thumbprint"`
 
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
@@ -38,12 +38,12 @@ type SoapRemoteEndpoint struct {
 // Copy creates a shallow copy of a SoapRemoteEndpoint and returns a reference to the copy
 func (e *SoapRemoteEndpoint) Copy() *SoapRemoteEndpoint {
 	return &SoapRemoteEndpoint{
-		RemoteEndpointID:       e.RemoteEndpointID,
-		ID:                     e.ID,
-		Wsdl:                   e.Wsdl,
-		generatedJar:           e.generatedJar,
-		GeneratedJarThumbprint: e.GeneratedJarThumbprint,
-		RemoteEndpoint:         e.RemoteEndpoint,
+		RemoteEndpointID:      e.RemoteEndpointID,
+		ID:                    e.ID,
+		Wsdl:                  e.Wsdl,
+		wsdlContent:           e.wsdlContent,
+		WsdlContentThumbprint: e.WsdlContentThumbprint,
+		RemoteEndpoint:        e.RemoteEndpoint,
 	}
 }
 
@@ -203,7 +203,7 @@ func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) *SoapRemoteEndpoint {
 // if and only if the checksum does not match the generated_jar_thumbprint stored in the DB.  If the thumbprints match,
 // then they are the same file, and so no bytes will be returned.
 func GetGeneratedJarBytes(db *apsql.DB, soapRemoteEndpointID int64, checksum string) ([]byte, error) {
-	query := `SELECT generated_jar FROM soap_remote_endpoints WHERE id = ? AND generated_jar_thumbprint != ?`
+	query := `SELECT wsdl_content FROM soap_remote_endpoints WHERE id = ? AND wsdl_content_thumbprint != ?`
 
 	var dest []byte
 	err := db.Get(&dest, query, soapRemoteEndpointID, checksum)
@@ -247,7 +247,7 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 }
 
 func allSoapRemoteEndpoints(db *apsql.DB) ([]*SoapRemoteEndpoint, error) {
-	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint
+	query := `SELECT id, remote_endpoint_id, wsdl_content_thumbprint
 						FROM soap_remote_endpoints`
 
 	soapRemoteEndpoints := []*SoapRemoteEndpoint{}
@@ -257,7 +257,7 @@ func allSoapRemoteEndpoints(db *apsql.DB) ([]*SoapRemoteEndpoint, error) {
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
 func FindSoapRemoteEndpointByRemoteEndpointID(db *apsql.DB, remoteEndpointID int64) (*SoapRemoteEndpoint, error) {
-	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint
+	query := `SELECT id, remote_endpoint_id, wsdl_content_thumbprint
             FROM soap_remote_endpoints
             WHERE remote_endpoint_id = ?`
 
@@ -278,7 +278,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 	var query string
 	if updateGeneratedJar {
 		query = `UPDATE soap_remote_endpoints
-              SET wsdl = ?, generated_jar = ?, generated_jar_thumbprint = ?
+              SET wsdl = ?, wsdl_content = ?, wsdl_content_thumbprint = ?
               WHERE id = ?`
 	} else {
 		query = `UPDATE soap_remote_endpoints
@@ -288,7 +288,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 
 	var err error
 	if updateGeneratedJar {
-		err = tx.UpdateOne(query, e.Wsdl, e.generatedJar, e.GeneratedJarThumbprint, e.ID)
+		err = tx.UpdateOne(query, e.Wsdl, e.wsdlContent, e.WsdlContentThumbprint, e.ID)
 	} else {
 		err = tx.UpdateOne(query, e.Wsdl, e.ID)
 	}
@@ -396,9 +396,9 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		logreport.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		return err
 	}
-	e.generatedJar = bytes
+	e.wsdlContent = bytes
 	checksum := md5.Sum(bytes)
-	e.GeneratedJarThumbprint = apsql.MakeNullString(hex.EncodeToString(checksum[:]))
+	e.WsdlContentThumbprint = apsql.MakeNullString(hex.EncodeToString(checksum[:]))
 
 	err = e.update(tx, false, true)
 	if err != nil {
