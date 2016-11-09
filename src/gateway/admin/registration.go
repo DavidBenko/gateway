@@ -2,14 +2,13 @@ package admin
 
 import (
 	"errors"
-	"net/http"
-
 	"gateway/config"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/mail"
 	"gateway/model"
 	apsql "gateway/sql"
+	"net/http"
 
 	"github.com/gorilla/handlers"
 	"github.com/stripe/stripe-go"
@@ -157,11 +156,12 @@ func RouteConfirmation(controller *ConfirmationController, path string,
 	router.Handle(path, handlers.MethodHandler(routes))
 }
 
+type RegistrationConfirmation struct {
+	Token string `json:"token"`
+}
+
 func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
 	var err error
-	var PasswordResetConfirmation struct {
-		Token string `json:"token"`
-	}
 	var token string
 	switch r.Method {
 	case "GET":
@@ -173,10 +173,13 @@ func (c *ConfirmationController) Confirmation(w http.ResponseWriter, r *http.Req
 		}
 		token = r.Form["token"][0]
 	default:
-		if aperr := deserialize(&PasswordResetConfirmation, r.Body); aperr != nil {
+		request := struct {
+			RegistrationConfirmation RegistrationConfirmation `json:"registration_confirmation"`
+		}{}
+		if aperr := deserialize(&request, r.Body); aperr != nil {
 			return aphttp.NewError(aperr.Error(), http.StatusBadRequest)
 		}
-		token = PasswordResetConfirmation.Token
+		token = request.RegistrationConfirmation.Token
 	}
 
 	user, err := model.ValidateUserToken(tx, token, true)
