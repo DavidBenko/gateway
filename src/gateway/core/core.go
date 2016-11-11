@@ -142,6 +142,7 @@ var shared = func() *otto.Otto {
 
 	conversion.IncludeConversion(vm)
 	conversion.IncludePath(vm)
+	ottocrypto.IncludeHashing(vm)
 
 	var files = []string{
 		"gateway.js",
@@ -154,8 +155,6 @@ var shared = func() *otto.Otto {
 		"conversion/xml.js",
 	}
 
-	ottocrypto.IncludeHashing(vm)
-
 	for _, filename := range files {
 		fileJS, err := Asset(filename)
 		if err != nil {
@@ -167,6 +166,8 @@ var shared = func() *otto.Otto {
 			logreport.Fatal(err)
 		}
 	}
+
+	ottocrypto.IncludeAes(vm)
 
 	return vm
 }()

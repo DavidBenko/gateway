@@ -34,7 +34,7 @@ func unpad(src []byte) ([]byte, error) {
 	unpadding := int(src[length-1])
 
 	if unpadding > length {
-		return nil, errors.New("unpad error, probably incorrect key")
+		return nil, errors.New("unpad error, probably incorrect key or AES mode")
 	}
 
 	return src[:(length - unpadding)], nil
