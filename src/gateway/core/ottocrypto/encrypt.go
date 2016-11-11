@@ -26,17 +26,9 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) 
 
 func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		data, err := getData(call)
 		if err != nil {
 			logreport.Println(err)
-			return undefined
-		}
-
-		var data string
-		if ds, ok := d.(string); ok {
-			data = ds
-		} else {
-			logreport.Println("data should be a string")
 			return undefined
 		}
 
@@ -70,15 +62,9 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		ds, err := getData(call)
 		if err != nil {
-			logreport.Print(err)
-			return undefined
-		}
-
-		ds, ok := d.(string)
-		if !ok {
-			logreport.Println("data should be a string")
+			logreport.Println(err)
 			return undefined
 		}
 

@@ -104,3 +104,15 @@ func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key
 	}
 	return
 }
+
+func getData(call otto.FunctionCall) (string, error) {
+	d, err := getArgument(call, 0)
+	if err != nil {
+		return "", err
+	}
+
+	if ds, ok := d.(string); ok {
+		return ds, nil
+	}
+	return "", errors.New("data should be a string")
+}
