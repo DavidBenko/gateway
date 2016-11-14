@@ -26,19 +26,7 @@ func IncludeAes(vm *otto.Otto) {
 
 func setAesEncrypt(vm *otto.Otto) {
 	vm.Set("_aesEncrypt", func(call otto.FunctionCall) otto.Value {
-		data, err := getData(call)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		}
-
-		options, err := getArgument(call, 1)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		}
-
-		k, err := getAesKey(options)
+		k, data, err := getAesParams(call)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -64,19 +52,7 @@ func setAesEncrypt(vm *otto.Otto) {
 
 func setAesDecrypt(vm *otto.Otto) {
 	vm.Set("_aesDecrypt", func(call otto.FunctionCall) otto.Value {
-		data, err := getData(call)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		}
-
-		options, err := getArgument(call, 1)
-		if err != nil {
-			logreport.Println(err)
-			return undefined
-		}
-
-		k, err := getAesKey(options)
+		k, data, err := getAesParams(call)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -104,17 +80,27 @@ func setAesDecrypt(vm *otto.Otto) {
 	})
 }
 
-func getAesKey(o interface{}) (*crypto.SymmetricKey, error) {
+func getAesParams(call otto.FunctionCall) (*crypto.SymmetricKey, string, error) {
+	data, err := getData(call)
+	if err != nil {
+		return nil, "", err
+	}
+
+	o, err := getArgument(call, 1)
+	if err != nil {
+		return nil, "", err
+	}
+
 	var mode crypto.AesMode
 	mode = crypto.CFBMode
 	options, ok := o.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("options should be an object")
+		return nil, "", errors.New("options should be an object")
 	}
 
 	k, err := getOptionString(options, "key", false)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	i, _ := getOptionString(options, "iv", true)
@@ -130,23 +116,23 @@ func getAesKey(o interface{}) (*crypto.SymmetricKey, error) {
 	}
 
 	if strings.TrimSpace(k) == "" {
-		return nil, errors.New("missing key")
+		return nil, "", errors.New("missing key")
 	}
 
 	key, err := b64.StdEncoding.DecodeString(k)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	iv, err := b64.StdEncoding.DecodeString(i)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	symkey, err := crypto.ParseAesKey(key, iv, mode)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return symkey, nil
+	return symkey, data, nil
 }
