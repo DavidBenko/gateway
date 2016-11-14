@@ -609,6 +609,7 @@ func (d *dialer) Address() string {
 func (d *dialer) dialer() {
 	rtime := d.sock.reconntime
 	rtmax := d.sock.reconnmax
+	rtmaxtriggered := false
 	for {
 		p, err := d.d.Dial()
 		if err == nil {
@@ -639,7 +640,12 @@ func (d *dialer) dialer() {
 			if rtmax > 0 {
 				rtime *= 2
 				if rtime > rtmax {
+					if rtmaxtriggered {
+						d.sock.Dial(d.addr)
+						return
+					}
 					rtime = rtmax
+					rtmaxtriggered = true
 				}
 			}
 			continue
