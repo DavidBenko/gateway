@@ -194,6 +194,20 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		test.ID = 0
 	}
 
+	proxyEndpointChannel := ProxyEndpointChannel{AccountID: accountID, APIID: id}
+	api.ProxyEndpointChannels, err = proxyEndpointChannel.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching proxy endpoint channels", err)
+	}
+	for _, channel := range api.ProxyEndpointChannels {
+		channel.ExportProxyEndpointIndex = proxyEndpointsIndexMap[channel.ProxyEndpointID]
+		channel.ExportRemoteEndpointIndex = remoteEndpointsIndexMap[channel.RemoteEndpointID]
+		channel.APIID = 0
+		channel.ProxyEndpointID = 0
+		channel.ID = 0
+		channel.RemoteEndpointID = 0
+	}
+
 	pad := ScratchPad{AccountID: accountID, APIID: id}
 	api.ScratchPads, err = pad.All(db)
 	if err != nil {
@@ -381,6 +395,20 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		err = test.Insert(tx)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting job test", err)
+		}
+	}
+
+	for _, channel := range a.ProxyEndpointChannels {
+		channel.AccountID = a.AccountID
+		channel.UserID = a.UserID
+		channel.APIID = a.ID
+		channel.ProxyEndpointID = proxyEndpointsIDMap[channel.ExportProxyEndpointIndex]
+		channel.RemoteEndpointID = remoteEndpointsIDMap[channel.ExportRemoteEndpointIndex]
+		channel.ExportProxyEndpointIndex = 0
+		channel.ExportRemoteEndpointIndex = 0
+		err = channel.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting proxy endpoint channel", err)
 		}
 	}
 

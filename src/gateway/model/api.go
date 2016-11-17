@@ -31,17 +31,18 @@ type API struct {
 	EnableSwagger        bool   `json:"enable_swagger" db:"enable_swagger"`
 	Export               string `json:"export,omitempty" db:"-"`
 
-	Hosts                []*Host                `json:"-"`
-	Environments         []*Environment         `json:"environments,omitempty"`
-	EndpointGroups       []*EndpointGroup       `json:"endpoint_groups,omitempty"`
-	Libraries            []*Library             `json:"libraries,omitempty"`
-	RemoteEndpoints      []*RemoteEndpoint      `json:"remote_endpoints,omitempty"`
-	SharedComponents     []*SharedComponent     `json:"shared_components,omitempty"`
-	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
-	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
-	JobTests             []*JobTest             `json:"job_tests,omitempty"`
-	ScratchPads          []*ScratchPad          `json:"scratch_pads,omitempty"`
-	ExportVersion        int64                  `json:"export_version,omitempty"`
+	Hosts                 []*Host                 `json:"-"`
+	Environments          []*Environment          `json:"environments,omitempty"`
+	EndpointGroups        []*EndpointGroup        `json:"endpoint_groups,omitempty"`
+	Libraries             []*Library              `json:"libraries,omitempty"`
+	RemoteEndpoints       []*RemoteEndpoint       `json:"remote_endpoints,omitempty"`
+	SharedComponents      []*SharedComponent      `json:"shared_components,omitempty"`
+	ProxyEndpoints        []*ProxyEndpoint        `json:"proxy_endpoints,omitempty"`
+	ProxyEndpointSchemas  []*ProxyEndpointSchema  `json:"proxy_endpoint_schemas,omitempty"`
+	JobTests              []*JobTest              `json:"job_tests,omitempty"`
+	ProxyEndpointChannels []*ProxyEndpointChannel `json:"proxy_endpoint_channels,omitempty"`
+	ScratchPads           []*ScratchPad           `json:"scratch_pads,omitempty"`
+	ExportVersion         int64                   `json:"export_version,omitempty"`
 }
 
 // CopyFrom copies all attributes except for AccountID, ID, and Name from other
@@ -65,6 +66,7 @@ func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 		a.ProxyEndpoints = other.ProxyEndpoints
 		a.ProxyEndpointSchemas = other.ProxyEndpointSchemas
 		a.JobTests = other.JobTests
+		a.ProxyEndpointChannels = other.ProxyEndpointChannels
 		a.ScratchPads = other.ScratchPads
 	}
 }
@@ -81,6 +83,7 @@ func (a *API) Normalize() {
 	a.ProxyEndpoints = []*ProxyEndpoint{}
 	a.ProxyEndpointSchemas = []*ProxyEndpointSchema{}
 	a.JobTests = []*JobTest{}
+	a.ProxyEndpointChannels = []*ProxyEndpointChannel{}
 	a.ScratchPads = []*ScratchPad{}
 	a.ExportVersion = 0
 }

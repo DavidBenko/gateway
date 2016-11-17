@@ -1,5 +1,7 @@
 CREATE TABLE IF NOT EXISTS "proxy_endpoint_channels" (
   "id" SERIAL PRIMARY KEY,
+  "created_at" TIMESTAMPTZ,
+  "updated_at" TIMESTAMPTZ,
   "proxy_endpoint_id" INTEGER NOT NULL,
   "remote_endpoint_id" INTEGER NOT NULL,
   "name" TEXT NOT NULL,

@@ -125,6 +125,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&JobsController{BaseController: base, Type: model.ProxyEndpointTypeJob}, "/apis/{apiID}/jobs", authAdmin, db, conf)
 	RouteResource(&JobTestsController{BaseController: base}, "/apis/{apiID}/jobs/{jobID}/tests", authAdmin, db, conf)
 	RouteResource(&ProxyEndpointSchemasController{BaseController: base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/schemas", authAdmin, db, conf)
+	RouteResource(&ProxyEndpointChannelsController{BaseController: base}, "/apis/{apiID}/proxy_endpoints/{endpointID}/channels", authAdmin, db, conf)
 	scratchPadController := &MetaScratchPadsController{ScratchPadsController{BaseController: base}, c}
 	RouteScratchPads(scratchPadController, "/apis/{apiID}/remote_endpoints/{endpointID}/environment_data/{environmentDataID}/scratch_pads", authAdmin, db, conf)
 	pushChannelsController := &MetaPushChannelsController{PushChannelsController{BaseController: base}, c}
