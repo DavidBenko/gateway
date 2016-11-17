@@ -14,11 +14,13 @@ type Key struct {
 	AccountID int64  `json:"-" db:"account_id"`
 	Name      string `json:"name" db:"name"`
 	Key       []byte `json:"-"`
+	Password  string `json:"password,omitempty"`
+	Mime      string
 }
 
 func (k *Key) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if k.Name == "" || strings.TrimSpace(k.Name) == "" {
+	if strings.TrimSpace(k.Name) == "" {
 		errors.Add("name", "must not be blank")
 	}
 
@@ -33,6 +35,7 @@ func (k *Key) Validate(isInsert bool) aperrors.Errors {
 		errors.Add("key", err.Error())
 		return errors
 	}
+
 	return errors
 }
 
@@ -109,7 +112,7 @@ func parsePem(data []byte) (*pem.Block, error) {
 
 func parsePrivateKey(block *pem.Block) (interface{}, bool) {
 	switch block.Type {
-	case "RSA PRIVATE KEY":
+	case "RSA PRIVATE KEY", "PRIVATE KEY":
 		k, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
 			return nil, false

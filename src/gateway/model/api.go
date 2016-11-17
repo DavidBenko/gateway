@@ -39,6 +39,7 @@ type API struct {
 	SharedComponents     []*SharedComponent     `json:"shared_components,omitempty"`
 	ProxyEndpoints       []*ProxyEndpoint       `json:"proxy_endpoints,omitempty"`
 	ProxyEndpointSchemas []*ProxyEndpointSchema `json:"proxy_endpoint_schemas,omitempty"`
+	JobTests             []*JobTest             `json:"job_tests,omitempty"`
 	ScratchPads          []*ScratchPad          `json:"scratch_pads,omitempty"`
 	ExportVersion        int64                  `json:"export_version,omitempty"`
 }
@@ -62,6 +63,9 @@ func (a *API) CopyFrom(other *API, copyEmbeddedObjects bool) {
 		a.RemoteEndpoints = other.RemoteEndpoints
 		a.SharedComponents = other.SharedComponents
 		a.ProxyEndpoints = other.ProxyEndpoints
+		a.ProxyEndpointSchemas = other.ProxyEndpointSchemas
+		a.JobTests = other.JobTests
+		a.ScratchPads = other.ScratchPads
 	}
 }
 
@@ -75,6 +79,9 @@ func (a *API) Normalize() {
 	a.RemoteEndpoints = []*RemoteEndpoint{}
 	a.SharedComponents = []*SharedComponent{}
 	a.ProxyEndpoints = []*ProxyEndpoint{}
+	a.ProxyEndpointSchemas = []*ProxyEndpointSchema{}
+	a.JobTests = []*JobTest{}
+	a.ScratchPads = []*ScratchPad{}
 	a.ExportVersion = 0
 }
 

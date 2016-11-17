@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
 
 	"gateway/config"
@@ -868,12 +866,49 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 		return nil, err
 	}
 
-	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
-	constraints := getConstraints(ast, &Context{buffer, nil, params})
 	var results []*Object
+
+	ast, buffer := jql.AST(), []rune(jql.Buffer)
+	constraints := Constraints{
+		context: context{buffer},
+		param:   params,
+	}
+	constraints.process(ast)
+
+	aggregations := Aggregations{
+		context:      context{buffer},
+		Aggregations: make(map[string]Aggregation),
+	}
+	aggregations.Process(ast)
+	if len(aggregations.errors) > 0 {
+		return nil, aggregations.errors[0]
+	}
+	accumulateAggregations := func(_json interface{}) {
+		for _, aggregation := range aggregations.Aggregations {
+			aggregation.Accumulate(_json)
+		}
+	}
+	computeAggregations := func() error {
+		result := make(map[string]interface{})
+		for name, aggregation := range aggregations.Aggregations {
+			result[name] = aggregation.Compute()
+		}
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return err
+		}
+		results = []*Object{&Object{
+			AccountID:    collection.AccountID,
+			CollectionID: collection.ID,
+			Data:         data,
+		}}
+
+		return nil
+	}
+
+	cursor := bucket.Cursor()
+	key, value := cursor.First()
 	if len(constraints.order.path) > 0 {
-		cursor := bucket.Cursor()
-		key, value := cursor.First()
 		for key != nil {
 			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
@@ -882,7 +917,12 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			if err != nil {
 				return nil, err
 			}
-			if process(ast, &Context{buffer, _json, params}).b {
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
 				_value := make([]byte, len(value))
 				copy(_value, value)
 				object := &Object{
@@ -901,21 +941,65 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			sorted = sort.Reverse(sorted)
 		}
 		sort.Sort(sorted)
-		if constraints.hasOffset && constraints.offset < len(results) {
-			results = results[constraints.offset:]
-		}
-		if constraints.hasLimit && constraints.limit <= len(results) {
-			results = results[:constraints.limit]
-		}
-	} else {
-		cursor := bucket.Cursor()
-		key, value := cursor.First()
 		if constraints.hasOffset {
-			offset := 0
-			for key != nil && offset < constraints.offset {
-				key, value = cursor.Next()
+			offset := constraints.offset
+			if length := len(results); offset >= length {
+				offset = length
+			}
+			results = results[offset:]
+		}
+		if constraints.hasLimit {
+			limit := constraints.limit
+			if length := len(results); limit > length {
+				limit = length
+			}
+			results = results[:limit]
+		}
+		if len(aggregations.Aggregations) > 0 {
+			for _, result := range results {
+				var _json interface{}
+				err := json.Unmarshal(result.Data, &_json)
+				if err != nil {
+					return nil, err
+				}
+				accumulateAggregations(_json)
+			}
+			err := computeAggregations()
+			if err != nil {
+				return nil, err
 			}
 		}
+
+		return results, nil
+	}
+
+	if constraints.hasOffset {
+		offset := 0
+		for key != nil && offset < constraints.offset {
+			decoder := json.NewDecoder(bytes.NewReader(value))
+			decoder.UseNumber()
+			var _json interface{}
+			err = decoder.Decode(&_json)
+			if err != nil {
+				return nil, err
+			}
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
+				offset++
+			}
+			key, value = cursor.Next()
+		}
+	}
+	if constraints.hasLimit && constraints.limit == 0 {
+		return results, nil
+	}
+
+	if len(aggregations.Aggregations) > 0 {
+		limit := 0
 		for key != nil {
 			decoder := json.NewDecoder(bytes.NewReader(value))
 			decoder.UseNumber()
@@ -924,22 +1008,56 @@ func (s *BoltDBStore) _Select(tx *bolt.Tx, bucket *bolt.Bucket, collection *Coll
 			if err != nil {
 				return nil, err
 			}
-			if process(ast, &Context{buffer, _json, params}).b {
-				_value := make([]byte, len(value))
-				copy(_value, value)
-				object := &Object{
-					ID:           int64(btoi(key)),
-					AccountID:    collection.AccountID,
-					CollectionID: collection.ID,
-					Data:         _value,
-				}
-				results = append(results, object)
-				if constraints.hasLimit && len(results) == constraints.limit {
+			selector := Selector{
+				context: context{buffer},
+				json:    _json,
+				param:   params,
+			}
+			if selector.process(ast).b {
+				accumulateAggregations(_json)
+				limit++
+				if constraints.hasLimit && limit >= constraints.limit {
 					break
 				}
 			}
 			key, value = cursor.Next()
 		}
+		err := computeAggregations()
+		if err != nil {
+			return nil, err
+		}
+
+		return results, nil
+	}
+
+	for key != nil {
+		decoder := json.NewDecoder(bytes.NewReader(value))
+		decoder.UseNumber()
+		var _json interface{}
+		err = decoder.Decode(&_json)
+		if err != nil {
+			return nil, err
+		}
+		selector := Selector{
+			context: context{buffer},
+			json:    _json,
+			param:   params,
+		}
+		if selector.process(ast).b {
+			_value := make([]byte, len(value))
+			copy(_value, value)
+			object := &Object{
+				ID:           int64(btoi(key)),
+				AccountID:    collection.AccountID,
+				CollectionID: collection.ID,
+				Data:         _value,
+			}
+			results = append(results, object)
+			if constraints.hasLimit && len(results) >= constraints.limit {
+				break
+			}
+		}
+		key, value = cursor.Next()
 	}
 
 	return results, nil
@@ -993,30 +1111,6 @@ func btoi(b []byte) uint64 {
 	return binary.BigEndian.Uint64(b)
 }
 
-type Value struct {
-	b      bool
-	errors []error
-}
-
-type Constraints struct {
-	errors []error
-	order  struct {
-		path    []string
-		dir     string
-		numeric bool
-	}
-	hasLimit  bool
-	limit     int
-	hasOffset bool
-	offset    int
-}
-
-type Context struct {
-	buffer []rune
-	json   interface{}
-	param  []interface{}
-}
-
 type Results struct {
 	results []*Object
 	path    []string
@@ -1065,286 +1159,4 @@ func (r *Results) Less(i, j int) bool {
 
 func (r *Results) Swap(i, j int) {
 	r.results[i], r.results[j] = r.results[j], r.results[i]
-}
-
-func getConstraints(node *node32, context *Context) (c Constraints) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			return getConstraints(node.up, context)
-		case ruleorder:
-			c.processOrder(node.up, context)
-		case rulelimit:
-			c.processLimit(node.up, context)
-		case ruleoffset:
-			c.processOffset(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func (c *Constraints) processOrder(node *node32, context *Context) {
-	for node != nil {
-		switch node.pegRule {
-		case rulepath:
-			c.processPath(node.up, context)
-		case rulecast:
-			c.processCast(node.up, context)
-		case ruleasc:
-			c.order.dir = string(context.buffer[node.begin:node.end])
-		case ruledesc:
-			c.order.dir = string(context.buffer[node.begin:node.end])
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processCast(node *node32, context *Context) {
-	c.order.numeric = true
-	for node != nil {
-		if node.pegRule == rulepath {
-			c.processPath(node.up, context)
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processPath(node *node32, context *Context) {
-	for node != nil {
-		if node.pegRule == ruleword {
-			c.order.path = append(c.order.path, string(context.buffer[node.begin:node.end]))
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processLimit(node *node32, context *Context) {
-	c.hasLimit = true
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			var err error
-			c.limit, err = processValue1(node.up, context)
-			if err != nil {
-				c.errors = append(c.errors, err)
-			}
-		}
-		node = node.next
-	}
-}
-
-func (c *Constraints) processOffset(node *node32, context *Context) {
-	c.hasOffset = true
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			var err error
-			c.offset, err = processValue1(node.up, context)
-			if err != nil {
-				c.errors = append(c.errors, err)
-			}
-		}
-		node = node.next
-	}
-}
-
-func processValue1(node *node32, context *Context) (int, error) {
-	for node != nil {
-		switch node.pegRule {
-		case ruleplaceholder:
-			placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
-			if err != nil {
-				return -1, err
-			}
-			if placeholder > len(context.param) {
-				return -1, errors.New("placholder too large")
-			}
-			if holder, valid := context.param[placeholder-1].(int); valid {
-				return holder, nil
-			} else {
-				return -1, errors.New("value must be type int")
-			}
-		case rulewhole:
-			whole, err := strconv.Atoi(string(context.buffer[node.begin:node.end]))
-			if err != nil {
-				return -1, err
-			}
-			return whole, nil
-		}
-		node = node.next
-	}
-	return -1, errors.New("no value")
-}
-
-func process(node *node32, context *Context) (v Value) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			return process(node.up, context)
-		case rulee1:
-			v = processRulee1(node.up, context)
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee1(node *node32, context *Context) (v Value) {
-	for node != nil {
-		if node.pegRule == rulee2 {
-			if !v.b {
-				x := processRulee2(node.up, context)
-				v.b = v.b || x.b
-				v.errors = append(v.errors, x.errors...)
-			}
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee2(node *node32, context *Context) (v Value) {
-	v.b = true
-	for node != nil {
-		if node.pegRule == rulee3 {
-			if v.b {
-				x := processRulee3(node.up, context)
-				v.b = v.b && x.b
-				v.errors = append(v.errors, x.errors...)
-			}
-		}
-		node = node.next
-	}
-	return
-}
-
-func processRulee3(node *node32, context *Context) (v Value) {
-	if node.pegRule == ruleexpression {
-		return processExpression(node.up, context)
-	}
-	return process(node.next.up, context)
-}
-
-func compareString(op, a, b string) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	case ">":
-		return a > b
-	case "<":
-		return a < b
-	case ">=":
-		return a >= b
-	case "<=":
-		return a <= b
-	}
-	return false
-}
-
-func compareRat(op string, a, b *big.Rat) bool {
-	switch op {
-	case "=":
-		return a.Cmp(b) == 0
-	case "!=":
-		return a.Cmp(b) != 0
-	case ">":
-		return a.Cmp(b) > 0
-	case "<":
-		return a.Cmp(b) < 0
-	case ">=":
-		return a.Cmp(b) >= 0
-	case "<=":
-		return a.Cmp(b) <= 0
-	}
-	return false
-}
-
-func compareBool(op string, a, b bool) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	}
-	return false
-}
-
-func compareNull(op string, a, b interface{}) bool {
-	switch op {
-	case "=":
-		return a == b
-	case "!=":
-		return a != b
-	}
-	return false
-}
-
-func processExpression(node *node32, context *Context) (v Value) {
-	if node.pegRule == ruleboolean {
-		v.b = string(context.buffer[node.begin:node.end]) == "true"
-		return
-	}
-
-	path, _json, valid := node.up, context.json, false
-	for path != nil {
-		if path.pegRule == ruleword {
-			_json, valid = _json.(map[string]interface{})[string(context.buffer[path.begin:path.end])]
-			if !valid {
-				return
-			}
-		}
-		path = path.next
-	}
-	node = node.next
-	op := strings.TrimSpace(string(context.buffer[node.begin:node.end]))
-	node = node.next.up
-	_a := fmt.Sprintf("%v", _json)
-	switch node.pegRule {
-	case ruleplaceholder:
-		placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
-		if err != nil {
-			v.errors = append(v.errors, err)
-			return
-		}
-
-		if placeholder > len(context.param) {
-			v.errors = append(v.errors, errors.New("placholder to large"))
-			return
-		}
-		switch _b := context.param[placeholder-1].(type) {
-		case string:
-			v.b = compareString(op, _a, _b)
-		case float64:
-			a, b := &big.Rat{}, &big.Rat{}
-			a.SetString(_a)
-			b.SetFloat64(_b)
-			v.b = compareRat(op, a, b)
-		case int:
-			a, b := &big.Rat{}, &big.Rat{}
-			a.SetString(_a)
-			b.SetInt64(int64(_b))
-			v.b = compareRat(op, a, b)
-		case bool:
-			v.b = compareBool(op, _a == "true", _b)
-		default:
-			v.b = compareNull(op, _json, _b)
-		}
-	case rulestring:
-		b := string(context.buffer[node.begin+1 : node.end-1])
-		v.b = compareString(op, _a, b)
-	case rulenumber:
-		_b := string(context.buffer[node.begin:node.end])
-		b := &big.Rat{}
-		b.SetString(_b)
-		a := &big.Rat{}
-		a.SetString(_a)
-		v.b = compareRat(op, a, b)
-	case ruleboolean:
-		b := string(context.buffer[node.begin:node.end])
-		v.b = compareBool(op, _a == "true", b == "true")
-	case rulenull:
-		v.b = compareNull(op, _json, nil)
-	}
-	return
 }
