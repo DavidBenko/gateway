@@ -5,6 +5,8 @@ import (
 	"gateway/crypto"
 	"gateway/logreport"
 
+	corevm "gateway/core/vm"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -68,7 +70,7 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 1)
+		o, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
 			return undefined

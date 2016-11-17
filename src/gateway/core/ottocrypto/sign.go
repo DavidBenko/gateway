@@ -5,6 +5,8 @@ import (
 	"gateway/crypto"
 	"gateway/logreport"
 
+	corevm "gateway/core/vm"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -99,7 +101,7 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 2)
+		o, err := corevm.GetArgument(call, 2)
 		if err != nil {
 			logreport.Println(err)
 			return undefined

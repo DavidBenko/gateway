@@ -153,6 +153,7 @@ var shared = func() *otto.Otto {
 		"http/response.js",
 		"conversion/json.js",
 		"conversion/xml.js",
+		"encoding.js",
 	}
 
 	for _, filename := range files {
