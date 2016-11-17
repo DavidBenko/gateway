@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gateway/core/vm"
+
 	"gateway/model"
 )
 
@@ -32,8 +33,12 @@ func (s *Core) RunComponents(vm *vm.CoreVM, components []*model.ProxyEndpointCom
 		if sh := c.SharedComponentHandle; sh != nil {
 			c = sh
 		}
-		if err := s.runComponent(vm, c, connections); err != nil {
+		stop, err := s.runComponent(vm, c, connections)
+		if err != nil {
 			return err
+		}
+		if stop {
+			break
 		}
 	}
 
@@ -46,13 +51,14 @@ func (s *Core) RunComponents(vm *vm.CoreVM, components []*model.ProxyEndpointCom
 	return nil
 }
 
-func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) error {
+func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointComponent, connections map[int64]io.Closer) (bool, error) {
 	run, err := s.evaluateComponentConditional(vm, component)
+	b := false
 	if err != nil {
-		return err
+		return b, err
 	}
 	if !run {
-		return nil
+		return b, nil
 	}
 
 	switch component.Type {
@@ -60,13 +66,13 @@ func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointCompone
 		fallthrough
 	case model.ProxyEndpointComponentTypeMulti:
 		if err = s.runCallComponentSetup(vm, component); err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	err = s.runTransformations(vm, component.BeforeTransformations)
 	if err != nil {
-		return err
+		return b, err
 	}
 
 	switch component.Type {
@@ -75,29 +81,25 @@ func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointCompone
 	case model.ProxyEndpointComponentTypeMulti:
 		err = s.runCallComponentCore(vm, component, connections)
 	case model.ProxyEndpointComponentTypeJS:
-		err = s.runJSComponentCore(vm, component)
+		b, err = s.runJSComponentCore(vm, component)
 	default:
-		return fmt.Errorf("%s is not a valid component type", component.Type)
+		return b, fmt.Errorf("%s is not a valid component type", component.Type)
 	}
-	if err != nil {
-		return err
+	if err != nil || b {
+		return b, err
 	}
 
 	err = s.runTransformations(vm, component.AfterTransformations)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return b, err
 }
 
-func (s *Core) runJSComponentCore(vm *vm.CoreVM, component *model.ProxyEndpointComponent) error {
+func (s *Core) runJSComponentCore(vm *vm.CoreVM, component *model.ProxyEndpointComponent) (bool, error) {
 	script, err := strconv.Unquote(string(component.Data))
 	if err != nil || script == "" {
-		return err
+		return false, err
 	}
-	_, err = vm.Run(script)
-	return err
+	_, stop, err := vm.RunWithStop(script)
+	return stop, err
 }
 
 func (s *Core) runCallComponentSetup(vm *vm.CoreVM, component *model.ProxyEndpointComponent) error {

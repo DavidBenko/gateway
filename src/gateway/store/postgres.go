@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -602,25 +601,69 @@ func (s *PostgresStore) _Select(tx *sqlx.Tx, accountID int64, collectionID int64
 	if err := jql.Parse(); err != nil {
 		return nil, err
 	}
-	ast, buffer := jql.tokenTree.AST(), []rune(jql.Buffer)
-	query, length := pgProcess(ast, &Context{buffer, nil, params}).s, len(params)
-	params = append(params, accountID, collectionID)
-	query = fmt.Sprintf(`SELECT id, account_id, collection_id, data FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
-		length+1, length+2, query)
-
-	rows, err := tx.Queryx(query, params...)
-	if err != nil {
-		return nil, err
+	ast, buffer := jql.AST(), []rune(jql.Buffer)
+	translator := Translator{
+		context: context{buffer},
+		param:   params,
 	}
-
+	q, length := translator.Process(ast), len(params)
+	params = append(params, accountID, collectionID)
 	var objects []*Object
-	for rows.Next() {
-		object := &Object{}
-		err = rows.StructScan(object)
+	if q.aggregate == "" {
+		query := fmt.Sprintf(`SELECT id, account_id, collection_id, data FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
+			length+1, length+2, q.s)
+
+		rows, err := tx.Queryx(query, params...)
 		if err != nil {
 			return nil, err
 		}
-		objects = append(objects, object)
+
+		for rows.Next() {
+			object := &Object{}
+			err = rows.StructScan(object)
+			if err != nil {
+				return nil, err
+			}
+			objects = append(objects, object)
+		}
+	} else {
+		query := fmt.Sprintf(`SELECT %v FROM objects WHERE account_id = $%v AND collection_id = $%v AND %v;`,
+			q.aggregate, length+1, length+2, q.s)
+
+		rows, err := tx.Queryx(query, params...)
+		if err != nil {
+			return nil, err
+		}
+
+		for rows.Next() {
+			result := make(map[string]interface{})
+			err := rows.MapScan(result)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range result {
+				if keys := strings.Split(k, "$"); len(keys) == 2 {
+					if multi, ok := result[keys[0]]; ok {
+						multi.(map[string]interface{})[keys[1]] = v
+					} else {
+						multi := make(map[string]interface{})
+						multi[keys[1]] = v
+						result[keys[0]] = multi
+					}
+					delete(result, k)
+				}
+			}
+			data, err := json.Marshal(&result)
+			if err != nil {
+				return nil, err
+			}
+			object := &Object{
+				AccountID:    accountID,
+				CollectionID: collectionID,
+				Data:         data,
+			}
+			objects = append(objects, object)
+		}
 	}
 
 	return objects, nil
@@ -665,214 +708,4 @@ func (s *PostgresStore) Shutdown() {
 	if s.db != nil {
 		s.db.Close()
 	}
-}
-
-type Query struct {
-	s      string
-	errors []error
-}
-
-func pgProcess(node *node32, context *Context) (q Query) {
-	for node != nil {
-		switch node.pegRule {
-		case rulee:
-			return pgProcess(node.up, context)
-		case rulee1:
-			x := pgProcessRulee1(node.up, context)
-			q.s += "( " + x.s + " )"
-			q.errors = append(q.errors, x.errors...)
-		case ruleorder:
-			x := pgProcessOrder(node.up, context)
-			q.s += " " + x.s
-		case rulelimit:
-			x := pgProcessLimit(node.up, context)
-			q.s += " " + x.s
-		case ruleoffset:
-			x := pgProcessOffset(node.up, context)
-			q.s += " " + x.s
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessOrder(node *node32, context *Context) (q Query) {
-	for node != nil {
-		switch node.pegRule {
-		case rulepath:
-			path := pgProcessPath(node.up, context)
-			q.s = "ORDER BY " + path.s
-		case rulecast:
-			cast := pgProcessCast(node.up, context)
-			q.s = "ORDER BY " + cast.s
-		case ruleasc:
-			q.s += " ASC"
-		case ruledesc:
-			q.s += " DESC"
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessCast(node *node32, context *Context) (q Query) {
-	for node != nil {
-		if node.pegRule == rulepath {
-			path := pgProcessPath(node.up, context)
-			q.s = "CAST( " + path.s + " as numeric )"
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessPath(node *node32, context *Context) (q Query) {
-	segments := []string{}
-	for node != nil {
-		if node.pegRule == ruleword {
-			segments = append(segments, string(context.buffer[node.begin:node.end]))
-		}
-		node = node.next
-	}
-	last := len(segments) - 1
-	q.s = "data"
-	for _, segment := range segments[:last] {
-		q.s += "->'" + segment + "'"
-	}
-	q.s += "->>'" + segments[last] + "'"
-	return
-}
-
-func pgProcessLimit(node *node32, context *Context) (q Query) {
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			q.s += "LIMIT " + strings.TrimSpace(string(context.buffer[node.begin:node.end]))
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessOffset(node *node32, context *Context) (q Query) {
-	for node != nil {
-		if node.pegRule == rulevalue1 {
-			q.s += "OFFSET " + strings.TrimSpace(string(context.buffer[node.begin:node.end]))
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessRulee1(node *node32, context *Context) (q Query) {
-	or := ""
-	for node != nil {
-		if node.pegRule == rulee2 {
-			x := pgProcessRulee2(node.up, context)
-			q.s += or + x.s
-			q.errors = append(q.errors, x.errors...)
-			or = " OR "
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessRulee2(node *node32, context *Context) (q Query) {
-	and := ""
-	for node != nil {
-		if node.pegRule == rulee3 {
-			x := pgProcessRulee3(node.up, context)
-			q.s += and + x.s
-			q.errors = append(q.errors, x.errors...)
-			and = " AND "
-		}
-		node = node.next
-	}
-	return
-}
-
-func pgProcessRulee3(node *node32, context *Context) (q Query) {
-	if node.pegRule == ruleexpression {
-		return pgProcessExpression(node.up, context)
-	}
-	x := pgProcess(node.next.up, context)
-	q.s = "(" + x.s + ")"
-	q.errors = x.errors
-	return
-}
-
-func pgProcessExpression(node *node32, context *Context) (q Query) {
-	if node.pegRule == ruleboolean {
-		q.s = string(context.buffer[node.begin:node.end])
-		return
-	}
-
-	path, segments := node.up, []string{}
-	for path != nil {
-		if path.pegRule == ruleword {
-			segments = append(segments, string(context.buffer[path.begin:path.end]))
-		}
-		path = path.next
-	}
-	q.s = "data"
-	last := len(segments) - 1
-	for _, segment := range segments[:last] {
-		q.s += "->'" + segment + "'"
-	}
-	q.s += "->>'" + segments[last] + "'"
-
-	node = node.next
-	op := strings.TrimSpace(string(context.buffer[node.begin:node.end]))
-	node = node.next.up
-	switch node.pegRule {
-	case ruleplaceholder:
-		placeholder, err := strconv.Atoi(string(context.buffer[node.begin+1 : node.end]))
-		if err != nil {
-			q.errors = append(q.errors, err)
-			return
-		}
-
-		if placeholder > len(context.param) {
-			q.errors = append(q.errors, errors.New("placholder to large"))
-			return
-		}
-		switch context.param[placeholder-1].(type) {
-		case string:
-			q.s = fmt.Sprintf("%v %v $%v", q.s, op, placeholder)
-		case float64:
-			q.s = fmt.Sprintf("CAST(%v as FLOAT) %v $%v", q.s, op, placeholder)
-		case int:
-			q.s = fmt.Sprintf("CAST(%v as INTEGER) %v $%v", q.s, op, placeholder)
-		case bool:
-			q.s = fmt.Sprintf("CAST(%v as BOOLEAN) %v $%v", q.s, op, placeholder)
-		default:
-			switch op {
-			case "=":
-				q.s = fmt.Sprintf("%v IS NULL", q.s)
-			case "!=":
-				q.s = fmt.Sprintf("%v IS NOT NULL", q.s)
-			}
-		}
-	case rulestring:
-		param := string(context.buffer[node.begin+1 : node.end-1])
-		q.s = fmt.Sprintf("%v %v '%v'", q.s, op, param)
-	case rulenumber:
-		param := string(context.buffer[node.begin:node.end])
-		if strings.Contains(param, ".") {
-			q.s = fmt.Sprintf("CAST(%v as FLOAT) %v %v", q.s, op, param)
-		} else {
-			q.s = fmt.Sprintf("CAST(%v as INTEGER) %v %v", q.s, op, param)
-		}
-	case ruleboolean:
-		param := string(context.buffer[node.begin:node.end])
-		q.s = fmt.Sprintf("CAST(%v as BOOLEAN) %v %v", q.s, op, param)
-	case rulenull:
-		switch op {
-		case "=":
-			q.s = fmt.Sprintf("%v IS NULL", q.s)
-		case "!=":
-			q.s = fmt.Sprintf("%v IS NOT NULL", q.s)
-		}
-	}
-	return
 }

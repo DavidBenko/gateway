@@ -6,6 +6,7 @@ var AP = AP || {};
  * @namespace
  */
 AP.Crypto = AP.Crypto || {};
+AP.Crypto.Aes = AP.Crypto.Aes || {};
 
 AP.Crypto.PaddingSchemes = {
     pkcs:   "pkcs1v15",
