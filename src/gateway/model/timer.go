@@ -248,7 +248,7 @@ func (t *Timer) ScheduleTime(now time.Time) {
 
 func (t *Timer) ValidateFromDatabaseError(err error) aperrors.Errors {
 	errors := make(aperrors.Errors)
-	if apsql.IsUniqueConstraint(err, "name") {
+	if apsql.IsUniqueConstraint(err, "timers", "api_id", "name") {
 		errors.Add("name", "is already taken")
 	}
 	return errors
