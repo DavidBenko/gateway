@@ -5,6 +5,8 @@ import (
 	"gateway/crypto"
 	"gateway/logreport"
 
+	corevm "gateway/core/vm"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -26,7 +28,7 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) 
 
 func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		d, err := corevm.GetArgument(call, 0)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -40,7 +42,7 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 1)
+		o, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -70,7 +72,7 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		d, err := corevm.GetArgument(call, 0)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
@@ -82,7 +84,7 @@ func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 1)
+		o, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Print(err)
 			return undefined
