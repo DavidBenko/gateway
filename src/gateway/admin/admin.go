@@ -89,6 +89,8 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&UsersController{BaseController: base}, "/users", authAdminUser, db, conf)
 	if conf.EnableRegistration {
 		RouteRegistration(&RegistrationController{base}, "/registrations", admin, db, conf)
+		RouteConfirmation(&ConfirmationController{base}, "/registration_confirmation", admin, db, conf)
+		// This is here to handle older confirmation emails.
 		RouteConfirmation(&ConfirmationController{base}, "/confirmation", admin, db, conf)
 	}
 	RoutePasswordReset(&PasswordResetController{base}, "/password_reset", admin, db, conf)

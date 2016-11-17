@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -20,6 +21,7 @@ import (
 var testStore store.Store
 
 func testPostgres(m *testing.M) int {
+	fmt.Println("testPostgres")
 	var postgresStore store.Store
 	conf := config.Store{
 		Type: "postgres",
@@ -41,6 +43,7 @@ func testPostgres(m *testing.M) int {
 }
 
 func testBolt(m *testing.M) int {
+	fmt.Println("testBolt")
 	var boltStore store.Store
 	file := make([]byte, 8)
 	binary.BigEndian.PutUint64(file, uint64(rand.Int63()))
@@ -82,21 +85,24 @@ var testJson = []string{
 			"first": "John",
 			"last": "Doe"
 		},
-		"age": 25
+		"age": 25,
+		"salary": 51
 	}`,
 	`{
 		"name": {
 			"first": "Jane",
 			"last": "Doe"
 		},
-		"age": 21
+		"age": 21,
+		"salary": 43
 	}`,
 	`{
 		"name": {
 			"first": "Joe",
 			"last": "Schmo"
 		},
-		"age": 18
+		"age": 18,
+		"salary": 37
 	}`,
 }
 
@@ -601,5 +607,65 @@ func TestSelectUnderscore(t *testing.T) {
 	}
 	if len(objects) != 1 {
 		t.Fatal("there should be 1 object")
+	}
+}
+
+func TestAggregation(t *testing.T) {
+	s := setup(t)
+	defer teardown(t, s)
+
+	objects := parse(t)
+	for _, obj := range objects {
+		objects, err := s.Insert(0, "people", obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		object := objects[0]
+		if object.(map[string]interface{})["$id"] == nil {
+			t.Fatal("object $id should be set")
+		}
+	}
+	objects, err := s.Select(0, "people", `true | count(name.first) as count,
+		count(*) as countall, sum(age) as sum, avg(age) as avg,
+		stddev(age) as stddev, min(age) as min, max(age) as max,
+		corr(salary, age) as corr, cov(salary, age) as cov, var(age) as var,
+		regr(salary, age) as regr`)
+	t.Log(objects)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 1 {
+		t.Fatal("there should be 1 objects")
+	}
+	valid := map[string]interface{}{
+		"count":    "3.00",
+		"countall": "3.00",
+		"sum":      "64.00",
+		"avg":      "21.33",
+		"stddev":   "2.87",
+		"min":      "18.00",
+		"max":      "25.00",
+		"corr":     "1.00",
+		"cov":      "16.44",
+		"var":      "8.22",
+		"regr": map[string]string{
+			"a": "2.00",
+			"b": "1.00",
+		},
+	}
+	results := objects[0].(map[string]interface{})
+	for name, value := range valid {
+		switch value := value.(type) {
+		case string:
+			if s := fmt.Sprintf("%.2f", results[name].(float64)); s != value {
+				t.Fatal(fmt.Sprintf("%v should be equal to %v not %v", name, value, s))
+			}
+		case map[string]string:
+			for name2, value2 := range value {
+				if s := fmt.Sprintf("%.2f", results[name].(map[string]interface{})[name2].(float64)); s != value2 {
+					t.Fatal(fmt.Sprintf("%v.%v should be equal to %v not %v", name, name2, value2, s))
+				}
+			}
+		}
 	}
 }

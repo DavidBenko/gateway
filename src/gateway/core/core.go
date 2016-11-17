@@ -9,6 +9,7 @@ import (
 
 	"gateway/config"
 	"gateway/core/conversion"
+	"gateway/core/encoding"
 	"gateway/core/ottocrypto"
 	"gateway/core/request"
 	"gateway/db/pools"
@@ -152,6 +153,7 @@ var shared = func() *otto.Otto {
 		"http/response.js",
 		"conversion/json.js",
 		"conversion/xml.js",
+		"encoding.js",
 	}
 
 	ottocrypto.IncludeHashing(vm)
@@ -167,6 +169,8 @@ var shared = func() *otto.Otto {
 			logreport.Fatal(err)
 		}
 	}
+
+	encoding.IncludeEncoding(vm)
 
 	return vm
 }()

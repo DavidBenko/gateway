@@ -1,8 +1,11 @@
 package admin
 
 import (
+	"encoding/pem"
 	"errors"
+	"fmt"
 	"gateway/config"
+	aperrors "gateway/errors"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	"gateway/model"
@@ -10,6 +13,8 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+
+	"golang.org/x/crypto/pkcs12"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -22,8 +27,9 @@ type KeysController struct {
 
 func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 	type payloadKey struct {
-		Key  string
-		Name string
+		Key      string
+		Name     string
+		Password string
 	}
 
 	type wrapped struct {
@@ -32,10 +38,11 @@ func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 
 	w := &wrapped{}
 	if err := deserialize(&w, file); err != nil {
-		return nil, err
+		logreport.Printf("%s error deserializing key: %v\n", config.Admin, err)
+		return nil, aphttp.NewError(errors.New("could not deserialize key"), http.StatusBadRequest)
 	}
 	if w.Key == nil {
-		return nil, aphttp.NewError(errors.New("Could not deserialize key from JSON"), http.StatusBadRequest)
+		return nil, aphttp.NewError(errors.New("key not found"), http.StatusBadRequest)
 	}
 
 	data, err := dataurl.DecodeString(w.Key.Key)
@@ -44,9 +51,47 @@ func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 		return nil, aphttp.NewError(errors.New("invalid file"), http.StatusBadRequest)
 	}
 
-	key := &model.Key{Name: w.Key.Name, Key: data.Data}
+	mime := fmt.Sprintf("%s/%s", data.MediaType.Type, data.MediaType.Subtype)
+	key := &model.Key{Name: w.Key.Name, Key: data.Data, Mime: mime, Password: w.Key.Password}
+
+	// If the key is a pkcs12 file then parse out the private key using the supplied password.
+	// Update the payload's Key to the pem encoded result.
+	if key.Mime == "application/x-pkcs12" {
+		block, err := parsePkcs12(data.Data, w.Key.Password)
+		if err != nil {
+			logreport.Printf("%s error deserializing pkcs12 key: %v\n", config.Admin, err)
+			return nil, aphttp.NewError(err, http.StatusBadRequest)
+		}
+		if block == nil {
+			return nil, aphttp.NewError(errors.New("key not found"), http.StatusBadRequest)
+		}
+		key.Key = pem.EncodeToMemory(block)
+	}
 
 	return key, nil
+}
+
+func parsePkcs12(data []byte, password string) (*pem.Block, error) {
+	blocks, err := pkcs12.ToPEM(data, password)
+	if err != nil {
+		return nil, err
+	}
+	if len(blocks) == 0 {
+		return nil, errors.New("could not find a valid key")
+	}
+
+	// PKCS12 contains a private key and a number of related certificates.
+	// Iterate across the blocks until we find the PRIVATE KEY and ignore
+	// the rest.
+	var block *pem.Block
+	for _, b := range blocks {
+		if b.Type == "PRIVATE KEY" {
+			block = b
+			break
+		}
+	}
+
+	return block, nil
 }
 
 func RouteKeys(controller *KeysController, path string,
@@ -84,6 +129,13 @@ func (k *KeysController) List(w http.ResponseWriter, r *http.Request, db *apsql.
 func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {
 	key, err := deserializeInstance(r.Body)
 	if err != nil {
+		// Hacky way to return a validation error if PKCS12 file failed to parse
+		if err.Error().Error() == "could not find a valid key" {
+			errors := make(aperrors.Errors)
+			errors.Add("key", "could not find a valid key")
+			errors.Add("password", "check password")
+			return SerializableValidationErrors{errors}
+		}
 		return err
 	}
 

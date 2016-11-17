@@ -35,5 +35,6 @@ func (c *CoreVM) makeCall(fn apFunc, args []string) (otto.Value, error) {
 	}
 	script := fmt.Sprintf("AP.%s(%s);", fn, strings.Join(args, ","))
 
-	return c.Run(script)
+	v, err := c.Run(script)
+	return v, err
 }
