@@ -34,6 +34,9 @@ func Encrypt(data []byte, publicKey interface{}, algorithmName string, tag strin
 		return base64.StdEncoding.EncodeToString(result), nil
 	case *ecdsa.PublicKey:
 		return "", errors.New("ECDSA should only be used for signing, not encryption")
+	case *SymmetricKey:
+		// AES symmetric encryption
+		return "", errors.New("Not implemented")
 	default:
 		return "", errors.New(fmt.Sprintf("invalid or unsupported public key type %T", publicKey))
 	}
@@ -59,6 +62,8 @@ func Decrypt(data []byte, privateKey interface{}, algorithmName string, tag stri
 		return string(result), nil
 	case *ecdsa.PrivateKey:
 		return "", errors.New("ECDSA should only be used for signing, not encryption")
+	case *SymmetricKey:
+		return "", errors.New("Not implemented")
 	default:
 		return "", errors.New(fmt.Sprintf("invalid or unsupported private key type %T", privateKey))
 	}

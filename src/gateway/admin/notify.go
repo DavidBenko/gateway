@@ -48,6 +48,7 @@ var RESOURCE_MAP = map[string]string{
 	"push_devices":              "push-device",
 	"jobs":                      "job",
 	"timers":                    "timer",
+	"job_tests":                 "job-test",
 }
 
 var ACTION_MAP = [...]string{

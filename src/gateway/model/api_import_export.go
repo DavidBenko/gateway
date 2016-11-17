@@ -182,6 +182,18 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		schema.ID = 0
 	}
 
+	jobTest := JobTest{AccountID: accountID, APIID: id}
+	api.JobTests, err = jobTest.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching job tests", err)
+	}
+	for _, test := range api.JobTests {
+		test.ExportJobIndex = proxyEndpointsIndexMap[test.JobID]
+		test.APIID = 0
+		test.JobID = 0
+		test.ID = 0
+	}
+
 	pad := ScratchPad{AccountID: accountID, APIID: id}
 	api.ScratchPads, err = pad.All(db)
 	if err != nil {
@@ -357,6 +369,18 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		err = schema.Insert(tx)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting proxy endpoint schema", err)
+		}
+	}
+
+	for _, test := range a.JobTests {
+		test.AccountID = a.AccountID
+		test.UserID = a.UserID
+		test.APIID = a.ID
+		test.JobID = proxyEndpointsIDMap[test.ExportJobIndex]
+		test.ExportJobIndex = 0
+		err = test.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting job test", err)
 		}
 	}
 
