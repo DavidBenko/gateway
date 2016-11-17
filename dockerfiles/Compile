@@ -1,5 +1,5 @@
 # nanoscale/gateway:compile
-# version 5.2.0
+# version 5.2.1
 FROM golang:1.7.3
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 

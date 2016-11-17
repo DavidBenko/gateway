@@ -125,6 +125,7 @@ package admin
 
 import (
   "errors"
+  aperrors "gateway/errors"
   "gateway/config"
   aphttp "gateway/http"
   "gateway/logreport"
@@ -283,6 +284,9 @@ func (c *<%= controller %>) Delete(w http.ResponseWriter, r *http.Request,
     if err = model.CanDelete<%= singular %>(tx, id, c.accountID(r), c.auth); err != nil {
       if err == apsql.ErrZeroRowsAffected {
         return c.notFound()
+      }
+      if aperr, ok := err.(aperrors.Errors); ok {
+        return SerializableValidationErrors{aperr}
       }
       return aphttp.NewError(err, 400)
     }
