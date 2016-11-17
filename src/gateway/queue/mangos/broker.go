@@ -72,8 +72,8 @@ func newXPubXSubBroker(
 		subSetup = append(subSetup, SubTCP)
 	}
 
-	pubSetup = append(pubSetup, PubBuffer(1024))
-	subSetup = append(subSetup, SubBuffer(1024))
+	pubSetup = append(pubSetup, PubBuffer(2048))
+	subSetup = append(subSetup, SubBuffer(2048))
 
 	ps, err := queue.Publish(
 		pubPath,

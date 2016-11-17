@@ -16,7 +16,7 @@ func (s *Core) runTransformations(vm *vm.CoreVM,
 	for _, t := range transformations {
 		switch t.Type {
 		case model.ProxyEndpointTransformationTypeJS:
-			if err := s.runJSTransformation(vm, t); err != nil {
+			if stop, err := s.runJSTransformation(vm, t); err != nil || stop {
 				return err
 			}
 		default:
@@ -28,15 +28,15 @@ func (s *Core) runTransformations(vm *vm.CoreVM,
 }
 
 func (s *Core) runJSTransformation(vm *vm.CoreVM,
-	transformation *model.ProxyEndpointTransformation) error {
+	transformation *model.ProxyEndpointTransformation) (bool, error) {
 	return s.runStoredJSONScript(vm, transformation.Data)
 }
 
-func (s *Core) runStoredJSONScript(vm *vm.CoreVM, jsonScript types.JsonText) error {
+func (s *Core) runStoredJSONScript(vm *vm.CoreVM, jsonScript types.JsonText) (bool, error) {
 	script, err := strconv.Unquote(string(jsonScript))
 	if err != nil || script == "" {
-		return err
+		return false, err
 	}
-	_, err = vm.Run(script)
-	return err
+	_, stop, err := vm.RunWithStop(script)
+	return stop, err
 }

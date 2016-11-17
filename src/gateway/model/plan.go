@@ -3,7 +3,6 @@ package model
 import (
 	aperrors "gateway/errors"
 	"gateway/sql"
-
 	stripe "github.com/stripe/stripe-go"
 )
 

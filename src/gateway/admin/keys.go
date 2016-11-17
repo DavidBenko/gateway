@@ -101,7 +101,11 @@ func (k *KeysController) Create(w http.ResponseWriter, r *http.Request, tx *apsq
 		return SerializableValidationErrors{validationErrors}
 	}
 
-	return nil
+	wrapped := struct {
+		Key *model.Key `json:"key"`
+	}{key}
+
+	return serialize(wrapped, w)
 }
 
 func (k *KeysController) Delete(w http.ResponseWriter, r *http.Request, tx *apsql.Tx) aphttp.Error {

@@ -1,4 +1,4 @@
 INSERT INTO endpoint_groups
-  (api_id, name, description)
+  (api_id, name, description, created_at)
 VALUES
-  ((SELECT id FROM apis WHERE id = ? AND account_id = ?), ?, ?)
+  ((SELECT id FROM apis WHERE id = ? AND account_id = ?), ?, ?, CURRENT_TIMESTAMP)
