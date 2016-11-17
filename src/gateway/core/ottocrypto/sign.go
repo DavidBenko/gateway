@@ -34,7 +34,7 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 1)
+		o, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -89,7 +89,7 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		s, err := getArgument(call, 1)
+		s, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined

@@ -3,6 +3,7 @@ package ottocrypto
 import (
 	b64 "encoding/base64"
 	"errors"
+	corevm "gateway/core/vm"
 	"gateway/crypto"
 	"gateway/logreport"
 	"strings"
@@ -86,7 +87,7 @@ func getAesParams(call otto.FunctionCall) (*crypto.SymmetricKey, string, error) 
 		return nil, "", err
 	}
 
-	o, err := getArgument(call, 1)
+	o, err := corevm.GetArgument(call, 1)
 	if err != nil {
 		return nil, "", err
 	}

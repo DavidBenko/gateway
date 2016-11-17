@@ -3,6 +3,7 @@ package ottocrypto
 import (
 	"errors"
 	"fmt"
+	corevm "gateway/core/vm"
 	"gateway/logreport"
 
 	"github.com/robertkrimen/otto"
@@ -68,15 +69,6 @@ func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
 
 }
 
-func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
-	arg := call.Argument(index)
-	if arg == undefined {
-		return nil, errors.New("undefined argument")
-	}
-
-	return arg.Export()
-}
-
 func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
 	options, ok := opts.(map[string]interface{})
 	if !ok {
@@ -106,7 +98,7 @@ func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key
 }
 
 func getData(call otto.FunctionCall) (string, error) {
-	d, err := getArgument(call, 0)
+	d, err := corevm.GetArgument(call, 0)
 	if err != nil {
 		return "", err
 	}
