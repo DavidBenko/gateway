@@ -6,11 +6,8 @@ package fractal
 
 import (
 	"bytes"
-	"code.google.com/p/lzma"
 	"compress/zlib"
 	"fmt"
-	"github.com/nfnt/resize"
-	"github.com/pointlander/compress"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -24,10 +21,16 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/kjk/lzma"
+	"github.com/nfnt/resize"
+	"github.com/pointlander/compress"
 )
 
+const testImage = "../bench/310px-Tesla_colorado_adjusted.jpg"
+
 func TestDCT(t *testing.T) {
-	in := [8][8]uint8 {
+	in := [8][8]uint8{
 		{255, 0, 255, 0, 255, 0, 255, 0},
 		{0, 255, 0, 255, 0, 255, 0, 255},
 		{255, 0, 255, 0, 255, 0, 255, 0},
@@ -37,7 +40,7 @@ func TestDCT(t *testing.T) {
 		{255, 0, 255, 0, 255, 0, 255, 0},
 		{0, 255, 0, 255, 0, 255, 0, 255},
 	}
-	dct, idct := [8][8]int {}, [8][8]int {}
+	dct, idct := [8][8]int{}, [8][8]int{}
 	ForwardDCT(&in, &dct)
 	InverseDCT(&dct, &idct)
 	for i := 0; i < N; i++ {
@@ -50,7 +53,7 @@ func TestDCT(t *testing.T) {
 }
 
 func TestImageDCT(t *testing.T) {
-	file, err := os.Open("images/lenna.png")
+	file, err := os.Open(testImage)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,7 +69,7 @@ func TestImageDCT(t *testing.T) {
 	//output = DCTMap(output)
 	//output = Paeth8(output)
 
-	file, err = os.Create("lenna_dct.png")
+	file, err = os.Create("tesla_dct.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,13 +86,13 @@ func TestImageDCT(t *testing.T) {
 	in <- data
 	close(in)
 	compress.BijectiveBurrowsWheelerCoder(in).MoveToFrontRunLengthCoder().AdaptiveCoder().Code(compressed)
-	fmt.Printf("%.3f%% %7vb\n", 100 * float64(compressed.Len())/float64(len(output.Pix)), compressed.Len())
+	fmt.Printf("%.3f%% %7vb\n", 100*float64(compressed.Len())/float64(len(output.Pix)), compressed.Len())
 
 	//output = IPaeth8(output)
 	//idct := DCTIMap(output)
 	idct := DCTDecoder(output)
 
-	file, err = os.Create("lenna_idct.png")
+	file, err = os.Create("tesla_idct.png")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +108,7 @@ func TestFractal(t *testing.T) {
 	runtime.GOMAXPROCS(64)
 
 	fcpBuffer := &bytes.Buffer{}
-	file, err := os.Open("images/lenna.png")
+	file, err := os.Open(testImage)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,6 +128,11 @@ func TestFractal(t *testing.T) {
 
 	width, height, scale := input.Bounds().Max.X, input.Bounds().Max.Y, 1
 	width, height = width/scale, height/scale
+	if width < height {
+		height = width
+	} else if height < width {
+		width = height
+	}
 	input = resize.Resize(uint(width), uint(height), input, resize.NearestNeighbor)
 
 	gray := Gray(input)
@@ -190,7 +198,7 @@ func TestFractal(t *testing.T) {
 		in <- data
 		close(in)
 		compress.BijectiveBurrowsWheelerCoder(in).MoveToFrontRunLengthCoder().AdaptiveCoder().Code(output)
-		fmt.Printf("%.3f%% %7vb\n", 100 * float64(output.Len())/float64(buffer.Len()), output.Len())
+		fmt.Printf("%.3f%% %7vb\n", 100*float64(output.Len())/float64(buffer.Len()), output.Len())
 		red := FractalDecoder(buffer, tileSize)
 		green := FractalDecoder(buffer, tileSize)
 		blue := FractalDecoder(buffer, tileSize)
@@ -202,10 +210,10 @@ func TestFractal(t *testing.T) {
 				g, _, _, _ := green.At(x, y).RGBA()
 				b, _, _, _ := blue.At(x, y).RGBA()
 				decoded.Set(x, y, color.RGBA{
-					R:uint8(r >> 8),
-					G:uint8(g >> 8),
-					B:uint8(b >> 8),
-					A:0xFF})
+					R: uint8(r >> 8),
+					G: uint8(g >> 8),
+					B: uint8(b >> 8),
+					A: 0xFF})
 			}
 		}
 
@@ -265,7 +273,7 @@ func TestFractal(t *testing.T) {
 		writer := lzma.NewWriterLevel(buffer, lzma.BestCompression)
 		writer.Write(fcp)
 		writer.Close()
-		return buffer.Len(), "code.google.com/p/lzma"
+		return buffer.Len(), "github.com/kjk/lzma"
 	}
 
 	zlib_test := func() (int, string) {

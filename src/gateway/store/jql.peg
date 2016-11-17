@@ -4,7 +4,7 @@ type JQL Peg {
 
 }
 
-e <- sp e1 ( order / limit / offset )* !.
+e <- sp e1 ( order / limit / offset )* aggregate? !.
 order <- "order" sp ( cast / path ) ( asc / desc ) sp
 cast <- 'numeric' sp open path close
 asc <- "asc"
@@ -17,8 +17,13 @@ e3 <- expression
     / open e1 close
 expression <- path op value2
             / boolean sp
+aggregate <- '|' sp aggregate_clause ( ',' sp aggregate_clause )*
+aggregate_clause <- function '(' sp selector ( ',' sp selector )* ')' sp 'as' sp word sp
+function <- ( 'sum' / 'count' / 'avg' / 'var' / 'stddev' / 'min' / 'max' / 'corr' / 'cov' / 'regr' ) sp
+selector <- ( path / wildcard )
 op <- ( '=' / '!=' / '>=' / '<=' / '>' / '<' ) sp
 path <- word ('.' word)* sp
+wildcard <- '*' sp
 word <- [[a-z0-9_]]+
 value1 <- ( placeholder / whole ) sp
 value2 <- ( placeholder / string / number / boolean / null ) sp
@@ -32,4 +37,4 @@ and <- 'and' sp
 or <- 'or' sp
 open <- '(' sp
 close <- ')' sp
-sp <- ( ' ' / '\t' )*
+sp <- ( ' ' / '\t' / '\n' / '\r' )*

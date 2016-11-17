@@ -5,6 +5,8 @@ import (
 	"gateway/crypto"
 	"gateway/logreport"
 
+	corevm "gateway/core/vm"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -26,20 +28,13 @@ func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
-
+		data, err := getData(call)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
 		}
 
-		data, ok := d.(string)
-		if !ok {
-			logreport.Println("data should be a string")
-			return undefined
-		}
-
-		o, err := getArgument(call, 1)
+		o, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -88,20 +83,13 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
-
+		data, err := getData(call)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
 		}
 
-		data, ok := d.(string)
-		if !ok {
-			logreport.Println("data should be a string")
-			return undefined
-		}
-
-		s, err := getArgument(call, 1)
+		s, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -113,7 +101,7 @@ func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			return undefined
 		}
 
-		o, err := getArgument(call, 2)
+		o, err := corevm.GetArgument(call, 2)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
