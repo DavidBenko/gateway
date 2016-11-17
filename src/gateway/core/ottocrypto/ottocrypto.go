@@ -68,14 +68,14 @@ func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
 
 }
 
-func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
-	arg := call.Argument(index)
-	if arg == undefined {
-		return nil, errors.New("undefined argument")
-	}
+//func getArgument(call otto.FunctionCall, index int) (interface{}, error) {
+//arg := call.Argument(index)
+//if arg == undefined {
+//return nil, errors.New("undefined argument")
+//}
 
-	return arg.Export()
-}
+//return arg.Export()
+//}
 
 func getOptions(opts interface{}, keySource KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
 	options, ok := opts.(map[string]interface{})

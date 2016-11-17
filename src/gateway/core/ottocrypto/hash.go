@@ -4,6 +4,8 @@ import (
 	"gateway/crypto"
 	"gateway/logreport"
 
+	corevm "gateway/core/vm"
+
 	"github.com/robertkrimen/otto"
 )
 
@@ -18,7 +20,7 @@ func IncludeHashing(vm *otto.Otto) {
 
 func setHashPassword(vm *otto.Otto) {
 	vm.Set("_hashPassword", func(call otto.FunctionCall) otto.Value {
-		p, err := getArgument(call, 0)
+		p, err := corevm.GetArgument(call, 0)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -30,7 +32,7 @@ func setHashPassword(vm *otto.Otto) {
 			return undefined
 		}
 
-		i, err := getArgument(call, 1)
+		i, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -62,7 +64,7 @@ func setHashPassword(vm *otto.Otto) {
 
 func setCompareHashAndPassword(vm *otto.Otto) {
 	vm.Set("_compareHashAndPassword", func(call otto.FunctionCall) otto.Value {
-		h, err := getArgument(call, 0)
+		h, err := corevm.GetArgument(call, 0)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -74,7 +76,7 @@ func setCompareHashAndPassword(vm *otto.Otto) {
 			return undefined
 		}
 
-		p, err := getArgument(call, 1)
+		p, err := corevm.GetArgument(call, 1)
 		if err != nil {
 			logreport.Println(err)
 			return undefined
@@ -104,7 +106,7 @@ func setCompareHashAndPassword(vm *otto.Otto) {
 
 func setHash(vm *otto.Otto) {
 	vm.Set("_hash", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		d, err := corevm.GetArgument(call, 0)
 
 		if err != nil {
 			logreport.Println(err)
@@ -117,7 +119,7 @@ func setHash(vm *otto.Otto) {
 			return undefined
 		}
 
-		a, err := getArgument(call, 1)
+		a, err := corevm.GetArgument(call, 1)
 
 		if err != nil {
 			logreport.Println(err)
@@ -150,7 +152,7 @@ func setHash(vm *otto.Otto) {
 
 func setHashHmac(vm *otto.Otto) {
 	vm.Set("_hashHmac", func(call otto.FunctionCall) otto.Value {
-		d, err := getArgument(call, 0)
+		d, err := corevm.GetArgument(call, 0)
 
 		if err != nil {
 			logreport.Println(err)
@@ -163,7 +165,7 @@ func setHashHmac(vm *otto.Otto) {
 			return undefined
 		}
 
-		t, err := getArgument(call, 1)
+		t, err := corevm.GetArgument(call, 1)
 
 		if err != nil {
 			logreport.Println(err)
@@ -176,7 +178,7 @@ func setHashHmac(vm *otto.Otto) {
 			return undefined
 		}
 
-		a, err := getArgument(call, 2)
+		a, err := corevm.GetArgument(call, 2)
 
 		if err != nil {
 			logreport.Println(err)

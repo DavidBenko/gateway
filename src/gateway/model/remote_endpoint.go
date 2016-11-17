@@ -99,6 +99,10 @@ type HTTPRequest struct {
 // Validate validates the model.
 func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
+	if err := e.Scrub(); err != nil {
+		errors.Add("base", err.Error())
+		return errors
+	}
 	if e.Name == "" {
 		errors.Add("name", "must not be blank")
 	}
@@ -149,6 +153,160 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	}
 
 	return errors
+}
+
+func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.JsonText, err error) {
+	switch reType {
+	case RemoteEndpointTypeHTTP:
+		remoteEndpoint := HTTPRequest{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeSoap:
+		remoteEndpoint := re.Soap{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeStore:
+		return types.JsonText{}, nil
+	case RemoteEndpointTypeScript:
+		remoteEndpoint := re.Script{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeMySQL:
+		remoteEndpoint := re.MySQL{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeSQLServer:
+		remoteEndpoint := re.SQLServer{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypePostgres:
+		remoteEndpoint := re.Postgres{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeMongo:
+		remoteEndpoint := re.Mongo{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeHana:
+		remoteEndpoint := re.Hana{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeRedis:
+		remoteEndpoint := re.Redis{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeLDAP:
+		remoteEndpoint := re.LDAP{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypePush:
+		remoteEndpoint := re.Push{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeSMTP:
+		remoteEndpoint := re.Smtp{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeDocker:
+		remoteEndpoint := re.Docker{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
+	case RemoteEndpointTypeJob:
+		return types.JsonText{}, nil
+	default:
+		return nil, errors.New(fmt.Sprintf("unknown endpoint type %q", reType))
+	}
+	return scrubbedData, err
+}
+
+// Scrub scrubs the data.
+func (e *RemoteEndpoint) Scrub() error {
+	data, err := ScrubDataByType(e.Type, e.Data)
+	if err != nil {
+		return err
+	}
+	e.Data = data
+	for _, environment := range e.EnvironmentData {
+		envData, err := ScrubDataByType(e.Type, environment.Data)
+		if err != nil {
+			return err
+		}
+		environment.Data = envData
+	}
+	return nil
+}
+
+// ScrubExistingRemoteEndpointData scrubs data saved in the database prior to scrub being implemented on insert or update.
+func ScrubExistingRemoteEndpointData(db *apsql.DB) error {
+	query := `SELECT
+		remote_endpoints.api_id as api_id,
+	  remote_endpoints.id as id,
+	  remote_endpoints.name as name,
+		remote_endpoints.codename as codename,
+	  remote_endpoints.description as description,
+	  remote_endpoints.type as type,
+		remote_endpoints.data as data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message
+	FROM remote_endpoints
+	ORDER BY remote_endpoints.id ASC;`
+	remoteEndpoints := []*RemoteEndpoint{}
+	err := db.Select(&remoteEndpoints, query)
+	if err != nil {
+		return err
+	}
+	for _, remoteEndpoint := range remoteEndpoints {
+		logreport.Printf("%s Scrubbing remote endpoint id: %d", config.System, remoteEndpoint.ID)
+		addEnvironmentData(db, []*RemoteEndpoint{remoteEndpoint})
+		if err = remoteEndpoint.Scrub(); err != nil {
+			return err
+		}
+		encodedData, err := marshaledForStorage(remoteEndpoint.Data)
+		if err != nil {
+			return err
+		}
+		err = db.DoInTransaction(func(tx *apsql.Tx) error {
+			return tx.UpdateOne(
+				`UPDATE remote_endpoints
+				SET data = ?, updated_at = CURRENT_TIMESTAMP
+				WHERE remote_endpoints.id = ?;`,
+				encodedData, remoteEndpoint.ID)
+		})
+		if err != nil {
+			return err
+		}
+		for _, envData := range remoteEndpoint.EnvironmentData {
+			logreport.Printf("%s Scrubbing remote endpoint id: %d environment data id: %d", config.System, remoteEndpoint.ID, envData.ID)
+			encodedEnvData, err := marshaledForStorage(envData.Data)
+			if err != nil {
+				return err
+			}
+			err = db.DoInTransaction(func(tx *apsql.Tx) error {
+				return tx.UpdateOne(`UPDATE remote_endpoint_environment_data
+					  SET data = ?, environment_id = ?
+					WHERE remote_endpoint_id = ?
+					  AND id = ?;`,
+					encodedEnvData, envData.EnvironmentID, remoteEndpoint.ID, envData.ID)
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return err
 }
 
 func (e *RemoteEndpoint) ValidateSOAP(errors aperrors.Errors, isInsert bool) {
@@ -635,19 +793,20 @@ func addEnvironmentData(db *apsql.DB, remoteEndpoints []*RemoteEndpoint) error {
 }
 
 // CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
-func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
+func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) aperrors.Errors {
+	errors := make(aperrors.Errors)
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoint_calls
 		 WHERE remote_endpoint_id = ?;`, id); err != nil {
-		return errors.New("Could not check if endpoint could be deleted.")
+		errors.Add("base", "Could not check if endpoint could be deleted.")
 	}
 
 	if count > 0 {
-		return errors.New("There are proxy endpoint calls that reference this endpoint.")
+		errors.Add("base", "There are proxy endpoint calls that reference this endpoint.")
 	}
 
-	return nil
+	return errors
 }
 
 func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {

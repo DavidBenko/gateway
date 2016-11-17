@@ -216,7 +216,7 @@ func (c *endpointCache) Notify(n *apsql.Notification) {
 		go c.clearAccount(n.AccountID)
 	case n.Table == "plans":
 		go c.clearPlan(n.ID)
-	case n.Table == "apis" && n.Event == apsql.Delete:
+	case n.Table == "apis" && (n.Event == apsql.Update || n.Event == apsql.Delete):
 		fallthrough
 	case n.Table == "environments" && (n.Event == apsql.Update || n.Event == apsql.Delete):
 		fallthrough
