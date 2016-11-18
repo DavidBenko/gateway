@@ -1,6 +1,6 @@
 SELECT
   apis.id as api_id,
-  proxy_endpoint_channels.job_id as proxy_endpoint_id,
+  proxy_endpoint_channels.proxy_endpoint_id as proxy_endpoint_id,
   proxy_endpoint_channels.id as id,
   proxy_endpoint_channels.remote_endpoint_id as remote_endpoint_id,
   proxy_endpoint_channels.name as name

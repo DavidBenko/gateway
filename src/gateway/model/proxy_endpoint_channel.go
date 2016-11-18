@@ -24,7 +24,7 @@ type ProxyEndpointChannel struct {
 func (c *ProxyEndpointChannel) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.RemoteEndpointID == 0 {
-		errors.Add("remote_endpoint_id", "must be selected")
+		errors.Add("remote_endpoint", "must be selected")
 	}
 	if c.Name == "" {
 		errors.Add("name", "must have a name")
