@@ -1,5 +1,5 @@
 
-ALTER TABLE `soap_remote_endpoints`  RENAME TO `tmp_soap_remote_endpoints`;
+ALTER TABLE `soap_remote_endpoints` RENAME TO `tmp_soap_remote_endpoints`;
 
 CREATE TABLE IF NOT EXISTS `soap_remote_endpoints` (
   `id` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -15,6 +15,3 @@ SELECT `id`, `remote_endpoint_id`, `wsdl`, `generated_jar`, `generated_jar_thumb
 FROM `tmp_soap_remote_endpoints`;
 
 DROP TABLE `tmp_soap_remote_endpoints`;
-
-
-
