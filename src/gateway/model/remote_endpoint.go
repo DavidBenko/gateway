@@ -793,20 +793,22 @@ func addEnvironmentData(db *apsql.DB, remoteEndpoints []*RemoteEndpoint) error {
 }
 
 // CanDeleteRemoteEndpoint checks whether deleting would violate any constraints
-func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) aperrors.Errors {
+func CanDeleteRemoteEndpoint(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
 	errors := make(aperrors.Errors)
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoint_calls
 		 WHERE remote_endpoint_id = ?;`, id); err != nil {
 		errors.Add("base", "Could not check if endpoint could be deleted.")
+		return errors
 	}
 
 	if count > 0 {
 		errors.Add("base", "There are proxy endpoint calls that reference this endpoint.")
+		return errors
 	}
 
-	return errors
+	return nil
 }
 
 func beforeDelete(remoteEndpoint *RemoteEndpoint, tx *apsql.Tx) error {
@@ -889,9 +891,9 @@ func afterDelete(remoteEndpoint *RemoteEndpoint, accountID, userID, apiID int64,
 		return nil
 	}
 
-	err := DeleteJarFile(remoteEndpoint.Soap.ID)
+	err := DeleteWsdlFile(remoteEndpoint.Soap.ID)
 	if err != nil && !os.IsNotExist(err) {
-		logreport.Printf("%s Unable to delete jar file for SoapRemoteEndpoint: %v", config.System, err)
+		logreport.Printf("%s Unable to delete WSDL file for SoapRemoteEndpoint: %v", config.System, err)
 	}
 
 	// trigger a notification for soap_remote_endpoints

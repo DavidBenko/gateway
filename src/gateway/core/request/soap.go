@@ -25,7 +25,7 @@ type SoapRequest struct {
 	ActionName              string                   `json:"actionName,omitempty"`
 	Params                  *json.RawMessage         `json:"params"`
 	URL                     string                   `json:"url,omitempty"`
-	JarURL                  string                   `json:"wsdl"`
+	WsdlURL                 string                   `json:"wsdl"`
 	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
 	Key                     string                   `json:"key"`
 	KeyAlias                string                   `json:"keyAlias"`
@@ -77,9 +77,9 @@ func NewSoapRequest(
 	}
 
 	var err error
-	request.JarURL, err = soap.JarURLForSoapRemoteEndpointID(endpoint.Soap.ID)
+	request.WsdlURL, err = soap.WsdlURLForSoapRemoteEndpointID(endpoint.Soap.ID)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to determine jar URL: %v", err)
+		return nil, fmt.Errorf("Unable to determine WSDL URL: %v", err)
 	}
 
 	return request, nil
@@ -142,7 +142,7 @@ func (soapRequest *SoapRequest) Log(devMode bool) string {
 		}
 		buffer.WriteString(fmt.Sprintf("\nParams: %v\n", soapRequest.Params))
 		buffer.WriteString(fmt.Sprintf("\nKeyAlias: %v\n", soapRequest.KeyAlias))
-		buffer.WriteString(fmt.Sprintf("\nWsdl: %v\n", soapRequest.JarURL))
+		buffer.WriteString(fmt.Sprintf("\nWsdl: %v\n", soapRequest.WsdlURL))
 	} else {
 		buffer.WriteString(
 			fmt.Sprintf("%s, %s, %s, %s, %s",
@@ -162,12 +162,12 @@ func (soapRequest *SoapRequest) JSON() ([]byte, error) {
 
 // Perform executes the SoapRequest
 func (soapRequest *SoapRequest) Perform() Response {
-	if exists, err := soapRequest.remoteEndpoint.Soap.JarExists(); err != nil {
-		return NewErrorResponse(aperrors.NewWrapped("[soap] Checking for existence of jar file", err))
+	if exists, err := soapRequest.remoteEndpoint.Soap.WsdlExists(); err != nil {
+		return NewErrorResponse(aperrors.NewWrapped("[soap] Checking for existence of WSDL file", err))
 	} else if err == nil && !exists {
-		err := model.CacheJarFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
+		err := model.CacheWsdlFile(soapRequest.db, soapRequest.remoteEndpoint.Soap.ID)
 		if err != nil {
-			return NewErrorResponse(aperrors.NewWrapped("[soap] Getting generated Jar bytes for soap endpoint", err))
+			return NewErrorResponse(aperrors.NewWrapped("[soap] Getting generated WSDL bytes for soap endpoint", err))
 		}
 	}
 
