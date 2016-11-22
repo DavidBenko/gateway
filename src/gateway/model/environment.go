@@ -92,20 +92,22 @@ func FindEnvironmentForProxy(db *apsql.DB, id int64) (*Environment, error) {
 }
 
 // CanDeleteEnvironment checks whether deleting would violate any constraints
-func CanDeleteEnvironment(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) aperrors.Errors {
+func CanDeleteEnvironment(tx *apsql.Tx, id, accountID int64, auth aphttp.AuthType) error {
 	errors := make(aperrors.Errors)
 	var count int64
 	if err := tx.Get(&count,
 		`SELECT COUNT(id) FROM proxy_endpoints
 		 WHERE environment_id = ?;`, id); err != nil {
 		errors.Add("base", "Could not check if environment could be deleted.")
+		return errors
 	}
 
 	if count > 0 {
 		errors.Add("base", "There are proxy endpoints that reference this environment.")
+		return errors
 	}
 
-	return errors
+	return nil
 }
 
 // DeleteEnvironmentForAPIIDAndAccountID deletes the environment with the id, api_id and account_id specified.
