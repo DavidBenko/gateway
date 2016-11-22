@@ -178,4 +178,10 @@ var usageStrings = map[string]string{
 	"docker-tls-cert-content":   "The base64 encoded cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
 	"docker-tls-cacert-content": "The base64 encoded CA cert PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
 	"docker-tls-key-content":    "The base64 encoded key PEM file contents to use when conneting to the Docker Host using TLS. Default is blank.",
+
+	"stats-collect":         "Whether or not to collect stats on Proxy Endpoint usage.",
+	"stats-migrate":         "Whether or not to migrate the stats database on startup.",
+	"stats-driver":          "The stats database driver; sqlite or postgres.",
+	"stats-conn-string":     dbConnStringHelp,
+	"stats-max-connections": "The maximum number of connections to use.",
 }
