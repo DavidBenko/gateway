@@ -29,6 +29,7 @@ import (
 	"gateway/service"
 	"gateway/soap"
 	"gateway/sql"
+	statssql "gateway/stats/sql"
 	"gateway/version"
 
 	stripe "github.com/stripe/stripe-go"
@@ -116,6 +117,28 @@ func main() {
 		}
 	}
 
+	var statsDb *statssql.SQL
+
+	if conf.Stats.Collect {
+		// Setup the stats database
+		statsDb, err = statssql.Connect(conf.Stats)
+		if err != nil {
+			logreport.Fatalf("%s Error connecting to stats database: %v", config.System, err)
+		}
+		// Make sure the stats db is up-to-date and migrated.
+		if !statsDb.UpToDate() {
+			if conf.Stats.Migrate || conf.DevMode() {
+				if err = statsDb.Migrate(); err != nil {
+					logreport.Fatalf("Error migrating stats database: %v", err)
+				}
+			} else {
+				logreport.Fatalf("%s The stats database is not up to date. "+
+					"Please migrate by invoking with the -stats-migrate flag.",
+					config.System)
+			}
+		}
+	}
+
 	if conf.RemoteEndpoint.ScrubData {
 		logreport.Printf("%s Scrubbing remote endpoint data...", config.System)
 		err = model.ScrubExistingRemoteEndpointData(db)
@@ -172,7 +195,7 @@ func main() {
 		}
 	}
 
-	warp := core.NewCore(conf, db)
+	warp := core.NewCore(conf, db, statsDb)
 
 	service.ElasticLoggingService(conf)
 	service.BleveLoggingService(conf.Bleve)
