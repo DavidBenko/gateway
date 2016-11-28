@@ -28,16 +28,9 @@ func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
-		d, err := corevm.GetArgument(call, 0)
-
+		data, err := getData(call)
 		if err != nil {
 			logreport.Println(err)
-			return undefined
-		}
-
-		data, ok := d.(string)
-		if !ok {
-			logreport.Println("data should be a string")
 			return undefined
 		}
 
@@ -90,16 +83,9 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 
 func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
-		d, err := corevm.GetArgument(call, 0)
-
+		data, err := getData(call)
 		if err != nil {
 			logreport.Println(err)
-			return undefined
-		}
-
-		data, ok := d.(string)
-		if !ok {
-			logreport.Println("data should be a string")
 			return undefined
 		}
 

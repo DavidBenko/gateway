@@ -28,6 +28,7 @@ import (
 //go:generate ./controller.rb --model PushMessage --reflect
 //go:generate ./controller.rb --model PushChannelMessage --reflect
 //go:generate ./controller.rb --model Plan --allow-create=false --allow-update=false --allow-delete=false
+//go:generate ./controller.rb --model Sample --account
 //go:generate ./controller.rb --model Timer --reflect
 //go:generate ./controller.rb --model JobTest --reflect
 //go:generate ./controller.rb --model ProxyEndpointChannel --reflect
