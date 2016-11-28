@@ -71,6 +71,15 @@ func (c *ProxyEndpointChannel) Find(db *apsql.DB) (*ProxyEndpointChannel, error)
 	return &channel, err
 }
 
+func (c *ProxyEndpointChannel) FindByName(db *apsql.DB) (*ProxyEndpointChannel, error) {
+	channel := ProxyEndpointChannel{
+		AccountID: c.AccountID,
+		UserID:    c.UserID,
+	}
+	err := db.Get(&channel, db.SQL("proxy_endpoint_channels/find_name"), c.RemoteEndpointID, c.Name, c.APIID, c.AccountID)
+	return &channel, err
+}
+
 func (c *ProxyEndpointChannel) Delete(tx *apsql.Tx) error {
 	err := tx.DeleteOne(tx.SQL("proxy_endpoint_channels/delete"), c.ID, c.ProxyEndpointID, c.APIID, c.AccountID)
 	if err != nil {

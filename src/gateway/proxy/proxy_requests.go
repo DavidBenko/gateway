@@ -10,12 +10,6 @@ import (
 	aphttp "gateway/http"
 )
 
-var blacklistedResponseHeaders = []string{
-	// Proxy request's responses may be encoded;
-	// we don't want to pass that through
-	"Content-Encoding",
-}
-
 type proxyRequest struct {
 	Method   string `json:"method"`
 	Host     string `json:"host"`
@@ -34,12 +28,6 @@ type proxyRequest struct {
 	Params  map[string]interface{} `json:"params"`
 
 	ID string `json:"id"`
-}
-
-type proxyResponse struct {
-	StatusCode int                    `json:"statusCode"`
-	Body       string                 `json:"body"`
-	Headers    map[string]interface{} `json:"headers"`
 }
 
 func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (*proxyRequest, error) {
@@ -86,20 +74,6 @@ func (r *proxyRequest) Marshal() (string, error) {
 		return "", err
 	}
 	return string(json), nil
-}
-
-func proxyResponseFromJSON(responseJSON string) (*proxyResponse, error) {
-	response := proxyResponse{}
-	err := json.Unmarshal([]byte(responseJSON), &response)
-	if err == nil {
-		if response.Headers == nil {
-			response.Headers = make(map[string]interface{})
-		}
-	}
-	for _, header := range blacklistedResponseHeaders {
-		delete(response.Headers, header)
-	}
-	return &response, err
 }
 
 func joinSlices(slices ...map[string][]string) map[string][]string {
