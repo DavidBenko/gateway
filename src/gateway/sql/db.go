@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 20
+const currentVersion = 21
 
 type driverType string
 
@@ -86,6 +86,7 @@ func (db *DB) Migrate() error {
 		migrateToV18,
 		migrateToV19,
 		migrateToV20,
+		migrateToV21,
 	}
 
 	for i := version; i < currentVersion; i++ {

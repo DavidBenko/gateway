@@ -244,11 +244,6 @@ func main() {
 		}
 	}
 
-	// Cache all Jar files locally for quick access
-	if err := model.CacheAllJarFiles(db); err != nil {
-		logreport.Printf("%s Unable to cache SOAP remote endpoint jars on file system: %v", config.System, err)
-	}
-
 	// Start up listeners for soap_remote_endpoints, so that we can keep the file system in sync with the DB
 	model.StartSoapRemoteEndpointUpdateListener(db)
 

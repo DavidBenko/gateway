@@ -9,7 +9,17 @@ import (
 
 // Soap represents a configuration for a remote soap endpoint
 type Soap struct {
-	WSDL string `json:"wsdl"`
+	WSDL                    string                   `json:"wsdl"`
+	ServiceName             string                   `json:"serviceName"`
+	URL                     string                   `json:"url,omitempty"`
+	WssePasswordCredentials *WssePasswordCredentials `json:"wssePasswordCredentials,omitempty"`
+}
+
+// WssePasswordCredentials represents credentials for a SOAP request as specified
+// by the WS-Security spec
+type WssePasswordCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // SoapConfig creates a new Soap object from a JsonText object
