@@ -1,6 +1,8 @@
 SELECT
   id,
   name,
+  channels,
+  channel_id,
   methods,
   route,
   body,

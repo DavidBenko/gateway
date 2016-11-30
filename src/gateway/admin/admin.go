@@ -104,7 +104,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteAPIExport(apisController, "/apis/{id}/export", authAdmin, db, conf)
 	RouteResource(apisController, "/apis", authAdmin, db, conf)
 
-	testController := &TestController{base, psconf}
+	testController := &TestController{base, psconf, c}
 	RouteTest(testController, "/apis/{apiID}/proxy_endpoints/{endpointID}/tests/{testID}/test", authAdmin, db, conf)
 
 	jobTestController := &JobTestController{base, c}

@@ -51,8 +51,7 @@ type ProxyResponse struct {
 	Headers    map[string]interface{} `json:"headers"`
 }
 
-func (c *Core) ExecuteMQTT(context fmt.Stringer, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error {
-	logPrint := logreport.Printf
+func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error {
 	ctx, db := context.(*push.Context), c.OwnDb
 	channel := &model.ProxyEndpointChannel{
 		AccountID:        ctx.RemoteEndpoint.AccountID,
@@ -104,9 +103,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, msg *message.PublishMessage, re
 		Host:          c.Conf.Proxy.Domain,
 		URI:           c.Conf.Push.MQTTURI,
 		Path:          string(msg.Topic()),
-		Body:          string(msg.Payload()),
 		RemoteAddress: remote.String(),
-		ContentLength: int64(msg.Length()),
 		ID:            uuid,
 	}
 	err = json.Unmarshal(msg.Payload(), &request)
@@ -179,9 +176,14 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, msg *message.PublishMessage, re
 
 	response.Headers["Content-Length"] = len(response.Body)
 
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+
 	responseMessage := message.NewPublishMessage()
 	responseMessage.SetTopic(msg.Topic())
-	responseMessage.SetPayload([]byte(response.Body))
+	responseMessage.SetPayload(responseBytes)
 
 	return onpub(responseMessage)
 }

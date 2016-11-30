@@ -31,7 +31,7 @@ type MQTTPusher struct {
 	push chan<- []byte
 }
 
-type ExecuteMQTT func(context fmt.Stringer, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error
+type ExecuteMQTT func(context fmt.Stringer, logPrint logreport.Logf, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error
 
 type MQTT struct {
 	DB          *apsql.DB
@@ -254,7 +254,7 @@ func (m *MQTT) Authenticate(id string, cred interface{}) (fmt.Stringer, error) {
 }
 
 func (m *MQTT) Execute(context fmt.Stringer, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error {
-	return m.ExecuteMQTT(context, msg, remote, onpub)
+	return m.ExecuteMQTT(context, logreport.Printf, msg, remote, onpub)
 }
 
 type dbSessionTopics struct {
