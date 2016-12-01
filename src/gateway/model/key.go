@@ -7,6 +7,8 @@ import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"strings"
+
+	"golang.org/x/crypto/pkcs12"
 )
 
 type Key struct {
@@ -44,6 +46,9 @@ func (k *Key) ValidateFromDatabaseError(err error) aperrors.Errors {
 	if apsql.IsUniqueConstraint(err, "keys", "account_id", "name") {
 		errors.Add("name", "is already taken")
 	}
+	if apsql.IsNoResult(err) {
+		errors.Add("row", "not found")
+	}
 	return errors
 }
 
@@ -78,6 +83,27 @@ func (k *Key) Delete(accountID, userID, apiID int64, tx *apsql.Tx) (err error) {
 	}
 	err = afterKeyDelete(k, accountID, userID, apiID, tx)
 	return
+}
+
+func (k *Key) DeleteByName(accountID, userID, apiID int64, db *apsql.DB, tx *apsql.Tx) (err error) {
+	// Find key for afterKeyDelete
+	key, err := FindByName(k.Name, accountID, userID, apiID, db, tx)
+	if err != nil {
+		return
+	}
+	if err = tx.DeleteOne(tx.SQL("keys/delete_by_name"), k.Name, accountID); err != nil {
+		return
+	}
+	err = afterKeyDelete(key, accountID, userID, apiID, tx)
+	return
+}
+
+func FindByName(name string, accountID, userID, apiID int64, db *apsql.DB, tx *apsql.Tx) (*Key, error) {
+	key := Key{}
+	if err := db.Get(&key, db.SQL("keys/find_by_account_name"), name, accountID); err != nil {
+		return nil, err
+	}
+	return &key, nil
 }
 
 func afterKeyInsert(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
@@ -147,4 +173,27 @@ func ParseToKey(block *pem.Block) (interface{}, bool, error) {
 	}
 
 	return nil, false, errors.New("invalid or unsupported key type")
+}
+
+func ParsePkcs12(data []byte, password string) (*pem.Block, error) {
+	blocks, err := pkcs12.ToPEM(data, password)
+	if err != nil {
+		return nil, err
+	}
+	if len(blocks) == 0 {
+		return nil, errors.New("key not found or invalid password")
+	}
+
+	// PKCS12 contains a private key and a number of related certificates.
+	// Iterate across the blocks until we find the PRIVATE KEY and ignore
+	// the rest.
+	var block *pem.Block
+	for _, b := range blocks {
+		if b.Type == "PRIVATE KEY" {
+			block = b
+			break
+		}
+	}
+
+	return block, nil
 }

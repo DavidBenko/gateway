@@ -1323,6 +1323,7 @@ AP.Key = AP.Key || {};
  */
 AP.Key.Request = function() {
   this.arguments = [];
+  this.pkcs12 = false;
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -1333,23 +1334,32 @@ AP.Key.Request = function() {
  * Creates a key
  *
  */
-AP.Key.Request.prototype.create = function() {
-  //TODO
+AP.Key.Request.prototype.create = function(options) {
+  this._reqtype = "create";
+  this.contents = options.contents;
+  this.name = options.name;
+  this.password = options.password;
+  this.pkcs12 = options.pkcs12;
 }
 
 /**
- * Generates a key
+ * Generates a public/private key pair
  *
  */
-AP.Key.Request.prototype.generate = function() {
-  //TODO
+AP.Key.Request.prototype.generate = function(options) {
+  this._reqtype = "generate";
+  this.keytype = options.keytype || "rsa";
+  this.bits = options.bits || 2048;
+  this.privateKeyName = options.privateKeyName;
+  this.publicKeyName = options.publicKeyName;
 }
 
 /**
  * Destroys a key
  *
  */
-AP.Key.Request.prototype.destroy = function() {
-  //TODO
+AP.Key.Request.prototype.destroy = function(options) {
+  this._reqtype = "delete"
+  this.name = options.name;
 }
 
