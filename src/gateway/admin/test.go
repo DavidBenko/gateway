@@ -157,17 +157,17 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 				}
 
 				switch method {
-				case "GET":
+				case model.ProxyEndpointTestMethodGet:
 					request.URL.RawQuery = values.Encode()
-				case "POST":
+				case model.ProxyEndpointTestMethodPost:
 					if content_type == "application/x-www-form-urlencoded" {
 						request.Body = ioutil.NopCloser(bytes.NewBufferString(values.Encode()))
 					} else {
 						request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
 					}
-				case "PUT":
+				case model.ProxyEndpointTestMethodPut:
 					request.Body = ioutil.NopCloser(bytes.NewBufferString(test.Body))
-				case "DELETE":
+				case model.ProxyEndpointTestMethodDelete:
 					// empty
 				}
 
@@ -199,6 +199,7 @@ func (c *TestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.
 }
 
 type mqttRequest struct {
+	Method        string `json:"method"`
 	Body          string `json:"body"`
 	ContentLength int64  `json:"contentLength"`
 
@@ -247,7 +248,12 @@ func (c *TestController) TestChannel(w http.ResponseWriter, r *http.Request, db 
 	logs := &bytes.Buffer{}
 	logPrint := logreport.PrintfCopier(logs)
 
+	methods, err := test.GetMethods()
+	if err != nil {
+		return aphttp.NewError(err, http.StatusBadRequest)
+	}
 	request := &mqttRequest{
+		Method:        methods[0],
 		Body:          test.Body,
 		ContentLength: int64(len(test.Body)),
 		Headers:       make(map[string]interface{}),
@@ -300,7 +306,7 @@ func (c *TestController) TestChannel(w http.ResponseWriter, r *http.Request, db 
 	}
 
 	testResponse := &aphttp.TestResponse{
-		Method: "MQTT",
+		Method: methods[0],
 		Status: "200",
 		Body:   response.Body,
 		Log:    logs.String(),

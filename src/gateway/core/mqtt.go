@@ -99,7 +99,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	logPrint("%s [route] %s", logPrefix, endpoint.Name)
 
 	request := mqttRequest{
-		Method:        "mqtt",
+		Method:        model.ProxyEndpointTestMethodGet,
 		Host:          c.Conf.Proxy.Domain,
 		URI:           c.Conf.Push.MQTTURI,
 		Path:          string(msg.Topic()),
@@ -109,6 +109,9 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	err = json.Unmarshal(msg.Payload(), &request)
 	if err != nil {
 		return err
+	}
+	if request.ContentLength == 0 {
+		request.ContentLength = int64(len(request.Body))
 	}
 
 	if schema := endpoint.Schema; schema != nil && schema.RequestSchema != "" {

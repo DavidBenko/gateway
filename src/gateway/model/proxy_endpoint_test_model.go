@@ -7,6 +7,13 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
+const (
+	ProxyEndpointTestMethodGet    = "GET"
+	ProxyEndpointTestMethodPost   = "POST"
+	ProxyEndpointTestMethodPut    = "PUT"
+	ProxyEndpointTestMethodDelete = "DELETE"
+)
+
 type ProxyEndpointTest struct {
 	ID        int64                    `json:"id,omitempty"`
 	Name      string                   `json:"name"`
@@ -30,18 +37,29 @@ func (t *ProxyEndpointTest) Validate() aperrors.Errors {
 		errors.Add("name", "must not be blank")
 	}
 
+	methods, err := t.GetMethods()
+	if err != nil {
+		errors.Add("methods", "must be valid json")
+	} else if len(methods) == 0 {
+		errors.Add("methods", "must be selected")
+	} else {
+		for _, method := range methods {
+			switch method {
+			case ProxyEndpointTestMethodGet:
+			case ProxyEndpointTestMethodPost:
+			case ProxyEndpointTestMethodPut:
+			case ProxyEndpointTestMethodDelete:
+			default:
+				errors.Add("methods", "invalid http method")
+			}
+		}
+	}
+
 	if t.Channels {
 		if t.ChannelID == nil {
 			errors.Add("channel", "must be selected")
 		}
 	} else {
-		methods, err := t.GetMethods()
-		if err != nil {
-			errors.Add("methods", "must be valid json")
-		} else if len(methods) == 0 {
-			errors.Add("methods", "must be selected")
-		}
-
 		if t.Route == "" {
 			errors.Add("route", "must not be empty")
 		}
