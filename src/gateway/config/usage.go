@@ -34,14 +34,12 @@ const dbConnStringHelp = `The connection string for your database
     	"user=space\ man password='it\'s valid'"`
 
 var usageStrings = map[string]string{
-	"version":         "Whether to print the version and quit",
-	"oss-licenses":    "Whether to print the list of libraries and respective licenses used by this product and quit",
-	"example-config":  "Whether to print an example gateway.conf file and quit",
-	"config":          "The path to the configuration file",
-	"license":         "The path to a valid Gateway license key",
-	"license-content": "The license contents as a base64 encoded string.  If present, license option is ignored",
-	"server":          "Whether or not to run in server mode",
-	"jobs":            "Run background jobs",
+	"version":        "Whether to print the version and quit",
+	"oss-licenses":   "Whether to print the list of libraries and respective licenses used by this product and quit",
+	"example-config": "Whether to print an example gateway.conf file and quit",
+	"config":         "The path to the configuration file",
+	"server":         "Whether or not to run in server mode",
+	"jobs":           "Run background jobs",
 
 	"airbrake-api-key":     "The API key to use for Airbrake notifications",
 	"airbrake-project-id":  "The ID assigned to your Airbrake project",

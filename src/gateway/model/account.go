@@ -2,10 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 
 	aperrors "gateway/errors"
-	"gateway/license"
 	"gateway/sql"
 	"github.com/stripe/stripe-go"
 	"github.com/stripe/stripe-go/customer"
@@ -142,13 +140,6 @@ func DeleteAccount(tx *sql.Tx, id int64) error {
 
 // Insert inserts the account into the database as a new row.
 func (a *Account) Insert(tx *sql.Tx) (err error) {
-	if license.DeveloperVersion {
-		var count int
-		tx.Get(&count, tx.SQL("accounts/count"))
-		if count >= license.DeveloperVersionAccounts {
-			return errors.New(fmt.Sprintf("Developer version allows %v account(s).", license.DeveloperVersionAccounts))
-		}
-	}
 	if stripe.Key != "" {
 		plan, err := FindPlan(tx.DB, a.PlanID.Int64)
 		if err != nil {
