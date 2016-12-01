@@ -2,7 +2,6 @@ package soap
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -19,7 +18,6 @@ import (
 
 const (
 	bin                    = "bin"
-	wsimport               = "wsimport"
 	java                   = "java"
 	minSupportedJdkVersion = 8 // as in Java 1.8
 	classpathOption        = "-cp"
@@ -29,13 +27,11 @@ const (
 var (
 	splitter = regexp.MustCompile(`\s+`)
 
-	jdkHome                 string
-	fullJavaCommandPath     = java
-	fullWsimportCommandPath = wsimport
+	jdkHome             string
+	fullJavaCommandPath = java
 
-	javaAvailable     = false
-	wsimportAvailable = false
-	soapAvailable     = false
+	javaAvailable = false
+	soapAvailable = false
 
 	javaVersionRegex = regexp.MustCompile("^(java|openjdk) version \"1\\.(\\d+)\\..+\"")
 
@@ -45,7 +41,7 @@ var (
 // Available indicates whether or not the dependencies are met so that SOAP
 // remote endpoints may be available
 func Available() bool {
-	return javaAvailable && wsimportAvailable && soapAvailable
+	return javaAvailable && soapAvailable
 }
 
 // Configure initializes the soap package
@@ -55,17 +51,12 @@ func Configure(soap config.Soap, devMode bool) error {
 	var err error
 	if jdkHome != "" {
 		fullJavaCommandPath = path.Join(path.Clean(jdkHome), bin, java)
-		fullWsimportCommandPath = path.Join(path.Clean(jdkHome), bin, wsimport)
 	}
 
 	// ensure that we have valid full paths to each executable
 	fullJavaCommandPath, err = exec.LookPath(fullJavaCommandPath)
 	if err != nil {
 		return fmt.Errorf("Received error attempting to execute LookPath for java")
-	}
-	fullWsimportCommandPath, err = exec.LookPath(fullWsimportCommandPath)
-	if err != nil {
-		return fmt.Errorf("Received error attempting to execute LookPath for wsimport")
 	}
 
 	cmd := exec.Command(fullJavaCommandPath, "-version")
@@ -95,15 +86,6 @@ func Configure(soap config.Soap, devMode bool) error {
 
 	javaAvailable = true
 
-	cmd = exec.Command(fullWsimportCommandPath, "-version")
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		wsimportAvailable = false
-		return fmt.Errorf("Received error checking for existince of wsimport command: %s", err)
-	}
-
-	wsimportAvailable = true
-
 	jarFile, err := inflateSoapClient()
 	if err != nil {
 		return err
@@ -114,59 +96,24 @@ func Configure(soap config.Soap, devMode bool) error {
 	return launchJvm(soap, jarFile, devMode)
 }
 
-// Wsimport runs the java utility 'wsimport' if it is available on the local system
-func Wsimport(wsdlFile string, jarOutputFile string) error {
-	if !Available() {
-		return fmt.Errorf("Wsimport is not configured on this system")
-	}
-
-	jarOutputFile, err := filepath.Abs(jarOutputFile)
-	if err != nil {
-		return aperrors.NewWrapped("[soap.go] Unable to get absolute path for jar file", err)
-	}
-
-	tmpdir, err := ioutil.TempDir("", "wsimport")
-	if err != nil {
-		return aperrors.NewWrapped("[soap.go] Unable to create tmp directory prior to invoking wsimport", err)
-	}
-
-	defer os.Remove(tmpdir)
-
-	cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-clientjar", jarOutputFile, wsdlFile)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		cmd := exec.Command(fullWsimportCommandPath, "-d", tmpdir, "-extension", "-clientjar", jarOutputFile, wsdlFile)
-		output, err = cmd.CombinedOutput()
-	}
-
-	logreport.Println(string(output))
-
-	if err != nil {
-		return fmt.Errorf("Error invoking wsimport: %v", err)
-	}
-
-	return nil
-}
-
-// EnsureJarPath makes certain that the directory in which jar files are stored exists
-func EnsureJarPath() (string, error) {
+// EnsureWsdlPath makes certain that the directory in which wsdl files are stored exists
+func EnsureWsdlPath() (string, error) {
 	dirPerm := os.FileMode(os.ModeDir | 0700)
 
-	dir := path.Clean(path.Join(".", "tmp", "jaxws"))
+	dir := path.Clean(path.Join(".", "tmp", "wsdls"))
 	err := os.MkdirAll(dir, dirPerm)
 	return dir, err
 }
 
-// JarURLForSoapRemoteEndpointID takes a remote soap endpoint ID and returns the path where the
-// generated JAR will reside
-func JarURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
-	jarPath, err := EnsureJarPath()
+// WsdlURLForSoapRemoteEndpointID takes a remote soap endpoint ID and returns the path where the
+// WSDL will reside
+func WsdlURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
+	wsdlPath, err := EnsureWsdlPath()
 	if err != nil {
 		return "", err
 	}
 
-	filePath := path.Join(jarPath, fmt.Sprintf("%d.jar", remoteEndpointID))
+	filePath := path.Join(wsdlPath, fmt.Sprintf("%d.wsdl", remoteEndpointID))
 	fullFilePath, err := filepath.Abs(filePath)
 	if err != nil {
 		return "", err
@@ -182,13 +129,13 @@ func inflateSoapClient() (string, error) {
 		return "", err
 	}
 
-	jarPath, err := EnsureJarPath()
+	wsdlPath, err := EnsureWsdlPath()
 	if err != nil {
-		return "", aperrors.NewWrapped("[soap.go] Unable to ensure jar path!", err)
+		return "", aperrors.NewWrapped("[soap.go] Unable to ensure WSDL path!", err)
 	}
 
 	// Write the soapclient jar out to the filesystem
-	jarDestFilename := path.Join(jarPath, "soapclient.jar")
+	jarDestFilename := path.Join(wsdlPath, "soapclient.jar")
 	file, err := os.Create(jarDestFilename)
 	if err != nil {
 		return "", aperrors.NewWrapped("[soap.go] Unable to open file to write soapclient.jar", err)
