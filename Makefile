@@ -10,16 +10,8 @@ export GOPATH
 
 PATH := ${PWD}/_vendor/bin:${PWD}/bin:${PATH}
 
-ifndef LICENSE_PUBLIC_KEY
-	LICENSE_PUBLIC_KEY = "test/dev_public_key_assets"
-endif
-
 ifneq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),package release docker_compilation_prep))
 	BINDATA_DEBUG = -debug
-endif
-
-ifeq ($(MAKECMDGOALS), $(filter $(MAKECMDGOALS),release docker_binary_release))
-	LICENSE_PUBLIC_KEY = "public_keys/production"
 endif
 
 ifdef TDDIUM_DB_NAME
@@ -50,7 +42,6 @@ assets: install_bindata soapclient
 	go-bindata -o src/gateway/core/bindata.go -pkg core $(BINDATA_DEBUG) -prefix "src/gateway/core/static/" src/gateway/core/static/...
 	go-bindata -o src/gateway/sql/bindata.go -pkg sql $(BINDATA_DEBUG) -prefix "src/gateway/sql/static/" src/gateway/sql/static/...
 	go-bindata -o src/gateway/soap/bindata.go -pkg soap $(BINDATA_DEBUG) -prefix "soapclient/build/libs/" soapclient/build/libs/...
-	go-bindata -o src/gateway/license/bindata.go -pkg license -nocompress -prefix `dirname $(LICENSE_PUBLIC_KEY)/public_key` $(LICENSE_PUBLIC_KEY)
 	go-bindata -o src/gateway/names/bindata.go -pkg names $(BINDATA_DEBUG) -prefix "src/gateway/names/dictionary/" src/gateway/names/dictionary/...
 	go-bindata -o src/gateway/mail/bindata.go -pkg mail $(BINDATA_DEBUG) -prefix "src/gateway/mail/static/" src/gateway/mail/static/...
 
@@ -185,8 +176,7 @@ test_api_sqlite_fast: build_tail
 	  -db-conn-string="./tmp/gateway_test.db" \
 		-stats-conn-string="./tmp/gateway_stats_test.db" \
 	  -proxy-domain="example.com" \
-	  -server="true" \
-		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
+	  -server="true" > ./tmp/gateway_log.txt & \
 	  echo "$$!" > ./tmp/server.pid
 
 	# Sleep until we see "Server listening" or time out
@@ -212,8 +202,7 @@ test_api_postgres_fast: build_tail
 	  -stats-driver=postgres \
 	  -stats-conn-string="dbname=$(POSTGRES_STATS_DB_NAME) sslmode=disable" \
 	  -proxy-domain="example.com" \
-	  -server="true" \
-		-license="./test/dev_license" > ./tmp/gateway_log.txt & \
+	  -server="true" > ./tmp/gateway_log.txt & \
 	  echo "$$!" > ./tmp/server.pid
 
 	# Sleep until we see "Server listening" or time out
