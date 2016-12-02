@@ -24,6 +24,9 @@ type ProxyEndpointTest struct {
 	Body      string                   `json:"body"`
 	Pairs     []*ProxyEndpointTestPair `json:"pairs,omitempty"`
 	Data      types.JsonText           `json:"data,omitempty"`
+
+	// Export Indices
+	ExportChannelIndex int `json:"proxy_endpoint_index,omitempty"`
 }
 
 func (t *ProxyEndpointTest) GetMethods() (methods []string, err error) {
