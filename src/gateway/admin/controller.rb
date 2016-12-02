@@ -6,6 +6,7 @@ require 'optparse'
 require 'erb'
 
 singular = nil
+json = nil
 transform_method = nil
 transform_type = nil
 account = false
@@ -32,6 +33,9 @@ OptionParser.new do |opts|
 
   opts.on("--model Model", "Name of model") do |value|
     singular = value
+  end
+  opts.on("--json Json", "Name of json") do |value|
+    json = value
   end
   opts.on("--account", "Is model linked to Account?") do |value|
     account = value
@@ -101,14 +105,18 @@ controller = "#{plural}Controller"
 local = singular.camelize(:lower)
 local_plural = plural.camelize(:lower)
 
-json_singular = singular.underscore
+if json
+  json_singular = json.underscore
+else
+  json_singular = singular.underscore
+end
 json_plural = json_singular.pluralize
 
 pretty = singular.titleize.downcase
 
 transform = !!transform_method
 
-filename = "./#{json_plural}_gen.go"
+filename = "./#{singular.underscore.pluralize}_gen.go"
 output = File.open(filename, "w")
 
 template = <<-ERB

@@ -31,7 +31,7 @@ import (
 //go:generate ./controller.rb --model Sample --account
 //go:generate ./controller.rb --model Timer --reflect
 //go:generate ./controller.rb --model JobTest --reflect
-//go:generate ./controller.rb --model ProxyEndpointChannel --reflect
+//go:generate ./controller.rb --model ProxyEndpointChannel --json Channel --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
