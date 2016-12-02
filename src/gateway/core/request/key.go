@@ -12,15 +12,17 @@ import (
 	"gateway/model"
 
 	b64 "encoding/base64"
+	aperrors "gateway/errors"
 	sql "gateway/sql"
 )
 
-const CreateType = "create"
-const GenerateType = "generate"
-const DeleteType = "delete"
-
-const RsaKey = "rsa"
-const EcdsaKey = "ecdsa"
+const (
+	CreateType   = "create"
+	GenerateType = "generate"
+	DeleteType   = "delete"
+	RsaKey       = "rsa"
+	EcdsaKey     = "ecdsa"
+)
 
 type genericKeyRequest struct {
 	ReqType string `json:"_reqtype"`
@@ -105,6 +107,34 @@ func (r *KeyGenerateRequest) Log(devMode bool) string {
 	return fmt.Sprintf("generating %s key \"%s\"", "test", "foo")
 }
 
+func insertKeyPair(db *sql.DB, endpoint *model.RemoteEndpoint, private *model.Key, public *model.Key) (aperrors.Errors, error) {
+	var validationErrors aperrors.Errors
+	// Private key validation
+	if validationErrors := private.Validate(true); !validationErrors.Empty() {
+		return validationErrors, nil
+	}
+	//Public key validation
+	if validationErrors := public.Validate(true); !validationErrors.Empty() {
+		return validationErrors, nil
+
+	}
+	err := db.DoInTransaction(func(tx *sql.Tx) error {
+		err := private.Insert(endpoint.AccountID, endpoint.UserID, endpoint.APIID, tx)
+		if err != nil {
+			validationErrors = private.ValidateFromDatabaseError(err)
+			return err
+
+		}
+		err = public.Insert(endpoint.AccountID, endpoint.UserID, endpoint.APIID, tx)
+		if err != nil {
+			validationErrors = public.ValidateFromDatabaseError(err)
+			return err
+		}
+		return nil
+	})
+	return validationErrors, err
+}
+
 func (r *KeyGenerateRequest) Perform() Response {
 	response := &KeyResponse{}
 	response.Data = make(map[string]interface{})
@@ -116,35 +146,16 @@ func (r *KeyGenerateRequest) Perform() Response {
 		if err != nil {
 			response.Error = err.Error()
 		}
-		// Private key validation
-		if validationErrors := private.Validate(true); !validationErrors.Empty() {
+
+		validationErrors, err := insertKeyPair(r.db, r.endpoint, private, public)
+		if validationErrors != nil {
 			response.Error = validationErrors.String()
 			return response
-
 		}
-		//Public key validation
-		if validationErrors := public.Validate(true); !validationErrors.Empty() {
-			response.Error = validationErrors.String()
+		if err != nil {
+			response.Error = err.Error()
 			return response
-
 		}
-
-		_ = r.db.DoInTransaction(func(tx *sql.Tx) error {
-			err := private.Insert(r.endpoint.AccountID, r.endpoint.UserID, r.endpoint.APIID, tx)
-			if err != nil {
-				validationErrors := private.ValidateFromDatabaseError(err)
-				response.Error = validationErrors.String()
-				return err
-
-			}
-			err = public.Insert(r.endpoint.AccountID, r.endpoint.UserID, r.endpoint.APIID, tx)
-			if err != nil {
-				validationErrors := public.ValidateFromDatabaseError(err)
-				response.Error = validationErrors.String()
-				return err
-			}
-			return nil
-		})
 
 		return response
 	case EcdsaKey:
@@ -152,43 +163,22 @@ func (r *KeyGenerateRequest) Perform() Response {
 		if err != nil {
 			response.Error = err.Error()
 		}
-		// Private key validation
-		if validationErrors := private.Validate(true); !validationErrors.Empty() {
+
+		validationErrors, err := insertKeyPair(r.db, r.endpoint, private, public)
+		if validationErrors != nil {
 			response.Error = validationErrors.String()
 			return response
-
 		}
-		//Public key validation
-		if validationErrors := public.Validate(true); !validationErrors.Empty() {
-			response.Error = validationErrors.String()
+		if err != nil {
+			response.Error = err.Error()
 			return response
-
 		}
-
-		_ = r.db.DoInTransaction(func(tx *sql.Tx) error {
-			err := private.Insert(r.endpoint.AccountID, r.endpoint.UserID, r.endpoint.APIID, tx)
-			if err != nil {
-				validationErrors := private.ValidateFromDatabaseError(err)
-				response.Error = validationErrors.String()
-				return err
-
-			}
-			err = public.Insert(r.endpoint.AccountID, r.endpoint.UserID, r.endpoint.APIID, tx)
-			if err != nil {
-				validationErrors := public.ValidateFromDatabaseError(err)
-				response.Error = validationErrors.String()
-				return err
-			}
-			return nil
-		})
 
 		return response
 	default:
 		response.Error = fmt.Sprintf("%s not supported", r.KeyType)
+		return response
 	}
-
-	response.Data["success"] = true
-	return response
 }
 
 func (r *KeyGenerateRequest) genRsa() (*model.Key, *model.Key, error) {
