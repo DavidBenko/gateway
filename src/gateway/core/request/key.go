@@ -103,8 +103,7 @@ func (r *KeyGenerateRequest) JSON() ([]byte, error) {
 }
 
 func (r *KeyGenerateRequest) Log(devMode bool) string {
-	// TODO: Add actual log message
-	return fmt.Sprintf("generating %s key \"%s\"", "test", "foo")
+	return fmt.Sprintf("generating %s keypair \"%s\"/\"%s\"", r.KeyType, r.PrivateKeyName, r.PublicKeyName)
 }
 
 func insertKeyPair(db *sql.DB, endpoint *model.RemoteEndpoint, private *model.Key, public *model.Key) (aperrors.Errors, error) {
