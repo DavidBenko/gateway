@@ -307,7 +307,7 @@ func (c *TestController) TestChannel(w http.ResponseWriter, r *http.Request, db 
 
 	testResponse := &aphttp.TestResponse{
 		Method: methods[0],
-		Status: "200",
+		Status: fmt.Sprintf("%v", response.StatusCode),
 		Body:   response.Body,
 		Log:    logs.String(),
 		Time:   (elapsed.Nanoseconds() + 5e5) / 1e6,

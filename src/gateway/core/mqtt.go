@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"gateway/config"
-	"gateway/core/vm"
+	apvm "gateway/core/vm"
 	"gateway/http"
 	"gateway/logreport"
 	"gateway/model"
@@ -47,11 +48,61 @@ type mqttRequest struct {
 
 type ProxyResponse struct {
 	StatusCode int                    `json:"statusCode"`
+	Error      string                 `json:"error,omitempty"`
 	Body       string                 `json:"body"`
 	Headers    map[string]interface{} `json:"headers"`
 }
 
-func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error {
+func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) (err error) {
+	start := time.Now()
+	var (
+		vm            *apvm.CoreVM
+		httpErr       http.Error
+		responseBytes []byte
+	)
+	defer func() {
+		if httpErr != nil {
+			err = httpErr.Error()
+			response := &ProxyResponse{
+				StatusCode: httpErr.Code(),
+				Error:      httpErr.String(),
+				Headers: map[string]interface{}{
+					"Content-Length": 0,
+				},
+			}
+			var errr error
+			responseBytes, errr = json.Marshal(response)
+			if errr != nil {
+				err = errr
+			}
+		}
+		if responseBytes != nil {
+			responseMessage := message.NewPublishMessage()
+			responseMessage.SetTopic(msg.Topic())
+			responseMessage.SetQoS(msg.QoS())
+			responseMessage.SetPayload(responseBytes)
+			err = onpub(responseMessage)
+		}
+	}()
+	httpError := func(err error) http.Error {
+		if !c.DevMode {
+			return http.DefaultServerError()
+		}
+
+		return http.NewServerError(err)
+	}
+	httpJavascriptError := func(err error, env *model.Environment) http.Error {
+		if env == nil {
+			return httpError(err)
+		}
+
+		if env.ShowJavascriptErrors {
+			return http.NewServerError(err)
+		}
+
+		return http.DefaultServerError()
+	}
+
 	ctx, db := context.(*push.Context), c.OwnDb
 	channel := &model.ProxyEndpointChannel{
 		AccountID:        ctx.RemoteEndpoint.AccountID,
@@ -59,10 +110,10 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		RemoteEndpointID: ctx.RemoteEndpoint.ID,
 		Name:             strings.TrimLeft(string(msg.Topic()), "/"),
 	}
-	var err error
 	channel, err = channel.FindByName(db)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 
 	logPrefix := config.Proxy
@@ -73,22 +124,44 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	}
 	logPrefix = fmt.Sprintf("%s [act %d] [api %d] [end %d] [req %s]", logPrefix,
 		channel.AccountID, channel.APIID, channel.ProxyEndpointID, uuid)
+	defer func() {
+		if httpErr != nil {
+			errString := "Unknown Error"
+			lines := strings.Split(httpErr.String(), "\n")
+			if len(lines) > 0 {
+				errString = lines[0]
+			}
+			logPrint("%s [error] %s", logPrefix, errString)
+		}
+		var proxiedRequestsDuration time.Duration
+		if vm != nil {
+			proxiedRequestsDuration = vm.ProxiedRequestsDuration
+		}
 
-	logreport.Printf("%s [access] %s", logPrefix, string(msg.Topic()))
+		total := time.Since(start)
+		processing := total - proxiedRequestsDuration
+		logPrint("%s [time] %v (processing %v, requests %v)",
+			logPrefix, total, processing, proxiedRequestsDuration)
+	}()
+
+	logPrint("%s [access] %s", logPrefix, string(msg.Topic()))
 
 	endpoint, err := model.FindProxyEndpointForProxy(db, channel.ProxyEndpointID, model.ProxyEndpointTypeHTTP)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 	libraries, err := model.AllLibrariesForProxy(db, channel.APIID)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 
 	codeTimeout := c.Conf.Proxy.CodeTimeout
 	if stripe.Key != "" {
 		plan, err := model.FindPlanByAccountID(db, channel.AccountID)
 		if err != nil {
+			httpErr = httpError(err)
 			return err
 		}
 		if plan.JavascriptTimeout < codeTimeout {
@@ -108,28 +181,32 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	}
 	err = json.Unmarshal(msg.Payload(), &request)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 	if request.ContentLength == 0 {
 		request.ContentLength = int64(len(request.Body))
 	}
 
 	if schema := endpoint.Schema; schema != nil && schema.RequestSchema != "" {
-		err := c.ProcessSchema(endpoint.Schema.RequestSchema, string(msg.Payload()))
+		err = c.ProcessSchema(endpoint.Schema.RequestSchema, string(msg.Payload()))
 		if err != nil {
 			if err.Error() == "EOF" {
-				return errors.New("a json document is required in the request")
+				httpErr = http.NewError(errors.New("a json document is required in the request"), 422)
+				return
 			}
-			return err
+			httpErr = http.NewError(err, 400)
+			return
 		}
 	}
 
-	vm := &vm.CoreVM{}
+	vm = &apvm.CoreVM{}
 	vm.InitCoreVM(VMCopy(channel.AccountID, c.KeyStore), logPrint, logPrefix, &c.Conf.Proxy, endpoint, libraries, codeTimeout)
 
 	incomingJSON, err := json.Marshal(&request)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 	vm.Set("__ap_proxyRequestJSON", string(incomingJSON))
 	scripts := []interface{}{
@@ -137,28 +214,33 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		"var response = new AP.HTTP.Response();",
 	}
 
-	if _, err := vm.RunAll(scripts); err != nil {
-		return err
+	if _, err = vm.RunAll(scripts); err != nil {
+		httpErr = httpError(err)
+		return
 	}
 
 	if err = c.RunComponents(vm, endpoint.Components); err != nil {
 		if err.Error() == "JavaScript took too long to execute" {
 			logPrint("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, codeTimeout)
 		}
-		return err
+		httpErr = httpJavascriptError(err, endpoint.Environment)
+		return
 	}
 
 	responseObject, err := vm.Run("response;")
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 	responseJSON, err := c.ObjectJSON(vm, responseObject)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 	response, err := ProxyResponseFromJSON(responseJSON)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 
 	if schema := endpoint.Schema; schema != nil &&
@@ -168,27 +250,26 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		if schema.ResponseSameAsRequest {
 			responseSchema = schema.RequestSchema
 		}
-		err := c.ProcessSchema(responseSchema, response.Body)
+		err = c.ProcessSchema(responseSchema, response.Body)
 		if err != nil {
 			if err.Error() == "EOF" {
-				return errors.New("a json document is required in the response")
+				httpErr = http.NewError(errors.New("a json document is required in the response"), 500)
+				return
 			}
-			return err
+			httpErr = http.NewError(err, 500)
+			return
 		}
 	}
 
 	response.Headers["Content-Length"] = len(response.Body)
 
-	responseBytes, err := json.Marshal(response)
+	responseBytes, err = json.Marshal(response)
 	if err != nil {
-		return err
+		httpErr = httpError(err)
+		return
 	}
 
-	responseMessage := message.NewPublishMessage()
-	responseMessage.SetTopic(msg.Topic())
-	responseMessage.SetPayload(responseBytes)
-
-	return onpub(responseMessage)
+	return nil
 }
 
 func ProxyResponseFromJSON(responseJSON string) (*ProxyResponse, error) {
