@@ -19,6 +19,7 @@ import (
 	"gateway/model"
 	apvm "gateway/proxy/vm"
 	sql "gateway/sql"
+	"gateway/stats"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -179,6 +180,57 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
+	}
+
+	if s.conf.Stats.Collect {
+		defer func() {
+			go func() {
+				var proxiedRequestsDuration time.Duration
+				if vm != nil {
+					proxiedRequestsDuration = vm.ProxiedRequestsDuration
+				}
+				var errResponse string
+				if httpErr != nil {
+					errResponse = httpErr.String()
+				}
+				var responseSize, responseCode int
+				if response != nil {
+					responseCode = response.StatusCode
+					if length, ok := response.Headers["Content-Length"]; ok {
+						responseSize = length.(int)
+					}
+				}
+				point := stats.Point{
+					Timestamp: time.Now(),
+					Values: map[string]interface{}{
+						"request.size":                  request.ContentLength,
+						"request.id":                    requestID,
+						"api.id":                        proxyEndpoint.Environment.APIID,
+						"api.name":                      proxyEndpoint.Environment.APIID,
+						"response.time":                 time.Since(start),
+						"response.size":                 responseSize,
+						"response.status":               responseCode,
+						"response.error":                errResponse,
+						"host.id":                       request.Host,
+						"host.name":                     request.Host,
+						"proxy.id":                      proxyEndpoint.ID,
+						"proxy.name":                    proxyEndpoint.Name,
+						"proxy.env.id":                  proxyEndpoint.EnvironmentID,
+						"proxy.env.name":                proxyEndpoint.EnvironmentID,
+						"proxy.route.path":              r.URL.Path,
+						"proxy.route.verb":              r.Method,
+						"proxy.group.id":                proxyEndpoint.EndpointGroupID,
+						"proxy.group.name":              proxyEndpoint.Name,
+						"remote_endpoint.response.time": proxiedRequestsDuration,
+					},
+				}
+				statsErr := s.Core.StatsDb.Log(point)
+				if statsErr != nil {
+					logPrint("%s error collecting stats for request: %s",
+						logPrefix, statsErr.Error())
+				}
+			}()
+		}()
 	}
 
 	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {

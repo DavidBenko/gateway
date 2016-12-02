@@ -18,6 +18,7 @@ import (
 	"gateway/push"
 	"gateway/smtp"
 	sql "gateway/sql"
+	statssql "gateway/stats/sql"
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
@@ -37,10 +38,11 @@ type Core struct {
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
 	KeyStore   *KeyStore
+	StatsDb    *statssql.SQL
 	Conf       config.Configuration
 }
 
-func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
+func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *Core {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
 	keyStore := NewKeyStore(ownDb)
@@ -70,6 +72,7 @@ func NewCore(conf config.Configuration, ownDb *sql.DB) *Core {
 		Push:       push.NewPushPool(conf.Push),
 		Smtp:       smtp.NewSmtpPool(),
 		KeyStore:   keyStore,
+		StatsDb:    statsDb,
 		Conf:       conf,
 	}
 }

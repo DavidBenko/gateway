@@ -335,4 +335,21 @@ const ExampleConfigurationFile = `##############################################
 
 # The user name for the smtp server
 # user = ''
+
+## ---------- Stats ----------
+[stats]
+# Whether or not to collect stats on Proxy Endpoint usage.
+# statsCollect = true
+
+# Whether or not to migrate the stats database on startup.
+# statsMigrate = false
+
+# The stats database driver; sqlite or postgres.
+# statsDriver = 'sqlite3'
+
+# See database connection information above.
+# statsConnString = ''
+
+# The maximum number of connections to use.
+# statsMaxConnections = 50
 `

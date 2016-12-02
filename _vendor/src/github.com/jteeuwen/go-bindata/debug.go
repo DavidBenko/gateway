@@ -10,14 +10,14 @@ import (
 )
 
 // writeDebug writes the debug code file.
-func writeDebug(w io.Writer, toc []Asset) error {
+func writeDebug(w io.Writer, c *Config, toc []Asset) error {
 	err := writeDebugHeader(w)
 	if err != nil {
 		return err
 	}
 
 	for i := range toc {
-		err = writeDebugAsset(w, &toc[i])
+		err = writeDebugAsset(w, c, &toc[i])
 		if err != nil {
 			return err
 		}
@@ -32,14 +32,13 @@ func writeDebugHeader(w io.Writer) error {
 	_, err := fmt.Fprintf(w, `import (
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"os"
-	"path"
 	"path/filepath"
+	"strings"
 )
 
-// bindata_read reads the given file from disk. It returns an error on failure.
-func bindata_read(path, name string) ([]byte, error) {
+// bindataRead reads the given file from disk. It returns an error on failure.
+func bindataRead(path, name string) ([]byte, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		err = fmt.Errorf("Error reading asset %%s at %%s: %%v", name, path, err)
@@ -59,12 +58,17 @@ type asset struct {
 // writeDebugAsset write a debug entry for the given asset.
 // A debug entry is simply a function which reads the asset from
 // the original file (e.g.: from disk).
-func writeDebugAsset(w io.Writer, asset *Asset) error {
+func writeDebugAsset(w io.Writer, c *Config, asset *Asset) error {
+	pathExpr := fmt.Sprintf("%q", asset.Path)
+	if c.Dev {
+		pathExpr = fmt.Sprintf("filepath.Join(rootDir, %q)", asset.Name)
+	}
+
 	_, err := fmt.Fprintf(w, `// %s reads file data from disk. It returns an error on failure.
 func %s() (*asset, error) {
-	path := %q
+	path := %s
 	name := %q
-	bytes, err := bindata_read(path, name)
+	bytes, err := bindataRead(path, name)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +82,6 @@ func %s() (*asset, error) {
 	return a, err
 }
 
-`, asset.Func, asset.Func, asset.Path, asset.Name)
+`, asset.Func, asset.Func, pathExpr, asset.Name)
 	return err
 }

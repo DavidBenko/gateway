@@ -27,10 +27,10 @@ const (
 type SoapRemoteEndpoint struct {
 	RemoteEndpointID int64 `json:"-" db:"remote_endpoint_id"`
 
-	ID                     int64  `json:"-" db:"id"`
-	Wsdl                   string `json:"-"`
-	generatedJar           []byte
-	GeneratedJarThumbprint apsql.NullString `json:"-" db:"generated_jar_thumbprint"`
+	ID                    int64  `json:"-" db:"id"`
+	Wsdl                  string `json:"-"`
+	wsdlContent           []byte
+	WsdlContentThumbprint apsql.NullString `json:"-" db:"wsdl_content_thumbprint"`
 
 	RemoteEndpoint *RemoteEndpoint `json:"-"`
 }
@@ -38,12 +38,12 @@ type SoapRemoteEndpoint struct {
 // Copy creates a shallow copy of a SoapRemoteEndpoint and returns a reference to the copy
 func (e *SoapRemoteEndpoint) Copy() *SoapRemoteEndpoint {
 	return &SoapRemoteEndpoint{
-		RemoteEndpointID:       e.RemoteEndpointID,
-		ID:                     e.ID,
-		Wsdl:                   e.Wsdl,
-		generatedJar:           e.generatedJar,
-		GeneratedJarThumbprint: e.GeneratedJarThumbprint,
-		RemoteEndpoint:         e.RemoteEndpoint,
+		RemoteEndpointID:      e.RemoteEndpointID,
+		ID:                    e.ID,
+		Wsdl:                  e.Wsdl,
+		wsdlContent:           e.wsdlContent,
+		WsdlContentThumbprint: e.WsdlContentThumbprint,
+		RemoteEndpoint:        e.RemoteEndpoint,
 	}
 }
 
@@ -59,9 +59,9 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 
 	switch n.Event {
 	case apsql.Update, apsql.Insert:
-		err := CacheJarFile(l.DB, n.APIID)
+		err := CacheWsdlFile(l.DB, n.APIID)
 		if err != nil {
-			logreport.Printf("%s Error caching jarfile for api %d: %v", config.System, n.APIID, err)
+			logreport.Printf("%s Error caching WSDL for api %d: %v", config.System, n.APIID, err)
 		}
 	case apsql.Delete:
 		var remoteEndpointID int64
@@ -71,15 +71,15 @@ func (l *soapNotificationListener) Notify(n *apsql.Notification) {
 			remoteEndpointID = int64(tmp)
 
 			if !ok {
-				logreport.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, "deletion message did not come in expected format")
+				logreport.Printf("%s Error deleting WSDL for api %d: %v", config.System, n.APIID, "deletion message did not come in expected format")
 				return
 			}
 		}
 
-		err := DeleteJarFile(remoteEndpointID)
+		err := DeleteWsdlFile(remoteEndpointID)
 
 		if err != nil && !os.IsNotExist(err) {
-			logreport.Printf("%s Error deleting jarfile for api %d: %v", config.System, n.APIID, err)
+			logreport.Printf("%s Error deleting WSDL for api %d: %v", config.System, n.APIID, err)
 		}
 	}
 }
@@ -90,38 +90,38 @@ func (l *soapNotificationListener) Reconnect() {
 	// Nothing to do here
 }
 
-func writeToJarFile(bytes []byte, filename string) error {
+func writeToWsdlFile(bytes []byte, filename string) error {
 	return ioutil.WriteFile(filename, bytes, os.ModeDir|0600)
 }
 
-func DeleteJarFile(soapRemoteEndpointID int64) error {
-	logreport.Printf("Received a request to delete jar file for soapRemoteEndpointID %d", soapRemoteEndpointID)
-	jarDir, err := soap.EnsureJarPath()
+func DeleteWsdlFile(soapRemoteEndpointID int64) error {
+	logreport.Printf("Received a request to delete WSDL file for soapRemoteEndpointID %d", soapRemoteEndpointID)
+	wsdlDir, err := soap.EnsureWsdlPath()
 	if err != nil {
 		return err
 	}
 
-	jarFileName := path.Join(jarDir, fmt.Sprintf("%d.jar", soapRemoteEndpointID))
-	return os.Remove(jarFileName)
+	wsdlFileName := path.Join(wsdlDir, fmt.Sprintf("%d.wsdl", soapRemoteEndpointID))
+	return os.Remove(wsdlFileName)
 }
 
 // CacheAllJarFiles iterates through all SoapRemoteEndpoints, and copies the
 // generatedJar to the file system in the appropriate file location if the file
 // is missing.
-func CacheAllJarFiles(db *apsql.DB) error {
+func CacheAllWsdlFiles(db *apsql.DB) error {
 	endpoints, err := allSoapRemoteEndpoints(db)
 	if err != nil {
 		return err
 	}
 	for _, endpoint := range endpoints {
-		exists, err := endpoint.JarExists()
+		exists, err := endpoint.WsdlExists()
 		if err != nil {
 			return err
 		}
 		if exists {
 			continue
 		}
-		if err := CacheJarFile(db, endpoint.ID); err != nil {
+		if err := CacheWsdlFile(db, endpoint.ID); err != nil {
 			return err
 		}
 	}
@@ -130,15 +130,15 @@ func CacheAllJarFiles(db *apsql.DB) error {
 
 // JarExists checks for the existence of the JAR file corresponding to the
 // given soapRemoteEndpointID on the file system.
-func (s *SoapRemoteEndpoint) JarExists() (bool, error) {
-	jarURL, err := soap.JarURLForSoapRemoteEndpointID(s.ID)
+func (s *SoapRemoteEndpoint) WsdlExists() (bool, error) {
+	wsdlURL, err := soap.WsdlURLForSoapRemoteEndpointID(s.ID)
 	if err != nil {
 		return false, err
 	}
-	if strings.HasPrefix(jarURL, filePrefix) {
-		jarURL = filepath.FromSlash(jarURL[len(filePrefix):])
+	if strings.HasPrefix(wsdlURL, filePrefix) {
+		wsdlURL = filepath.FromSlash(wsdlURL[len(filePrefix):])
 	}
-	if _, err := os.Stat(jarURL); os.IsNotExist(err) {
+	if _, err := os.Stat(wsdlURL); os.IsNotExist(err) {
 		return false, nil
 	} else if err != nil {
 		return false, err
@@ -147,17 +147,17 @@ func (s *SoapRemoteEndpoint) JarExists() (bool, error) {
 	return true, nil
 }
 
-// Caches the JAR file for the given soapRemoteEndpointID on the file system.
-func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
-	logreport.Printf("Caching jar file for soap_remote_endpoint with ID %v", soapRemoteEndpointID)
-	jarDir, err := soap.EnsureJarPath()
+// Caches the WSDL file for the given soapRemoteEndpointID on the file system.
+func CacheWsdlFile(db *apsql.DB, soapRemoteEndpointID int64) error {
+	logreport.Printf("Caching WSDL file for soap_remote_endpoint with ID %v", soapRemoteEndpointID)
+	wsdlDir, err := soap.EnsureWsdlPath()
 	if err != nil {
 		return err
 	}
 
 	// check if jar exists
-	jarFileName := path.Join(jarDir, fmt.Sprintf("%d.jar", soapRemoteEndpointID))
-	fileBytes, err := ioutil.ReadFile(jarFileName)
+	wsdlFileName := path.Join(wsdlDir, fmt.Sprintf("%d.wsdl", soapRemoteEndpointID))
+	fileBytes, err := ioutil.ReadFile(wsdlFileName)
 
 	var hexsum string
 	switch {
@@ -165,7 +165,7 @@ func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 		// copy to file system
 		hexsum = ""
 	case err != nil:
-		return fmt.Errorf("Unable to open jar file: %v", err)
+		return fmt.Errorf("Unable to open WSDL file: %v", err)
 	default:
 		// jar exists! get its MD5 hash and compare against record from DB.
 		checksum := md5.Sum(fileBytes)
@@ -179,9 +179,9 @@ func CacheJarFile(db *apsql.DB, soapRemoteEndpointID int64) error {
 
 	if fileBytes != nil {
 		// copy to file system
-		err := writeToJarFile(fileBytes, jarFileName)
+		err := writeToWsdlFile(fileBytes, wsdlFileName)
 		if err != nil {
-			return fmt.Errorf("Unable to write jar %s to file system: %v", jarFileName, err)
+			return fmt.Errorf("Unable to write WSDL %s to file system: %v", wsdlFileName, err)
 		}
 	}
 
@@ -203,7 +203,7 @@ func NewSoapRemoteEndpoint(remoteEndpoint *RemoteEndpoint) *SoapRemoteEndpoint {
 // if and only if the checksum does not match the generated_jar_thumbprint stored in the DB.  If the thumbprints match,
 // then they are the same file, and so no bytes will be returned.
 func GetGeneratedJarBytes(db *apsql.DB, soapRemoteEndpointID int64, checksum string) ([]byte, error) {
-	query := `SELECT generated_jar FROM soap_remote_endpoints WHERE id = ? AND generated_jar_thumbprint != ?`
+	query := `SELECT wsdl_content FROM soap_remote_endpoints WHERE id = ? AND wsdl_content_thumbprint != ?`
 
 	var dest []byte
 	err := db.Get(&dest, query, soapRemoteEndpointID, checksum)
@@ -247,7 +247,7 @@ func (e *SoapRemoteEndpoint) Insert(tx *apsql.Tx) error {
 }
 
 func allSoapRemoteEndpoints(db *apsql.DB) ([]*SoapRemoteEndpoint, error) {
-	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint
+	query := `SELECT id, remote_endpoint_id, wsdl_content_thumbprint
 						FROM soap_remote_endpoints`
 
 	soapRemoteEndpoints := []*SoapRemoteEndpoint{}
@@ -257,7 +257,7 @@ func allSoapRemoteEndpoints(db *apsql.DB) ([]*SoapRemoteEndpoint, error) {
 
 // FindSoapRemoteEndpointByRemoteEndpointID finds a SoapRemoteEndpoint given a remoteEndpoint
 func FindSoapRemoteEndpointByRemoteEndpointID(db *apsql.DB, remoteEndpointID int64) (*SoapRemoteEndpoint, error) {
-	query := `SELECT id, remote_endpoint_id, generated_jar_thumbprint
+	query := `SELECT id, remote_endpoint_id, wsdl_content_thumbprint
             FROM soap_remote_endpoints
             WHERE remote_endpoint_id = ?`
 
@@ -278,7 +278,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 	var query string
 	if updateGeneratedJar {
 		query = `UPDATE soap_remote_endpoints
-              SET wsdl = ?, generated_jar = ?, generated_jar_thumbprint = ?
+              SET wsdl = ?, wsdl_content = ?, wsdl_content_thumbprint = ?
               WHERE id = ?`
 	} else {
 		query = `UPDATE soap_remote_endpoints
@@ -288,7 +288,7 @@ func (e *SoapRemoteEndpoint) update(tx *apsql.Tx, fireAfterSave, updateGenerated
 
 	var err error
 	if updateGeneratedJar {
-		err = tx.UpdateOne(query, e.Wsdl, e.generatedJar, e.GeneratedJarThumbprint, e.ID)
+		err = tx.UpdateOne(query, e.Wsdl, e.wsdlContent, e.WsdlContentThumbprint, e.ID)
 	} else {
 		err = tx.UpdateOne(query, e.Wsdl, e.ID)
 	}
@@ -376,7 +376,7 @@ func processWsdl(db *apsql.DB, e *SoapRemoteEndpoint, tag string) {
 func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 	logreport.Printf("%s Starting wsdl ingestion", "[debug]")
 
-	dir, err := soap.EnsureJarPath()
+	dir, err := soap.EnsureWsdlPath()
 	if err != nil {
 		return err
 	}
@@ -390,23 +390,15 @@ func ingestWsdl(tx *apsql.Tx, e *SoapRemoteEndpoint) error {
 		return err
 	}
 
-	// invoke wsimport
-	outputfile := path.Join(dir, fmt.Sprintf("%d.jar", e.ID))
-	err = soap.Wsimport(filename, outputfile)
-	if err != nil {
-		logreport.Printf("%s Tried to invoke wsimport: %v", "[debug]", err)
-		return err
-	}
-
-	// update the DB with the generated jars bytes!
-	bytes, err := ioutil.ReadFile(outputfile)
+	// update the DB with the wsdl
+	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		logreport.Printf("%s Couldn't read bytes! %v", "[debug]", err)
 		return err
 	}
-	e.generatedJar = bytes
+	e.wsdlContent = bytes
 	checksum := md5.Sum(bytes)
-	e.GeneratedJarThumbprint = apsql.MakeNullString(hex.EncodeToString(checksum[:]))
+	e.WsdlContentThumbprint = apsql.MakeNullString(hex.EncodeToString(checksum[:]))
 
 	err = e.update(tx, false, true)
 	if err != nil {
