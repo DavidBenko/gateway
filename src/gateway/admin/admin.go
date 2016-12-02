@@ -65,6 +65,8 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 
 	RouteNotify(&NotifyController{BaseController: base}, "/notifications", authAdmin, db, s)
 
+	// Expose binary info to the front end.
+	RouteInfo(&InfoController{}, "/info", admin, db, conf)
 	if conf.EnableBroker {
 		err := newAggregator(conf)
 		if err != nil {
