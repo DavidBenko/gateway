@@ -9,12 +9,6 @@ const ExampleConfigurationFile = `##############################################
 ##################################################
 
 ## ---------- General ------------
-# The path to a valid Gateway license key, default is './license'.
-# license = ''
-
-# The license contents as a base64 encoded string.  If present, license option is ignored
-# licenseContent = ''
-
 # Whether or not to run in server mode, default is false.
 # server =
 

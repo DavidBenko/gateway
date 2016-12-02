@@ -53,27 +53,6 @@ The configuration file format is [`toml`](https://github.com/toml-lang/toml).
 
 Run the app with the `--help` flag to see all options.
 
-## License Keys
-
-License keys are generated using asymmetric key cryptography. AnyPresence signs
-key data with an RSA private key, and the public key is embedded in the binary
-for validation. A set of keys for development are included in the `test`
-directory. To make compatible keys for production, use:
-
-        ssh-keygen -t rsa -C "AnyPresence Gateway Keypair"
-
-And to extract the public key in a compatible PEM format:
-
-        openssl rsa -in <private key> -pubout -out <public key>
-
-To generate license files, use the `keygen` application in `src/keygen`. For
-example, the development license in `test/dev_license` was generated with:
-
-    make keygen
-    ./bin/keygen v1 -name="Gateway Development Team" \
-            -company="AnyPresence, Inc" -private-key=./test/license/private_key
-
-
 ## Testing
 
 You can run the unit tests via:

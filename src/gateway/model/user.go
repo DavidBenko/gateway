@@ -2,10 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	aperrors "gateway/errors"
 	aphttp "gateway/http"
-	"gateway/license"
 	apsql "gateway/sql"
 	"math/rand"
 	"strings"
@@ -256,12 +254,6 @@ func FindUserByID(db *apsql.DB, id int64) (*User, error) {
 func (u *User) Insert(tx *apsql.Tx) (err error) {
 	var count int
 	tx.Get(&count, tx.SQL("users/count"), u.AccountID)
-
-	if license.DeveloperVersion {
-		if count >= license.DeveloperVersionUsers {
-			return errors.New(fmt.Sprintf("Developer version allows %v user(s).", license.DeveloperVersionUsers))
-		}
-	}
 
 	if stripe.Key != "" {
 		account := Account{}
