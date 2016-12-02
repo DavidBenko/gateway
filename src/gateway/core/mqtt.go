@@ -14,6 +14,7 @@ import (
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/push"
+	"gateway/stats"
 
 	"github.com/nanoscaleio/surgemq/message"
 	"github.com/nanoscaleio/surgemq/service"
@@ -58,6 +59,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	var (
 		vm            *apvm.CoreVM
 		httpErr       http.Error
+		response      *ProxyResponse
 		responseBytes []byte
 	)
 	defer func() {
@@ -117,13 +119,13 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	}
 
 	logPrefix := config.Proxy
-	uuid, err := http.NewUUID()
+	requestID, err := http.NewUUID()
 	if err != nil {
 		logreport.Printf("%s Could not generate request UUID", logPrefix)
-		uuid = "x"
+		requestID = "x"
 	}
 	logPrefix = fmt.Sprintf("%s [act %d] [api %d] [end %d] [req %s]", logPrefix,
-		channel.AccountID, channel.APIID, channel.ProxyEndpointID, uuid)
+		channel.AccountID, channel.APIID, channel.ProxyEndpointID, requestID)
 	defer func() {
 		if httpErr != nil {
 			errString := "Unknown Error"
@@ -146,7 +148,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 
 	logPrint("%s [access] %s", logPrefix, string(msg.Topic()))
 
-	endpoint, err := model.FindProxyEndpointForProxy(db, channel.ProxyEndpointID, model.ProxyEndpointTypeHTTP)
+	proxyEndpoint, err := model.FindProxyEndpointForProxy(db, channel.ProxyEndpointID, model.ProxyEndpointTypeHTTP)
 	if err != nil {
 		httpErr = httpError(err)
 		return
@@ -169,7 +171,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		}
 	}
 
-	logPrint("%s [route] %s", logPrefix, endpoint.Name)
+	logPrint("%s [route] %s", logPrefix, proxyEndpoint.Name)
 
 	request := mqttRequest{
 		Method:        model.ProxyEndpointTestMethodGet,
@@ -177,7 +179,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		URI:           c.Conf.Push.MQTTURI,
 		Path:          string(msg.Topic()),
 		RemoteAddress: remote.String(),
-		ID:            uuid,
+		ID:            requestID,
 	}
 	err = json.Unmarshal(msg.Payload(), &request)
 	if err != nil {
@@ -188,8 +190,59 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		request.ContentLength = int64(len(request.Body))
 	}
 
-	if schema := endpoint.Schema; schema != nil && schema.RequestSchema != "" {
-		err = c.ProcessSchema(endpoint.Schema.RequestSchema, string(msg.Payload()))
+	if c.Conf.Stats.Collect {
+		defer func() {
+			go func() {
+				var proxiedRequestsDuration time.Duration
+				if vm != nil {
+					proxiedRequestsDuration = vm.ProxiedRequestsDuration
+				}
+				var errResponse string
+				if httpErr != nil {
+					errResponse = httpErr.String()
+				}
+				var responseSize, responseCode int
+				if response != nil {
+					responseCode = response.StatusCode
+					if length, ok := response.Headers["Content-Length"]; ok {
+						responseSize = length.(int)
+					}
+				}
+				point := stats.Point{
+					Timestamp: time.Now(),
+					Values: map[string]interface{}{
+						"request.size":                  request.ContentLength,
+						"request.id":                    requestID,
+						"api.id":                        proxyEndpoint.Environment.APIID,
+						"api.name":                      proxyEndpoint.Environment.APIID,
+						"response.time":                 time.Since(start),
+						"response.size":                 responseSize,
+						"response.status":               responseCode,
+						"response.error":                errResponse,
+						"host.id":                       request.Host,
+						"host.name":                     request.Host,
+						"proxy.id":                      proxyEndpoint.ID,
+						"proxy.name":                    proxyEndpoint.Name,
+						"proxy.env.id":                  proxyEndpoint.EnvironmentID,
+						"proxy.env.name":                proxyEndpoint.EnvironmentID,
+						"proxy.route.path":              request.Path,
+						"proxy.route.verb":              request.Method,
+						"proxy.group.id":                proxyEndpoint.EndpointGroupID,
+						"proxy.group.name":              proxyEndpoint.Name,
+						"remote_endpoint.response.time": proxiedRequestsDuration,
+					},
+				}
+				statsErr := c.StatsDb.Log(point)
+				if statsErr != nil {
+					logPrint("%s error collecting stats for request: %s",
+						logPrefix, statsErr.Error())
+				}
+			}()
+		}()
+	}
+
+	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
+		err = c.ProcessSchema(proxyEndpoint.Schema.RequestSchema, string(msg.Payload()))
 		if err != nil {
 			if err.Error() == "EOF" {
 				httpErr = http.NewError(errors.New("a json document is required in the request"), 422)
@@ -201,7 +254,7 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	}
 
 	vm = &apvm.CoreVM{}
-	vm.InitCoreVM(VMCopy(channel.AccountID, c.KeyStore), logPrint, logPrefix, &c.Conf.Proxy, endpoint, libraries, codeTimeout)
+	vm.InitCoreVM(VMCopy(channel.AccountID, c.KeyStore), logPrint, logPrefix, &c.Conf.Proxy, proxyEndpoint, libraries, codeTimeout)
 
 	incomingJSON, err := json.Marshal(&request)
 	if err != nil {
@@ -219,11 +272,11 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		return
 	}
 
-	if err = c.RunComponents(vm, endpoint.Components); err != nil {
+	if err = c.RunComponents(vm, proxyEndpoint.Components); err != nil {
 		if err.Error() == "JavaScript took too long to execute" {
 			logPrint("%s [timeout] JavaScript execution exceeded %ds timeout threshold", logPrefix, codeTimeout)
 		}
-		httpErr = httpJavascriptError(err, endpoint.Environment)
+		httpErr = httpJavascriptError(err, proxyEndpoint.Environment)
 		return
 	}
 
@@ -237,13 +290,13 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		httpErr = httpError(err)
 		return
 	}
-	response, err := ProxyResponseFromJSON(responseJSON)
+	response, err = ProxyResponseFromJSON(responseJSON)
 	if err != nil {
 		httpErr = httpError(err)
 		return
 	}
 
-	if schema := endpoint.Schema; schema != nil &&
+	if schema := proxyEndpoint.Schema; schema != nil &&
 		(schema.ResponseSchema != "" ||
 			(schema.ResponseSameAsRequest && schema.RequestSchema != "")) {
 		responseSchema := schema.ResponseSchema
