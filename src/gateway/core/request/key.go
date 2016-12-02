@@ -108,7 +108,7 @@ func (r *KeyGenerateRequest) Log(devMode bool) string {
 }
 
 func insertKeyPair(db *sql.DB, endpoint *model.RemoteEndpoint, private *model.Key, public *model.Key) (aperrors.Errors, error) {
-	var validationErrors aperrors.Errors
+	validationErrors := make(aperrors.Errors)
 	// Private key validation
 	if validationErrors := private.Validate(true); !validationErrors.Empty() {
 		return validationErrors, nil
@@ -132,6 +132,7 @@ func insertKeyPair(db *sql.DB, endpoint *model.RemoteEndpoint, private *model.Ke
 		}
 		return nil
 	})
+
 	return validationErrors, err
 }
 
@@ -148,7 +149,7 @@ func (r *KeyGenerateRequest) Perform() Response {
 		}
 
 		validationErrors, err := insertKeyPair(r.db, r.endpoint, private, public)
-		if validationErrors != nil {
+		if !validationErrors.Empty() {
 			response.Error = validationErrors.String()
 			return response
 		}
@@ -165,7 +166,7 @@ func (r *KeyGenerateRequest) Perform() Response {
 		}
 
 		validationErrors, err := insertKeyPair(r.db, r.endpoint, private, public)
-		if validationErrors != nil {
+		if !validationErrors.Empty() {
 			response.Error = validationErrors.String()
 			return response
 		}
