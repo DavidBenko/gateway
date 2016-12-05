@@ -8,7 +8,6 @@ WORKDIR /gateway
 
 # SERVER MODE
 ENV SERVER false
-ENV LICENSE_CONTENT ""
 
 # DATABASE CONFIG
 ENV DB_MIGRATE true
@@ -123,7 +122,6 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -smtp-user="$SMTP_USER" -smtp-password="$SMTP_PASSWORD" -smtp-sender="$SMTP_SENDER" -smtp-server="$SMTP_SERVER" -smtp-port=$SMTP_PORT -smtp-email-scheme=$EMAIL_SCHEME -smtp-email-host="$EMAIL_HOST" -smtp-email-port=$EMAIL_PORT \
   -proxy-code-timeout=$PROXY_CODE_TIMEOUT -proxy-http-timeout=$PROXY_HTTP_TIMEOUT -proxy-health-check-path="$HEALTH_CHECK_PATH" \
   -admin-default-api-access-scheme="$DEFAULT_API_ACCESS_SCHEME" \
-  -license-content="$LICENSE_CONTENT" \
   -admin-google-analytics-tracking-id="$GOOGLE_ANALYTICS_TRACKING_ID" \
   -db-driver=$DB_DRIVER  -db-conn-string="$DB_CONN" -db-max-connections=$DB_MAX_CONN -store-type=$STORE_TYPE -store-conn-string="$STORE_CONN" -store-max-connections=$STORE_MAX_CONN \
   -remote-endpoint-docker-enabled=$DOCKER_ENABLED -docker-memory=$DOCKER_MEMORY -docker-cpu-shares=$DOCKER_CPU_SHARES -docker-host="$DOCKER_HOST" -docker-tls="$DOCKER_TLS" -docker-tls-cert-content="$DOCKER_TLS_CERT_CONTENT" -docker-tls-cacert-content="$DOCKER_TLS_CACERT_CONTENT" -docker-tls-key-content="$DOCKER_TLS_KEY_CONTENT"  \

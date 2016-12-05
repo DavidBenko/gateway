@@ -19,7 +19,6 @@ import (
 	"gateway/docker"
 	"gateway/errors/report"
 	"gateway/http"
-	"gateway/license"
 	"gateway/logreport"
 	"gateway/mail"
 	"gateway/model"
@@ -86,25 +85,6 @@ func main() {
 		logreport.Fatalf("%s Error connecting to database: %v", config.System, err)
 	}
 
-	// Require a valid license key
-	license.ValidateForever(conf, time.Hour)
-
-	//check for sneaky people
-	if license.DeveloperVersion {
-		logreport.Printf("%s Checking developer version license constraints", config.System)
-		accounts, _ := model.AllAccounts(db)
-		if len(accounts) > license.DeveloperVersionAccounts {
-			logreport.Fatalf("Developer version allows %v account(s).", license.DeveloperVersionAccounts)
-		}
-		for _, account := range accounts {
-			var count int
-			db.Get(&count, db.SQL("users/count"), account.ID)
-			if count > license.DeveloperVersionUsers {
-				logreport.Fatalf("Developer version allows %v user(s).", license.DeveloperVersionUsers)
-			}
-		}
-	}
-
 	if !db.UpToDate() {
 		if conf.Database.Migrate || conf.DevMode() {
 			if err = db.Migrate(); err != nil {
@@ -149,21 +129,17 @@ func main() {
 	}
 
 	if !conf.DevMode() {
-		if license.DeveloperVersion {
-			logreport.Fatalf("Developer version does not allow running in server mode.")
-		} else {
-			// if Stripe API keys are set and we are in server mode, let's setup the Stripe client.
-			if conf.Admin.StripeSecretKey != "" && conf.Admin.StripePublishableKey != "" {
-				logreport.Printf("Setting up Stripe client.")
-				stripe.Key = conf.Admin.StripeSecretKey
-				if conf.Admin.StripeFallbackPlan == "" {
-					logreport.Fatalf("A Stripe fallback plan is required when Stripe is configured.")
-				}
-				if conf.Admin.StripeMigrateAccounts {
-					err = model.MigrateAccountsToStripe(db, conf.Admin.StripeFallbackPlan)
-					if err != nil {
-						logreport.Fatal(err)
-					}
+		// if Stripe API keys are set and we are in server mode, let's setup the Stripe client.
+		if conf.Admin.StripeSecretKey != "" && conf.Admin.StripePublishableKey != "" {
+			logreport.Printf("Setting up Stripe client.")
+			stripe.Key = conf.Admin.StripeSecretKey
+			if conf.Admin.StripeFallbackPlan == "" {
+				logreport.Fatalf("A Stripe fallback plan is required when Stripe is configured.")
+			}
+			if conf.Admin.StripeMigrateAccounts {
+				err = model.MigrateAccountsToStripe(db, conf.Admin.StripeFallbackPlan)
+				if err != nil {
+					logreport.Fatal(err)
 				}
 			}
 		}
