@@ -9,3 +9,4 @@ CREATE TABLE IF NOT EXISTS `proxy_endpoint_channels` (
   FOREIGN KEY(`proxy_endpoint_id`) REFERENCES `proxy_endpoints`(`id`) ON DELETE CASCADE,
   FOREIGN KEY(`remote_endpoint_id`) REFERENCES `remote_endpoints`(`id`) ON DELETE CASCADE
 );
+CREATE INDEX idx_proxy_endpoint_channels_proxy_endpoint_id ON proxy_endpoint_channels(proxy_endpoint_id);
