@@ -302,7 +302,7 @@ vendor_get: vendor_clean
 	github.com/sideshow/apns2 \
 	github.com/garyburd/redigo \
 	github.com/fsouza/go-dockerclient \
-	github.com/AnyPresence/surgemq \
+	github.com/nanoscaleio/surgemq \
 	github.com/surge/glog \
 	github.com/stripe/stripe-go \
 	github.com/clbanning/mxj \
