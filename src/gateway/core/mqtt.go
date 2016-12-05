@@ -159,6 +159,11 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 		return
 	}
 
+	if !proxyEndpoint.Active {
+		httpErr = http.NewError(errors.New("proxy endpoint is not active"), 404)
+		return
+	}
+
 	codeTimeout := c.Conf.Proxy.CodeTimeout
 	if stripe.Key != "" {
 		plan, err := model.FindPlanByAccountID(db, channel.AccountID)
