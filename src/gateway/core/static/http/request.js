@@ -40,6 +40,8 @@ AP.HTTP.Request = function() {
    */
   this.headers = {};
 
+  this.__type = "http";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.method = _.clone(request.method);
@@ -146,6 +148,8 @@ AP.SQLServer.Request = function() {
    */
   this.parameters = [];
 
+  this.__type = "sqlserver";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.query = _.clone(request.queryStatement);
@@ -238,6 +242,8 @@ AP.Postgres.Request = function() {
    */
   this.parameters = [];
 
+  this.__type = "postgres";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.query = _.clone(request.queryStatement);
@@ -329,6 +335,8 @@ AP.MySQL.Request = function() {
    * @type {Array.<object>}
    */
   this.parameters = [];
+
+  this.__type = "mysql";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -455,6 +463,8 @@ AP.Mongo.unnormalizeObjectId = function(hash) {
  */
 AP.Mongo.Request = function() {
   this.arguments = [];
+
+  this.__type = "mongo";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -627,6 +637,8 @@ AP.SOAP.Request = function() {
    */
   this.wssePasswordCredentials = null;
 
+  this.__type = "soap";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.params = _.clone(request.params);
@@ -683,6 +695,8 @@ AP.Store = AP.Store || {};
  */
 AP.Store.Request = function() {
   this.arguments = [];
+
+  this.__type = "store";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -797,6 +811,7 @@ AP.LDAP.Request = function() {
    */
   this.options = null;
 
+  this.__type = "ldap";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -968,6 +983,8 @@ AP.Hana.Request = function() {
    */
   this.parameters = [];
 
+  this.__type = "hana";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.query = _.clone(request.queryStatement);
@@ -1071,6 +1088,8 @@ AP.Push.Request = function() {
    */
   this.payload = {};
 
+  this.__type = "push";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.operationName = "push";
@@ -1140,6 +1159,8 @@ AP.Redis = AP.Redis || {};
 AP.Redis.Request = function() {
   this.arguments = [];
 
+  this.__type = "redis";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.arguments = _.clone(request.arguments);
@@ -1172,6 +1193,8 @@ AP.Smtp.Request = function() {
   this.bcc = null;
   this.subject = null;
   this.html = false;
+
+  this.__type = "smtp";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -1236,6 +1259,8 @@ AP.Smtp.Request.prototype.send = function(options) {
     */
    this.environment = {};
 
+  this.__type = "docker";
+
    if (arguments.length == 1) {
      var request = arguments[0];
      this.command = _.clone(request.command);
@@ -1275,6 +1300,8 @@ AP.Job = AP.Job || {};
  */
 AP.Job.Request = function() {
   this.arguments = [];
+
+  this.__type = "job";
 
   if (arguments.length == 1) {
     var request = arguments[0];
