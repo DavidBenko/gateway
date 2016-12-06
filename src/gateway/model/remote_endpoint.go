@@ -138,6 +138,8 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 		e.ValidateSMTP(errors)
 	case RemoteEndpointTypeDocker:
 		e.ValidateDocker(errors)
+	case RemoteEndpointTypeKey:
+		e.ValidateKey(errors)
 	case RemoteEndpointTypeJob:
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
@@ -226,6 +228,11 @@ func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.Jso
 		}
 	case RemoteEndpointTypeJob:
 		return types.JsonText{}, nil
+	case RemoteEndpointTypeKey:
+		remoteEndpoint := re.Key{}
+		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
+			scrubbedData, err = json.Marshal(remoteEndpoint)
+		}
 	default:
 		return nil, errors.New(fmt.Sprintf("unknown endpoint type %q", reType))
 	}
@@ -470,6 +477,19 @@ func (e *RemoteEndpoint) ValidatePush(errors aperrors.Errors) {
 			errs.MoveAllToName("push_platforms")
 			errors.AddAll(errs)
 		}
+	}
+}
+
+func (e *RemoteEndpoint) ValidateKey(errors aperrors.Errors) {
+	k := &re.Key{}
+
+	if err := json.Unmarshal(e.Data, k); err != nil {
+		errors.Add("key", fmt.Sprintf("error in key config: %s", err))
+	}
+
+	if errs := k.Validate(); errs != nil {
+		errs.MoveAllToName("key")
+		errors.AddAll(errs)
 	}
 }
 

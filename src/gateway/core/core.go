@@ -128,6 +128,8 @@ func (s *Core) PrepareRequest(
 		return request.NewDockerRequest(endpoint, data, s.DockerConf)
 	case model.RemoteEndpointTypeJob:
 		return request.NewJobRequest(s.OwnDb, endpoint, s.ExecuteJob, data)
+	case model.RemoteEndpointTypeKey:
+		return request.NewKeyRequest(s.OwnDb, endpoint, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)
 	}

@@ -138,6 +138,10 @@ func IsUniqueConstraint(err error, table string, keys ...string) bool {
 	return strings.Contains(errString, sqliteString)
 }
 
+func IsNoResult(err error) bool {
+	return strings.Contains(err.Error(), "no rows in result set")
+}
+
 // IsNotNullConstraint returns whether or not the error looks like a not null constraint error
 func IsNotNullConstraint(err error, table, column string) bool {
 	errString := err.Error()

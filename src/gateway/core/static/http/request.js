@@ -1333,3 +1333,60 @@ AP.Job.Request.prototype.run = function(name, parameters) {
 AP.Job.Request.prototype.schedule = function(time, name, parameters) {
   this.request("schedule", Math.floor(time.getTime() / 1000), name, parameters);
 }
+
+/**
+ * Keys holds the helper class for cryptographic key related tasks
+ *
+ * @namespace
+ */
+AP.Key = AP.Key || {};
+
+/**
+ * Creates a new Key request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.Key.Request = function() {
+  this.arguments = [];
+  this.pkcs12 = false;
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+/**
+ * Creates a key
+ *
+ */
+AP.Key.Request.prototype.create = function(options) {
+  this._reqtype = "create";
+  this.contents = options.contents;
+  this.name = options.name;
+  this.password = options.password;
+  this.pkcs12 = options.pkcs12;
+}
+
+/**
+ * Generates a public/private key pair
+ *
+ */
+AP.Key.Request.prototype.generate = function(options) {
+  this._reqtype = "generate";
+  this.keytype = options.keytype || "rsa";
+  this.bits = options.bits || 2048;
+  this.privateKeyName = options.privateKeyName;
+  this.publicKeyName = options.publicKeyName;
+}
+
+/**
+ * Destroys a key
+ *
+ */
+AP.Key.Request.prototype.destroy = function(options) {
+  this._reqtype = "delete"
+  this.name = options.name;
+}
+

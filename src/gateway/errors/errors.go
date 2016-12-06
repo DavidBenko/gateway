@@ -43,9 +43,9 @@ func (e Errors) Empty() bool {
 
 func (e Errors) String() string {
 	errs, sep := "", ""
-	for _, i := range e {
+	for k, i := range e {
 		for _, j := range i {
-			errs += sep + j
+			errs += fmt.Sprintf("%s%s %s", sep, k, j)
 			sep = " "
 		}
 	}
