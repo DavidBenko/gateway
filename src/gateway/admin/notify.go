@@ -49,6 +49,7 @@ var RESOURCE_MAP = map[string]string{
 	"jobs":                      "job",
 	"timers":                    "timer",
 	"job_tests":                 "job-test",
+	"proxy_endpoint_channels":   "proxy-endpoint-channel",
 }
 
 var ACTION_MAP = [...]string{

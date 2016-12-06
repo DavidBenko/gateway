@@ -7,14 +7,26 @@ import (
 	"github.com/jmoiron/sqlx/types"
 )
 
+const (
+	ProxyEndpointTestMethodGet    = "GET"
+	ProxyEndpointTestMethodPost   = "POST"
+	ProxyEndpointTestMethodPut    = "PUT"
+	ProxyEndpointTestMethodDelete = "DELETE"
+)
+
 type ProxyEndpointTest struct {
-	ID      int64                    `json:"id,omitempty"`
-	Name    string                   `json:"name"`
-	Methods types.JsonText           `json:"methods"`
-	Route   string                   `json:"route"`
-	Body    string                   `json:"body"`
-	Pairs   []*ProxyEndpointTestPair `json:"pairs,omitempty"`
-	Data    types.JsonText           `json:"data,omitempty"`
+	ID        int64                    `json:"id,omitempty"`
+	Name      string                   `json:"name"`
+	Channels  bool                     `json:"channels"`
+	ChannelID *int64                   `json:"channel_id" db:"channel_id"`
+	Methods   types.JsonText           `json:"methods"`
+	Route     string                   `json:"route"`
+	Body      string                   `json:"body"`
+	Pairs     []*ProxyEndpointTestPair `json:"pairs,omitempty"`
+	Data      types.JsonText           `json:"data,omitempty"`
+
+	// Export Indices
+	ExportChannelIndex int `json:"proxy_endpoint_index,omitempty"`
 }
 
 func (t *ProxyEndpointTest) GetMethods() (methods []string, err error) {
@@ -33,10 +45,27 @@ func (t *ProxyEndpointTest) Validate() aperrors.Errors {
 		errors.Add("methods", "must be valid json")
 	} else if len(methods) == 0 {
 		errors.Add("methods", "must be selected")
+	} else {
+		for _, method := range methods {
+			switch method {
+			case ProxyEndpointTestMethodGet:
+			case ProxyEndpointTestMethodPost:
+			case ProxyEndpointTestMethodPut:
+			case ProxyEndpointTestMethodDelete:
+			default:
+				errors.Add("methods", "invalid http method")
+			}
+		}
 	}
 
-	if t.Route == "" {
-		errors.Add("route", "must not be empty")
+	if t.Channels {
+		if t.ChannelID == nil {
+			errors.Add("channel", "must be selected")
+		}
+	} else {
+		if t.Route == "" {
+			errors.Add("route", "must not be empty")
+		}
 	}
 	return errors
 }
@@ -53,7 +82,7 @@ func (t *ProxyEndpointTest) Insert(tx *apsql.Tx, endpointID int64) error {
 	}
 
 	t.ID, err = tx.InsertOne(tx.SQL("tests/insert"),
-		endpointID, t.Name, methods,
+		endpointID, t.Name, t.Channels, t.ChannelID, methods,
 		t.Route, t.Body, data)
 	if err != nil {
 		return aperrors.NewWrapped("Inserting test", err)
@@ -81,7 +110,7 @@ func (t *ProxyEndpointTest) Update(tx *apsql.Tx, endpointID int64) error {
 	}
 
 	err = tx.UpdateOne(tx.SQL("tests/update"),
-		t.Name, methods, t.Route, t.Body,
+		t.Name, t.Channels, t.ChannelID, methods, t.Route, t.Body,
 		data, t.ID, endpointID)
 	if err != nil {
 		return aperrors.NewWrapped("Updating test", err)

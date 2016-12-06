@@ -23,9 +23,7 @@ import (
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
-	"github.com/robertkrimen/otto"
 	stripe "github.com/stripe/stripe-go"
-	"github.com/xeipuuv/gojsonschema"
 )
 
 // Server encapsulates the proxy server.
@@ -107,7 +105,7 @@ func (s *Server) isRoutedToEndpoint(r *http.Request, rm *mux.RouteMatch) bool {
 }
 
 func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
-	response *proxyResponse, logs *bytes.Buffer, httpErr aphttp.Error) {
+	response *core.ProxyResponse, logs *bytes.Buffer, httpErr aphttp.Error) {
 	start := time.Now()
 
 	var vm *apvm.ProxyVM
@@ -234,7 +232,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 	}
 
 	if schema := proxyEndpoint.Schema; schema != nil && schema.RequestSchema != "" {
-		err := s.processSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
+		err := s.ProcessSchema(proxyEndpoint.Schema.RequestSchema, request.Body)
 		if err != nil {
 			if err.Error() == "EOF" {
 				httpErr = aphttp.NewError(errors.New("a json document is required in the request"), 422)
@@ -283,12 +281,12 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		httpErr = s.httpError(err)
 		return
 	}
-	responseJSON, err := s.objectJSON(vm, responseObject)
+	responseJSON, err := s.ObjectJSON(&vm.CoreVM, responseObject)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
 	}
-	response, err = proxyResponseFromJSON(responseJSON)
+	response, err = core.ProxyResponseFromJSON(responseJSON)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return
@@ -301,7 +299,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		if schema.ResponseSameAsRequest {
 			responseSchema = schema.RequestSchema
 		}
-		err := s.processSchema(responseSchema, response.Body)
+		err := s.ProcessSchema(responseSchema, response.Body)
 		if err != nil {
 			if err.Error() == "EOF" {
 				httpErr = aphttp.NewError(errors.New("a json document is required in the response"), 500)
@@ -358,25 +356,6 @@ func (s *Server) proxyHandlerFunc(w http.ResponseWriter, r *http.Request) aphttp
 	return nil
 }
 
-func (s *Server) processSchema(schema, body string) error {
-	schemaLoader := gojsonschema.NewStringLoader(schema)
-	bodyLoader := gojsonschema.NewStringLoader(body)
-	result, err := gojsonschema.Validate(schemaLoader, bodyLoader)
-	if err != nil {
-		return err
-	}
-
-	if !result.Valid() {
-		err := ""
-		for _, description := range result.Errors() {
-			err += fmt.Sprintf(" - %v", description)
-		}
-		return errors.New(err)
-	}
-
-	return nil
-}
-
 func (s *Server) httpError(err error) aphttp.Error {
 	if !s.devMode {
 		return aphttp.DefaultServerError()
@@ -395,18 +374,6 @@ func (s *Server) httpJavascriptError(err error, env *model.Environment) aphttp.E
 	}
 
 	return aphttp.DefaultServerError()
-}
-
-func (s *Server) objectJSON(vm *apvm.ProxyVM, object otto.Value) (string, error) {
-	jsJSON, err := vm.Object("JSON")
-	if err != nil {
-		return "", err
-	}
-	result, err := jsJSON.Call("stringify", object)
-	if err != nil {
-		return "", err
-	}
-	return result.String(), nil
 }
 
 func (s *Server) accessLoggingNotFoundHandler() http.Handler {
