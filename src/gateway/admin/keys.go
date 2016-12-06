@@ -14,8 +14,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"golang.org/x/crypto/pkcs12"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vincent-petithory/dataurl"
@@ -57,41 +55,15 @@ func deserializeInstance(file io.Reader) (*model.Key, aphttp.Error) {
 	// If the key is a pkcs12 file then parse out the private key using the supplied password.
 	// Update the payload's Key to the pem encoded result.
 	if key.Mime == "application/x-pkcs12" {
-		block, err := parsePkcs12(data.Data, w.Key.Password)
+		block, err := model.ParsePkcs12(data.Data, w.Key.Password)
 		if err != nil {
 			logreport.Printf("%s error deserializing pkcs12 key: %v\n", config.Admin, err)
 			return nil, aphttp.NewError(err, http.StatusBadRequest)
-		}
-		if block == nil {
-			return nil, aphttp.NewError(errors.New("key not found"), http.StatusBadRequest)
 		}
 		key.Key = pem.EncodeToMemory(block)
 	}
 
 	return key, nil
-}
-
-func parsePkcs12(data []byte, password string) (*pem.Block, error) {
-	blocks, err := pkcs12.ToPEM(data, password)
-	if err != nil {
-		return nil, err
-	}
-	if len(blocks) == 0 {
-		return nil, errors.New("could not find a valid key")
-	}
-
-	// PKCS12 contains a private key and a number of related certificates.
-	// Iterate across the blocks until we find the PRIVATE KEY and ignore
-	// the rest.
-	var block *pem.Block
-	for _, b := range blocks {
-		if b.Type == "PRIVATE KEY" {
-			block = b
-			break
-		}
-	}
-
-	return block, nil
 }
 
 func RouteKeys(controller *KeysController, path string,

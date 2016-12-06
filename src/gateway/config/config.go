@@ -139,6 +139,7 @@ type RemoteEndpoint struct {
 	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
 	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
 	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
+	KeyEnabled        bool `flag:"remote-endpoint-key-enabled" default:"true"`
 	ScrubData         bool `flag:"remote-endpoint-scrub-data"     default:"false"`
 }
 
