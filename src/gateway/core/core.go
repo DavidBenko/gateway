@@ -22,10 +22,34 @@ import (
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
+	"github.com/y0ssar1an/q"
 
 	// Add underscore.js functionality to our VMs
 	_ "github.com/robertkrimen/otto/underscore"
 )
+
+const (
+	HttpRequest      = "http"
+	RedisRequest     = "redis"
+	SqlServerRequest = "sqlserver"
+	PostgresRequest  = "postgres"
+	MySqlRequest     = "mysql"
+	MongoRequest     = "mongo"
+	SoapRequest      = "soap"
+	LdapRequest      = "ldap"
+	HanaRequest      = "hana"
+	StoreRequest     = "store"
+	PushRequest      = "push"
+	SmtpRequest      = "smtp"
+	JobRequest       = "job"
+	KeyRequest       = "key"
+	ScriptRequest    = "script"
+	DockerRequest    = "docker"
+)
+
+type genericRequest struct {
+	Type string `json:"__type"`
+}
 
 type Core struct {
 	DevMode    bool
@@ -90,24 +114,63 @@ func (s *Core) PrepareRequest(
 		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
 	}
 
+	generic := &genericRequest{}
+	if err := json.Unmarshal(*data, generic); err != nil {
+		return nil, fmt.Errorf("unable to determine request type: %v", err)
+	}
+
+	// TODO: Remove logging...
+	q.Q(generic)
+
+	invalidTypeErrorMessage := func(expected string, got string) error {
+		return fmt.Errorf("mismatch request types: expected %s got %s", expected, got)
+	}
+
 	switch endpoint.Type {
 	case model.RemoteEndpointTypeHTTP:
+		if generic.Type != HttpRequest {
+			return nil, invalidTypeErrorMessage(HttpRequest, generic.Type)
+		}
 		return request.NewHTTPRequest(s.HTTPClient, endpoint, data)
 	case model.RemoteEndpointTypeSQLServer:
+		if generic.Type != SqlServerRequest {
+			return nil, invalidTypeErrorMessage(SqlServerRequest, generic.Type)
+		}
 		return request.NewSQLServerRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypePostgres:
+		if generic.Type != PostgresRequest {
+			return nil, invalidTypeErrorMessage(PostgresRequest, generic.Type)
+		}
 		return request.NewPostgresRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeMySQL:
+		if generic.Type != MySqlRequest {
+			return nil, invalidTypeErrorMessage(MySqlRequest, generic.Type)
+		}
 		return request.NewMySQLRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeMongo:
+		if generic.Type != MongoRequest {
+			return nil, invalidTypeErrorMessage(MongoRequest, generic.Type)
+		}
 		return request.NewMongoRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeSoap:
+		if generic.Type != SoapRequest {
+			return nil, invalidTypeErrorMessage(SoapRequest, generic.Type)
+		}
 		return request.NewSoapRequest(endpoint, data, s.SoapConf, s.OwnDb)
 	case model.RemoteEndpointTypeScript:
+		if generic.Type != ScriptRequest {
+			return nil, invalidTypeErrorMessage(ScriptRequest, generic.Type)
+		}
 		return request.NewScriptRequest(endpoint, data)
 	case model.RemoteEndpointTypeStore:
+		if generic.Type != StoreRequest {
+			return nil, invalidTypeErrorMessage(StoreRequest, generic.Type)
+		}
 		return request.NewStoreRequest(s.Store, endpoint, data)
 	case model.RemoteEndpointTypeLDAP:
+		if generic.Type != LdapRequest {
+			return nil, invalidTypeErrorMessage(LdapRequest, generic.Type)
+		}
 		r, e := request.NewLDAPRequest(endpoint, data)
 		// cache connections in the connections map for later use within the same proxy endpoint workflow
 		conn, err := r.CreateOrReuse(connections[endpoint.ID])
@@ -117,18 +180,39 @@ func (s *Core) PrepareRequest(
 		connections[endpoint.ID] = conn
 		return r, e
 	case model.RemoteEndpointTypePush:
+		if generic.Type != PushRequest {
+			return nil, invalidTypeErrorMessage(PushRequest, generic.Type)
+		}
 		return request.NewPushRequest(endpoint, data, s.Push, s.OwnDb)
 	case model.RemoteEndpointTypeHana:
+		if generic.Type != HanaRequest {
+			return nil, invalidTypeErrorMessage(HanaRequest, generic.Type)
+		}
 		return request.NewHanaRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeRedis:
+		if generic.Type != RedisRequest {
+			return nil, invalidTypeErrorMessage(RedisRequest, generic.Type)
+		}
 		return request.NewRedisRequest(s.DBPools, endpoint, data)
 	case model.RemoteEndpointTypeSMTP:
+		if generic.Type != SmtpRequest {
+			return nil, invalidTypeErrorMessage(SmtpRequest, generic.Type)
+		}
 		return request.NewSmtpRequest(s.Smtp, endpoint, data)
 	case model.RemoteEndpointTypeDocker:
+		if generic.Type != DockerRequest {
+			return nil, invalidTypeErrorMessage(DockerRequest, generic.Type)
+		}
 		return request.NewDockerRequest(endpoint, data, s.DockerConf)
 	case model.RemoteEndpointTypeJob:
+		if generic.Type != JobRequest {
+			return nil, invalidTypeErrorMessage(JobRequest, generic.Type)
+		}
 		return request.NewJobRequest(s.OwnDb, endpoint, s.ExecuteJob, data)
 	case model.RemoteEndpointTypeKey:
+		if generic.Type != KeyRequest {
+			return nil, invalidTypeErrorMessage(KeyRequest, generic.Type)
+		}
 		return request.NewKeyRequest(s.OwnDb, endpoint, data)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)

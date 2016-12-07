@@ -1350,7 +1350,8 @@ AP.Key = AP.Key || {};
  */
 AP.Key.Request = function() {
   this.arguments = [];
-  this.pkcs12 = false;
+
+  this.__type = "key";
 
   if (arguments.length == 1) {
     var request = arguments[0];
@@ -1366,7 +1367,7 @@ AP.Key.Request.prototype.create = function(options) {
   this.contents = options.contents;
   this.name = options.name;
   this.password = options.password;
-  this.pkcs12 = options.pkcs12;
+  this.pkcs12 = options.pkcs12 || false;
 }
 
 /**
