@@ -34,6 +34,7 @@ var googleAnalyticsTrackingId = regexp.MustCompile(`GOOGLE_ANALYTICS_TRACKING_ID
 var stripeEnabled = regexp.MustCompile(`ENABLE_PLAN_SUBSCRIPTIONS`)
 var stripePublishableKey = regexp.MustCompile(`STRIPE_PUBLISHABLE_KEY`)
 var adminApiHost = regexp.MustCompile(`ADMIN_API_HOST`)
+var wsHeartbeatInterval = regexp.MustCompile(`WS_HEARTBEAT_INTERVAL`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -129,6 +130,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 				interpolatedValues[stripePublishableKey] = ""
 			}
 			interpolatedValues[adminApiHost] = conf.APIHost
+			interpolatedValues[wsHeartbeatInterval] = fmt.Sprintf("%d", conf.WsHeartbeatInterval)
 
 			for k, v := range interpolatedValues {
 				input = k.ReplaceAllLiteralString(input, v)

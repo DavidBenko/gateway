@@ -165,6 +165,13 @@ const ExampleConfigurationFile = `##############################################
 # The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.
 # apiHost = ''
 
+# The interval in seconds to send heartbeats to Admin API connected websocket clients. Defaults to 60.
+# wsHeartbeatInterval = 60
+
+# The amount of time in seconds to wait for successful websocket writes to Admin API connected websocket clients before closing the connection. Defaults to 10.
+# wsWriteDeadline = 10
+
+
 ## ---------- Proxy ------------
 [proxy]
 # Whether or not to cache API data when serving proxy calls, default is false.

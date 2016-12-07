@@ -193,7 +193,9 @@ type ProxyAdmin struct {
 	StripeFallbackPlan    string `flag:"stripe-fallback-plan" default:""`
 	StripeMigrateAccounts bool   `flag:"stripe-migrate-accounts"     default:"false"`
 
-	APIHost string `flag:"admin-api-host"        default:""`
+	APIHost             string `flag:"admin-api-host"        default:""`
+	WsHeartbeatInterval int64  `flag:"ws-heartbeat-interval" default:"60"`
+	WsWriteDeadline     int64  `flag:"ws-write-deadline" default:"10"`
 }
 
 type ElasticLogging struct {
