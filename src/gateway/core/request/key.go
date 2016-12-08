@@ -24,10 +24,6 @@ const (
 	EcdsaKey     = "ecdsa"
 )
 
-type genericKeyRequest struct {
-	Action string `json:"__action"`
-}
-
 type KeyCreateRequest struct {
 	endpoint *model.RemoteEndpoint
 	db       *sql.DB
@@ -66,7 +62,10 @@ func (r *KeyResponse) Log() string {
 }
 
 func NewKeyRequest(db *sql.DB, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
-	generic := &genericKeyRequest{}
+	generic := &struct {
+		Action string `json:"__action"`
+	}{}
+
 	if err := json.Unmarshal(*data, generic); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
 	}

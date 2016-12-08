@@ -22,6 +22,7 @@ import (
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
+	"github.com/y0ssar1an/q"
 
 	// Add underscore.js functionality to our VMs
 	_ "github.com/robertkrimen/otto/underscore"
@@ -45,10 +46,6 @@ const (
 	ScriptRequest    = "script"
 	DockerRequest    = "docker"
 )
-
-type genericRequest struct {
-	Type string `json:"__type"`
-}
 
 type Core struct {
 	DevMode    bool
@@ -113,10 +110,14 @@ func (s *Core) PrepareRequest(
 		return nil, fmt.Errorf("Remote endpoint type %s is not enabled", endpoint.Type)
 	}
 
-	generic := &genericRequest{}
+	generic := &struct {
+		Type string `json:"__type"`
+	}{}
+
 	if err := json.Unmarshal(*data, generic); err != nil {
 		return nil, fmt.Errorf("unable to determine request type: %v", err)
 	}
+	q.Q(generic)
 
 	invalidTypeErrorMessage := func(expected string, got string) error {
 		return fmt.Errorf("mismatched request types: expected %s got %s", expected, got)
