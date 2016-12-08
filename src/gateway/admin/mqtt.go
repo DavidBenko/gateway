@@ -1,14 +1,15 @@
 package admin
 
 import (
-	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 
 	"gateway/config"
 	aphttp "gateway/http"
 	"gateway/logreport"
 
+	"github.com/gorilla/handlers"
 	"golang.org/x/net/websocket"
 )
 
@@ -17,31 +18,41 @@ type MQTTProxyController struct {
 	config.Push
 }
 
-func RouteMQTTProxy(c *MQTTProxyController, path string, router aphttp.Router) {
-	router.Handle(path, websocket.Handler(c.handler))
+func RouteMQTTProxy(c *MQTTProxyController, path string, router aphttp.Router, conf config.ProxyAdmin) {
+	server := websocket.Server{
+		Config: websocket.Config{
+			Version: websocket.ProtocolVersionHybi13,
+		},
+		Handler: websocket.Handler(c.handler),
+	}
+	routes := map[string]http.Handler{
+		"GET": http.HandlerFunc(server.ServeHTTP),
+	}
+	if conf.CORSEnabled {
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+	}
+	router.Handle(path, handlers.MethodHandler(routes))
 }
 
 func (c *MQTTProxyController) handler(ws *websocket.Conn) {
-	fmt.Println("handler")
 	logError := func(err error) {
 		logreport.Printf("[mqtt_proxy] %v", err)
 	}
 
 	defer ws.Close()
-	fmt.Println("start")
+
 	uri, err := url.Parse(c.MQTTURI)
 	if err != nil {
 		logError(err)
 		return
 	}
-	fmt.Println("here")
 	client, err := net.Dial(uri.Scheme, uri.Host)
 	if err != nil {
 		logError(err)
 		return
 	}
 	defer client.Close()
-	fmt.Println("there")
+
 	done := make(chan bool)
 
 	// send
@@ -85,6 +96,6 @@ func (c *MQTTProxyController) handler(ws *websocket.Conn) {
 			}
 		}
 	}()
-	fmt.Println("done")
+
 	<-done
 }
