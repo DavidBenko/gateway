@@ -673,6 +673,8 @@ AP.Script.Request = function() {
    */
   this.env = {};
 
+  this.__type = "script"
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.env = _.clone(request.env);
@@ -1363,7 +1365,7 @@ AP.Key.Request = function() {
  *
  */
 AP.Key.Request.prototype.create = function(options) {
-  this._reqtype = "create";
+  this.__action = "create";
   this.contents = options.contents;
   this.name = options.name;
   this.password = options.password;
@@ -1375,7 +1377,7 @@ AP.Key.Request.prototype.create = function(options) {
  *
  */
 AP.Key.Request.prototype.generate = function(options) {
-  this._reqtype = "generate";
+  this.__action= "generate";
   this.keytype = options.keytype || "rsa";
   this.bits = options.bits || 2048;
   this.privateKeyName = options.privateKeyName;
@@ -1387,7 +1389,7 @@ AP.Key.Request.prototype.generate = function(options) {
  *
  */
 AP.Key.Request.prototype.destroy = function(options) {
-  this._reqtype = "delete"
+  this.__action = "delete"
   this.name = options.name;
 }
 

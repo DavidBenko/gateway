@@ -25,7 +25,7 @@ const (
 )
 
 type genericKeyRequest struct {
-	ReqType string `json:"_reqtype"`
+	Action string `json:"__action"`
 }
 
 type KeyCreateRequest struct {
@@ -71,7 +71,7 @@ func NewKeyRequest(db *sql.DB, endpoint *model.RemoteEndpoint, data *json.RawMes
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
 	}
 
-	switch generic.ReqType {
+	switch generic.Action {
 	case CreateType:
 		return newKeyCreateRequest(db, endpoint, data)
 	case DeleteType:
@@ -79,7 +79,7 @@ func NewKeyRequest(db *sql.DB, endpoint *model.RemoteEndpoint, data *json.RawMes
 	case GenerateType:
 		return newKeyGenerateRequest(db, endpoint, data)
 	default:
-		return nil, fmt.Errorf("%s not a supported action", generic.ReqType)
+		return nil, fmt.Errorf("%s not a supported action", generic.Action)
 	}
 }
 
