@@ -22,7 +22,6 @@ import (
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
-	"github.com/y0ssar1an/q"
 
 	// Add underscore.js functionality to our VMs
 	_ "github.com/robertkrimen/otto/underscore"
@@ -119,11 +118,8 @@ func (s *Core) PrepareRequest(
 		return nil, fmt.Errorf("unable to determine request type: %v", err)
 	}
 
-	// TODO: Remove logging...
-	q.Q(generic)
-
 	invalidTypeErrorMessage := func(expected string, got string) error {
-		return fmt.Errorf("mismatch request types: expected %s got %s", expected, got)
+		return fmt.Errorf("mismatched request types: expected %s got %s", expected, got)
 	}
 
 	switch endpoint.Type {
