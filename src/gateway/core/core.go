@@ -22,7 +22,6 @@ import (
 	"gateway/store"
 
 	"github.com/robertkrimen/otto"
-	"github.com/y0ssar1an/q"
 
 	// Add underscore.js functionality to our VMs
 	_ "github.com/robertkrimen/otto/underscore"
@@ -117,7 +116,6 @@ func (s *Core) PrepareRequest(
 	if err := json.Unmarshal(*data, generic); err != nil {
 		return nil, fmt.Errorf("unable to determine request type: %v", err)
 	}
-	q.Q(generic)
 
 	invalidTypeErrorMessage := func(expected string, got string) error {
 		return fmt.Errorf("mismatched request types: expected %s got %s", expected, got)
