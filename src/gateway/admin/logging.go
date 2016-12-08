@@ -144,7 +144,7 @@ func newAggregator(conf config.ProxyAdmin) error {
 	return err
 }
 
-func makeFilter(ws *websocket.Conn) func(b byte) bool {
+func makeFilter(ws *websocket.Conn, writeDeadline time.Duration) func(b byte) bool {
 	request := ws.Request()
 	exps := []*regexp.Regexp{regexp.MustCompile(".*\\[(proxy|job)\\].*")}
 	act := int64(-1)
@@ -184,6 +184,7 @@ func makeFilter(ws *websocket.Conn) func(b byte) bool {
 				}
 			}
 			if matches {
+				ws.SetWriteDeadline(time.Now().Add(writeDeadline))
 				_, err := ws.Write(b)
 				return err != nil
 			}
@@ -211,10 +212,24 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 		}
 	}()
 
-	filter := makeFilter(ws)
-	for input := range logs {
-		for _, b := range input {
-			if filter(b) {
+	heartbeatTicker := time.NewTicker(time.Duration(c.conf.WsHeartbeatInterval) * time.Second)
+	defer func() {
+		heartbeatTicker.Stop()
+		ws.Close()
+	}()
+
+	filter := makeFilter(ws, time.Duration(c.conf.WsWriteDeadline)*time.Second)
+	for {
+		select {
+		case input := <-logs:
+			for _, b := range input {
+				if filter(b) {
+					return
+				}
+			}
+		case <-heartbeatTicker.C:
+			ws.SetWriteDeadline(time.Now().Add(time.Duration(c.conf.WsWriteDeadline) * time.Second))
+			if _, err := ws.Write([]byte("heartbeat")); err != nil {
 				return
 			}
 		}
