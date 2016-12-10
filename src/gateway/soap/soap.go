@@ -122,7 +122,7 @@ func WsdlURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
 }
 
 func inflateSoapClient() (string, error) {
-	jarBytes, err := Asset("soapclient-all.jar")
+	jarBytes, err := Asset("soapclient-all-proguarded.jar")
 
 	if err != nil {
 		logreport.Printf("%s Could not find embedded soapclient", config.System)
