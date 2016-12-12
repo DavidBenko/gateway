@@ -1,4 +1,4 @@
-package ottocrypto
+package crypto
 
 import (
 	"gateway/crypto"

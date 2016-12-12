@@ -1,4 +1,4 @@
-package ottocrypto
+package crypto
 
 import (
 	b64 "encoding/base64"

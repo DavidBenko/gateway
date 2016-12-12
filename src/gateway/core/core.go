@@ -9,8 +9,9 @@ import (
 
 	"gateway/config"
 	"gateway/core/conversion"
-	"gateway/core/ottocrypto"
 	"gateway/core/request"
+	"gateway/core/vm"
+	"gateway/core/vm/crypto"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
 	"gateway/logreport"
@@ -214,10 +215,11 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy(accountID int64, keySource ottocrypto.KeyDataSource) *otto.Otto {
+func VMCopy(accountID int64, keySource vm.KeyDataSource) *otto.Otto {
 	vm := shared.Copy()
-	ottocrypto.IncludeSigning(vm, accountID, keySource)
-	ottocrypto.IncludeEncryption(vm, accountID, keySource)
+	crypto.IncludeSigning(vm, accountID, keySource)
+	crypto.IncludeEncryption(vm, accountID, keySource)
+	//advanced.IncludePerform(vm)
 	return vm
 }
 
@@ -226,7 +228,7 @@ var shared = func() *otto.Otto {
 
 	conversion.IncludeConversion(vm)
 	conversion.IncludePath(vm)
-	ottocrypto.IncludeHashing(vm)
+	crypto.IncludeHashing(vm)
 
 	var files = []string{
 		"gateway.js",
@@ -252,7 +254,7 @@ var shared = func() *otto.Otto {
 		}
 	}
 
-	ottocrypto.IncludeAes(vm)
+	crypto.IncludeAes(vm)
 
 	return vm
 }()

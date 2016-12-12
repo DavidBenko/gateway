@@ -24,7 +24,7 @@ func NewKeyStore(db *apsql.DB) *KeyStore {
 	return &KeyStore{Keys: keys, db: db}
 }
 
-func (k *KeyStore) GetKey(accountID int64, name string) (interface{}, bool) {
+func (k *KeyStore) Get(accountID int64, name string) (interface{}, bool) {
 	k.RLock()
 
 	if accountKeys, ok := k.Keys[accountID]; ok {

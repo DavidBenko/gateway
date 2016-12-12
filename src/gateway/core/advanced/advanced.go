@@ -1,26 +1,17 @@
 package advanced
 
-import (
-	"gateway/logreport"
+import "github.com/robertkrimen/otto"
 
-	"github.com/robertkrimen/otto"
-)
-
-func IncludePerform(vm *otto.Otto) {
-	setPerform(vm)
+func IncludePerform(vm *otto.Otto, accountID int64, remoteEndpointSource interface{}) {
+	vm.Set("_perform", func(call otto.FunctionCall) otto.Value {
+		return otto.Value{}
+	})
 
 	scripts := []string{
-		"AP.Perform = _perform; delete _perform;",
+		"AP.Perform = function() {return _perform(arguments)};",
 	}
 
 	for _, s := range scripts {
 		vm.Run(s)
 	}
-}
-
-func setPerform(vm *otto.Otto) {
-	vm.Set("_perform", func(call otto.FunctionCall) otto.Value {
-		logreport.Println("TODO: not implemented")
-		return otto.Value{}
-	})
 }

@@ -1,6 +1,17 @@
 var AP = AP || {};
 
 /**
+ * Advanced request utilities and constructors.
+ *
+ * @namespace
+ */
+AP.Advanced = AP.Advanced || {};
+
+AP.Advanced.perform = function() {
+  return _perform(arguments)
+}
+
+/**
  * HTTP holds helper classes for HTTP related tasks, such as making
  * requests with Gateway, and parsing their responses.
  *
