@@ -35,6 +35,8 @@ var stripeEnabled = regexp.MustCompile(`ENABLE_PLAN_SUBSCRIPTIONS`)
 var stripePublishableKey = regexp.MustCompile(`STRIPE_PUBLISHABLE_KEY`)
 var adminApiHost = regexp.MustCompile(`ADMIN_API_HOST`)
 var wsHeartbeatInterval = regexp.MustCompile(`WS_HEARTBEAT_INTERVAL`)
+var uiPathRegex = regexp.MustCompile(`UI_BASE_PATH_PLACEHOLDER`)
+var slashUiPathRegex = regexp.MustCompile(`/UI_BASE_PATH_PLACEHOLDER`)
 
 // Normalize some mime types across OSes
 var additionalMimeTypes = map[string]string{
@@ -94,18 +96,26 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 
 	funcs := template.FuncMap{
 		"interpolate": func(input string) string {
-			pathReplacer := func(path string) func(string) string {
+			pathReplacer := func(path string, prefix string) func(string) string {
 				return func(string) string {
-					if conf.PathPrefix == "" {
+					if prefix == "" {
 						return ""
 					}
 					return path
 				}
 			}
+
+			// Handle API base path
 			rightless := strings.TrimRight(conf.PathPrefix, "/")
 			clean := strings.TrimLeft(rightless, "/")
-			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless))
-			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean))
+			input = slashPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless, conf.PathPrefix))
+			input = pathRegex.ReplaceAllStringFunc(input, pathReplacer(clean, conf.PathPrefix))
+
+			// Handle UI base path
+			rightless = strings.TrimRight(conf.UiPathPrefix, "/")
+			clean = strings.TrimLeft(rightless, "/")
+			input = slashUiPathRegex.ReplaceAllStringFunc(input, pathReplacer(rightless, conf.UiPathPrefix))
+			input = uiPathRegex.ReplaceAllStringFunc(input, pathReplacer(clean, conf.UiPathPrefix))
 
 			interpolatedValues := map[*regexp.Regexp]string{}
 

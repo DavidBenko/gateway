@@ -99,8 +99,9 @@ var usageStrings = map[string]string{
 	"remote-endpoint-scrub-data":         "Whether or not to scrub the remote endpoint data saved in the database (for pre-5.2.0 remote endpoint data). Defaults to false.",
 	"remote-endpoint-key-enabled":        "Whether or not Key remote endpoints are enabled. Defaults to true.",
 
-	"admin-path-prefix": "The path prefix the administrative area is accessible under",
-	"admin-host":        "The host the administrative area is accessible via",
+	"admin-path-prefix":    "The path prefix the administrative API area is accessible under",
+	"admin-ui-path-prefix": "The path prefix the administrative UI area is accessible under",
+	"admin-host":           "The host the administrative area is accessible via",
 
 	"admin-session-name":                  "The name of the cookie to use for sessions.",
 	"admin-session-auth-key":              "The auth key to use for sessions. 64 chars recommended. Required.",
