@@ -99,8 +99,9 @@ var usageStrings = map[string]string{
 	"remote-endpoint-scrub-data":         "Whether or not to scrub the remote endpoint data saved in the database (for pre-5.2.0 remote endpoint data). Defaults to false.",
 	"remote-endpoint-key-enabled":        "Whether or not Key remote endpoints are enabled. Defaults to true.",
 
-	"admin-path-prefix": "The path prefix the administrative area is accessible under",
-	"admin-host":        "The host the administrative area is accessible via",
+	"admin-path-prefix":    "The path prefix the administrative API area is accessible under",
+	"admin-ui-path-prefix": "The path prefix the administrative UI area is accessible under",
+	"admin-host":           "The host the administrative area is accessible via",
 
 	"admin-session-name":                  "The name of the cookie to use for sessions.",
 	"admin-session-auth-key":              "The auth key to use for sessions. 64 chars recommended. Required.",
@@ -136,6 +137,9 @@ var usageStrings = map[string]string{
 	"stripe-migrate-accounts": "Stripe Migrate Accounts is whether or not to create Stripe customers for existing accounts without a Stripe Customer ID.",
 
 	"admin-api-host": "The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.",
+
+	"ws-heartbeat-interval": "The interval in seconds to send heartbeats to Admin API connected websocket clients. Defaults to 60.",
+	"ws-write-deadline":     "The amount of time in seconds to wait for successful websocket writes to Admin API connected websocket clients before closing the connection. Defaults to 10.",
 
 	"elastic-logging-url":          "The url of the elastic server",
 	"elastic-logging-delete-after": "How long in days to keep logs",

@@ -148,8 +148,9 @@ type RemoteEndpoint struct {
 type ProxyAdmin struct {
 	DevMode bool
 
-	PathPrefix string `flag:"admin-path-prefix" default:"/admin/"`
-	Host       string `flag:"admin-host"        default:""`
+	PathPrefix   string `flag:"admin-path-prefix" default:"/admin/"`
+	UiPathPrefix string `flag:"admin-ui-path-prefix" default:"/admin/"`
+	Host         string `flag:"admin-host"        default:""`
 
 	SessionName    string `flag:"admin-session-name" default:"__ap_gateway"`
 	AuthKey        string `flag:"admin-session-auth-key" default:""`
@@ -193,7 +194,9 @@ type ProxyAdmin struct {
 	StripeFallbackPlan    string `flag:"stripe-fallback-plan" default:""`
 	StripeMigrateAccounts bool   `flag:"stripe-migrate-accounts"     default:"false"`
 
-	APIHost string `flag:"admin-api-host"        default:""`
+	APIHost             string `flag:"admin-api-host"        default:""`
+	WsHeartbeatInterval int64  `flag:"ws-heartbeat-interval" default:"60"`
+	WsWriteDeadline     int64  `flag:"ws-write-deadline" default:"10"`
 }
 
 type ElasticLogging struct {
