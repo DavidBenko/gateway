@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"gateway/config"
-	"gateway/core/conversion"
 	"gateway/core/request"
 	"gateway/core/vm"
+	"gateway/core/vm/conversion"
 	"gateway/core/vm/crypto"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
