@@ -2,13 +2,12 @@ package admin
 
 import (
 	"encoding/json"
-
 	aphttp "gateway/http"
 	"gateway/model"
 	apsql "gateway/sql"
 	"gateway/store"
-
 	"golang.org/x/net/websocket"
+	"time"
 )
 
 const (
@@ -49,6 +48,7 @@ var RESOURCE_MAP = map[string]string{
 	"jobs":                      "job",
 	"timers":                    "timer",
 	"job_tests":                 "job-test",
+	"proxy_endpoint_channels":   "proxy-endpoint-channel",
 }
 
 var ACTION_MAP = [...]string{
@@ -152,34 +152,47 @@ func (n *NotifyController) NotifyHandler(ws *websocket.Conn) {
 		}()
 		n.command <- unregister
 	}()
-	for notification := range register.Comm {
-		email := "unknown"
-		user, err := model.FindUserByID(n.db, notification.UserID)
-		if err == nil {
-			email = user.Email
-		}
-
-		resource, found := RESOURCE_MAP[notification.Table]
-		// only send notifications that we're interested in, that have a corresponding
-		// resource found in the resource map
-		if found {
-			n := &Notification{
-				Resource:        resource,
-				Action:          ACTION_MAP[notification.Event],
-				ResourceID:      int64(notification.ID),
-				ProxyEndpointID: int64(notification.ProxyEndpointID),
-				APIID:           int64(notification.APIID),
-				User:            email,
-				Tag:             notification.Tag,
+	heartbeatTicker := time.NewTicker(time.Duration(n.conf.WsHeartbeatInterval) * time.Second)
+	defer func() {
+		heartbeatTicker.Stop()
+		ws.Close()
+	}()
+	for {
+		select {
+		case notification := <-register.Comm:
+			email := "unknown"
+			user, err := model.FindUserByID(n.db, notification.UserID)
+			if err == nil {
+				email = user.Email
 			}
 
-			json, err := json.Marshal(n)
-			if err != nil {
-				return
-			}
+			resource, found := RESOURCE_MAP[notification.Table]
+			// only send notifications that we're interested in, that have a corresponding
+			// resource found in the resource map
+			if found {
+				noti := &Notification{
+					Resource:        resource,
+					Action:          ACTION_MAP[notification.Event],
+					ResourceID:      int64(notification.ID),
+					ProxyEndpointID: int64(notification.ProxyEndpointID),
+					APIID:           int64(notification.APIID),
+					User:            email,
+					Tag:             notification.Tag,
+				}
 
-			_, err = ws.Write(json)
-			if err != nil {
+				json, err := json.Marshal(noti)
+				if err != nil {
+					return
+				}
+				ws.SetWriteDeadline(time.Now().Add(time.Duration(n.conf.WsWriteDeadline) * time.Second))
+				_, err = ws.Write(json)
+				if err != nil {
+					return
+				}
+			}
+		case <-heartbeatTicker.C:
+			ws.SetWriteDeadline(time.Now().Add(time.Duration(n.conf.WsWriteDeadline) * time.Second))
+			if _, err := ws.Write([]byte("heartbeat")); err != nil {
 				return
 			}
 		}

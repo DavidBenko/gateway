@@ -194,6 +194,32 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		test.ID = 0
 	}
 
+	proxyEndpointChannelIndexMap := make(map[int64]int)
+	proxyEndpointChannel := ProxyEndpointChannel{AccountID: accountID, APIID: id}
+	api.ProxyEndpointChannels, err = proxyEndpointChannel.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching proxy endpoint channels", err)
+	}
+	for index, channel := range api.ProxyEndpointChannels {
+		proxyEndpointChannelIndexMap[channel.ID] = index + 1
+		channel.ExportProxyEndpointIndex = proxyEndpointsIndexMap[channel.ProxyEndpointID]
+		channel.ExportRemoteEndpointIndex = remoteEndpointsIndexMap[channel.RemoteEndpointID]
+		channel.APIID = 0
+		channel.ProxyEndpointID = 0
+		channel.ID = 0
+		channel.RemoteEndpointID = 0
+	}
+
+	for _, endpoint := range api.ProxyEndpoints {
+		for _, test := range endpoint.Tests {
+			test.ID = 0
+			if test.ChannelID != nil {
+				test.ExportChannelIndex = proxyEndpointChannelIndexMap[*test.ChannelID]
+				*test.ChannelID = 0
+			}
+		}
+	}
+
 	pad := ScratchPad{AccountID: accountID, APIID: id}
 	api.ScratchPads, err = pad.All(db)
 	if err != nil {
@@ -320,6 +346,7 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		sharedComponentsIDMap[index+1] = sh.ID
 	}
 
+	var proxyEndpointTests [][]*ProxyEndpointTest
 	proxyEndpointsIDMap := make(map[int]int64)
 	for index, endpoint := range a.ProxyEndpoints {
 		for _, c := range endpoint.Components {
@@ -354,6 +381,8 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		if endpoint.Type == "" {
 			endpoint.Type = ProxyEndpointTypeHTTP
 		}
+		proxyEndpointTests = append(proxyEndpointTests, endpoint.Tests)
+		endpoint.Tests = nil
 		if err := endpoint.Insert(tx); err != nil {
 			return aperrors.NewWrapped("Inserting proxy endpoint", err)
 		}
@@ -381,6 +410,39 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		err = test.Insert(tx)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting job test", err)
+		}
+	}
+
+	proxyEndpointChannelsIDMap := make(map[int]int64)
+	for index, channel := range a.ProxyEndpointChannels {
+		channel.AccountID = a.AccountID
+		channel.UserID = a.UserID
+		channel.APIID = a.ID
+		channel.ProxyEndpointID = proxyEndpointsIDMap[channel.ExportProxyEndpointIndex]
+		channel.RemoteEndpointID = remoteEndpointsIDMap[channel.ExportRemoteEndpointIndex]
+		channel.ExportProxyEndpointIndex = 0
+		channel.ExportRemoteEndpointIndex = 0
+		err = channel.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting proxy endpoint channel", err)
+		}
+		proxyEndpointChannelsIDMap[index+1] = channel.ID
+	}
+
+	for i, endpoint := range a.ProxyEndpoints {
+		if len(proxyEndpointTests[i]) == 0 {
+			continue
+		}
+		endpoint.Tests = proxyEndpointTests[i]
+		for _, test := range endpoint.Tests {
+			test.ID = 0
+			if test.ChannelID != nil {
+				*test.ChannelID = proxyEndpointChannelsIDMap[test.ExportChannelIndex]
+				test.ExportChannelIndex = 0
+			}
+		}
+		if err := endpoint.Update(tx); err != nil {
+			return aperrors.NewWrapped("Inserting proxy endpoint tests", err)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -16,11 +17,11 @@ import (
 	"gateway/queue/mangos"
 	apsql "gateway/sql"
 
-	"github.com/AnyPresence/surgemq/auth"
-	"github.com/AnyPresence/surgemq/log"
-	"github.com/AnyPresence/surgemq/message"
-	"github.com/AnyPresence/surgemq/service"
-	"github.com/AnyPresence/surgemq/sessions"
+	"github.com/nanoscaleio/surgemq/auth"
+	"github.com/nanoscaleio/surgemq/log"
+	"github.com/nanoscaleio/surgemq/message"
+	"github.com/nanoscaleio/surgemq/service"
+	"github.com/nanoscaleio/surgemq/sessions"
 )
 
 var once sync.Once
@@ -30,10 +31,13 @@ type MQTTPusher struct {
 	push chan<- []byte
 }
 
+type ExecuteMQTT func(context fmt.Stringer, logPrint logreport.Logf, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error
+
 type MQTT struct {
-	DB     *apsql.DB
-	Server *service.Server
-	Broker *mangos.Broker
+	DB          *apsql.DB
+	Server      *service.Server
+	Broker      *mangos.Broker
+	ExecuteMQTT ExecuteMQTT
 }
 
 type Context struct {
@@ -82,7 +86,7 @@ func (p *MQTTPusher) Push(channel *model.PushChannel, device *model.PushDevice, 
 	return nil
 }
 
-func SetupMQTT(db *apsql.DB, conf config.Push) {
+func SetupMQTT(db *apsql.DB, conf config.Push, execute ExecuteMQTT) {
 	if mqtt != nil {
 		panic("MQTT has already been configured!")
 	}
@@ -105,10 +109,12 @@ func SetupMQTT(db *apsql.DB, conf config.Push) {
 		}
 
 		mqtt = &MQTT{
-			DB:     db,
-			Server: server,
+			DB:          db,
+			Server:      server,
+			ExecuteMQTT: execute,
 		}
 
+		server.OnExecute = mqtt.Execute
 		auth.Register("gateway", mqtt)
 		sessions.Register("gateway", NewDBProvider)
 
@@ -245,6 +251,10 @@ func (m *MQTT) Authenticate(id string, cred interface{}) (fmt.Stringer, error) {
 	}
 
 	return context, nil
+}
+
+func (m *MQTT) Execute(context fmt.Stringer, msg *message.PublishMessage, remote net.Addr, onpub service.OnPublishFunc) error {
+	return m.ExecuteMQTT(context, logreport.Printf, msg, remote, onpub)
 }
 
 type dbSessionTopics struct {
