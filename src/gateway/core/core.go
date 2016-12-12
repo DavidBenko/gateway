@@ -9,6 +9,7 @@ import (
 
 	"gateway/config"
 	"gateway/core/conversion"
+	"gateway/core/encoding"
 	"gateway/core/ottocrypto"
 	"gateway/core/request"
 	"gateway/db/pools"
@@ -174,6 +175,7 @@ var shared = func() *otto.Otto {
 	}
 
 	ottocrypto.IncludeAes(vm)
+	encoding.IncludeEncoding(vm)
 
 	return vm
 }()
