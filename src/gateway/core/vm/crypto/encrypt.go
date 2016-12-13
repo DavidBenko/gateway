@@ -17,6 +17,10 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource corevm.KeyDataS
 	setDecrypt(vm, accountID, keySource)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
 		"AP.Crypto.encrypt = _encrypt; delete _encrypt;",
 		"AP.Crypto.decrypt = _decrypt; delete _decrypt;",
 	}

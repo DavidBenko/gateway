@@ -12,6 +12,7 @@ import (
 	"gateway/core/vm"
 	"gateway/core/vm/conversion"
 	"gateway/core/vm/crypto"
+	"gateway/core/vm/encoding"
 	"gateway/db/pools"
 	aperrors "gateway/errors"
 	"gateway/logreport"
@@ -229,6 +230,8 @@ var shared = func() *otto.Otto {
 	conversion.IncludeConversion(vm)
 	conversion.IncludePath(vm)
 	crypto.IncludeHashing(vm)
+	crypto.IncludeAes(vm)
+	encoding.IncludeEncoding(vm)
 
 	var files = []string{
 		"gateway.js",
@@ -237,9 +240,6 @@ var shared = func() *otto.Otto {
 		"call.js",
 		"http/request.js",
 		"http/response.js",
-		"conversion/json.js",
-		"conversion/xml.js",
-		"encoding.js",
 	}
 
 	for _, filename := range files {
@@ -253,8 +253,6 @@ var shared = func() *otto.Otto {
 			logreport.Fatal(err)
 		}
 	}
-
-	crypto.IncludeAes(vm)
 
 	return vm
 }()

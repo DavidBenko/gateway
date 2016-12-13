@@ -16,6 +16,21 @@ func IncludeHashing(vm *otto.Otto) {
 	setCompareHashAndPassword(vm)
 	setHash(vm)
 	setHashHmac(vm)
+
+	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
+		"AP.Crypto.hashPassword = _hashPassword; delete _hashPassword;",
+		"AP.Crypto.compareHashAndPassword = _compareHashAndPassword; delete _compareHashAndPassword;",
+		"AP.Crypto.hash = _hash; delete _hash;",
+		"AP.Crypto.hashHmac = _hashHmac; delete _hashHmac;",
+	}
+
+	for _, s := range scripts {
+		vm.Run(s)
+	}
 }
 
 func setHashPassword(vm *otto.Otto) {

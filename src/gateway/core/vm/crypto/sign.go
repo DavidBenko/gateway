@@ -17,6 +17,10 @@ func IncludeSigning(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSour
 	setVerify(vm, accountID, keySource)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
 		"AP.Crypto.sign = _sign; delete _sign;",
 		"AP.Crypto.verify = _verify; delete _verify;",
 	}
