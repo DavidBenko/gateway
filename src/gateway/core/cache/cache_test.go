@@ -4,8 +4,6 @@ import (
 	"gateway/core/cache"
 	"testing"
 
-	jc "github.com/juju/testing/checkers"
-
 	gc "gopkg.in/check.v1"
 )
 
@@ -16,8 +14,7 @@ type CacheSuite struct{}
 var _ = gc.Suite(&CacheSuite{})
 
 func (s *CacheSuite) TestLRUCacheIsCacher(c *gc.C) {
-	lru, err := cache.NewLRUCache(5)
-	c.Assert(err, jc.ErrorIsNil)
+	lru := cache.NewLRUCache(5)
 
 	if _, ok := interface{}(lru).(cache.Cacher); !ok {
 		c.Error("LRUCache does not implement Cacher interface")
@@ -26,32 +23,23 @@ func (s *CacheSuite) TestLRUCacheIsCacher(c *gc.C) {
 
 func (s *CacheSuite) TestNewLRUCache(c *gc.C) {
 	for i, t := range []struct {
-		should      string
-		size        int
-		expectError string
+		should string
+		size   int
 	}{{
 		should: "create a cache with a valid size",
 		size:   5,
 	}, {
-		should:      "return an error if cache is <= 0",
-		size:        0,
-		expectError: "size must be greater than 0",
+		should: "create a cache with size 0",
+		size:   0,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
-		cache, err := cache.NewLRUCache(t.size)
-		if t.expectError != "" {
-			c.Assert(err.Error(), gc.Equals, t.expectError)
-			continue
-		}
-
-		c.Assert(err, jc.ErrorIsNil)
+		cache := cache.NewLRUCache(t.size)
 		c.Assert(cache, gc.NotNil)
 	}
 }
 
 func (s *CacheSuite) TestLRUCacheContains(c *gc.C) {
-	cache, err := cache.NewLRUCache(5)
-	c.Assert(err, jc.ErrorIsNil)
+	cache := cache.NewLRUCache(5)
 
 	// Should not contains "foo"
 	ok := cache.Contains("foo")
@@ -67,8 +55,7 @@ func (s *CacheSuite) TestLRUCacheContains(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCacheAdd(c *gc.C) {
-	cache, err := cache.NewLRUCache(1)
-	c.Assert(err, jc.ErrorIsNil)
+	cache := cache.NewLRUCache(1)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -90,9 +77,16 @@ func (s *CacheSuite) TestLRUCacheAdd(c *gc.C) {
 	c.Assert(cache.Len(), gc.Equals, 1)
 }
 
+func (s *CacheSuite) TestLRUCacheUnlimitedSize(c *gc.C) {
+	cache := cache.NewLRUCache(0)
+	c.Assert(cache.Len(), gc.Equals, 0)
+
+	cache.Add("foo", "bar")
+	c.Assert(cache.Len(), gc.Equals, 1)
+}
+
 func (s *CacheSuite) TestLRUCacheGet(c *gc.C) {
-	cache, err := cache.NewLRUCache(1)
-	c.Assert(err, jc.ErrorIsNil)
+	cache := cache.NewLRUCache(1)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -108,8 +102,7 @@ func (s *CacheSuite) TestLRUCacheGet(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCachePurge(c *gc.C) {
-	cache, err := cache.NewLRUCache(5)
-	c.Assert(err, jc.ErrorIsNil)
+	cache := cache.NewLRUCache(5)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 

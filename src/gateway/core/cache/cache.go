@@ -1,9 +1,6 @@
 package cache
 
-import (
-	"container/list"
-	"errors"
-)
+import "container/list"
 
 // Cacher is an interface that adds expected methods for memory caching
 type Cacher interface {
@@ -26,18 +23,14 @@ type LRUCache struct {
 }
 
 // NewLRUCache returns a new LRU cache of the given size.
-func NewLRUCache(size int) (*LRUCache, error) {
-	if size <= 0 {
-		return nil, errors.New("size must be greater than 0")
-	}
-
+func NewLRUCache(size int) *LRUCache {
 	cache := &LRUCache{
 		size:      size,
 		evictList: list.New(),
 		items:     make(map[interface{}]*list.Element),
 	}
 
-	return cache, nil
+	return cache
 }
 
 // Contains checks if a given key exists in the cache.
@@ -59,7 +52,7 @@ func (c *LRUCache) Add(key, value interface{}) bool {
 	element := c.evictList.PushFront(e)
 	c.items[key] = element
 
-	if c.evictList.Len() > c.size {
+	if c.evictList.Len() > c.size && c.size != 0 {
 		c.removeOldest()
 		return true
 	}
