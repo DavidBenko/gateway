@@ -1,13 +1,10 @@
 package vm_test
 
 import (
-	"gateway/core/vm/conversion"
-	"gateway/core/vm/crypto"
-	"gateway/core/vm/encoding"
+	"gateway/core"
 	"testing"
 
 	jc "github.com/juju/testing/checkers"
-	"github.com/robertkrimen/otto"
 
 	gc "gopkg.in/check.v1"
 )
@@ -19,15 +16,9 @@ type VMSuite struct{}
 var _ = gc.Suite(&VMSuite{})
 
 func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
-	vm := otto.New()
+	k := &core.KeyStore{}
 
-	crypto.IncludeHashing(vm)
-	crypto.IncludeAes(vm)
-	crypto.IncludeSigning(vm, 0, nil)
-	crypto.IncludeEncryption(vm, 0, nil)
-	encoding.IncludeEncoding(vm)
-	conversion.IncludeConversion(vm)
-	conversion.IncludePath(vm)
+	vm := core.VMCopy(1, k)
 
 	for i, t := range []struct {
 		should      string
