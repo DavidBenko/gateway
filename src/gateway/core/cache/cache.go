@@ -66,6 +66,7 @@ func (c *LRUCache) Add(key, value interface{}) bool {
 	return false
 }
 
+// Get returns the value for the given key or nil if it's not found.
 func (c *LRUCache) Get(key interface{}) (interface{}, bool) {
 	if e, ok := c.items[key]; ok {
 		c.evictList.MoveToFront(e)
@@ -74,11 +75,17 @@ func (c *LRUCache) Get(key interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+// Purge removes all entries from the cache.
 func (c *LRUCache) Purge() {
-	for k, _ := range c.items {
+	for k := range c.items {
 		delete(c.items, k)
 	}
 	c.evictList.Init()
+}
+
+// Len returns the length of the cache.
+func (c *LRUCache) Len() int {
+	return c.evictList.Len()
 }
 
 func (c *LRUCache) removeOldest() {
@@ -92,8 +99,4 @@ func (c *LRUCache) removeElement(element *list.Element) {
 	c.evictList.Remove(element)
 	e := element.Value.(*entry)
 	delete(c.items, e.key)
-}
-
-func (c *LRUCache) Len() int {
-	return c.evictList.Len()
 }
