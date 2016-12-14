@@ -77,6 +77,20 @@ func (s *CacheSuite) TestLRUCacheAdd(c *gc.C) {
 	c.Assert(cache.Len(), gc.Equals, 1)
 }
 
+func (s *CacheSuite) TestLRUCacheRemove(c *gc.C) {
+	cache := cache.NewLRUCache(1)
+
+	c.Assert(cache.Len(), gc.Equals, 0)
+
+	cache.Add("foo", "bar")
+	c.Assert(cache.Len(), gc.Equals, 1)
+	c.Assert(cache.Contains("foo"), gc.Equals, true)
+
+	cache.Remove("foo")
+	c.Assert(cache.Len(), gc.Equals, 0)
+	c.Assert(cache.Contains("foo"), gc.Equals, false)
+}
+
 func (s *CacheSuite) TestLRUCacheUnlimitedSize(c *gc.C) {
 	cache := cache.NewLRUCache(0)
 	c.Assert(cache.Len(), gc.Equals, 0)

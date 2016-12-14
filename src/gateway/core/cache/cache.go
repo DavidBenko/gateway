@@ -7,6 +7,7 @@ type Cacher interface {
 	Purge()
 	Add(key, value interface{}) bool
 	Get(key interface{}) (interface{}, bool)
+	Remove(key interface{}) bool
 	Contains(key interface{}) bool
 }
 
@@ -66,6 +67,16 @@ func (c *LRUCache) Get(key interface{}) (interface{}, bool) {
 		return e.Value.(*entry).value, true
 	}
 	return nil, false
+}
+
+// Remove removes the value at the specified key. Returns true if they key was contained
+// in the cache.
+func (c *LRUCache) Remove(key interface{}) bool {
+	if e, ok := c.items[key]; ok {
+		c.removeElement(e)
+		return true
+	}
+	return false
 }
 
 // Purge removes all entries from the cache.
