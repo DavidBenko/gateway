@@ -14,7 +14,7 @@ type CacheSuite struct{}
 var _ = gc.Suite(&CacheSuite{})
 
 func (s *CacheSuite) TestLRUCacheIsCacher(c *gc.C) {
-	lru := cache.NewLRUCache(5)
+	lru := cache.NewLRUCache(5, nil)
 
 	if _, ok := interface{}(lru).(cache.Cacher); !ok {
 		c.Error("LRUCache does not implement Cacher interface")
@@ -33,13 +33,13 @@ func (s *CacheSuite) TestNewLRUCache(c *gc.C) {
 		size:   0,
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
-		cache := cache.NewLRUCache(t.size)
+		cache := cache.NewLRUCache(t.size, nil)
 		c.Assert(cache, gc.NotNil)
 	}
 }
 
 func (s *CacheSuite) TestLRUCacheContains(c *gc.C) {
-	cache := cache.NewLRUCache(5)
+	cache := cache.NewLRUCache(5, nil)
 
 	// Should not contains "foo"
 	ok := cache.Contains("foo")
@@ -55,7 +55,7 @@ func (s *CacheSuite) TestLRUCacheContains(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCacheAdd(c *gc.C) {
-	cache := cache.NewLRUCache(1)
+	cache := cache.NewLRUCache(1, nil)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -78,7 +78,7 @@ func (s *CacheSuite) TestLRUCacheAdd(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCacheRemove(c *gc.C) {
-	cache := cache.NewLRUCache(1)
+	cache := cache.NewLRUCache(1, nil)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -92,7 +92,7 @@ func (s *CacheSuite) TestLRUCacheRemove(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCacheUnlimitedSize(c *gc.C) {
-	cache := cache.NewLRUCache(0)
+	cache := cache.NewLRUCache(0, nil)
 	c.Assert(cache.Len(), gc.Equals, 0)
 
 	cache.Add("foo", "bar")
@@ -100,7 +100,7 @@ func (s *CacheSuite) TestLRUCacheUnlimitedSize(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCacheGet(c *gc.C) {
-	cache := cache.NewLRUCache(1)
+	cache := cache.NewLRUCache(1, nil)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -116,7 +116,7 @@ func (s *CacheSuite) TestLRUCacheGet(c *gc.C) {
 }
 
 func (s *CacheSuite) TestLRUCachePurge(c *gc.C) {
-	cache := cache.NewLRUCache(5)
+	cache := cache.NewLRUCache(5, nil)
 
 	c.Assert(cache.Len(), gc.Equals, 0)
 
@@ -128,4 +128,26 @@ func (s *CacheSuite) TestLRUCachePurge(c *gc.C) {
 	c.Assert(cache.Len(), gc.Equals, 5)
 	cache.Purge()
 	c.Assert(cache.Len(), gc.Equals, 0)
+}
+
+func (s *CacheSuite) TestLRUCacheEvictFn(c *gc.C) {
+	called := 0
+	fn := func(key, value interface{}) {
+		called++
+	}
+
+	lru := cache.NewLRUCache(5, fn)
+	keys := []string{"a", "b", "c", "d", "e"}
+	for v := range keys {
+		lru.Add(v, &struct{}{})
+	}
+
+	c.Assert(lru.Len(), gc.Equals, 5)
+	lru.Remove("a")
+	c.Assert(lru.Len(), gc.Equals, 5)
+	lru.Purge()
+	c.Assert(lru.Len(), gc.Equals, 0)
+
+	// Evict Fn should be called once for each item removed from the cache
+	c.Assert(called, gc.Equals, 5)
 }

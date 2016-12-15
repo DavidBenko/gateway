@@ -21,14 +21,19 @@ type LRUCache struct {
 	size      int
 	items     map[interface{}]*list.Element
 	evictList *list.List
+	evictFn   EvictCallback
 }
 
+// EvictCallback is executed when a cache entry is evicted.
+type EvictCallback func(key interface{}, value interface{})
+
 // NewLRUCache returns a new LRU cache of the given size.
-func NewLRUCache(size int) *LRUCache {
+func NewLRUCache(size int, fn EvictCallback) *LRUCache {
 	cache := &LRUCache{
 		size:      size,
 		evictList: list.New(),
 		items:     make(map[interface{}]*list.Element),
+		evictFn:   fn,
 	}
 
 	return cache
@@ -81,7 +86,10 @@ func (c *LRUCache) Remove(key interface{}) bool {
 
 // Purge removes all entries from the cache.
 func (c *LRUCache) Purge() {
-	for k := range c.items {
+	for k, v := range c.items {
+		if c.evictFn != nil {
+			c.evictFn(k, v.Value.(*entry).value)
+		}
 		delete(c.items, k)
 	}
 	c.evictList.Init()
@@ -103,4 +111,7 @@ func (c *LRUCache) removeElement(element *list.Element) {
 	c.evictList.Remove(element)
 	e := element.Value.(*entry)
 	delete(c.items, e.key)
+	if c.evictFn != nil {
+		c.evictFn(e.key, e.value)
+	}
 }
