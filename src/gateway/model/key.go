@@ -111,7 +111,7 @@ func afterKeyInsert(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) erro
 }
 
 func afterKeyDelete(key *Key, accountID, userID, apiID int64, tx *apsql.Tx) error {
-	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Delete, key.ID, key.Name)
+	return tx.Notify("keys", accountID, userID, apiID, 0, key.ID, apsql.Delete, key.ID)
 }
 
 func (k *Key) GetParsedKey() (interface{}, error) {
