@@ -9,6 +9,7 @@ type Cacher interface {
 	Get(key interface{}) (interface{}, bool)
 	Remove(key interface{}) bool
 	Contains(key interface{}) bool
+	Len() int
 }
 
 type entry struct {
