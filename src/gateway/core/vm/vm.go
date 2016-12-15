@@ -25,11 +25,6 @@ type DataSource interface {
 	Get(interface{}) (interface{}, bool)
 }
 
-type KeyDataSourceCriteria struct {
-	AccountID int64
-	Name      string
-}
-
 type VMConfig interface {
 	GetEnableOSEnv() bool
 	GetCodeTimeout() int64

@@ -661,6 +661,17 @@ func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*Rem
 	return remoteEndpoints, err
 }
 
+func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, codename string, accountID int64) (*RemoteEndpoint, error) {
+	endpoints, err := _remoteEndpoints(db, codename, 0, 0, accountID)
+	if err != nil {
+		return nil, err
+	}
+	if len(endpoints) == 0 {
+		return nil, fmt.Errorf("No endpoint with codename %v found", codename)
+	}
+	return endpoints[0], nil
+}
+
 // FindRemoteEndpointForAPIIDAndAccountID returns the remoteEndpoint with the id, api id, and account_id specified.
 func FindRemoteEndpointForAPIIDAndAccountID(db *apsql.DB, id, apiID, accountID int64) (*RemoteEndpoint, error) {
 	endpoints, err := _remoteEndpoints(db, "", id, apiID, accountID)

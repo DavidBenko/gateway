@@ -17,8 +17,8 @@ type KeyStore struct {
 	sync.RWMutex
 }
 
-type KeyStoreCriteria struct {
-	AccountID int
+type KeyDataSourceCriteria struct {
+	AccountID int64
 	Name      string
 }
 

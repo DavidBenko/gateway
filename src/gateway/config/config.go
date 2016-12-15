@@ -112,7 +112,8 @@ type ProxyServer struct {
 
 	HealthCheckPath string `flag:"proxy-health-check-path" default:"/__gw-health-check"`
 
-	KeyCacheSize int64 `flag:"proxy-key-cache-size" default:"0"`
+	KeyCacheSize            int64 `flag:"proxy-key-cache-size" default:"0"`
+	RemoteEndpointCacheSize int64 `flag:"proxy-remote-endpoint-cache-size" default:"0"`
 }
 
 // BackgroundJob specifies configuration options that apply to jobs.

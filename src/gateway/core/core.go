@@ -49,18 +49,19 @@ const (
 )
 
 type Core struct {
-	DevMode    bool
-	HTTPClient *http.Client
-	DBPools    *pools.Pools
-	OwnDb      *sql.DB // in-application datastore
-	SoapConf   config.Soap
-	DockerConf config.Docker
-	Store      store.Store
-	Push       *push.PushPool
-	Smtp       *smtp.SmtpPool
-	VMKeyStore *vm.KeyStore
-	StatsDb    *statssql.SQL
-	Conf       config.Configuration
+	DevMode               bool
+	HTTPClient            *http.Client
+	DBPools               *pools.Pools
+	OwnDb                 *sql.DB // in-application datastore
+	SoapConf              config.Soap
+	DockerConf            config.Docker
+	Store                 store.Store
+	Push                  *push.PushPool
+	Smtp                  *smtp.SmtpPool
+	VMKeyStore            vm.DataSource
+	VMRemoteEndpointStore vm.DataSource
+	StatsDb               *statssql.SQL
+	Conf                  config.Configuration
 }
 
 func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *Core {
@@ -68,6 +69,9 @@ func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *C
 
 	keyStore := vm.NewKeyStore(ownDb, int(conf.Proxy.KeyCacheSize))
 	ownDb.RegisterListener(keyStore)
+
+	endpointStore := vm.NewRemoteEndpointStore(ownDb, int(conf.Proxy.RemoteEndpointCacheSize))
+	ownDb.RegisterListener(endpointStore)
 
 	pools := pools.MakePools()
 	ownDb.RegisterListener(pools)
@@ -83,18 +87,19 @@ func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *C
 	}
 
 	return &Core{
-		DevMode:    conf.DevMode(),
-		HTTPClient: &http.Client{Timeout: httpTimeout},
-		DBPools:    pools,
-		OwnDb:      ownDb,
-		SoapConf:   conf.Soap,
-		DockerConf: conf.Docker,
-		Store:      objectStore,
-		Push:       push.NewPushPool(conf.Push),
-		Smtp:       smtp.NewSmtpPool(),
-		VMKeyStore: keyStore,
-		StatsDb:    statsDb,
-		Conf:       conf,
+		DevMode:               conf.DevMode(),
+		HTTPClient:            &http.Client{Timeout: httpTimeout},
+		DBPools:               pools,
+		OwnDb:                 ownDb,
+		SoapConf:              conf.Soap,
+		DockerConf:            conf.Docker,
+		Store:                 objectStore,
+		Push:                  push.NewPushPool(conf.Push),
+		Smtp:                  smtp.NewSmtpPool(),
+		VMKeyStore:            keyStore,
+		VMRemoteEndpointStore: endpointStore,
+		StatsDb:               statsDb,
+		Conf:                  conf,
 	}
 }
 
