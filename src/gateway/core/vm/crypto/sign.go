@@ -12,7 +12,7 @@ import (
 
 // IncludeSigning create the AP.Crypto.sign and AP.Crypto.verify helper functions in the
 // supplied Otto VM.
-func IncludeSigning(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func IncludeSigning(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	setSign(vm, accountID, keySource)
 	setVerify(vm, accountID, keySource)
 
@@ -30,7 +30,7 @@ func IncludeSigning(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSour
 	}
 }
 
-func setSign(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func setSign(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {
@@ -85,7 +85,7 @@ func setSign(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
 	})
 }
 
-func setVerify(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func setVerify(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {

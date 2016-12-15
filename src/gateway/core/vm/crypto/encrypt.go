@@ -12,7 +12,7 @@ import (
 
 // IncludeEncryption adds the AP.Crypto.encrypt and AP.Crypto.decrypt functions in
 // the supplied Otto VM.
-func IncludeEncryption(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func IncludeEncryption(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	setEncrypt(vm, accountID, keySource)
 	setDecrypt(vm, accountID, keySource)
 
@@ -30,7 +30,7 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource corevm.KeyDataS
 	}
 }
 
-func setEncrypt(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func setEncrypt(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {
@@ -66,7 +66,7 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) 
 	})
 }
 
-func setDecrypt(vm *otto.Otto, accountID int64, keySource corevm.KeyDataSource) {
+func setDecrypt(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
 		ds, err := getData(call)
 		if err != nil {

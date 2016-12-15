@@ -20,14 +20,18 @@ var (
 
 // getKeyFromSource returns the crypto key given a key option in the options map and an accountID from the supplied
 // KeyDataSource.
-func getKeyFromSource(options map[string]interface{}, keySource corevm.KeyDataSource, accountID int64) (interface{}, error) {
+func getKeyFromSource(options map[string]interface{}, keySource corevm.DataSource, accountID int64) (interface{}, error) {
 	var key interface{}
 	k, err := getOptionString(options, "key", false)
 	if err != nil {
 		return key, err
 	}
 
-	if val, found := keySource.Get(accountID, k); found {
+	criteria := &corevm.KeyDataSourceCriteria{
+		AccountID: accountID,
+		Name:      k,
+	}
+	if val, found := keySource.Get(criteria); found {
 		return val, nil
 	}
 	return key, fmt.Errorf("key not found with name %s", k)
@@ -64,7 +68,7 @@ func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
 
 }
 
-func getOptions(opts interface{}, keySource corevm.KeyDataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
+func getOptions(opts interface{}, keySource corevm.DataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {
 	options, ok := opts.(map[string]interface{})
 	if !ok {
 		err = errors.New("options should be an object")

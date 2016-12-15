@@ -40,7 +40,7 @@ func NewVM(
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
 	timeout int64,
-	keyStore *core.KeyStore,
+	keyStore *vm.KeyStore,
 ) (*ProxyVM, error) {
 	vm := &ProxyVM{
 		w:  w,

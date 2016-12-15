@@ -243,7 +243,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.KeyStore)
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.VMKeyStore)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return

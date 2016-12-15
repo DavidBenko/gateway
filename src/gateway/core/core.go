@@ -58,7 +58,7 @@ type Core struct {
 	Store      store.Store
 	Push       *push.PushPool
 	Smtp       *smtp.SmtpPool
-	KeyStore   *KeyStore
+	VMKeyStore *vm.KeyStore
 	StatsDb    *statssql.SQL
 	Conf       config.Configuration
 }
@@ -66,7 +66,7 @@ type Core struct {
 func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *Core {
 	httpTimeout := time.Duration(conf.Proxy.HTTPTimeout) * time.Second
 
-	keyStore := NewKeyStore(ownDb)
+	keyStore := vm.NewKeyStore(ownDb, int(conf.Proxy.KeyCacheSize))
 	ownDb.RegisterListener(keyStore)
 
 	pools := pools.MakePools()
@@ -92,7 +92,7 @@ func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *C
 		Store:      objectStore,
 		Push:       push.NewPushPool(conf.Push),
 		Smtp:       smtp.NewSmtpPool(),
-		KeyStore:   keyStore,
+		VMKeyStore: keyStore,
 		StatsDb:    statsDb,
 		Conf:       conf,
 	}
@@ -216,11 +216,10 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy(accountID int64, keySource vm.KeyDataSource) *otto.Otto {
+func VMCopy(accountID int64, keySource vm.DataSource) *otto.Otto {
 	vm := shared.Copy()
 	crypto.IncludeSigning(vm, accountID, keySource)
 	crypto.IncludeEncryption(vm, accountID, keySource)
-	//advanced.IncludePerform(vm)
 	return vm
 }
 

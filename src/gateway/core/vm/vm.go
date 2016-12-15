@@ -19,16 +19,15 @@ import (
 
 var errCodeTimeout = errors.New("JavaScript took too long to execute")
 
-// KeyDataSource is a source/cache for crypto keys, specifically for the VM to use.
-type KeyDataSource interface {
-	// GetKey should find a key by the AccountID and Name.
-	Get(int64, string) (interface{}, bool)
+// DataSource is a source/cache specifically for the VM to use.
+type DataSource interface {
+	// Get should find a cache value according to some criteria.
+	Get(interface{}) (interface{}, bool)
 }
 
-// RemoteEndpointSource is a source/cache for remote endpoints, specifically for the VM to use.
-type RemoteEndpointSource interface {
-	// GetEndpoint should find a remote endpoint by the AccountID and the Name.
-	Get(int64, string) (*model.RemoteEndpoint, bool)
+type KeyDataSourceCriteria struct {
+	AccountID int64
+	Name      string
 }
 
 type VMConfig interface {
