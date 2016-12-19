@@ -51,6 +51,7 @@ var RESOURCE_MAP = map[string]string{
 	"job_tests":                 "job-test",
 	"proxy_endpoint_channels":   "proxy-endpoint-channel",
 	"custom_functions":          "custom-function",
+	"custom_function_files":     "custom-function-file",
 }
 
 var ACTION_MAP = [...]string{
