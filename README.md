@@ -1,15 +1,11 @@
-# Gateway
+# Nanoscale.io Gateway Server
 
-Welcome to Gateway.
+This is the source code for the nanoscale.io gateway server. It is the underlying technology behind the hosted nanoscale.io service. We recommend you sign up and use the free hosted version at http://www.nanoscale.io (and also check out the docs at http://devhub.nanoscale.io), to understand the context of how the solution is meant to be used.
 
-First, make sure you have the [DEPS](doc/DEPS.md).
-
-To build and test Gateway, read [BUILD.md](doc/BUILD.md).
+You can use this open source version of the nanoscale.io gateway server to run microservices on your own infrastructure.
 
 Before committing new code, be sure to run `scripts/make-hooks` to add gateway's
 git hooks, to ensure your commits pass `go fmt` checks, etc.
-
-Then, take a look over the [examples](#examples) and [Admin API doc](doc/Admin API.md).
 
 ## Static Assets
 
