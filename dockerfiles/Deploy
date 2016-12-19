@@ -1,6 +1,6 @@
 # nanoscale/gateway:deploy
-# version 5.2.1
-FROM nanoscale/gateway:run-5.2.1
+# version 5.3.0
+FROM nanoscale/gateway:run-5.3.0
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 ADD build/gateway-linux-amd64 /gateway/gateway
@@ -12,12 +12,13 @@ ENV SERVER false
 # DATABASE CONFIG
 ENV DB_MIGRATE true
 ENV DB_DRIVER sqlite3
-ENV DB_MAX_CONN 1
+ENV DB_MAX_CONN 5
 ENV DB_CONN "gateway.db"
 
 # ADMIN CONFIG
 ENV ADMIN_SESSION_AUTH_KEY please-change-me
 ENV ADMIN_PATH /admin/
+ENV ADMIN_UI_PATH_PREFIX /admin/
 ENV ADMIN_HOST 0.0.0.0
 ENV ADMIN_ENABLE_REGISTRATION true
 ENV ADMIN_SHOW_VERSION true
@@ -29,6 +30,8 @@ ENV ADMIN_CORS_ENABLED true
 ENV ADMIN_CORS_ORIGIN "*"
 ENV ADMIN_BASIC_AUTH_USER "admin"
 ENV ADMIN_BASIC_AUTH_PASSWORD "admin"
+ENV WS_HEARTBEAT_INTERVAL 60
+ENV WS_WRITE_DEADLINE 10
 
 # PROXY CONFIG
 ENV PROXY_HOST 0.0.0.0
@@ -43,7 +46,7 @@ ENV HEALTH_CHECK_PATH "/__gw-health-check"
 # LOCAL STORE CONFIG
 ENV STORE_TYPE boltdb
 ENV STORE_MIGRATE true
-ENV STORE_MAX_CONN 1
+ENV STORE_MAX_CONN 5
 ENV STORE_CONN "store.db"
 
 # LOGGING CONFIG
@@ -111,6 +114,13 @@ ENV JOBS_ENABLE_OS_ENV false
 ENV JOBS_CODE_TIMEOUT 5
 ENV JOBS_NUM_ERR_LINES 2
 
+# STATS CONFIG
+ENV STATS_COLLECT true
+ENV STATS_MIGRATE true
+ENV STATS_DRIVER "sqlite3"
+ENV STATS_CONN_STRING "gateway-stats.db"
+ENV STATS_MAX_CONNECTIONS 5
+
 # Database format: "dbname=my_db user=user sslmode=disable host=my_host password=my_password"
 ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STORE_MIGRATE -proxy-cache-apis=$CACHE_APIS \
   -proxy-host=$PROXY_HOST  -proxy-domain=$PROXY_DOMAIN -proxy-enable-os-env=$PROXY_ENABLE_OS_ENV \
@@ -129,4 +139,5 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -admin-api-host=$ADMIN_API_HOST -admin-cors-enabled=$ADMIN_CORS_ENABLED -admin-cors-origin="$ADMIN_CORS_ORIGIN" -admin-username="$ADMIN_BASIC_AUTH_USER" -admin-password="$ADMIN_BASIC_AUTH_PASSWORD" \
   -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
   -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI \
-  -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED -remote-endpoint-scrub-data=$REMOTE_ENDPOINT_SCRUB_DATA
+  -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED -remote-endpoint-scrub-data=$REMOTE_ENDPOINT_SCRUB_DATA \
+  -ws-heartbeat-interval=$WS_HEARTBEAT_INTERVAL -ws-write-deadline=$WS_WRITE_DEADLINE -admin-ui-path-prefix=$ADMIN_UI_PATH_PREFIX -stats-collect=$STATS_COLLECT -stats-migrate=$STATS_MIGRATE -stats-driver="$STATS_DRIVER" -stats-conn-string="$STATS_CONN_STRING" -stats-max-connections=$STATS_MAX_CONNECTIONS

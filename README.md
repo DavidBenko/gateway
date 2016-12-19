@@ -44,7 +44,7 @@ variables, command line flags, or all three.
 The command line flags take precedence, then the environment variables, then
 finally any values set in the configuration file.
 
-All options can be found in `config/flag.go`. Environment variables take the
+All options can be found in `config/config.go`. Environment variables take the
 same format, but upcased and prefixed with `APGATEWAY`. For instance, the
 `-proxy-port` flag can be specified with the `APGATEWAY_PROXY_PORT` environment
 variable.
@@ -63,7 +63,7 @@ You can run the integration test suite via:
 
     make test_all
 
-This will spin up Docker images to test some of the remote endpoint types. It will also run against a local Postgres instance. In order for this test suite to pass please make sure you have Docker installed and you have access to the anypresence/justapis-ldap repo on the Docker Hub.
+This will spin up Docker images to test some of the remote endpoint types. It will also run against a local Postgres instance. In order for this test suite to pass please make sure you have Docker installed and you have access to the nanoscale/gateway-ldap repo on the Docker Hub.
 
 Also, make sure that the CA cert file located at `test/ldap/security/cacert.pem` is added to your Keychain and trusted.
 
@@ -76,21 +76,16 @@ resulting binaries in the `build` directory.
 
 ### Building for Linux and Windows with Docker
 
-If you have Docker installed locally, you can build the CrossCompilation Dockerfile and then compile in there. You can build the Docker image with:
+If you have Docker installed locally, you can build for the target platform using the Makefile. To build for 64bit Linux, do the following:
 
-    docker build --no-cache -t anypresence/gateway:cross-compilation-5.0.0 -f dockerfiles/CrossCompilation .
+    make docker_build_linux_amd64_full
 
-If you are a collaborator on the Docker Hub repository for anypresence/gateway, you can alternatively just pull the image from there:
+If you just want to build the binary without rebuilding the UI assets, the following should suffice:
 
-    docker pull anypresence/gateway:cross-compilation-5.0.0
+    make docker_build_linux_amd64
 
-Then, run the following to compile the binary with the dev public key:
+You can build binaries for all target platforms with:
 
-    make package
-    docker run --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-0.0.1
-
-Use the following for the production public:
-
-    docker run -e "LICENSE_PUBLIC_KEY=/usr/src/justapis/public_keys/production" --rm -v "$PWD":/usr/src/justapis -w /usr/src/justapis -it anypresence/gateway:cross-compilation-5.0.0
+    make docker_build_all
 
 Your new binary will be at ./build/gateway-{GOOS}-{GOARCH}
