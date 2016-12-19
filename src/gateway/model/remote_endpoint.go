@@ -22,7 +22,6 @@ import (
 
 	"github.com/jmoiron/sqlx/types"
 	"github.com/vincent-petithory/dataurl"
-	"github.com/y0ssar1an/q"
 )
 
 const (
@@ -688,7 +687,6 @@ func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, co
 	if err != nil {
 		return nil, err
 	}
-	q.Q(endpoints)
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("No endpoint with codename %v found", codename)
 	}
