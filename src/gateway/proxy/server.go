@@ -14,7 +14,6 @@ import (
 	"gateway/admin"
 	"gateway/config"
 	"gateway/core"
-	corevm "gateway/core/vm"
 	aphttp "gateway/http"
 	"gateway/logreport"
 	"gateway/model"
@@ -244,7 +243,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 		}
 	}
 
-	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.VMKeyStore.(*corevm.KeyStore))
+	vm, err = apvm.NewVM(logPrint, logPrefix, w, r, s.proxyConf, s.OwnDb, proxyEndpoint, libraries, codeTimeout, s.Core.VMKeyStore, s.Core.VMRemoteEndpointStore, s.Core.PrepareRequest)
 	if err != nil {
 		httpErr = s.httpError(err)
 		return

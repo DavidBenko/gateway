@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	corevm "gateway/core/vm"
-	"gateway/logreport"
 
 	"github.com/robertkrimen/otto"
 )
@@ -50,22 +49,6 @@ func getOptionString(options map[string]interface{}, key string, optional bool) 
 		return "", nil
 	}
 	return "", fmt.Errorf("option not found with name %s", key)
-}
-
-func toOttoObjectValue(vm *otto.Otto, s string) otto.Value {
-	obj, err := vm.Object(fmt.Sprintf("(%s)", string(s)))
-
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	result, err := vm.ToValue(obj)
-	if err != nil {
-		logreport.Print(err)
-		return undefined
-	}
-	return result
-
 }
 
 func getOptions(opts interface{}, keySource corevm.DataSource, accountID int64) (key interface{}, algorithm string, tag string, err error) {

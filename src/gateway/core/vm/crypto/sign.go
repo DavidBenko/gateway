@@ -73,12 +73,12 @@ func setSign(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 			r := results.(*crypto.RsaSignature)
 			sr, _ := json.Marshal(r)
 
-			return toOttoObjectValue(vm, string(sr))
+			return corevm.ToOttoObjectValue(vm, string(sr))
 		case *crypto.EcdsaSignature:
 			r := results.(*crypto.EcdsaSignature)
 			sr, _ := json.Marshal(r)
 
-			return toOttoObjectValue(vm, string(sr))
+			return corevm.ToOttoObjectValue(vm, string(sr))
 		default:
 			return undefined
 		}

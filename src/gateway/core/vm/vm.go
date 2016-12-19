@@ -25,6 +25,20 @@ type DataSource interface {
 	Get(interface{}) (interface{}, bool)
 }
 
+type VMError struct {
+	Error string `json:"error"`
+}
+
+func OttoErrorObject(vm *otto.Otto, message string) otto.Value {
+	vmerr := &VMError{Error: message}
+	result, err := json.Marshal(vmerr)
+	if err != nil {
+		logreport.Println(err)
+		return otto.UndefinedValue()
+	}
+	return ToOttoObjectValue(vm, string(result))
+}
+
 type VMConfig interface {
 	GetEnableOSEnv() bool
 	GetCodeTimeout() int64
@@ -230,4 +244,19 @@ func GetArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	}
 
 	return arg.Export()
+}
+
+func ToOttoObjectValue(vm *otto.Otto, s string) otto.Value {
+	obj, err := vm.Object(fmt.Sprintf("(%s)", s))
+
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	result, err := vm.ToValue(obj)
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	return result
 }

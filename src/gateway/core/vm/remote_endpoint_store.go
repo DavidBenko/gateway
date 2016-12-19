@@ -2,9 +2,7 @@ package vm
 
 import (
 	"fmt"
-	"gateway/config"
 	"gateway/core/cache"
-	"gateway/logreport"
 	"gateway/model"
 	apsql "gateway/sql"
 	"sync"
@@ -40,17 +38,16 @@ func (r *RemoteEndpointStore) Get(criteria interface{}) (interface{}, bool) {
 	c := criteria.(*RemoteEndpointStoreCriteria)
 	r.RLock()
 
-	if id, ok := r.codenameIDMap[cacheKey(c.AccountID, c.Codename)]; ok {
+	if id, hasKey := r.codenameIDMap[cacheKey(c.AccountID, c.Codename)]; hasKey {
 		if value, ok := r.cache.Get(id); ok {
 			r.RUnlock()
-			return value, ok
+			return value, true
 		}
 	}
 	r.RUnlock()
 
-	endpoint, err := model.FindRemoteEndpointForAccountIDAndCodename(r.db, c.Codename, c.AccountID)
+	endpoint, err := model.FindRemoteEndpointForAccountIDAndCodename(r.db, c.AccountID, c.Codename)
 	if err != nil {
-		logreport.Printf("%s Error getting remote endpoint %s: %s\n", config.Admin, c.Codename, err)
 		return nil, false
 	}
 
@@ -79,6 +76,8 @@ func (r *RemoteEndpointStore) Notify(n *apsql.Notification) {
 	}
 
 	switch n.Event {
+	case apsql.Update:
+		fallthrough
 	case apsql.Delete:
 		r.Lock()
 		defer r.Unlock()

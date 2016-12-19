@@ -661,8 +661,29 @@ func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*Rem
 	return remoteEndpoints, err
 }
 
-func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, codename string, accountID int64) (*RemoteEndpoint, error) {
-	endpoints, err := _remoteEndpoints(db, codename, 0, 0, accountID)
+func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, codename string) (*RemoteEndpoint, error) {
+	query := `
+	SELECT apis.account_id as account_id,
+		remote_endpoints.api_id as api_id,
+		remote_endpoints.id as id,
+		remote_endpoints.name as name,
+		remote_endpoints.codename as codename,
+		remote_endpoints.description as description,
+		remote_endpoints.type as type,
+		remote_endpoints.data as data,
+		remote_endpoints.status as status,
+		remote_endpoints.status_message as status_message,
+		soap_remote_endpoints.id as soap_id,
+		soap_remote_endpoints.wsdl as wsdl
+	FROM remote_endpoints
+	JOIN apis ON remote_endpoints.api_id = apis.id
+	JOIN accounts ON apis.account_id = accounts.id
+	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
+	WHERE accounts.id = ? AND remote_endpoints.codename = ?
+	ORDER BY remote_endpoints.name ASC, remote_endpoints.id ASC;
+	`
+
+	endpoints, err := mapRemoteEndpoints(db, query, accountID, codename)
 	if err != nil {
 		return nil, err
 	}
