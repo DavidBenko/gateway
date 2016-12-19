@@ -22,6 +22,7 @@ import (
 
 	"github.com/jmoiron/sqlx/types"
 	"github.com/vincent-petithory/dataurl"
+	"github.com/y0ssar1an/q"
 )
 
 const (
@@ -679,7 +680,7 @@ func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, co
 	JOIN apis ON remote_endpoints.api_id = apis.id
 	JOIN accounts ON apis.account_id = accounts.id
 	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
-	WHERE accounts.id = ? AND remote_endpoints.codename = ?
+	WHERE account_id = ? AND remote_endpoints.codename = ?
 	ORDER BY remote_endpoints.name ASC, remote_endpoints.id ASC;
 	`
 
@@ -687,6 +688,7 @@ func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, co
 	if err != nil {
 		return nil, err
 	}
+	q.Q(endpoints)
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("No endpoint with codename %v found", codename)
 	}
