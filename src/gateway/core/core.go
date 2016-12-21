@@ -233,12 +233,6 @@ func VMCopy(accountID int64, keySource vm.DataSource, endpointSource vm.DataSour
 var shared = func() *otto.Otto {
 	vm := otto.New()
 
-	conversion.IncludeConversion(vm)
-	conversion.IncludePath(vm)
-	crypto.IncludeHashing(vm)
-	crypto.IncludeAes(vm)
-	encoding.IncludeEncoding(vm)
-
 	var files = []string{
 		"gateway.js",
 		"sessions.js",
@@ -259,6 +253,12 @@ var shared = func() *otto.Otto {
 			logreport.Fatal(err)
 		}
 	}
+
+	conversion.IncludeConversion(vm)
+	conversion.IncludePath(vm)
+	crypto.IncludeHashing(vm)
+	crypto.IncludeAes(vm)
+	encoding.IncludeEncoding(vm)
 
 	return vm
 }()
