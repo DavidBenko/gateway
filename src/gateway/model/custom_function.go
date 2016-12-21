@@ -12,6 +12,7 @@ type CustomFunction struct {
 
 	ID          int64  `json:"id,omitempty" path:"id"`
 	Name        string `json:"name"`
+	Language    string `json:"language"`
 	Description string `json:"description"`
 	Active      bool   `json:"active"`
 }
