@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	ProxyEndpointComponentTypeSingle = "single"
-	ProxyEndpointComponentTypeMulti  = "multi"
-	ProxyEndpointComponentTypeJS     = "js"
+	ProxyEndpointComponentTypeSingle   = "single"
+	ProxyEndpointComponentTypeMulti    = "multi"
+	ProxyEndpointComponentTypeJS       = "js"
+	ProxyEndpointComponentTypeAdvanced = "advanced"
 
 	// TypeDiscStandard indicates an ordinary ProxyEndpointComponent.
 	TypeDiscStandard = "standard"
