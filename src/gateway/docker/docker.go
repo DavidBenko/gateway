@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"gateway/config"
 	"gateway/logreport"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"strings"
 	"sync"
+
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 var once sync.Once
@@ -82,6 +83,10 @@ func DockerClientInfo() (string, error) {
 
 func Available() bool {
 	return client != nil
+}
+
+func BuildImage(options dockerclient.BuildImageOptions) error {
+	return client.BuildImage(options)
 }
 
 // Pull pulls the image from the repository

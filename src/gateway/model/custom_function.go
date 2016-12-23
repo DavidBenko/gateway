@@ -5,6 +5,13 @@ import (
 	apsql "gateway/sql"
 )
 
+const (
+	CustomFunctionLanguageJava   = "java"
+	CustomFunctionLanguageNode   = "node"
+	CustomFunctionLanguageCSharp = "c#"
+	CustomFunctionLanguagePython = "python"
+)
+
 type CustomFunction struct {
 	AccountID int64 `json:"-"`
 	UserID    int64 `json:"-"`
@@ -21,6 +28,14 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.Name == "" {
 		errors.Add("name", "must have a name")
+	}
+	switch c.Language {
+	case CustomFunctionLanguageJava:
+	case CustomFunctionLanguageNode:
+	case CustomFunctionLanguageCSharp:
+	case CustomFunctionLanguagePython:
+	default:
+		errors.Add("language", "invalid language")
 	}
 	return errors
 }
@@ -69,6 +84,31 @@ func (c *CustomFunction) Insert(tx *apsql.Tx) error {
 	}
 
 	return tx.Notify("custom_functions", c.AccountID, c.UserID, c.APIID, 0, c.ID, apsql.Insert)
+}
+
+func (c *CustomFunction) AfterInsert(tx *apsql.Tx) error {
+	dir := "custom_function/" + c.Language
+	files, err := AssetDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		file := CustomFunctionFile{
+			AccountID:        c.AccountID,
+			UserID:           c.UserID,
+			APIID:            c.APIID,
+			CustomFunctionID: c.ID,
+			Name:             f,
+			Body:             string(MustAsset(dir + "/" + f)),
+		}
+		err = file.Insert(tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *CustomFunction) Update(tx *apsql.Tx) error {
