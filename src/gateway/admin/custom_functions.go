@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"gateway/config"
@@ -88,8 +87,7 @@ func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Req
 	}
 
 	options := dockerclient.BuildImageOptions{
-		Name: fmt.Sprintf("%v_%v/%v", function.AccountID, function.APIID,
-			function.ID),
+		Name:         function.ImageName(),
 		InputStream:  input,
 		OutputStream: output,
 	}

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
@@ -24,18 +25,24 @@ type CustomFunction struct {
 	Active      bool   `json:"active"`
 }
 
+func (c *CustomFunction) ImageName() string {
+	return fmt.Sprintf("%v_%v/%v", c.AccountID, c.APIID, c.ID)
+}
+
 func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.Name == "" {
 		errors.Add("name", "must have a name")
 	}
-	switch c.Language {
-	case CustomFunctionLanguageJava:
-	case CustomFunctionLanguageNode:
-	case CustomFunctionLanguageCSharp:
-	case CustomFunctionLanguagePython:
-	default:
-		errors.Add("language", "invalid language")
+	if isInsert {
+		switch c.Language {
+		case CustomFunctionLanguageJava:
+		case CustomFunctionLanguageNode:
+		case CustomFunctionLanguageCSharp:
+		case CustomFunctionLanguagePython:
+		default:
+			errors.Add("language", "invalid language")
+		}
 	}
 	return errors
 }
@@ -63,7 +70,12 @@ func (c *CustomFunction) Find(db *apsql.DB) (*CustomFunction, error) {
 		AccountID: c.AccountID,
 		UserID:    c.UserID,
 	}
-	err := db.Get(&function, db.SQL("custom_functions/find"), c.ID, c.APIID, c.AccountID)
+	var err error
+	if c.ID > 0 {
+		err = db.Get(&function, db.SQL("custom_functions/find"), c.ID, c.APIID, c.AccountID)
+	} else {
+		err = db.Get(&function, db.SQL("custom_functions/find_name"), c.Name, c.APIID, c.AccountID)
+	}
 	return &function, err
 }
 

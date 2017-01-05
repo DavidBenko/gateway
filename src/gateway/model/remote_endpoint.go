@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+
 	"gateway/code"
 	"gateway/config"
 	"gateway/db"
@@ -141,6 +142,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	case RemoteEndpointTypeKey:
 		e.ValidateKey(errors)
 	case RemoteEndpointTypeJob:
+	case RemoteEndpointTypeCustomFunction:
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -228,6 +230,8 @@ func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.Jso
 		}
 	case RemoteEndpointTypeJob:
 		return types.JsonText{}, nil
+	case RemoteEndpointTypeCustomFunction:
+		return types.JsonText("{}"), nil
 	case RemoteEndpointTypeKey:
 		remoteEndpoint := re.Key{}
 		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {

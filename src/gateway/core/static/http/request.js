@@ -1363,3 +1363,39 @@ AP.Key.Request.prototype.destroy = function(options) {
   this.name = options.name;
 }
 
+/**
+ * CustomFunction holds helper classes for Custom Function related tasks
+ *
+ * @namespace
+ */
+AP.CustomFunction = AP.CustomFunction || {};
+
+/**
+ * Creates a new CustomFunction request.
+ *
+ * @class
+ * @constructor
+ * @param [request] - An incoming request to copy the parameters
+ */
+AP.CustomFunction.Request = function() {
+  this.arguments = [];
+
+  if (arguments.length == 1) {
+    var request = arguments[0];
+    this.arguments = _.clone(request.arguments);
+  }
+}
+
+AP.CustomFunction.Request.prototype.command = function() {
+  this.arguments = arguments;
+}
+
+/**
+ * Calls a custom function
+ *
+ * @param {string} name The name of the custom function.
+ * @param {Object} input The input into the function.
+ */
+AP.CustomFunction.Request.prototype.call = function(name, input) {
+  this.command("call", name, input);
+}

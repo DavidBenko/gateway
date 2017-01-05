@@ -89,6 +89,90 @@ func BuildImage(options dockerclient.BuildImageOptions) error {
 	return client.BuildImage(options)
 }
 
+func ExecuteImage(name string, input interface{}) (*RunOutput, error) {
+	_, err := client.InspectImage(name)
+	if err != nil {
+		return nil, err
+	}
+
+	var stdout, stderr, containerLogs bytes.Buffer
+
+	container, err := client.CreateContainer(dockerclient.CreateContainerOptions{
+		Config: &dockerclient.Config{
+			Image:        name,
+			StdinOnce:    true,
+			OpenStdin:    true,
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Memory:       16 * 1024 * 1024,
+			CPUShares:    2,
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err = client.RemoveContainer(dockerclient.RemoveContainerOptions{
+			ID: container.ID,
+		}); err != nil {
+			logreport.Printf("%s Could not remove container %s: %s", config.System, container.ID, err.Error())
+		}
+	}()
+
+	if err = client.StartContainer(container.ID, &dockerclient.HostConfig{}); err != nil {
+		return nil, err
+	}
+
+	data, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var stdin = strings.NewReader(string(data))
+
+	go func() {
+		if err = client.AttachToContainer(dockerclient.AttachToContainerOptions{
+			Container:    container.ID,
+			Stream:       true,
+			Stdin:        true,
+			Stdout:       true,
+			Stderr:       true,
+			InputStream:  stdin,
+			OutputStream: &stdout,
+			ErrorStream:  &stderr,
+		}); err != nil {
+			logreport.Printf("%s Could not attach to container %s: %s", config.System, container.ID, err.Error())
+		}
+	}()
+
+	code, err := client.WaitContainer(container.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.Logs(dockerclient.LogsOptions{
+		Container:    container.ID,
+		Stdout:       true,
+		Stderr:       true,
+		OutputStream: &containerLogs,
+		ErrorStream:  &containerLogs,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	dockerErr := false
+	if stderr.Len() > 0 {
+		dockerErr = true
+	}
+
+	return &RunOutput{Stdout: stdout.String(), Stderr: stderr.String(), Logs: containerLogs.String(), StatusCode: code, Error: dockerErr}, nil
+}
+
 // Pull pulls the image from the repository
 func (dc *DockerConfig) PullOrRefresh() error {
 	var perr error
