@@ -75,9 +75,12 @@ func (s *Server) Run() {
 	s.proxyRouter = newProxyRouter(s.OwnDb)
 
 	s.router.Handle("/{path:.*}",
-		aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
-			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
-		MatcherFunc(s.isRoutedToEndpoint)
+		context.ClearHandler(
+			aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
+				aphttp.ErrorCatchingHandler(s.proxyHandlerFunc),
+			),
+		),
+	).MatcherFunc(s.isRoutedToEndpoint)
 
 	s.router.NotFoundHandler = s.accessLoggingNotFoundHandler()
 

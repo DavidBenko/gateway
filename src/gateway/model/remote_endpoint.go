@@ -172,7 +172,7 @@ func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.Jso
 			scrubbedData, err = json.Marshal(remoteEndpoint)
 		}
 	case RemoteEndpointTypeStore:
-		return types.JsonText{}, nil
+		return types.JsonText("null"), nil
 	case RemoteEndpointTypeScript:
 		remoteEndpoint := re.Script{}
 		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
@@ -229,9 +229,9 @@ func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.Jso
 			scrubbedData, err = json.Marshal(remoteEndpoint)
 		}
 	case RemoteEndpointTypeJob:
-		return types.JsonText{}, nil
+		return types.JsonText("null"), nil
 	case RemoteEndpointTypeCustomFunction:
-		return types.JsonText("{}"), nil
+		return types.JsonText("null"), nil
 	case RemoteEndpointTypeKey:
 		remoteEndpoint := re.Key{}
 		if err = json.Unmarshal(data, &remoteEndpoint); err == nil {
