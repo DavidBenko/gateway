@@ -8,6 +8,8 @@ import (
 	"gateway/docker"
 	"gateway/model"
 	"gateway/sql"
+
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 type CustomFunctionRequest struct {
@@ -52,6 +54,60 @@ func (r *CustomFunctionRequest) Perform() Response {
 	if !function.Active {
 		response.Error = "Custom function is not active"
 		return response
+	}
+
+	stale := false
+
+	file := model.CustomFunctionFile{
+		AccountID:        function.AccountID,
+		APIID:            function.APIID,
+		CustomFunctionID: function.ID,
+	}
+	files, err := file.All(r.db)
+	if err != nil {
+		response.Error = err.Error()
+		return response
+	}
+
+	image, err := docker.InspectImage(function.ImageName())
+	if err == dockerclient.ErrNoSuchImage {
+		stale = true
+	} else if err != nil {
+		response.Error = err.Error()
+		return response
+	} else {
+		for _, file := range files {
+			updated := file.UpdatedAt
+			if updated == nil {
+				updated = file.CreatedAt
+			}
+			if updated.After(image.Created) {
+				stale = true
+				break
+			}
+		}
+	}
+
+	if stale {
+		input, err := files.Tar()
+		if err != nil {
+			response.Error = err.Error()
+			return response
+		}
+
+		output := &bytes.Buffer{}
+		options := dockerclient.BuildImageOptions{
+			Name:         function.ImageName(),
+			NoCache:      true,
+			InputStream:  input,
+			OutputStream: output,
+		}
+
+		err = docker.BuildImage(options)
+		if err != nil {
+			response.Error = err.Error()
+			return response
+		}
 	}
 
 	runOutput, err := docker.ExecuteImage(function.ImageName(), input)

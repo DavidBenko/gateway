@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -65,29 +64,15 @@ func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Req
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
-	input, output := &bytes.Buffer{}, &bytes.Buffer{}
-	image := tar.NewWriter(input)
-
-	for _, file := range files {
-		header := &tar.Header{
-			Name: file.Name,
-			Mode: 0600,
-			Size: int64(len(file.Body)),
-		}
-		if err := image.WriteHeader(header); err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
-		if _, err := image.Write([]byte(file.Body)); err != nil {
-			return aphttp.NewError(err, http.StatusBadRequest)
-		}
-	}
-
-	if err := image.Close(); err != nil {
+	input, err := files.Tar()
+	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 
+	output := &bytes.Buffer{}
 	options := dockerclient.BuildImageOptions{
 		Name:         function.ImageName(),
+		NoCache:      true,
 		InputStream:  input,
 		OutputStream: output,
 	}

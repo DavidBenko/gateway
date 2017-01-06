@@ -1,8 +1,11 @@
 package model
 
 import (
+	"archive/tar"
+	"bytes"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+	"time"
 )
 
 type CustomFunctionFile struct {
@@ -11,12 +14,46 @@ type CustomFunctionFile struct {
 	APIID            int64 `json:"-" db:"api_id" path:"apiID"`
 	CustomFunctionID int64 `json:"custom_function_id,omitempty" db:"custom_function_id" path:"customFunctionID"`
 
-	ID   int64  `json:"id,omitempty" path:"id"`
-	Name string `json:"name"`
-	Body string `json:"body"`
+	ID        int64      `json:"id,omitempty" path:"id"`
+	CreatedAt *time.Time `json:"-" db:"created_at"`
+	UpdatedAt *time.Time `json:"-" db:"updated_at"`
+	Name      string     `json:"name"`
+	Body      string     `json:"body"`
 
 	// Export Indices
 	ExportCustomFunctionIndex int `json:"custom_function_index,omitempty"`
+}
+
+type CustomFunctionFiles []*CustomFunctionFile
+
+func (f CustomFunctionFiles) Tar() (*bytes.Buffer, error) {
+	buffer := &bytes.Buffer{}
+	image := tar.NewWriter(buffer)
+
+	for _, file := range f {
+		updated := file.UpdatedAt
+		if updated == nil {
+			updated = file.CreatedAt
+		}
+		header := &tar.Header{
+			Name:    file.Name,
+			Mode:    0600,
+			Size:    int64(len(file.Body)),
+			ModTime: *updated,
+		}
+		if err := image.WriteHeader(header); err != nil {
+			return nil, err
+		}
+		if _, err := image.Write([]byte(file.Body)); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := image.Close(); err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
 }
 
 func (f *CustomFunctionFile) Validate(isInsert bool) aperrors.Errors {
@@ -35,7 +72,7 @@ func (f *CustomFunctionFile) ValidateFromDatabaseError(err error) aperrors.Error
 	return errors
 }
 
-func (f *CustomFunctionFile) All(db *apsql.DB) ([]*CustomFunctionFile, error) {
+func (f *CustomFunctionFile) All(db *apsql.DB) (CustomFunctionFiles, error) {
 	files := []*CustomFunctionFile{}
 	err := db.Select(&files, db.SQL("custom_function_files/all"), f.CustomFunctionID, f.APIID, f.AccountID)
 	for _, file := range files {

@@ -89,12 +89,11 @@ func BuildImage(options dockerclient.BuildImageOptions) error {
 	return client.BuildImage(options)
 }
 
-func ExecuteImage(name string, input interface{}) (*RunOutput, error) {
-	_, err := client.InspectImage(name)
-	if err != nil {
-		return nil, err
-	}
+func InspectImage(name string) (*dockerclient.Image, error) {
+	return client.InspectImage(name)
+}
 
+func ExecuteImage(name string, input interface{}) (*RunOutput, error) {
 	var stdout, stderr, containerLogs bytes.Buffer
 
 	container, err := client.CreateContainer(dockerclient.CreateContainerOptions{
