@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"gateway/core"
+	"gateway/core/vm"
 	"testing"
 
 	jc "github.com/juju/testing/checkers"
@@ -16,9 +17,10 @@ type VMSuite struct{}
 var _ = gc.Suite(&VMSuite{})
 
 func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
-	k := &core.KeyStore{}
+	k := &vm.KeyStore{}
+	e := &vm.RemoteEndpointStore{}
 
-	vm := core.VMCopy(1, k)
+	vm := core.VMCopy(1, k, e, nil)
 
 	for i, t := range []struct {
 		should      string
@@ -111,6 +113,10 @@ func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
 	}, {
 		should:      "include AP.Conversion.XMLPath",
 		get:         "AP.Conversion.XMLPath",
+		expectClass: "Function",
+	}, {
+		should:      "include AP.Perform",
+		get:         "AP.Perform",
 		expectClass: "Function",
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)

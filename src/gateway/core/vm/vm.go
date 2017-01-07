@@ -237,8 +237,7 @@ func osEnvironmentScript() string {
 // is the second function argument, etc.
 func GetArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	arg := call.Argument(index)
-	// otto.Value is equivalent to undefined in javascript
-	undefined := otto.Value{}
+	undefined := otto.UndefinedValue()
 	if arg == undefined {
 		return nil, errors.New("undefined argument")
 	}

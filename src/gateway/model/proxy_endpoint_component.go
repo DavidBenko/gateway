@@ -86,6 +86,7 @@ func (c *ProxyEndpointComponent) validateType() aperrors.Errors {
 	case ProxyEndpointComponentTypeSingle:
 	case ProxyEndpointComponentTypeMulti:
 	case ProxyEndpointComponentTypeJS:
+	case ProxyEndpointComponentTypeAdvanced:
 	default:
 		errors.Add("type", "must be one of 'single', or 'multi', or 'js'")
 	}

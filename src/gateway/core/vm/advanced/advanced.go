@@ -120,7 +120,7 @@ type payload struct {
 	response request.Response
 }
 
-// errorResponse is used to wrap an error that may have ocurred before the actual
+// errorResponse is used to wrap an error that may have occurred before the actual
 // request was made and before a response was returned.
 type errorResponse struct {
 	Error string `json:"error"`
