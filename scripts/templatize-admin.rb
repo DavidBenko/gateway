@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-meta = /<meta name="(gateway\/config\/environment)" content="([^"]*)" \/>/
+meta = /<meta name="(gateway-ui\/config\/environment)" content="([^"]*)" \/>/
 
 path = ARGV[0]
 file = File.read(path)
