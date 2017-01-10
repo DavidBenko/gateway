@@ -55,6 +55,7 @@ var usageStrings = map[string]string{
 	"soap-client-port":      "The port number to listen on for the soap client.  Defaults to 19083",
 	"soap-thread-pool-size": "The number of worker threads in the JVM that will concurrently process soap requests.  When set to 0, pooling is disabled (i.e. a new thread per request).  Defaults to 0.",
 	"soap-java-opts":        "The JVM options to pass to the JVM on startup that will be used to invoke SOAP services",
+	"soap-client-jar":       "The location and name of the gateway SOAP client jar. Defaults to gateway-soap-client.jar.",
 
 	"store-migrate":         "Whether or not to migrate the store database on startup",
 	"store-type":            "The type of database to use for store remote endpoints",
