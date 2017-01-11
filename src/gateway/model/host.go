@@ -89,6 +89,13 @@ func DeleteHostForAPIIDAndAccountID(tx *apsql.Tx, id, apiID, accountID, userID i
 	return tx.Notify("apis", accountID, userID, apiID, 0, apiID, apsql.Update)
 }
 
+// FindHostForHostname returns the host with the hostname specified.
+func FindHostForHostname(db *apsql.DB, hostname string) (*Host, error) {
+	host := Host{}
+	err := db.Get(&host, db.SQL("hosts/find_by_hostname"), hostname)
+	return &host, err
+}
+
 // Insert inserts the host into the database as a new row.
 func (h *Host) Insert(tx *apsql.Tx) (err error) {
 	h.ID, err = tx.InsertOne(tx.SQL("hosts/insert"),
