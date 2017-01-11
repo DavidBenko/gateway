@@ -1,9 +1,8 @@
 package admin
 
 import (
-	"bytes"
 	"encoding/json"
-	"net/http"
+	"time"
 
 	"gateway/config"
 	"gateway/docker"
@@ -12,7 +11,7 @@ import (
 	apsql "gateway/sql"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/gorilla/handlers"
+	"golang.org/x/net/websocket"
 )
 
 func (c *CustomFunctionsController) AfterInsert(function *model.CustomFunction, tx *apsql.Tx) error {
@@ -21,27 +20,46 @@ func (c *CustomFunctionsController) AfterInsert(function *model.CustomFunction, 
 
 type CustomFunctionBuildController struct {
 	BaseController
+	db *apsql.DB
 }
 
 func RouteCustomFunctionBuild(controller *CustomFunctionBuildController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
-
-	routes := map[string]http.Handler{
-		"GET": read(db, controller.Build),
-	}
-	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
-	}
-
-	router.Handle(path, handlers.MethodHandler(routes))
+	controller.db = db
+	router.Handle(path, websocket.Handler(controller.Build))
 }
 
 type CustomFunctionBuildResult struct {
-	Log  string `json:"log"`
-	Time int64  `json:"time"`
+	Time int64 `json:"time"`
 }
 
-func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
+type CustomFunctionLogLine struct {
+	Line string `json:"line"`
+}
+
+type DockerWriter struct {
+	ws *websocket.Conn
+}
+
+func (w *DockerWriter) Write(p []byte) (n int, err error) {
+	line := &CustomFunctionLogLine{
+		Line: string(p),
+	}
+
+	wrapped := struct {
+		Line *CustomFunctionLogLine `json:"line"`
+	}{line}
+
+	body, err := json.Marshal(&wrapped)
+	if err != nil {
+		return 0, err
+	}
+
+	return w.ws.Write(body)
+}
+
+func (c *CustomFunctionBuildController) Build(ws *websocket.Conn) {
+	db, r := c.db, ws.Request()
 	accountID, apiID, customFunctionID := c.accountID(r), apiIDFromPath(r), customFunctionIDFromPath(r)
 
 	customFunction := model.CustomFunction{
@@ -51,7 +69,8 @@ func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Req
 	}
 	function, err := customFunction.Find(db)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		ws.Close()
+		return
 	}
 
 	file := model.CustomFunctionFile{
@@ -61,15 +80,19 @@ func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Req
 	}
 	files, err := file.All(db)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		ws.Close()
+		return
 	}
 
 	input, err := files.Tar()
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		ws.Close()
+		return
 	}
 
-	output := &bytes.Buffer{}
+	output := &DockerWriter{
+		ws: ws,
+	}
 	options := dockerclient.BuildImageOptions{
 		Name:         function.ImageName(),
 		NoCache:      true,
@@ -77,27 +100,34 @@ func (c *CustomFunctionBuildController) Build(w http.ResponseWriter, r *http.Req
 		OutputStream: output,
 	}
 
+	start := time.Now()
 	err = docker.BuildImage(options)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		ws.Close()
+		return
 	}
 
 	result := &CustomFunctionBuildResult{
-		Log:  output.String(),
-		Time: 0,
+		Time: (time.Since(start).Nanoseconds() + +5e5) / 1e6,
 	}
 
 	wrapped := struct {
 		Result *CustomFunctionBuildResult `json:"result"`
 	}{result}
 
-	body, err := json.MarshalIndent(&wrapped, "", "    ")
+	body, err := json.Marshal(&wrapped)
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		ws.Close()
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	_, err = ws.Write(body)
+	if err != nil {
+		ws.Close()
+		return
+	}
 
-	return nil
+	ws.Close()
+
+	return
 }
