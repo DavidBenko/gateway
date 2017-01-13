@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"gateway/config"
 	"gateway/logreport"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	sqlite3 "github.com/mattn/go-sqlite3"
-	"time"
 )
 
 // Driver is the driver to be used for the given stats logger / sampler.  This
@@ -18,7 +19,7 @@ type Driver string
 
 const (
 	// Version is the version of the Gateway stats schema.
-	Version = 1
+	Version = 2
 
 	// SQLite3 is the SQLite3 Driver.
 	SQLite3 Driver = "sqlite3"
