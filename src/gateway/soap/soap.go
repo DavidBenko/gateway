@@ -13,7 +13,6 @@ import (
 
 	"gateway/config"
 	aperrors "gateway/errors"
-	"gateway/logreport"
 )
 
 const (
@@ -86,14 +85,18 @@ func Configure(soap config.Soap, devMode bool) error {
 
 	javaAvailable = true
 
-	jarFile, err := inflateSoapClient()
-	if err != nil {
+	if _, err = os.Stat(soap.ClientJar); err != nil {
 		return err
+	}
+
+	_, err = EnsureWsdlPath()
+	if err != nil {
+		return aperrors.NewWrapped("[soap.go] Unable to ensure WSDL path!", err)
 	}
 
 	soapAvailable = true
 
-	return launchJvm(soap, jarFile, devMode)
+	return launchJvm(soap, soap.ClientJar, devMode)
 }
 
 // EnsureWsdlPath makes certain that the directory in which wsdl files are stored exists
@@ -119,35 +122,6 @@ func WsdlURLForSoapRemoteEndpointID(remoteEndpointID int64) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("file:///%s", strings.Replace(filepath.ToSlash(fullFilePath), " ", "%20", -1)), nil
-}
-
-func inflateSoapClient() (string, error) {
-	jarBytes, err := Asset("soapclient-all.jar")
-
-	if err != nil {
-		logreport.Printf("%s Could not find embedded soapclient", config.System)
-		return "", err
-	}
-
-	wsdlPath, err := EnsureWsdlPath()
-	if err != nil {
-		return "", aperrors.NewWrapped("[soap.go] Unable to ensure WSDL path!", err)
-	}
-
-	// Write the soapclient jar out to the filesystem
-	jarDestFilename := path.Join(wsdlPath, "soapclient.jar")
-	file, err := os.Create(jarDestFilename)
-	if err != nil {
-		return "", aperrors.NewWrapped("[soap.go] Unable to open file to write soapclient.jar", err)
-	}
-	defer file.Close()
-
-	_, err = file.Write(jarBytes)
-	if err != nil {
-		return "", aperrors.NewWrapped("[soap.go] Error occurred while writing soapclient.jar", err)
-	}
-
-	return jarDestFilename, nil
 }
 
 func launchJvm(soap config.Soap, clientJarFile string, devMode bool) error {

@@ -62,6 +62,7 @@ type Soap struct {
 	SoapClientPort int64  `flag:"soap-client-port" default:"19083"`
 	ThreadPoolSize int64  `flag:"soap-thread-pool-size" default:"0"`
 	JavaOpts       string `flag:"soap-java-opts" default:""`
+	ClientJar      string `flag:"soap-client-jar"        default:"gateway-soap-client.jar"`
 }
 
 // Store specifies configuration options for store remote endpoints
