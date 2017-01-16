@@ -141,6 +141,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&TimersController{BaseController: base}, "/timers", authAdmin, db, conf)
 	RouteResource(&CustomFunctionsController{BaseController: base}, "/apis/{apiID}/custom_functions", authAdmin, db, conf)
 	RouteResource(&CustomFunctionFilesController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/files", authAdmin, db, conf)
+	RouteResource(&CustomFunctionTestsController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/tests", authAdmin, db, conf)
 	RouteCustomFunctionBuild(&CustomFunctionBuildController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/build", authAdmin, db, conf)
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)

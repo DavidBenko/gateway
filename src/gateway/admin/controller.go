@@ -34,6 +34,7 @@ import (
 //go:generate ./controller.rb --model ProxyEndpointChannel --json Channel --reflect
 //go:generate ./controller.rb --model CustomFunction --reflect --after-insert-hook
 //go:generate ./controller.rb --model CustomFunctionFile --json File --reflect
+//go:generate ./controller.rb --model CustomFunctionTest --json Test --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
