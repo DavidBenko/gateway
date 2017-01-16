@@ -1,9 +1,15 @@
 package model
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+
+	"gateway/docker"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const (
@@ -132,4 +138,73 @@ func (c *CustomFunction) Update(tx *apsql.Tx) error {
 	}
 
 	return tx.Notify("custom_functions", c.AccountID, c.UserID, c.APIID, 0, c.ID, apsql.Update)
+}
+
+func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int64, name string, input interface{}) (*docker.RunOutput, error) {
+	function := &CustomFunction{
+		AccountID: accountID,
+		APIID:     apiID,
+		ID:        customFunctionID,
+		Name:      name,
+	}
+	function, err := function.Find(db)
+	if err != nil {
+		return nil, err
+	}
+
+	if !function.Active {
+		return nil, errors.New("Custom function is not active")
+	}
+
+	stale := false
+
+	file := CustomFunctionFile{
+		AccountID:        function.AccountID,
+		APIID:            function.APIID,
+		CustomFunctionID: function.ID,
+	}
+	files, err := file.All(db)
+	if err != nil {
+		return nil, err
+	}
+
+	image, err := docker.InspectImage(function.ImageName())
+	if err == dockerclient.ErrNoSuchImage {
+		stale = true
+	} else if err != nil {
+		return nil, err
+	} else {
+		for _, file := range files {
+			updated := file.UpdatedAt
+			if updated == nil {
+				updated = file.CreatedAt
+			}
+			if updated.After(image.Created) {
+				stale = true
+				break
+			}
+		}
+	}
+
+	if stale {
+		input, err := files.Tar()
+		if err != nil {
+			return nil, err
+		}
+
+		output := &bytes.Buffer{}
+		options := dockerclient.BuildImageOptions{
+			Name:         function.ImageName(),
+			NoCache:      true,
+			InputStream:  input,
+			OutputStream: output,
+		}
+
+		err = docker.BuildImage(options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return docker.ExecuteImage(function.ImageName(), input)
 }
