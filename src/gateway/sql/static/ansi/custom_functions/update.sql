@@ -3,6 +3,8 @@ SET
   name = ?,
   description = ?,
   active = ?,
+  memory = ?,
+  cpu_shares = ?,
   updated_at = CURRENT_TIMESTAMP
 WHERE custom_functions.id = ?
   AND custom_functions.api_id IN

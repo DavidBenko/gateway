@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS `custom_functions` (
   `name` TEXT NOT NULL,
   `description` TEXT,
   `active` BOOLEAN NOT NULL DEFAULT 1,
+  'memory' INTEGER NOT NULL,
+  'cpu_shares' INTEGER NOT NULL,
   UNIQUE (`api_id`, `name`) ON CONFLICT FAIL,
   FOREIGN KEY(`api_id`) REFERENCES `apis`(`id`) ON DELETE CASCADE
 );

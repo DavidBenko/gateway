@@ -29,6 +29,8 @@ type CustomFunction struct {
 	Language    string `json:"language"`
 	Description string `json:"description"`
 	Active      bool   `json:"active"`
+	Memory      int64  `json:"memory"`
+	CPUShares   int64  `json:"cpu_shares" db:"cpu_shares"`
 }
 
 func (c *CustomFunction) ImageName() string {
@@ -39,6 +41,12 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.Name == "" {
 		errors.Add("name", "must have a name")
+	}
+	if c.Memory < 4 {
+		errors.Add("memory", "minimum memory limit allowed is 4MB")
+	}
+	if c.CPUShares < 2 {
+		errors.Add("cpu_shares", "the minimum allowed cpu-shares is 2")
 	}
 	if isInsert {
 		switch c.Language {
@@ -96,7 +104,7 @@ func (c *CustomFunction) Delete(tx *apsql.Tx) error {
 func (c *CustomFunction) Insert(tx *apsql.Tx) error {
 	var err error
 	c.ID, err = tx.InsertOne(tx.SQL("custom_functions/insert"),
-		c.APIID, c.AccountID, c.Name, c.Description, c.Active)
+		c.APIID, c.AccountID, c.Name, c.Description, c.Active, c.Memory, c.CPUShares)
 	if err != nil {
 		return err
 	}
@@ -131,7 +139,7 @@ func (c *CustomFunction) AfterInsert(tx *apsql.Tx) error {
 
 func (c *CustomFunction) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("custom_functions/update"),
-		c.Name, c.Description, c.Active,
+		c.Name, c.Description, c.Active, c.Memory, c.CPUShares,
 		c.ID, c.APIID, c.AccountID)
 	if err != nil {
 		return err
@@ -206,5 +214,5 @@ func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int6
 		}
 	}
 
-	return docker.ExecuteImage(function.ImageName(), input)
+	return docker.ExecuteImage(function.ImageName(), function.Memory, function.CPUShares, input)
 }

@@ -93,7 +93,7 @@ func InspectImage(name string) (*dockerclient.Image, error) {
 	return client.InspectImage(name)
 }
 
-func ExecuteImage(name string, input interface{}) (*RunOutput, error) {
+func ExecuteImage(name string, memory, cpuShares int64, input interface{}) (*RunOutput, error) {
 	var stdout, stderr, containerLogs bytes.Buffer
 
 	container, err := client.CreateContainer(dockerclient.CreateContainerOptions{
@@ -104,8 +104,8 @@ func ExecuteImage(name string, input interface{}) (*RunOutput, error) {
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
-			Memory:       16 * 1024 * 1024,
-			CPUShares:    2,
+			Memory:       memory * 1024 * 1024,
+			CPUShares:    cpuShares,
 		},
 	})
 
