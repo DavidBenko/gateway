@@ -9,10 +9,16 @@ stdin.on('data', function (chunk) {
     inputChunks.push(chunk);
 });
 
+function output(data) {
+  stdout.write("\x00\x00\x00\x00\x00\x00\x00\x00");
+  stdout.write(data);
+}
+
+console.log("test message");
+
 stdin.on('end', function () {
     var inputJSON = inputChunks.join(""),
         parsedData = JSON.parse(inputJSON),
         outputJSON = JSON.stringify(parsedData, null, '    ');
-    stdout.write(outputJSON);
-    stdout.write('\n');
+    output(outputJSON)
 });

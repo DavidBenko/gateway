@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"gateway/config"
@@ -62,11 +63,13 @@ func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Reque
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
 	elapsed := (time.Since(start).Nanoseconds() + +5e5) / 1e6
+	lines, output := runOutput.Parts()
 	result := struct {
 		Result CustomFunctionTestResult `json:"result"`
 	}{
 		CustomFunctionTestResult{
-			Output: runOutput.Stdout,
+			Output: output,
+			Log:    strings.Join(lines, "\n"),
 			Time:   elapsed,
 		},
 	}

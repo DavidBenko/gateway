@@ -15,6 +15,11 @@ type Response interface {
 	Log() string
 }
 
+// ResponseLogs defines a response that has more than one log line.
+type ResponseLogs interface {
+	Logs() []string
+}
+
 // ReusableConnection allows the reuse of a connection across multiple proxy
 // endpoint components (i.e. does not terminate when the component is finished
 // executing)

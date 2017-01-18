@@ -70,6 +70,14 @@ func (s *Core) makeRequests(vm *vm.CoreVM, proxyRequests []request.Request) ([]r
 	for i, req := range proxyRequests {
 		vm.LogPrint("%s [request] %s %s (%v)", vm.LogPrefix,
 			req.Log(s.DevMode), responses[i].Log(), requestDurations[i])
+		if responseLogs, ok := responses[i].(request.ResponseLogs); ok {
+			lines := responseLogs.Logs()
+			for _, line := range lines {
+				if len(line) > 0 {
+					vm.LogPrint("%s [request] %s", vm.LogPrefix, line)
+				}
+			}
+		}
 	}
 
 	return responses, nil

@@ -43,14 +43,15 @@ func (r *CustomFunctionRequest) Perform() Response {
 		return response
 	}
 
-	err = json.Unmarshal([]byte(runOutput.Stdout), &response.Output)
+	lines, output := runOutput.Parts()
+
+	err = json.Unmarshal([]byte(output), &response.Output)
 	if err != nil {
 		response.Error = err.Error()
 		return response
 	}
 
-	response.Stderr = runOutput.Stderr
-	response.Logs = runOutput.Logs
+	response.LogLines = lines
 	response.StatusCode = runOutput.StatusCode
 
 	return response
@@ -71,8 +72,7 @@ func (r *CustomFunctionRequest) JSON() ([]byte, error) {
 
 type CustomFunctionResponse struct {
 	Output     map[string]interface{} `json:"output"`
-	Stderr     string                 `json:"stderr"`
-	Logs       string                 `json:"logs"`
+	LogLines   []string               `json:"log_lines"`
 	StatusCode int                    `json:"status_code"`
 	Error      string                 `json:"error,omitempty"`
 }
@@ -87,6 +87,10 @@ func (r *CustomFunctionResponse) Log() string {
 	}
 
 	return r.Error
+}
+
+func (r *CustomFunctionResponse) Logs() []string {
+	return r.LogLines
 }
 
 func NewCustomFunctionRequest(endpoint *model.RemoteEndpoint, data *json.RawMessage, db *sql.DB) (Request, error) {

@@ -208,10 +208,7 @@ func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int6
 			OutputStream: output,
 		}
 
-		err = docker.BuildImage(options)
-		if err != nil {
-			return nil, err
-		}
+		docker.BuildImage(options)
 	}
 
 	return docker.ExecuteImage(function.ImageName(), function.Memory, function.CPUShares, input)

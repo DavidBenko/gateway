@@ -35,6 +35,20 @@ type RunOutput struct {
 	Error      bool   `json:"error"`
 }
 
+func (r *RunOutput) Parts() ([]string, string) {
+	parts := strings.Split(r.Stdout, "\x00\x00\x00\x00\x00\x00\x00\x00")
+	lines := strings.Split(parts[0], "\n")
+	for _, line := range strings.Split(r.Stderr, "\n") {
+		if len(line) > 0 {
+			lines = append(lines, "[error] "+line)
+		}
+	}
+	if len(parts) > 1 {
+		return lines, parts[1]
+	}
+	return lines, "null"
+}
+
 func ConfigureDockerClient(dockerConfig config.Docker) error {
 	if client != nil {
 		panic("Docker client has already been configured!")
