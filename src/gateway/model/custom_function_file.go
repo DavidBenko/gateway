@@ -3,6 +3,7 @@ package model
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 	"time"
@@ -74,12 +75,24 @@ func (f *CustomFunctionFile) ValidateFromDatabaseError(err error) aperrors.Error
 
 func (f *CustomFunctionFile) All(db *apsql.DB) (CustomFunctionFiles, error) {
 	files := []*CustomFunctionFile{}
-	err := db.Select(&files, db.SQL("custom_function_files/all"), f.CustomFunctionID, f.APIID, f.AccountID)
+	var err error
+	if f.APIID > 0 && f.AccountID > 0 {
+		if f.CustomFunctionID > 0 {
+			err = db.Select(&files, db.SQL("custom_function_files/all"), f.CustomFunctionID, f.APIID, f.AccountID)
+		} else {
+			err = db.Select(&files, db.SQL("custom_function_files/all_api"), f.APIID, f.AccountID)
+		}
+	} else {
+		err = errors.New("APIID and AccountID required for All")
+	}
+	if err != nil {
+		return nil, err
+	}
 	for _, file := range files {
 		file.AccountID = f.AccountID
 		file.UserID = f.UserID
 	}
-	return files, err
+	return files, nil
 }
 
 func (f *CustomFunctionFile) Find(db *apsql.DB) (*CustomFunctionFile, error) {
