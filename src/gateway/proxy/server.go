@@ -75,9 +75,12 @@ func (s *Server) Run() {
 	s.proxyRouter = newProxyRouter(s.OwnDb)
 
 	s.router.Handle("/{path:.*}",
-		aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
-			aphttp.ErrorCatchingHandler(s.proxyHandlerFunc))).
-		MatcherFunc(s.isRoutedToEndpoint)
+		context.ClearHandler(
+			aphttp.AccessLoggingHandler(config.Proxy, s.proxyConf.RequestIDHeader,
+				aphttp.ErrorCatchingHandler(s.proxyHandlerFunc),
+			),
+		),
+	).MatcherFunc(s.isRoutedToEndpoint)
 
 	s.router.NotFoundHandler = s.accessLoggingNotFoundHandler()
 
@@ -198,6 +201,14 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 						responseSize = length.(int)
 					}
 				}
+				var hostID int64
+				hostWithoutPort := strings.Split(request.Host, ":")
+				if host, err := s.proxyData.Host(hostWithoutPort[0]); err == nil {
+					hostID = host.ID
+				} else {
+					logPrint("%s error extracting Host ID for request: %s",
+						logPrefix, err.Error())
+				}
 				point := stats.Point{
 					Timestamp: time.Now(),
 					Values: map[string]interface{}{
@@ -209,7 +220,7 @@ func (s *Server) proxyHandler(w http.ResponseWriter, r *http.Request) (
 						"response.size":                 responseSize,
 						"response.status":               responseCode,
 						"response.error":                errResponse,
-						"host.id":                       request.Host,
+						"host.id":                       hostID,
 						"host.name":                     request.Host,
 						"proxy.id":                      proxyEndpoint.ID,
 						"proxy.name":                    proxyEndpoint.Name,
