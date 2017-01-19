@@ -107,6 +107,9 @@ type SearchResult struct {
 // NewSearchResult creates a new SearchResult
 func NewSearchResult(sr *ldap.SearchResult, includeByteValues bool) *SearchResult {
 	res := new(SearchResult)
+	if sr == nil {
+		return res
+	}
 	for _, entry := range sr.Entries {
 		res.Entries = append(res.Entries, NewEntry(entry, includeByteValues))
 	}
