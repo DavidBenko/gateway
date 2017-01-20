@@ -3,9 +3,11 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+	"strconv"
 	"strings"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/robertkrimen/otto"
 )
 
 const (
@@ -26,10 +28,26 @@ type ProxyEndpointTransformation struct {
 }
 
 // Validate validates the model.
-func (t *ProxyEndpointTransformation) Validate() aperrors.Errors {
+func (t *ProxyEndpointTransformation) Validate(vm *otto.Otto) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	switch t.Type {
 	case ProxyEndpointTransformationTypeJS:
+		data, err := strconv.Unquote(string(t.Data))
+		if err != nil {
+			errors.Add("data", err.Error())
+			return errors
+		}
+		if vm == nil {
+			vm = otto.New()
+		}
+		_, err = vm.Compile("", data)
+		if err != nil {
+			if t.Before {
+				errors.Add("before", err.Error())
+			} else {
+				errors.Add("after", err.Error())
+			}
+		}
 	default:
 		errors.Add("type", "must be 'js'")
 	}

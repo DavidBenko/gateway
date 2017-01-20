@@ -8,6 +8,7 @@ import (
 	apsql "gateway/sql"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/robertkrimen/otto"
 )
 
 const (
@@ -71,9 +72,23 @@ func (c *ProxyEndpointComponent) Validate(isInsert bool) aperrors.Errors {
 		return errors
 	}
 
+	vm := otto.New()
+
 	errors.AddErrors(c.validateType())
-	errors.AddErrors(c.validateTransformations())
-	errors.AddErrors(c.validateCalls())
+	errors.AddErrors(c.validateTransformations(vm))
+	errors.AddErrors(c.validateCalls(vm))
+
+	// Validate javascript
+	if c.Type == ProxyEndpointComponentTypeJS {
+		data := string(c.Data)
+		if data != "" {
+			data = data[1 : len(data)-1]
+			vm := otto.New()
+			if _, err := vm.Compile("", data); err != nil {
+				errors.Add("data", err.Error())
+			}
+		}
+	}
 
 	return errors
 }
@@ -92,18 +107,18 @@ func (c *ProxyEndpointComponent) validateType() aperrors.Errors {
 	return errors
 }
 
-func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {
+func (c *ProxyEndpointComponent) validateTransformations(vm *otto.Otto) aperrors.Errors {
 	errors := make(aperrors.Errors)
 
 	for i, t := range c.BeforeTransformations {
-		tErrors := t.Validate()
+		tErrors := t.Validate(vm)
 		if !tErrors.Empty() {
 			errors.Add("before", fmt.Sprintf("%d is invalid: %v", i, tErrors))
 		}
 	}
 
 	for i, t := range c.AfterTransformations {
-		tErrors := t.Validate()
+		tErrors := t.Validate(vm)
 		if !tErrors.Empty() {
 			errors.Add("after", fmt.Sprintf("%d is invalid: %v", i, tErrors))
 		}
@@ -112,11 +127,11 @@ func (c *ProxyEndpointComponent) validateTransformations() aperrors.Errors {
 	return errors
 }
 
-func (c *ProxyEndpointComponent) validateCalls() aperrors.Errors {
+func (c *ProxyEndpointComponent) validateCalls(vm *otto.Otto) aperrors.Errors {
 	errors := make(aperrors.Errors)
 
 	for _, c := range c.AllCalls() {
-		errors.AddErrors(c.Validate())
+		errors.AddErrors(c.Validate(vm))
 	}
 
 	return errors
