@@ -15,7 +15,7 @@ import (
 const (
 	CustomFunctionLanguageJava   = "java"
 	CustomFunctionLanguageNode   = "node"
-	CustomFunctionLanguageCSharp = "c#"
+	CustomFunctionLanguageCSharp = "csharp"
 	CustomFunctionLanguagePython = "python"
 )
 
