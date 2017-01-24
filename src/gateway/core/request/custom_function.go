@@ -37,7 +37,7 @@ func (r *CustomFunctionRequest) Perform() Response {
 		return response
 	}
 
-	runOutput, err := model.ExecuteCustomFunction(r.db, r.AccountID, r.APIID, 0, name, input)
+	runOutput, err := model.ExecuteCustomFunction(r.db, r.AccountID, r.APIID, 0, name, input, true)
 	if err != nil {
 		response.Error = err.Error()
 		return response

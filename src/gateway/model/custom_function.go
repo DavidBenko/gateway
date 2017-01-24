@@ -156,7 +156,8 @@ func (c *CustomFunction) Update(tx *apsql.Tx) error {
 	return tx.Notify("custom_functions", c.AccountID, c.UserID, c.APIID, 0, c.ID, apsql.Update)
 }
 
-func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int64, name string, input interface{}) (*docker.RunOutput, error) {
+func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int64,
+	name string, input interface{}, checkActive bool) (*docker.RunOutput, error) {
 	function := &CustomFunction{
 		AccountID: accountID,
 		APIID:     apiID,
@@ -168,7 +169,7 @@ func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int6
 		return nil, err
 	}
 
-	if !function.Active {
+	if checkActive && !function.Active {
 		return nil, errors.New("Custom function is not active")
 	}
 

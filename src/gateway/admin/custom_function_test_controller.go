@@ -58,7 +58,7 @@ func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Reque
 	}
 
 	start := time.Now()
-	runOutput, err := model.ExecuteCustomFunction(db, accountID, apiID, customFunctionID, "", input)
+	runOutput, err := model.ExecuteCustomFunction(db, accountID, apiID, customFunctionID, "", input, false)
 	if err != nil {
 		return aphttp.NewError(err, http.StatusBadRequest)
 	}
