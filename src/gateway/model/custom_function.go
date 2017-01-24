@@ -18,6 +18,7 @@ const (
 	CustomFunctionLanguageCSharp = "csharp"
 	CustomFunctionLanguagePython = "python"
 	CustomFunctionLanguagePHP    = "php"
+	CustomFunctionLanguageOther  = "other"
 )
 
 type CustomFunction struct {
@@ -56,6 +57,7 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 		case CustomFunctionLanguageCSharp:
 		case CustomFunctionLanguagePython:
 		case CustomFunctionLanguagePHP:
+		case CustomFunctionLanguageOther:
 		default:
 			errors.Add("language", "invalid language")
 		}
@@ -115,6 +117,10 @@ func (c *CustomFunction) Insert(tx *apsql.Tx) error {
 }
 
 func (c *CustomFunction) AfterInsert(tx *apsql.Tx) error {
+	if c.Language == CustomFunctionLanguageOther {
+		return nil
+	}
+
 	dir := "custom_function/" + c.Language
 	files, err := AssetDir(dir)
 	if err != nil {
