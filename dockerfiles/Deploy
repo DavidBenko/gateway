@@ -4,6 +4,7 @@ FROM nanoscale/gateway:run-5.3.0
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 ADD build/gateway-linux-amd64 /gateway/gateway
+ADD build/gateway-soap-client.jar /gateway/gateway-soap-client.jar
 WORKDIR /gateway
 
 # SERVER MODE
