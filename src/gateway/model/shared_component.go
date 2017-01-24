@@ -50,6 +50,11 @@ func (s *SharedComponent) Validate(isInsert bool) aperrors.Errors {
 	errors.AddErrors(pec.validateTransformations(vm))
 	errors.AddErrors(pec.validateCalls(vm))
 
+	err := validateJavascript(s.Data, vm)
+	if err != nil {
+		errors.Add("data", err.Error())
+	}
+
 	return errors
 }
 

@@ -80,13 +80,9 @@ func (c *ProxyEndpointComponent) Validate(isInsert bool) aperrors.Errors {
 
 	// Validate javascript
 	if c.Type == ProxyEndpointComponentTypeJS {
-		data := string(c.Data)
-		if data != "" {
-			data = data[1 : len(data)-1]
-			vm := otto.New()
-			if _, err := vm.Compile("", data); err != nil {
-				errors.Add("data", err.Error())
-			}
+		err := validateJavascript(c.Data, vm)
+		if err != nil {
+			errors.Add("data", err.Error())
 		}
 	}
 
