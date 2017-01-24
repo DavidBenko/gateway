@@ -17,6 +17,7 @@ const (
 	CustomFunctionLanguageNode   = "node"
 	CustomFunctionLanguageCSharp = "csharp"
 	CustomFunctionLanguagePython = "python"
+	CustomFunctionLanguagePHP    = "php"
 )
 
 type CustomFunction struct {
@@ -54,6 +55,7 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 		case CustomFunctionLanguageNode:
 		case CustomFunctionLanguageCSharp:
 		case CustomFunctionLanguagePython:
+		case CustomFunctionLanguagePHP:
 		default:
 			errors.Add("language", "invalid language")
 		}
