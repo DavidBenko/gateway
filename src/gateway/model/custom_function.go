@@ -44,8 +44,8 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	if c.Name == "" {
 		errors.Add("name", "must have a name")
 	}
-	if c.Memory < 4 {
-		errors.Add("memory", "minimum memory limit allowed is 4MB")
+	if c.Memory < 8 {
+		errors.Add("memory", "minimum memory limit allowed is 8MB")
 	}
 	if c.CPUShares < 2 {
 		errors.Add("cpu_shares", "the minimum allowed cpu-shares is 2")
