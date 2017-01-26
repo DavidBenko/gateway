@@ -32,9 +32,10 @@ type CustomFunctionTestController struct {
 }
 
 type CustomFunctionTestResult struct {
-	Output string `json:"output"`
-	Log    string `json:"log"`
-	Time   int64  `json:"time"`
+	Output     string `json:"output"`
+	Log        string `json:"log"`
+	Time       int64  `json:"time"`
+	StatusCode int64  `json:"status_code"`
 }
 
 func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
@@ -68,9 +69,10 @@ func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Reque
 		Result CustomFunctionTestResult `json:"result"`
 	}{
 		CustomFunctionTestResult{
-			Output: output,
-			Log:    strings.Join(lines, "\n"),
-			Time:   elapsed,
+			Output:     output,
+			Log:        strings.Join(lines, "\n"),
+			Time:       elapsed,
+			StatusCode: int64(runOutput.StatusCode),
 		},
 	}
 
