@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	ProxyEndpointComponentTypeSingle = "single"
-	ProxyEndpointComponentTypeMulti  = "multi"
-	ProxyEndpointComponentTypeJS     = "js"
+	ProxyEndpointComponentTypeSingle   = "single"
+	ProxyEndpointComponentTypeMulti    = "multi"
+	ProxyEndpointComponentTypeJS       = "js"
+	ProxyEndpointComponentTypeAdvanced = "advanced"
 
 	// TypeDiscStandard indicates an ordinary ProxyEndpointComponent.
 	TypeDiscStandard = "standard"
@@ -85,6 +86,7 @@ func (c *ProxyEndpointComponent) validateType() aperrors.Errors {
 	case ProxyEndpointComponentTypeSingle:
 	case ProxyEndpointComponentTypeMulti:
 	case ProxyEndpointComponentTypeJS:
+	case ProxyEndpointComponentTypeAdvanced:
 	default:
 		errors.Add("type", "must be one of 'single', or 'multi', or 'js'")
 	}

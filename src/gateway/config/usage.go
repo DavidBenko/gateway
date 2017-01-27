@@ -77,6 +77,9 @@ var usageStrings = map[string]string{
 
 	"proxy-health-check-path": "The endpoint that responds with 200 - ok to health check requests when healthy. This applies system-wide and cannot be used by APIs as an endpoint. Defaults to /__gw-health-check. Blank will disable the feature.",
 
+	"proxy-key-cache-size":             "The maximum number of cryptographic keys to cache in the Javascript VM. 0 denotes an unlimited cache. Default is 0.",
+	"proxy-remote-endpoint-cache-size": "The maximum number of remote endpoints to cache in the Javascript VM, 0 denotes an unlimited cache. Default is 0.",
+
 	"job-enable":           "Enable execution of jobs.",
 	"job-enable-os-env":    "Whether or not to expose the OS's ENV to job code.",
 	"job-code-timeout":     "The timeout in seconds to use for job script code.",

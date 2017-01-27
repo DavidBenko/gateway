@@ -19,6 +19,26 @@ import (
 
 var errCodeTimeout = errors.New("JavaScript took too long to execute")
 
+// DataSource is a source/cache specifically for the VM to use.
+type DataSource interface {
+	// Get should find a cache value according to some criteria.
+	Get(interface{}) (interface{}, bool)
+}
+
+type VMError struct {
+	Error string `json:"error"`
+}
+
+func OttoErrorObject(vm *otto.Otto, message string) otto.Value {
+	vmerr := &VMError{Error: message}
+	result, err := json.Marshal(vmerr)
+	if err != nil {
+		logreport.Println(err)
+		return otto.UndefinedValue()
+	}
+	return ToOttoObjectValue(vm, string(result))
+}
+
 type VMConfig interface {
 	GetEnableOSEnv() bool
 	GetCodeTimeout() int64
@@ -217,11 +237,25 @@ func osEnvironmentScript() string {
 // is the second function argument, etc.
 func GetArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	arg := call.Argument(index)
-	// otto.Value is equivalent to undefined in javascript
-	undefined := otto.Value{}
+	undefined := otto.UndefinedValue()
 	if arg == undefined {
 		return nil, errors.New("undefined argument")
 	}
 
 	return arg.Export()
+}
+
+func ToOttoObjectValue(vm *otto.Otto, s string) otto.Value {
+	obj, err := vm.Object(fmt.Sprintf("(%s)", s))
+
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	result, err := vm.ToValue(obj)
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	return result
 }

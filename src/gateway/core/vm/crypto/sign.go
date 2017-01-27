@@ -1,4 +1,4 @@
-package ottocrypto
+package crypto
 
 import (
 	"encoding/json"
@@ -12,11 +12,15 @@ import (
 
 // IncludeSigning create the AP.Crypto.sign and AP.Crypto.verify helper functions in the
 // supplied Otto VM.
-func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func IncludeSigning(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	setSign(vm, accountID, keySource)
 	setVerify(vm, accountID, keySource)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
 		"AP.Crypto.sign = _sign; delete _sign;",
 		"AP.Crypto.verify = _verify; delete _verify;",
 	}
@@ -26,7 +30,7 @@ func IncludeSigning(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	}
 }
 
-func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func setSign(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_sign", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {
@@ -69,19 +73,19 @@ func setSign(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 			r := results.(*crypto.RsaSignature)
 			sr, _ := json.Marshal(r)
 
-			return toOttoObjectValue(vm, string(sr))
+			return corevm.ToOttoObjectValue(vm, string(sr))
 		case *crypto.EcdsaSignature:
 			r := results.(*crypto.EcdsaSignature)
 			sr, _ := json.Marshal(r)
 
-			return toOttoObjectValue(vm, string(sr))
+			return corevm.ToOttoObjectValue(vm, string(sr))
 		default:
 			return undefined
 		}
 	})
 }
 
-func setVerify(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func setVerify(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_verify", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {

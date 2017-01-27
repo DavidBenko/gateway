@@ -1,4 +1,4 @@
-package ottocrypto
+package crypto
 
 import (
 	b64 "encoding/base64"
@@ -16,6 +16,12 @@ func IncludeAes(vm *otto.Otto) {
 	setAesDecrypt(vm)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
+		// Create AES object
+		"AP.Crypto.Aes = AP.Crypto.Aes || {};",
 		"AP.Crypto.Aes.encrypt = _aesEncrypt; delete _aesEncrypt;",
 		"AP.Crypto.Aes.decrypt = _aesDecrypt; delete _aesDecrypt;",
 	}
