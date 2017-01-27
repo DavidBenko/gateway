@@ -154,7 +154,7 @@ func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, e
 func WrapJSComponent(c *CoreVM, script string) (string, func() (bool, error)) {
 	stopVal := "8a52973428f63bb0135a3abf535fec0f15b4c8eda1e9a2f1431f0a1f759babd3"
 	resultVar := "__exec_result"
-	wrapped := fmt.Sprintf("var stop = '%s'; var %s = (function() {%s})();", stopVal, resultVar, script)
+	wrapped := fmt.Sprintf("var stop = '%s'; var %s = (function() {\n%s\n})();", stopVal, resultVar, script)
 
 	fn := func() (bool, error) {
 		v, err := c.Get(resultVar)
