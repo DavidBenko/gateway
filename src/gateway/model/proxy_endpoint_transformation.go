@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx/types"
+	"github.com/robertkrimen/otto"
 )
 
 const (
@@ -26,10 +27,18 @@ type ProxyEndpointTransformation struct {
 }
 
 // Validate validates the model.
-func (t *ProxyEndpointTransformation) Validate() aperrors.Errors {
+func (t *ProxyEndpointTransformation) Validate(vm *otto.Otto) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	switch t.Type {
 	case ProxyEndpointTransformationTypeJS:
+		err := validateJavascript(t.Data, vm)
+		if err != nil {
+			if t.Before {
+				errors.Add("before", err.Error())
+			} else {
+				errors.Add("after", err.Error())
+			}
+		}
 	default:
 		errors.Add("type", "must be 'js'")
 	}

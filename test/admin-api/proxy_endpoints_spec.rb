@@ -412,7 +412,7 @@ describe "proxy_endpoints" do
           @new_pe = @ordinary.merge({
             components: [
               @ordinary[:components][0].merge({
-                data: 'some other code string',
+                data: 'different_js_code();',
               }),
               @ordinary[:components][1],
             ],

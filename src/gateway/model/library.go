@@ -3,6 +3,7 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+
 	"github.com/jmoiron/sqlx/types"
 )
 
@@ -23,6 +24,10 @@ func (l *Library) Validate(isInsert bool) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if l.Name == "" {
 		errors.Add("name", "must not be blank")
+	}
+	err := validateJavascript(l.Data, nil)
+	if err != nil {
+		errors.Add("data", err.Error())
 	}
 	return errors
 }

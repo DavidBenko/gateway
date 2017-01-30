@@ -3,6 +3,8 @@ package model
 import (
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
+
+	"github.com/robertkrimen/otto"
 )
 
 // SharedComponent models a Proxy Endpoint Component that can be defined
@@ -42,10 +44,16 @@ func (s *SharedComponent) Validate(isInsert bool) aperrors.Errors {
 		)
 	}
 
+	vm := otto.New()
 	// Validate base Component.
 	errors.AddErrors(pec.validateType())
-	errors.AddErrors(pec.validateTransformations())
-	errors.AddErrors(pec.validateCalls())
+	errors.AddErrors(pec.validateTransformations(vm))
+	errors.AddErrors(pec.validateCalls(vm))
+
+	err := validateJavascript(s.Data, vm)
+	if err != nil {
+		errors.Add("data", err.Error())
+	}
 
 	return errors
 }
