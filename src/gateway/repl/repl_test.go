@@ -2,10 +2,7 @@ package repl_test
 
 import (
 	"gateway/repl"
-	"io"
 	"testing"
-
-	"golang.org/x/net/websocket"
 
 	"github.com/robertkrimen/otto"
 
@@ -19,34 +16,30 @@ type ReplSuite struct{}
 
 var _ = gc.Suite(&ReplSuite{})
 
-func (s *ReplSuite) TestNewRepl(c *gc.C) {
+func (s *ReplSuite) TestRepl(c *gc.C) {
 	for i, t := range []struct {
-		should         string
-		givenVM        *otto.Otto
-		givenRWC       io.ReadWriteCloser
-		givenAccountID int64
-		expectError    string
+		should       string
+		givenInput   string
+		expectOutput string
+		expectError  string
 	}{{
-		should:         "accept a websocket to satisify the RWC interface",
-		givenVM:        nil,
-		givenRWC:       &websocket.Conn{},
-		givenAccountID: 1,
-	}, {
-		should:         "return an error for a 0 accountID",
-		givenVM:        nil,
-		givenRWC:       &websocket.Conn{},
-		givenAccountID: 0,
-		expectError:    "invalid accountID 0",
+		should:       "get welcome message",
+		expectOutput: "Hello",
 	}} {
-
 		c.Logf("Test %d: should %s", i, t.should)
-
-		given, err := repl.NewRepl(t.givenVM, t.givenRWC, t.givenAccountID)
-		if t.expectError != "" {
-			c.Assert(err.Error(), gc.Equals, t.expectError)
-			break
-		}
+		input := make(chan []byte)
+		repl, err := repl.NewRepl(otto.New(), input)
 		c.Assert(err, jc.ErrorIsNil)
-		c.Assert(given, gc.NotNil)
+		c.Assert(repl, gc.NotNil)
+		c.Assert(repl.Output, gc.NotNil)
+
+		go func() {
+			select {
+			case msg := <-repl.Output:
+
+			}
+		}()
+
+		repl.Start()
 	}
 }
