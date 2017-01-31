@@ -20,47 +20,47 @@ func (s *ReplSuite) TestRepl(c *gc.C) {
 	done := make(chan error, 1)
 	input := make(chan []byte)
 	// All tests reuse the same REPL so set variables persist between executions
-	repl, err := repl.NewRepl(otto.New(), input)
+	r, err := repl.NewRepl(otto.New(), input)
 	c.Assert(err, jc.ErrorIsNil)
-	c.Assert(repl, gc.NotNil)
+	c.Assert(r, gc.NotNil)
 
 	for i, t := range []struct {
 		should       string
 		givenInput   string
-		expectOutput string
+		expectOutput *repl.Frame
 	}{{
 		should:       "execute simple JS",
 		givenInput:   "var foo = 'something';",
-		expectOutput: "undefined",
+		expectOutput: &repl.Frame{Data: "undefined", Type: "output"},
 	}, {
 		should:       "return a value from executed JS",
 		givenInput:   "'foo'",
-		expectOutput: "foo",
+		expectOutput: &repl.Frame{Data: "foo", Type: "output"},
 	}, {
 		should:       "return a value from a function",
 		givenInput:   "function test() { return 'test'; };\ntest()",
-		expectOutput: "test",
+		expectOutput: &repl.Frame{Data: "test", Type: "output"},
 	}, {
 		should:       "return values created in previous executions",
 		givenInput:   "test()",
-		expectOutput: "test",
+		expectOutput: &repl.Frame{Data: "test", Type: "output"},
 	}, {
 		should:       "return an error",
 		givenInput:   "wrongFunc();",
-		expectOutput: "error: ReferenceError: 'wrongFunc' is not defined",
+		expectOutput: &repl.Frame{Data: "ReferenceError: 'wrongFunc' is not defined", Type: "error"},
 	}} {
 		c.Logf("Test %d: should %s", i, t.should)
 
 		go func() {
-			defer repl.Stop()
-			msg := <-repl.Output
-			if t.expectOutput != "" {
-				c.Assert(string(msg), gc.Equals, t.expectOutput)
+			defer r.Stop()
+			msg := <-r.Output
+			if t.expectOutput != nil {
+				c.Assert(string(msg), gc.Equals, string(t.expectOutput.JSON()))
 			}
 		}()
 
 		go func() {
-			repl.Run()
+			r.Run()
 			done <- nil
 		}()
 
