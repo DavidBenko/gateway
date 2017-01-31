@@ -318,7 +318,7 @@ def fixtures
         conditional: 'var foo = function () {\n\n};',
         conditional_positive: true,
         type: 'js',
-        data: 'code string',
+        data: 'test_js_code();',
       },
     },
   }
@@ -367,7 +367,7 @@ def fixtures
   fixts[:calls] = {
     basic_notrans: {
       endpoint_name_override: '',
-      conditional: 'something conditional',
+      conditional: '1 == 1',
       conditional_positive: true,
       before: [
         fixts[:transformations][:empty],
@@ -378,7 +378,7 @@ def fixtures
     },
     basic: {
       endpoint_name_override: '',
-      conditional: 'something conditional',
+      conditional: '1 == 1',
       conditional_positive: true,
       before: [
         fixts[:transformations][:basic],
@@ -391,7 +391,7 @@ def fixtures
     },
     normal: {
       endpoint_name_override: '',
-      conditional: 'something conditional',
+      conditional: '1 == 1',
       conditional_positive: true,
       before: [
         fixts[:transformations][:basic],
@@ -420,7 +420,7 @@ def fixtures
         fixts[:transformations][:normal],
       ],
       call: fixts[:calls][:basic],
-      data: {},
+      data: 'some_basic_javascript();',
     },
     single_notrans: {
       name: 'Single notrans',
@@ -435,7 +435,7 @@ def fixtures
         fixts[:transformations][:empty],
       ],
       call: fixts[:calls][:basic_notrans],
-      data: {},
+      data: 'some_basic_javascript();',
     },
     multi: {
       name: 'Less Ordinary multi component',

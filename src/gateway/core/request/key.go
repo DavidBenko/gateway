@@ -24,10 +24,6 @@ const (
 	EcdsaKey     = "ecdsa"
 )
 
-type genericKeyRequest struct {
-	ReqType string `json:"_reqtype"`
-}
-
 type KeyCreateRequest struct {
 	endpoint *model.RemoteEndpoint
 	db       *sql.DB
@@ -66,12 +62,15 @@ func (r *KeyResponse) Log() string {
 }
 
 func NewKeyRequest(db *sql.DB, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
-	generic := &genericKeyRequest{}
+	generic := &struct {
+		Action string `json:"__action"`
+	}{}
+
 	if err := json.Unmarshal(*data, generic); err != nil {
 		return nil, fmt.Errorf("Unable to unmarshal request json: %v", err)
 	}
 
-	switch generic.ReqType {
+	switch generic.Action {
 	case CreateType:
 		return newKeyCreateRequest(db, endpoint, data)
 	case DeleteType:
@@ -79,7 +78,7 @@ func NewKeyRequest(db *sql.DB, endpoint *model.RemoteEndpoint, data *json.RawMes
 	case GenerateType:
 		return newKeyGenerateRequest(db, endpoint, data)
 	default:
-		return nil, fmt.Errorf("%s not a supported action", generic.ReqType)
+		return nil, fmt.Errorf("%s not a supported action", generic.Action)
 	}
 }
 

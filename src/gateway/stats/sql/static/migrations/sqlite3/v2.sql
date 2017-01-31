@@ -1,0 +1,1 @@
+-- Nothing to change for Sqlite3 since INT and BIGINT have a resulting affinity of Integer.

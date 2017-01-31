@@ -1,4 +1,4 @@
-package ottocrypto
+package crypto
 
 import (
 	"encoding/base64"
@@ -12,11 +12,15 @@ import (
 
 // IncludeEncryption adds the AP.Crypto.encrypt and AP.Crypto.decrypt functions in
 // the supplied Otto VM.
-func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func IncludeEncryption(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	setEncrypt(vm, accountID, keySource)
 	setDecrypt(vm, accountID, keySource)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Crypto object
+		"AP.Crypto = AP.Crypto || {};",
 		"AP.Crypto.encrypt = _encrypt; delete _encrypt;",
 		"AP.Crypto.decrypt = _decrypt; delete _decrypt;",
 	}
@@ -26,7 +30,7 @@ func IncludeEncryption(vm *otto.Otto, accountID int64, keySource KeyDataSource) 
 	}
 }
 
-func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func setEncrypt(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_encrypt", func(call otto.FunctionCall) otto.Value {
 		data, err := getData(call)
 		if err != nil {
@@ -62,7 +66,7 @@ func setEncrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
 	})
 }
 
-func setDecrypt(vm *otto.Otto, accountID int64, keySource KeyDataSource) {
+func setDecrypt(vm *otto.Otto, accountID int64, keySource corevm.DataSource) {
 	vm.Set("_decrypt", func(call otto.FunctionCall) otto.Value {
 		ds, err := getData(call)
 		if err != nil {
