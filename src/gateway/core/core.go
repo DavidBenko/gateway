@@ -31,22 +31,23 @@ import (
 )
 
 const (
-	HttpRequest      = "http"
-	RedisRequest     = "redis"
-	SqlServerRequest = "sqlserver"
-	PostgresRequest  = "postgres"
-	MySqlRequest     = "mysql"
-	MongoRequest     = "mongo"
-	SoapRequest      = "soap"
-	LdapRequest      = "ldap"
-	HanaRequest      = "hana"
-	StoreRequest     = "store"
-	PushRequest      = "push"
-	SmtpRequest      = "smtp"
-	JobRequest       = "job"
-	KeyRequest       = "key"
-	ScriptRequest    = "script"
-	DockerRequest    = "docker"
+	HttpRequest           = "http"
+	RedisRequest          = "redis"
+	SqlServerRequest      = "sqlserver"
+	PostgresRequest       = "postgres"
+	MySqlRequest          = "mysql"
+	MongoRequest          = "mongo"
+	SoapRequest           = "soap"
+	LdapRequest           = "ldap"
+	HanaRequest           = "hana"
+	StoreRequest          = "store"
+	PushRequest           = "push"
+	SmtpRequest           = "smtp"
+	JobRequest            = "job"
+	KeyRequest            = "key"
+	ScriptRequest         = "script"
+	DockerRequest         = "docker"
+	CustomFunctionRequest = "custom_function"
 )
 
 type Core struct {
@@ -218,6 +219,9 @@ func (s *Core) PrepareRequest(
 		}
 		return request.NewKeyRequest(s.OwnDb, endpoint, data)
 	case model.RemoteEndpointTypeCustomFunction:
+		if generic.Type != CustomFunctionRequest {
+			return nil, invalidTypeErrorMessage(CustomFunctionRequest, generic.Type)
+		}
 		return request.NewCustomFunctionRequest(endpoint, data, s.OwnDb)
 	default:
 		return nil, fmt.Errorf("%q is not a valid endpoint type", endpoint.Type)

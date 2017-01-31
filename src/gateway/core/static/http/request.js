@@ -1421,6 +1421,8 @@ AP.CustomFunction = AP.CustomFunction || {};
 AP.CustomFunction.Request = function() {
   this.arguments = [];
 
+  this.__type = "custom_function";
+
   if (arguments.length == 1) {
     var request = arguments[0];
     this.arguments = _.clone(request.arguments);
