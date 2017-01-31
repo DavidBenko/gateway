@@ -1,10 +1,14 @@
 package repl
 
-import "github.com/robertkrimen/otto"
+import (
+	"fmt"
+
+	"github.com/robertkrimen/otto"
+)
 
 type Repl struct {
 	vm     *otto.Otto
-	input  chan []byte
+	Input  chan []byte
 	Output chan []byte
 	stop   chan bool
 }
@@ -15,10 +19,21 @@ func NewRepl(vm *otto.Otto, input chan []byte) (*Repl, error) {
 	return r, nil
 }
 
-func (r *Repl) Start() error {
-	r.Output <- []byte("foo bar baz!")
-	// TODO enter loop for reading/writing to channels
-	return nil
+func (r *Repl) Run() {
+l:
+	for {
+		select {
+		case in := <-r.Input:
+			val, err := r.vm.Run(in)
+			if err != nil {
+				r.Output <- []byte(fmt.Sprintf("error: %s", err.Error()))
+				break
+			}
+			r.Output <- []byte(val.String())
+		case <-r.stop:
+			break l
+		}
+	}
 }
 
 func (r *Repl) Stop() {
