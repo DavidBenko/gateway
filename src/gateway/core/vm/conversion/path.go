@@ -14,6 +14,15 @@ type pather func(data interface{}, path string, subkeys []string) ([]interface{}
 func IncludePath(vm *otto.Otto) {
 	setXMLPath(vm)
 	setJSONPath(vm)
+
+	scripts := []string{
+		"AP.Conversion.JSONPath = _JSONPath; delete _JSONPath;",
+		"AP.Conversion.XMLPath = _XMLPath; delete _XMLPath;",
+	}
+
+	for _, s := range scripts {
+		vm.Run(s)
+	}
 }
 
 func setXMLPath(vm *otto.Otto) {

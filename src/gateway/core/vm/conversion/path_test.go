@@ -1,7 +1,7 @@
 package conversion_test
 
 import (
-	"gateway/core/conversion"
+	"gateway/core/vm/conversion"
 	"testing"
 
 	jc "github.com/juju/testing/checkers"

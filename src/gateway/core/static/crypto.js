@@ -26,15 +26,3 @@ AP.Crypto.HashingAlgorithms = {
     sha3_512:   "sha3_512",
 }
 
-AP.Crypto.hashPassword = _hashPassword;
-delete _hashPassword;
-
-AP.Crypto.compareHashAndPassword = _compareHashAndPassword;
-delete _compareHashAndPassword;
-
-AP.Crypto.hash = _hash;
-delete _hash;
-
-AP.Crypto.hashHmac = _hashHmac
-delete _hashHmac;
-

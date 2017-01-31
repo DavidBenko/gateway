@@ -3,7 +3,7 @@ package conversion_test
 import (
 	"testing"
 
-	"gateway/core/conversion"
+	"gateway/core/vm/conversion"
 
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"

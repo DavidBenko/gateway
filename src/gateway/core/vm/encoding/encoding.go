@@ -22,6 +22,10 @@ func IncludeEncoding(vm *otto.Otto) {
 	setFromHex(vm)
 
 	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Encoding object
+		"AP.Encoding = AP.Encoding || {};",
 		"AP.Encoding.toBase64 = _toBase64; delete _toBase64;",
 		"AP.Encoding.fromBase64 = _fromBase64; delete _fromBase64;",
 		"AP.Encoding.toHex = _toHex; delete _toHex;",

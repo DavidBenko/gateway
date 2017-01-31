@@ -3,6 +3,8 @@ package model
 import (
 	"errors"
 
+	"github.com/robertkrimen/otto"
+
 	aperrors "gateway/errors"
 	apsql "gateway/sql"
 )
@@ -27,10 +29,18 @@ type ProxyEndpointCall struct {
 
 // Validate validates the ProxyEndpointCall to make sure it has a RemoteEndpoint
 // ID set.
-func (c *ProxyEndpointCall) Validate() aperrors.Errors {
+func (c *ProxyEndpointCall) Validate(vm *otto.Otto) aperrors.Errors {
 	errors := make(aperrors.Errors)
 	if c.RemoteEndpointID == 0 {
 		errors.Add("remote_endpoint_id", "must specify a remote endpoint")
+	}
+
+	for _, t := range [][]*ProxyEndpointTransformation{c.BeforeTransformations, c.AfterTransformations} {
+		for _, v := range t {
+			if errs := v.Validate(vm); !errs.Empty() {
+				return errs
+			}
+		}
 	}
 
 	return errors

@@ -112,6 +112,9 @@ type ProxyServer struct {
 	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
 
 	HealthCheckPath string `flag:"proxy-health-check-path" default:"/__gw-health-check"`
+
+	KeyCacheSize            int64 `flag:"proxy-key-cache-size" default:"0"`
+	RemoteEndpointCacheSize int64 `flag:"proxy-remote-endpoint-cache-size" default:"0"`
 }
 
 // BackgroundJob specifies configuration options that apply to jobs.

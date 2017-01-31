@@ -18,6 +18,19 @@ var undefined = otto.Value{}
 func IncludeConversion(vm *otto.Otto) {
 	setToJSON(vm)
 	setToXML(vm)
+
+	scripts := []string{
+		// Ensure the top level AP object exists or create it
+		"var AP = AP || {};",
+		// Create the Conversion object
+		"AP.Conversion = AP.Conversion || {};",
+		"AP.Conversion.toJson = _toJson; delete _toJson;",
+		"AP.Conversion.toXML = _toXML; delete _toXML;",
+	}
+
+	for _, s := range scripts {
+		vm.Run(s)
+	}
 }
 
 func setToJSON(vm *otto.Otto) {

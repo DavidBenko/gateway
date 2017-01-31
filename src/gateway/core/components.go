@@ -82,6 +82,8 @@ func (s *Core) runComponent(vm *vm.CoreVM, component *model.ProxyEndpointCompone
 		err = s.runCallComponentCore(vm, component, connections)
 	case model.ProxyEndpointComponentTypeJS:
 		b, err = s.runJSComponentCore(vm, component)
+	case model.ProxyEndpointComponentTypeAdvanced:
+		b, err = s.runJSComponentCore(vm, component)
 	default:
 		return b, fmt.Errorf("%s is not a valid component type", component.Type)
 	}

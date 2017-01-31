@@ -1,6 +1,7 @@
 package model_test
 
 import (
+	"fmt"
 	aperrors "gateway/errors"
 	"gateway/model"
 
@@ -103,6 +104,37 @@ func (s *ModelSuite) TestProxyEndpointComponentValidate(c *gc.C) {
 		}
 
 		errors := given.Validate(t.givenIsInsert)
+		c.Check(errors, jc.DeepEquals, t.expectErrors)
+	}
+}
+
+func (s *ModelSuite) TestProxyEndpointComponentValidateJavascript(c *gc.C) {
+	for i, t := range []struct {
+		should       string
+		given        string
+		expectErrors aperrors.Errors
+	}{{
+		should:       "not return an error with empty javascript data",
+		given:        "",
+		expectErrors: aperrors.Errors{},
+	}, {
+		should: "return an error with invalid javascript data",
+		given:  "}",
+		expectErrors: aperrors.Errors{
+			"data": []string{
+				"(anonymous): Line 1:1 Unexpected token }",
+			},
+		},
+	}} {
+		c.Logf("test %d: should %s", i, t.should)
+
+		component := &model.ProxyEndpointComponent{
+			Data: []byte(fmt.Sprintf("\"%s\"", t.given)),
+			ProxyEndpointComponentReferenceID: new(int64),
+			Type: "js",
+		}
+
+		errors := component.Validate(true)
 		c.Check(errors, jc.DeepEquals, t.expectErrors)
 	}
 }
