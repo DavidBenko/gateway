@@ -102,12 +102,6 @@ func (c *CoreVM) InitCoreVM(
 
 // Run runs the given script, preventing infinite loops and very slow JS
 func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
-	codeTimeout := int64(0)
-	if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
-		codeTimeout = c.GetCodeTimeout()
-	} else {
-		codeTimeout = c.timeout
-	}
 	defer func() {
 		if caught := recover(); caught != nil {
 			if caught == errCodeTimeout {
@@ -119,6 +113,13 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 	}()
 
 	if c.Otto.Interrupt == nil {
+		codeTimeout := int64(0)
+		if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
+			codeTimeout = c.GetCodeTimeout()
+		} else {
+			codeTimeout = c.timeout
+		}
+
 		timeoutChannel := make(chan func(), 1)
 		c.Otto.Interrupt = timeoutChannel
 
@@ -139,7 +140,7 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, err error) {
 	if s, ok := script.(string); ok {
 		wrapped, stopper := WrapJSComponent(c, s)
-		value, err = c.Otto.Run(wrapped)
+		value, err = c.Run(wrapped)
 		if err != nil {
 			return value, stop, &jsError{err, script, c.GetNumErrorLines()}
 		}
