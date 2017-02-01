@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ const (
 type Core struct {
 	DevMode               bool
 	HTTPClient            *http.Client
+	InsecureHTTPClient    *http.Client
 	DBPools               *pools.Pools
 	OwnDb                 *sql.DB // in-application datastore
 	SoapConf              config.Soap
@@ -86,10 +88,13 @@ func NewCore(conf config.Configuration, ownDb *sql.DB, statsDb *statssql.SQL) *C
 	if err != nil {
 		logreport.Fatalf("Unable to migrate the object store: %v", err)
 	}
-
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
 	return &Core{
 		DevMode:               conf.DevMode(),
 		HTTPClient:            &http.Client{Timeout: httpTimeout},
+		InsecureHTTPClient:    &http.Client{Timeout: httpTimeout, Transport: tr},
 		DBPools:               pools,
 		OwnDb:                 ownDb,
 		SoapConf:              conf.Soap,
@@ -134,7 +139,7 @@ func (s *Core) PrepareRequest(
 		if generic.Type != HttpRequest {
 			return nil, invalidTypeErrorMessage(HttpRequest, generic.Type)
 		}
-		return request.NewHTTPRequest(s.HTTPClient, endpoint, data)
+		return request.NewHTTPRequest(s.HTTPClient, s.InsecureHTTPClient, endpoint, data)
 	case model.RemoteEndpointTypeSQLServer:
 		if generic.Type != SqlServerRequest {
 			return nil, invalidTypeErrorMessage(SqlServerRequest, generic.Type)
