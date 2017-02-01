@@ -228,11 +228,12 @@ func (s *Core) PrepareRequest(
 	}
 }
 
-func VMCopy(accountID int64, keySource vm.DataSource, endpointSource vm.DataSource, prepare advanced.RequestPreparer) *otto.Otto {
+func VMCopy(accountID int64, keySource vm.DataSource, endpointSource vm.DataSource,
+	prepare advanced.RequestPreparer, pauseTimeout *uint64) *otto.Otto {
 	vm := shared.Copy()
 	crypto.IncludeSigning(vm, accountID, keySource)
 	crypto.IncludeEncryption(vm, accountID, keySource)
-	advanced.IncludePerform(vm, accountID, endpointSource, prepare)
+	advanced.IncludePerform(vm, accountID, endpointSource, prepare, pauseTimeout)
 	return vm
 }
 

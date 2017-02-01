@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"gateway/core/request"
@@ -44,6 +45,9 @@ type responsePayload struct {
 }
 
 func (s *Core) makeRequests(vm *vm.CoreVM, proxyRequests []request.Request) ([]request.Response, error) {
+	atomic.StoreUint64(&vm.PauseTimeout, 1)
+	defer atomic.StoreUint64(&vm.PauseTimeout, 0)
+
 	start := time.Now()
 	defer func() {
 		vm.ProxiedRequestsDuration += time.Since(start)

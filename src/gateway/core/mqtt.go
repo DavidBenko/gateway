@@ -259,7 +259,8 @@ func (c *Core) ExecuteMQTT(context fmt.Stringer, logPrint logreport.Logf, msg *m
 	}
 
 	vm = &apvm.CoreVM{}
-	vm.InitCoreVM(VMCopy(channel.AccountID, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest), logPrint, logPrefix, &c.Conf.Proxy, proxyEndpoint, libraries, codeTimeout)
+	vm.InitCoreVM(VMCopy(channel.AccountID, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest, &vm.PauseTimeout),
+		logPrint, logPrefix, &c.Conf.Proxy, proxyEndpoint, libraries, codeTimeout)
 
 	incomingJSON, err := json.Marshal(&request)
 	if err != nil {

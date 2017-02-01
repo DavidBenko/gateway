@@ -8,6 +8,7 @@ import (
 	corevm "gateway/core/vm"
 	"gateway/model"
 	"io"
+	"sync/atomic"
 
 	"github.com/robertkrimen/otto"
 )
@@ -16,8 +17,14 @@ import (
 // request.
 type RequestPreparer func(*model.RemoteEndpoint, *json.RawMessage, map[int64]io.Closer) (request.Request, error)
 
-func IncludePerform(vm *otto.Otto, accountID int64, endpointSource corevm.DataSource, prepare RequestPreparer) {
+func IncludePerform(vm *otto.Otto, accountID int64, endpointSource corevm.DataSource,
+	prepare RequestPreparer, pauseTimeout *uint64) {
 	vm.Set("_perform", func(call otto.FunctionCall) otto.Value {
+		if pauseTimeout != nil {
+			atomic.StoreUint64(pauseTimeout, 1)
+			defer atomic.StoreUint64(pauseTimeout, 0)
+		}
+
 		connections := make(map[int64]io.Closer)
 
 		r, err := corevm.GetArgument(call, 0)

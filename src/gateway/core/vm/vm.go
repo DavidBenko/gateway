@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"gateway/logreport"
@@ -53,6 +54,7 @@ type CoreVM struct {
 	LogPrefix               string
 	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
+	PauseTimeout            uint64
 	timeout                 int64
 }
 
@@ -124,7 +126,14 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 		c.Otto.Interrupt = timeoutChannel
 
 		go func() {
-			time.Sleep(time.Duration(codeTimeout) * time.Second)
+			timeout := time.Duration(codeTimeout) * time.Second / time.Millisecond
+			for timeout > 0 {
+				time.Sleep(time.Millisecond)
+				if atomic.LoadUint64(&c.PauseTimeout) == 1 {
+					continue
+				}
+				timeout--
+			}
 			timeoutChannel <- func() { panic(errCodeTimeout) }
 		}()
 	}
