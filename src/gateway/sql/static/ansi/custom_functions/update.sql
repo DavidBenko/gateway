@@ -5,6 +5,7 @@ SET
   active = ?,
   memory = ?,
   cpu_shares = ?,
+  timeout = ?,
   updated_at = CURRENT_TIMESTAMP
 WHERE custom_functions.id = ?
   AND custom_functions.api_id IN

@@ -33,6 +33,7 @@ type CustomFunction struct {
 	Active      bool   `json:"active"`
 	Memory      int64  `json:"memory"`
 	CPUShares   int64  `json:"cpu_shares" db:"cpu_shares"`
+	Timeout     int64  `json:"timeout"`
 }
 
 func (c *CustomFunction) ImageName() string {
@@ -49,6 +50,9 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	}
 	if c.CPUShares < 2 {
 		errors.Add("cpu_shares", "the minimum allowed cpu-shares is 2")
+	}
+	if c.Timeout < 0 || c.Timeout > 600 {
+		errors.Add("timeout", "timeout should be between 0 and 600 seconds")
 	}
 	if isInsert {
 		switch c.Language {
@@ -108,7 +112,8 @@ func (c *CustomFunction) Delete(tx *apsql.Tx) error {
 func (c *CustomFunction) Insert(tx *apsql.Tx) error {
 	var err error
 	c.ID, err = tx.InsertOne(tx.SQL("custom_functions/insert"),
-		c.APIID, c.AccountID, c.Name, c.Description, c.Active, c.Memory, c.CPUShares)
+		c.APIID, c.AccountID, c.Name, c.Description, c.Active, c.Memory, c.CPUShares,
+		c.Timeout)
 	if err != nil {
 		return err
 	}
@@ -147,7 +152,7 @@ func (c *CustomFunction) AfterInsert(tx *apsql.Tx) error {
 
 func (c *CustomFunction) Update(tx *apsql.Tx) error {
 	err := tx.UpdateOne(tx.SQL("custom_functions/update"),
-		c.Name, c.Description, c.Active, c.Memory, c.CPUShares,
+		c.Name, c.Description, c.Active, c.Memory, c.CPUShares, c.Timeout,
 		c.ID, c.APIID, c.AccountID)
 	if err != nil {
 		return err
@@ -220,5 +225,6 @@ func ExecuteCustomFunction(db *apsql.DB, accountID, apiID, customFunctionID int6
 		docker.BuildImage(options)
 	}
 
-	return docker.ExecuteImage(function.ImageName(), function.Memory, function.CPUShares, input)
+	return docker.ExecuteImage(function.ImageName(), function.Memory,
+		function.CPUShares, function.Timeout, input)
 }

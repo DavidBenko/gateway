@@ -2,14 +2,17 @@ package docker
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gateway/config"
-	"gateway/logreport"
 	"strings"
 	"sync"
+	"time"
+
+	"gateway/config"
+	"gateway/logreport"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
@@ -107,7 +110,7 @@ func InspectImage(name string) (*dockerclient.Image, error) {
 	return client.InspectImage(name)
 }
 
-func ExecuteImage(name string, memory, cpuShares int64, input interface{}) (*RunOutput, error) {
+func ExecuteImage(name string, memory, cpuShares, timeout int64, input interface{}) (*RunOutput, error) {
 	var stdout, stderr, containerLogs bytes.Buffer
 
 	container, err := client.CreateContainer(dockerclient.CreateContainerOptions{
@@ -128,9 +131,9 @@ func ExecuteImage(name string, memory, cpuShares int64, input interface{}) (*Run
 	}
 
 	defer func() {
-		if err = client.RemoveContainer(dockerclient.RemoveContainerOptions{
+		if er := client.RemoveContainer(dockerclient.RemoveContainerOptions{
 			ID: container.ID,
-		}); err != nil {
+		}); er != nil {
 			logreport.Printf("%s Could not remove container %s: %s", config.System, container.ID, err.Error())
 		}
 	}()
@@ -147,7 +150,7 @@ func ExecuteImage(name string, memory, cpuShares int64, input interface{}) (*Run
 	var stdin = strings.NewReader(string(data))
 
 	go func() {
-		if err = client.AttachToContainer(dockerclient.AttachToContainerOptions{
+		if er := client.AttachToContainer(dockerclient.AttachToContainerOptions{
 			Container:    container.ID,
 			Stream:       true,
 			Stdin:        true,
@@ -156,13 +159,16 @@ func ExecuteImage(name string, memory, cpuShares int64, input interface{}) (*Run
 			InputStream:  stdin,
 			OutputStream: &stdout,
 			ErrorStream:  &stderr,
-		}); err != nil {
+		}); er != nil {
 			logreport.Printf("%s Could not attach to container %s: %s", config.System, container.ID, err.Error())
 		}
 	}()
 
-	code, err := client.WaitContainer(container.ID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	code, err := client.WaitContainerWithContext(container.ID, ctx)
 	if err != nil {
+		client.StopContainer(container.ID, 0)
 		return nil, err
 	}
 
