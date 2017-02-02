@@ -142,8 +142,10 @@ var usageStrings = map[string]string{
 
 	"admin-api-host": "The host the administrative api is accessible via. If left blank the Admin Host is used. Include the protocol (http or https) when using this setting.",
 
-	"ws-heartbeat-interval": "The interval in seconds to send heartbeats to Admin API connected websocket clients. Defaults to 60.",
-	"ws-write-deadline":     "The amount of time in seconds to wait for successful websocket writes to Admin API connected websocket clients before closing the connection. Defaults to 10.",
+	"ws-heartbeat-interval":   "The interval in seconds to send heartbeats to Admin API connected websocket clients. Defaults to 60.",
+	"ws-write-deadline":       "The amount of time in seconds to wait for successful websocket writes to Admin API connected websocket clients before closing the connection. Defaults to 10.",
+	"ws-read-deadline":        "The amount of time in seconds to wait for successful websocket reads to Admin API connected websocket clients before closing the connection. Defaults to 10.",
+	"repl-maximum-frame-size": "The maximimum size in bytes of the REPL websocket frames. Default is 1024 bytes (1 kb)",
 
 	"elastic-logging-url":          "The url of the elastic server",
 	"elastic-logging-delete-after": "How long in days to keep logs",

@@ -6,7 +6,6 @@ import (
 
 	"github.com/robertkrimen/otto"
 
-	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
 )
 
@@ -18,10 +17,8 @@ var _ = gc.Suite(&ReplSuite{})
 
 func (s *ReplSuite) TestRepl(c *gc.C) {
 	done := make(chan error, 1)
-	input := make(chan []byte)
 	// All tests reuse the same REPL so set variables persist between executions
-	r, err := repl.NewRepl(otto.New(), input)
-	c.Assert(err, jc.ErrorIsNil)
+	r := repl.NewRepl(otto.New())
 	c.Assert(r, gc.NotNil)
 
 	for i, t := range []struct {
@@ -65,10 +62,9 @@ func (s *ReplSuite) TestRepl(c *gc.C) {
 		}()
 
 		if t.givenInput != "" {
-			input <- []byte(t.givenInput)
+			r.Input <- []byte(t.givenInput)
 		}
 
 		<-done
-		c.Assert(err, jc.ErrorIsNil)
 	}
 }

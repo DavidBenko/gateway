@@ -2,6 +2,7 @@ package repl
 
 import (
 	"encoding/json"
+	"gateway/logreport"
 
 	"github.com/robertkrimen/otto"
 )
@@ -27,18 +28,21 @@ type Frame struct {
 func (f *Frame) JSON() []byte {
 	out, err := json.Marshal(f)
 	if err != nil {
-		// create JSON error
+		logreport.Println(err)
+		ef := &Frame{Data: "unknown error occurred", Type: ERROR}
+		return ef.JSON()
 	}
 	return out
 }
 
-func NewRepl(vm *otto.Otto, input chan []byte) (*Repl, error) {
+func NewRepl(vm *otto.Otto) *Repl {
 	output := make(chan []byte)
-	r := &Repl{vm, input, output, make(chan bool, 1)}
-	return r, nil
+	input := make(chan []byte)
+	r := &Repl{vm, input, output, make(chan bool)}
+	return r
 }
 
-func (r *Repl) Run() error {
+func (r *Repl) Run() {
 l:
 	for {
 		select {
@@ -55,7 +59,7 @@ l:
 			break l
 		}
 	}
-	return nil
+	return
 }
 
 func (r *Repl) Stop() {

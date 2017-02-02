@@ -201,6 +201,9 @@ type ProxyAdmin struct {
 	APIHost             string `flag:"admin-api-host"        default:""`
 	WsHeartbeatInterval int64  `flag:"ws-heartbeat-interval" default:"60"`
 	WsWriteDeadline     int64  `flag:"ws-write-deadline" default:"10"`
+	WsReadDeadline      int64  `flag:"ws-read-deadline" default:"10"`
+
+	ReplMaximumFrameSize int64 `flag:"repl-maximum-frame-size" default:"1024"`
 }
 
 type ElasticLogging struct {
