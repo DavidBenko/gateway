@@ -263,6 +263,7 @@ var shared = func() *otto.Otto {
 	conversion.IncludePath(vm)
 	crypto.IncludeHashing(vm)
 	crypto.IncludeAes(vm)
+	crypto.IncludeRand(vm)
 	encoding.IncludeEncoding(vm)
 
 	return vm
