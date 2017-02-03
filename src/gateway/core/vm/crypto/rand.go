@@ -41,7 +41,7 @@ func setRand(vm *otto.Otto) {
 
 		if number > 4096 {
 			number = 4096
-			logreport.Println("maximum of 1024 random bytes")
+			logreport.Println("maximum of 4096 random bytes")
 		}
 
 		b := make([]byte, number)
