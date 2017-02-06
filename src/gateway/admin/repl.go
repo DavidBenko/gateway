@@ -44,7 +44,6 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 		go func() {
 			for {
 				m := make([]byte, c.conf.ReplMaximumFrameSize)
-				ws.SetReadDeadline(time.Now().Add(time.Duration(c.conf.WsReadDeadline) * time.Second))
 				n, err := ws.Read(m)
 				if err != nil {
 					return
