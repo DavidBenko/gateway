@@ -6,6 +6,7 @@ import (
 	"gateway/core/vm"
 	"gateway/core/vm/advanced"
 	"gateway/repl"
+	"net"
 	"time"
 
 	aphttp "gateway/http"
@@ -40,26 +41,41 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 	r := repl.NewRepl(core.VMCopy(c.accountID(ws.Request()), c.keyStore, c.remoteEndpointStore, c.preparer))
 
 	go func() {
-		// websocket read loop in a separate go routine
-		go func() {
-			for {
-				m := make([]byte, c.conf.ReplMaximumFrameSize)
-				n, err := ws.Read(m)
-				if err != nil {
-					return
-				}
-				// push the input to the repl
-				r.Input <- m[:n]
-			}
-		}()
+		stopReader := make(chan int, 1)
+		stopWriter := make(chan int, 1)
 
 		// start a ticker for the websocket heartbeat
 		heartbeatTicker := time.NewTicker(time.Duration(c.conf.WsHeartbeatInterval) * time.Second)
 		// when the function finishes stop the ticker, stop the repl and close the websocket
 		defer func() {
+			stopReader <- 0
 			heartbeatTicker.Stop()
 			r.Stop()
 			ws.Close()
+		}()
+
+		// websocket read loop in a separate go routine
+		go func() {
+			for {
+				select {
+				case <-stopReader:
+					return
+				default:
+					m := make([]byte, c.conf.ReplMaximumFrameSize)
+					ws.SetReadDeadline(time.Now().Add(15 * time.Second))
+					n, err := ws.Read(m)
+					if err != nil {
+						switch err.(type) {
+						case *net.OpError:
+						default:
+							stopWriter <- 0
+						}
+					} else {
+						// push the input to the repl
+						r.Input <- m[:n]
+					}
+				}
+			}
 		}()
 
 		// main repl feedback loop to push repl results to the websocket and send heartbeats
@@ -78,6 +94,9 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 				if _, err := ws.Write(f.JSON()); err != nil {
 					return
 				}
+			case <-stopWriter:
+				stopReader <- 0
+				return
 			}
 		}
 
