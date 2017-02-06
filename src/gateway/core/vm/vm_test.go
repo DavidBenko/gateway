@@ -31,6 +31,10 @@ func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
 		get:         "AP.Crypto",
 		expectClass: "Object",
 	}, {
+		should:      "include AP.Crypto.rand",
+		get:         "AP.Crypto.rand",
+		expectClass: "Function",
+	}, {
 		should:      "include AP.Crypto.encrypt",
 		get:         "AP.Crypto.encrypt",
 		expectClass: "Function",

@@ -28,6 +28,8 @@ type proxyRequest struct {
 	Params  map[string]interface{} `json:"params"`
 
 	ID string `json:"id"`
+
+	Type string `json:"__type"`
 }
 
 func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (*proxyRequest, error) {
@@ -42,6 +44,7 @@ func proxyRequestJSON(r *http.Request, id string, vars map[string]string) (*prox
 		Headers:       aphttp.DesliceValues(r.Header),
 		Vars:          vars,
 		ID:            id,
+		Type:          "http",
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
