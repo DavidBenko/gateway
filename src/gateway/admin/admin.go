@@ -112,9 +112,6 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	jobTestController := &JobTestController{base, c}
 	RouteJobTest(jobTestController, "/apis/{apiID}/jobs/{endpointID}/tests/{testID}/test", authAdmin, db, conf)
 
-	customFunctionTestController := &CustomFunctionTestController{base}
-	RouteCustomFunctionTest(customFunctionTestController, "/apis/{apiID}/custom_functions/{customFunctionID}/tests/{testID}/test", authAdmin, db, conf)
-
 	RouteKeys(&KeysController{base}, "/keys", authAdmin, db, conf)
 	RouteSketch(&SketchController{base}, "/sketch", authAdmin, db, conf)
 	RouteResource(&HostsController{BaseController: base}, "/apis/{apiID}/hosts", authAdmin, db, conf)
@@ -142,10 +139,16 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&PushChannelMessagesController{BaseController: base}, "/push_channel_messages", authAdmin, db, conf)
 	RouteResource(&SharedComponentsController{BaseController: base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
 	RouteResource(&TimersController{BaseController: base}, "/timers", authAdmin, db, conf)
-	RouteResource(&CustomFunctionsController{BaseController: base}, "/apis/{apiID}/custom_functions", authAdmin, db, conf)
-	RouteResource(&CustomFunctionFilesController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/files", authAdmin, db, conf)
-	RouteResource(&CustomFunctionTestsController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/tests", authAdmin, db, conf)
-	RouteCustomFunctionBuild(&CustomFunctionBuildController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/build", authAdmin, db, conf)
+
+	if configuration.RemoteEndpoint.CustomFunctionEnabled {
+		customFunctionTestController := &CustomFunctionTestController{base}
+		RouteCustomFunctionTest(customFunctionTestController, "/apis/{apiID}/custom_functions/{customFunctionID}/tests/{testID}/test", authAdmin, db, conf)
+
+		RouteResource(&CustomFunctionsController{BaseController: base}, "/apis/{apiID}/custom_functions", authAdmin, db, conf)
+		RouteResource(&CustomFunctionFilesController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/files", authAdmin, db, conf)
+		RouteResource(&CustomFunctionTestsController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/tests", authAdmin, db, conf)
+		RouteCustomFunctionBuild(&CustomFunctionBuildController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/build", authAdmin, db, conf)
+	}
 
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)
