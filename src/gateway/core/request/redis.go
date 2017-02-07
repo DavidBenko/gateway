@@ -51,6 +51,15 @@ func NewRedisRequest(pools *pools.Pools, endpoint *model.RemoteEndpoint, data *j
 
 	request.updateWith(endpointData)
 
+	if endpoint.SelectedEnvironmentData != nil {
+		endpointData := &RedisRequest{}
+		if err := json.Unmarshal(*endpoint.SelectedEnvironmentData, endpointData); err != nil {
+			return nil, err
+		}
+		request.updateWith(endpointData)
+
+	}
+
 	if pools == nil {
 		return nil, errors.New("database pools not set up")
 	}
