@@ -72,18 +72,17 @@ func cacheKey(accountID, APIID int64, codename string) string {
 }
 
 func (r *RemoteEndpointStore) Notify(n *apsql.Notification) {
-	if n.Table != "remote_endpoints" {
-		return
-	}
-
-	switch n.Event {
-	case apsql.Update:
-		fallthrough
-	case apsql.Delete:
-		r.Lock()
-		defer r.Unlock()
-		id := n.Messages[0]
-		r.cache.Remove(id)
+	if n.Table == "remote_endpoints" {
+		switch n.Event {
+		case apsql.Insert:
+			fallthrough
+		case apsql.Update:
+			fallthrough
+		case apsql.Delete:
+			r.Lock()
+			defer r.Unlock()
+			r.cache.Remove(n.ID)
+		}
 	}
 }
 
