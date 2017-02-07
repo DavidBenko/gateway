@@ -47,7 +47,7 @@ func (r *RemoteEndpointStore) Get(criteria interface{}) (interface{}, bool) {
 	}
 	r.RUnlock()
 
-	endpoint, err := model.FindRemoteEndpointForAccountIDAndCodename(r.db, c.AccountID, c.APIID, c.Codename)
+	endpoint, err := model.FindRemoteEndpointForAccountIDApiIDAndCodename(r.db, c.AccountID, c.APIID, c.Codename)
 	if err != nil {
 		return nil, false
 	}
