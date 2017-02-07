@@ -34,7 +34,7 @@ func (c *Core) ExecuteJob(jobID, accountID, apiID int64, logPrint logreport.Logf
 	}
 
 	vm := &vm.CoreVM{}
-	vm.InitCoreVM(VMCopy(accountID, apiID, 0, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest), logPrint, logPrefix, conf, job, libraries, codeTimeout)
+	vm.InitCoreVM(VMCopy(accountID, apiID, job.EnvironmentID, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest), logPrint, logPrefix, conf, job, libraries, codeTimeout)
 
 	vm.Set("__ap_jobParametersJSON", parameters)
 	scripts := []interface{}{
