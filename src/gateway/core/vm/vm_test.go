@@ -20,7 +20,7 @@ func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
 	k := &vm.KeyStore{}
 	e := &vm.RemoteEndpointStore{}
 
-	vm := core.VMCopy(1, k, e, nil, nil)
+	vm := core.VMCopy(1, 1, 1, k, e, nil, nil)
 
 	for i, t := range []struct {
 		should      string
