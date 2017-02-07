@@ -50,7 +50,7 @@ func NewVM(
 		r:  r,
 		db: db,
 	}
-	vm.InitCoreVM(core.VMCopy(proxyEndpoint.AccountID, proxyEndpoint.APIID, keyStore, endpointStore, prepare), logPrint, logPrefix, &conf, proxyEndpoint, libraries, timeout)
+	vm.InitCoreVM(core.VMCopy(proxyEndpoint.AccountID, proxyEndpoint.APIID, proxyEndpoint.EnvironmentID, keyStore, endpointStore, prepare), logPrint, logPrefix, &conf, proxyEndpoint, libraries, timeout)
 
 	if err := vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
 		return nil, err

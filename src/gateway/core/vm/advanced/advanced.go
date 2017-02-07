@@ -16,7 +16,11 @@ import (
 // request.
 type RequestPreparer func(*model.RemoteEndpoint, *json.RawMessage, map[int64]io.Closer) (request.Request, error)
 
-func IncludePerform(vm *otto.Otto, accountID, APIID int64, endpointSource corevm.DataSource, prepare RequestPreparer) {
+func IncludePerform(vm *otto.Otto,
+	accountID, APIID, environmentID int64,
+	endpointSource corevm.DataSource,
+	prepare RequestPreparer) {
+
 	vm.Set("_perform", func(call otto.FunctionCall) otto.Value {
 		connections := make(map[int64]io.Closer)
 
@@ -25,7 +29,7 @@ func IncludePerform(vm *otto.Otto, accountID, APIID int64, endpointSource corevm
 			return corevm.OttoErrorObject(vm, "invalid argument")
 		}
 
-		results, _, err := perform(r, vm, endpointSource, accountID, APIID, prepare, connections)
+		results, _, err := perform(r, vm, endpointSource, accountID, APIID, environmentID, prepare, connections)
 		if err != nil {
 			return corevm.OttoErrorObject(vm, err.Error())
 		}
@@ -80,7 +84,7 @@ func parseOptions(o map[string]interface{}) (*requestOptions, error) {
 	return options, nil
 }
 
-func perform(o interface{}, vm *otto.Otto, endpointSource corevm.DataSource, accountID, APIID int64,
+func perform(o interface{}, vm *otto.Otto, endpointSource corevm.DataSource, accountID, APIID, environmentID int64,
 	prepare RequestPreparer, connections map[int64]io.Closer) (interface{}, string, error) {
 
 	switch o.(type) {
@@ -91,7 +95,7 @@ func perform(o interface{}, vm *otto.Otto, endpointSource corevm.DataSource, acc
 			return nil, "", err
 		}
 
-		results := makeRequests(options, accountID, APIID, endpointSource, prepare, connections)
+		results := makeRequests(options, accountID, APIID, environmentID, endpointSource, prepare, connections)
 
 		responses := make(map[string][]request.Response, 1)
 		responses[options.Codename] = results
@@ -104,7 +108,7 @@ func perform(o interface{}, vm *otto.Otto, endpointSource corevm.DataSource, acc
 
 		for i, opt := range allopts {
 			go func(index int, options map[string]interface{}) {
-				responses, codename, err := perform(options, vm, endpointSource, accountID, APIID, prepare, connections)
+				responses, codename, err := perform(options, vm, endpointSource, accountID, APIID, environmentID, prepare, connections)
 				if err != nil {
 					res := &errorResponse{err.Error()}
 					c <- &responsesWrapper{"", []request.Response{res}}
@@ -134,7 +138,7 @@ func perform(o interface{}, vm *otto.Otto, endpointSource corevm.DataSource, acc
 	}
 }
 
-func makeRequests(options *requestOptions, accountID, APIID int64, endpointSource corevm.DataSource,
+func makeRequests(options *requestOptions, accountID, APIID, environmentID int64, endpointSource corevm.DataSource,
 	prepare RequestPreparer, connections map[int64]io.Closer) []request.Response {
 
 	criteria := &corevm.RemoteEndpointStoreCriteria{AccountID: accountID, APIID: APIID, Codename: options.Codename}
@@ -144,6 +148,15 @@ func makeRequests(options *requestOptions, accountID, APIID int64, endpointSourc
 	}
 
 	endpoint := result.(*model.RemoteEndpoint)
+
+	if environmentID != 0 {
+		for _, envData := range endpoint.EnvironmentData {
+			if envData.EnvironmentID == environmentID {
+				endpoint.SelectedEnvironmentData = &envData.Data
+				break
+			}
+		}
+	}
 
 	responses := make([]request.Response, len(options.rawRequests))
 
