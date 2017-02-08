@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"gateway/logreport"
@@ -53,6 +54,7 @@ type CoreVM struct {
 	LogPrefix               string
 	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
+	PauseTimeout            uint64
 	timeout                 int64
 }
 
@@ -102,12 +104,6 @@ func (c *CoreVM) InitCoreVM(
 
 // Run runs the given script, preventing infinite loops and very slow JS
 func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
-	codeTimeout := int64(0)
-	if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
-		codeTimeout = c.GetCodeTimeout()
-	} else {
-		codeTimeout = c.timeout
-	}
 	defer func() {
 		if caught := recover(); caught != nil {
 			if caught == errCodeTimeout {
@@ -119,11 +115,25 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 	}()
 
 	if c.Otto.Interrupt == nil {
+		codeTimeout := int64(0)
+		if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
+			codeTimeout = c.GetCodeTimeout()
+		} else {
+			codeTimeout = c.timeout
+		}
+
 		timeoutChannel := make(chan func(), 1)
 		c.Otto.Interrupt = timeoutChannel
 
 		go func() {
-			time.Sleep(time.Duration(codeTimeout) * time.Second)
+			timeout := time.Duration(codeTimeout) * time.Second / time.Millisecond
+			for timeout > 0 {
+				time.Sleep(time.Millisecond)
+				if atomic.LoadUint64(&c.PauseTimeout) == 1 {
+					continue
+				}
+				timeout--
+			}
 			timeoutChannel <- func() { panic(errCodeTimeout) }
 		}()
 	}
@@ -139,7 +149,7 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, err error) {
 	if s, ok := script.(string); ok {
 		wrapped, stopper := WrapJSComponent(c, s)
-		value, err = c.Otto.Run(wrapped)
+		value, err = c.Run(wrapped)
 		if err != nil {
 			return value, stop, &jsError{err, script, c.GetNumErrorLines()}
 		}

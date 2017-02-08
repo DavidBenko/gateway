@@ -128,23 +128,24 @@ type BackgroundJob struct {
 
 // RemoteEndpoint specifies which types of remote endpionts are available
 type RemoteEndpoint struct {
-	HTTPEnabled       bool `flag:"remote-endpoint-http-enabled" default:"true"`
-	SQLServerEnabled  bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
-	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
-	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
-	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
-	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"true"`
-	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
-	HanaEnabled       bool `flag:"remote-endpoint-hana-enabled" default:"true"`
-	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
-	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
-	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
-	JobEnabled        bool `flag:"remote-endpoint-job-enabled" default:"true"`
-	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
-	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
-	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
-	KeyEnabled        bool `flag:"remote-endpoint-key-enabled" default:"true"`
-	ScrubData         bool `flag:"remote-endpoint-scrub-data"     default:"false"`
+	HTTPEnabled           bool `flag:"remote-endpoint-http-enabled" default:"true"`
+	SQLServerEnabled      bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
+	MySQLEnabled          bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
+	PostgreSQLEnabled     bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
+	MongoDBEnabled        bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
+	StoreEnabled          bool `flag:"remote-endpoint-store-enabled" default:"true"`
+	LDAPEnabled           bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
+	HanaEnabled           bool `flag:"remote-endpoint-hana-enabled" default:"true"`
+	PushEnabled           bool `flag:"remote-endpoint-push-enabled" default:"true"`
+	RedisEnabled          bool `flag:"remote-endpoint-redis-enabled" default:"true"`
+	SMTPEnabled           bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
+	JobEnabled            bool `flag:"remote-endpoint-job-enabled" default:"true"`
+	ScriptEnabled         bool `flag:"remote-endpoint-script-enabled" default:"false"`
+	SoapEnabled           bool `flag:"remote-endpoint-soap-enabled" default:"false"`
+	DockerEnabled         bool `flag:"remote-endpoint-docker-enabled" default:"false"`
+	KeyEnabled            bool `flag:"remote-endpoint-key-enabled" default:"true"`
+	CustomFunctionEnabled bool `flag:"remote-endpoint-custom-function-enabled" default:"false"`
+	ScrubData             bool `flag:"remote-endpoint-scrub-data"     default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section

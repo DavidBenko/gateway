@@ -45,10 +45,12 @@ const (
 	RemoteEndpointTypeSMTP = "smtp"
 	// RemoteEndpointTypeDocker denotes that a remote endpoint is a docker endpoint
 	RemoteEndpointTypeDocker = "docker"
-	// RemoteEndpointTypejob denotes that a remote endpoint is a job endpoint
+	// RemoteEndpointTypeJob denotes that a remote endpoint is a job endpoint
 	RemoteEndpointTypeJob = "job"
 	// RemoteEndpointTypeKey denotes that a remote endpoint is a cryptographic key endpoint
 	RemoteEndpointTypeKey = "key"
+	// RemoteEndpointTypeFunction denotes that a remote endpoint is a custom function endpoint
+	RemoteEndpointTypeCustomFunction = "custom_function"
 )
 
 var remoteEndpointTypes map[string]*RemoteEndpointType
@@ -56,22 +58,23 @@ var remoteEndpointTypes map[string]*RemoteEndpointType
 // InitializeRemoteEndpointTypes configures which remote endpoints are currently supported within the system
 func InitializeRemoteEndpointTypes(reConf config.RemoteEndpoint) {
 	remoteEndpointTypes = map[string]*RemoteEndpointType{
-		RemoteEndpointTypeHTTP:      &RemoteEndpointType{ID: 1, Value: RemoteEndpointTypeHTTP, Enabled: reConf.HTTPEnabled},
-		RemoteEndpointTypeSQLServer: &RemoteEndpointType{ID: 2, Value: RemoteEndpointTypeSQLServer, Enabled: reConf.SQLServerEnabled},
-		RemoteEndpointTypeMySQL:     &RemoteEndpointType{ID: 3, Value: RemoteEndpointTypeMySQL, Enabled: reConf.MySQLEnabled},
-		RemoteEndpointTypePostgres:  &RemoteEndpointType{ID: 4, Value: RemoteEndpointTypePostgres, Enabled: reConf.PostgreSQLEnabled},
-		RemoteEndpointTypeMongo:     &RemoteEndpointType{ID: 5, Value: RemoteEndpointTypeMongo, Enabled: reConf.MongoDBEnabled},
-		RemoteEndpointTypeScript:    &RemoteEndpointType{ID: 6, Value: RemoteEndpointTypeScript, Enabled: reConf.ScriptEnabled},
-		RemoteEndpointTypeSoap:      &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
-		RemoteEndpointTypeLDAP:      &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
-		RemoteEndpointTypeStore:     &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
-		RemoteEndpointTypeHana:      &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypeHana, Enabled: reConf.HanaEnabled},
-		RemoteEndpointTypePush:      &RemoteEndpointType{ID: 11, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
-		RemoteEndpointTypeRedis:     &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
-		RemoteEndpointTypeSMTP:      &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeSMTP, Enabled: reConf.SMTPEnabled},
-		RemoteEndpointTypeDocker:    &RemoteEndpointType{ID: 14, Value: RemoteEndpointTypeDocker, Enabled: reConf.DockerEnabled},
-		RemoteEndpointTypeJob:       &RemoteEndpointType{ID: 15, Value: RemoteEndpointTypeJob, Enabled: reConf.JobEnabled},
-		RemoteEndpointTypeKey:       &RemoteEndpointType{ID: 16, Value: RemoteEndpointTypeKey, Enabled: reConf.KeyEnabled},
+		RemoteEndpointTypeHTTP:           &RemoteEndpointType{ID: 1, Value: RemoteEndpointTypeHTTP, Enabled: reConf.HTTPEnabled},
+		RemoteEndpointTypeSQLServer:      &RemoteEndpointType{ID: 2, Value: RemoteEndpointTypeSQLServer, Enabled: reConf.SQLServerEnabled},
+		RemoteEndpointTypeMySQL:          &RemoteEndpointType{ID: 3, Value: RemoteEndpointTypeMySQL, Enabled: reConf.MySQLEnabled},
+		RemoteEndpointTypePostgres:       &RemoteEndpointType{ID: 4, Value: RemoteEndpointTypePostgres, Enabled: reConf.PostgreSQLEnabled},
+		RemoteEndpointTypeMongo:          &RemoteEndpointType{ID: 5, Value: RemoteEndpointTypeMongo, Enabled: reConf.MongoDBEnabled},
+		RemoteEndpointTypeScript:         &RemoteEndpointType{ID: 6, Value: RemoteEndpointTypeScript, Enabled: reConf.ScriptEnabled},
+		RemoteEndpointTypeSoap:           &RemoteEndpointType{ID: 7, Value: RemoteEndpointTypeSoap, Enabled: reConf.SoapEnabled},
+		RemoteEndpointTypeLDAP:           &RemoteEndpointType{ID: 8, Value: RemoteEndpointTypeLDAP, Enabled: reConf.LDAPEnabled},
+		RemoteEndpointTypeStore:          &RemoteEndpointType{ID: 9, Value: RemoteEndpointTypeStore, Enabled: reConf.StoreEnabled},
+		RemoteEndpointTypeHana:           &RemoteEndpointType{ID: 10, Value: RemoteEndpointTypeHana, Enabled: reConf.HanaEnabled},
+		RemoteEndpointTypePush:           &RemoteEndpointType{ID: 11, Value: RemoteEndpointTypePush, Enabled: reConf.PushEnabled},
+		RemoteEndpointTypeRedis:          &RemoteEndpointType{ID: 12, Value: RemoteEndpointTypeRedis, Enabled: reConf.RedisEnabled},
+		RemoteEndpointTypeSMTP:           &RemoteEndpointType{ID: 13, Value: RemoteEndpointTypeSMTP, Enabled: reConf.SMTPEnabled},
+		RemoteEndpointTypeDocker:         &RemoteEndpointType{ID: 14, Value: RemoteEndpointTypeDocker, Enabled: reConf.DockerEnabled},
+		RemoteEndpointTypeJob:            &RemoteEndpointType{ID: 15, Value: RemoteEndpointTypeJob, Enabled: reConf.JobEnabled},
+		RemoteEndpointTypeKey:            &RemoteEndpointType{ID: 16, Value: RemoteEndpointTypeKey, Enabled: reConf.KeyEnabled},
+		RemoteEndpointTypeCustomFunction: &RemoteEndpointType{ID: 17, Value: RemoteEndpointTypeCustomFunction, Enabled: reConf.CustomFunctionEnabled},
 	}
 }
 

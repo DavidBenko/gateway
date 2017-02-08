@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+
 	"gateway/code"
 	"gateway/config"
 	"gateway/db"
@@ -89,11 +90,12 @@ type RemoteEndpointEnvironmentData struct {
 
 // HTTPRequest encapsulates a request made over HTTP(s).
 type HTTPRequest struct {
-	Method  string                 `json:"method"`
-	URL     string                 `json:"url"`
-	Body    string                 `json:"body"`
-	Headers map[string]interface{} `json:"headers"`
-	Query   map[string]string      `json:"query"`
+	Method              string                 `json:"method"`
+	URL                 string                 `json:"url"`
+	Body                string                 `json:"body"`
+	Headers             map[string]interface{} `json:"headers"`
+	Query               map[string]string      `json:"query"`
+	SkipSslVerification bool                   `json:"skip_ssl_verification"`
 }
 
 // Validate validates the model.
@@ -141,6 +143,7 @@ func (e *RemoteEndpoint) Validate(isInsert bool) aperrors.Errors {
 	case RemoteEndpointTypeKey:
 		e.ValidateKey(errors)
 	case RemoteEndpointTypeJob:
+	case RemoteEndpointTypeCustomFunction:
 	default:
 		errors.Add("base", fmt.Sprintf("unknown endpoint type %q", e.Type))
 	}
@@ -227,6 +230,8 @@ func ScrubDataByType(reType string, data types.JsonText) (scrubbedData types.Jso
 			scrubbedData, err = json.Marshal(remoteEndpoint)
 		}
 	case RemoteEndpointTypeJob:
+		return types.JsonText("null"), nil
+	case RemoteEndpointTypeCustomFunction:
 		return types.JsonText("null"), nil
 	case RemoteEndpointTypeKey:
 		remoteEndpoint := re.Key{}
@@ -661,7 +666,7 @@ func mapRemoteEndpoints(db *apsql.DB, query string, args ...interface{}) ([]*Rem
 	return remoteEndpoints, err
 }
 
-func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, codename string) (*RemoteEndpoint, error) {
+func FindRemoteEndpointForAccountIDApiIDAndCodename(db *apsql.DB, accountID, APIID int64, codename string) (*RemoteEndpoint, error) {
 	query := `
 	SELECT apis.account_id as account_id,
 		remote_endpoints.api_id as api_id,
@@ -679,14 +684,17 @@ func FindRemoteEndpointForAccountIDAndCodename(db *apsql.DB, accountID int64, co
 	JOIN apis ON remote_endpoints.api_id = apis.id
 	JOIN accounts ON apis.account_id = accounts.id
 	LEFT JOIN soap_remote_endpoints ON remote_endpoints.id = soap_remote_endpoints.remote_endpoint_id
-	WHERE account_id = ? AND remote_endpoints.codename = ?
+	WHERE account_id = ? AND remote_endpoints.codename = ? AND remote_endpoints.api_id = ?
 	ORDER BY remote_endpoints.name ASC, remote_endpoints.id ASC;
 	`
 
-	endpoints, err := mapRemoteEndpoints(db, query, accountID, codename)
+	endpoints, err := mapRemoteEndpoints(db, query, accountID, codename, APIID)
 	if err != nil {
 		return nil, err
 	}
+
+	err = addEnvironmentData(db, endpoints)
+
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("No endpoint with codename %v found", codename)
 	}

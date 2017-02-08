@@ -191,7 +191,7 @@ func main() {
 	}
 
 	// Configure Docker
-	if conf.RemoteEndpoint.DockerEnabled {
+	if conf.RemoteEndpoint.DockerEnabled || conf.RemoteEndpoint.CustomFunctionEnabled {
 		logreport.Printf("%s Configuring Docker remote endpoint support...", config.System)
 		err = docker.ConfigureDockerClient(conf.Docker)
 		if err != nil {

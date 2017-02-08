@@ -85,6 +85,10 @@ func collectionIDFromPath(r *http.Request) int64 {
 	return parseID(mux.Vars(r)["collectionID"])
 }
 
+func customFunctionIDFromPath(r *http.Request) int64 {
+	return parseID(mux.Vars(r)["customFunctionID"])
+}
+
 func mapFromPath(r *http.Request, object interface{}) {
 	var set func(value reflect.Value)
 	set = func(value reflect.Value) {
