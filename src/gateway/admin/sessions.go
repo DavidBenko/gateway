@@ -109,6 +109,9 @@ func NewSessionHandler(w http.ResponseWriter, r *http.Request,
 		return aphttp.DefaultServerError()
 	}
 	fmt.Fprintf(w, "%s\n", string(dataJSON))
+
+	model.UpdateLastLogin(db, user)
+
 	return nil
 }
 
