@@ -17,6 +17,7 @@ type RemoteEndpointStore struct {
 
 type RemoteEndpointStoreCriteria struct {
 	AccountID int64
+	APIID     int64
 	Codename  string
 }
 
@@ -24,7 +25,7 @@ func NewRemoteEndpointStore(db *apsql.DB, cacheSize int) *RemoteEndpointStore {
 	cim := make(map[string]int64)
 	evictFn := func(key, value interface{}) {
 		stored := value.(*model.RemoteEndpoint)
-		delete(cim, cacheKey(stored.AccountID, stored.Codename))
+		delete(cim, cacheKey(stored.AccountID, stored.APIID, stored.Codename))
 	}
 
 	return &RemoteEndpointStore{
@@ -38,7 +39,7 @@ func (r *RemoteEndpointStore) Get(criteria interface{}) (interface{}, bool) {
 	c := criteria.(*RemoteEndpointStoreCriteria)
 	r.RLock()
 
-	if id, hasKey := r.codenameIDMap[cacheKey(c.AccountID, c.Codename)]; hasKey {
+	if id, hasKey := r.codenameIDMap[cacheKey(c.AccountID, c.APIID, c.Codename)]; hasKey {
 		if value, ok := r.cache.Get(id); ok {
 			r.RUnlock()
 			return value, true
@@ -46,7 +47,7 @@ func (r *RemoteEndpointStore) Get(criteria interface{}) (interface{}, bool) {
 	}
 	r.RUnlock()
 
-	endpoint, err := model.FindRemoteEndpointForAccountIDAndCodename(r.db, c.AccountID, c.Codename)
+	endpoint, err := model.FindRemoteEndpointForAccountIDApiIDAndCodename(r.db, c.AccountID, c.APIID, c.Codename)
 	if err != nil {
 		return nil, false
 	}
@@ -63,26 +64,25 @@ func (r *RemoteEndpointStore) put(endpoint *model.RemoteEndpoint) {
 	r.Lock()
 	defer r.Unlock()
 	r.cache.Add(endpoint.ID, endpoint)
-	r.codenameIDMap[cacheKey(endpoint.AccountID, endpoint.Codename)] = endpoint.ID
+	r.codenameIDMap[cacheKey(endpoint.AccountID, endpoint.APIID, endpoint.Codename)] = endpoint.ID
 }
 
-func cacheKey(accountID int64, codename string) string {
-	return fmt.Sprintf("%d:%s", accountID, codename)
+func cacheKey(accountID, APIID int64, codename string) string {
+	return fmt.Sprintf("%d:%d:%s", accountID, APIID, codename)
 }
 
 func (r *RemoteEndpointStore) Notify(n *apsql.Notification) {
-	if n.Table != "remote_endpoints" {
-		return
-	}
-
-	switch n.Event {
-	case apsql.Update:
-		fallthrough
-	case apsql.Delete:
-		r.Lock()
-		defer r.Unlock()
-		id := n.Messages[0]
-		r.cache.Remove(id)
+	if n.Table == "remote_endpoints" {
+		switch n.Event {
+		case apsql.Insert:
+			fallthrough
+		case apsql.Update:
+			fallthrough
+		case apsql.Delete:
+			r.Lock()
+			defer r.Unlock()
+			r.cache.Remove(n.ID)
+		}
 	}
 }
 
