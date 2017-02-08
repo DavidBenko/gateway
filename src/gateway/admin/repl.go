@@ -5,6 +5,7 @@ import (
 	"gateway/core"
 	"gateway/core/vm"
 	"gateway/core/vm/advanced"
+	"gateway/logreport"
 	"gateway/repl"
 	"net"
 	"time"
@@ -46,7 +47,7 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 
 		// start a ticker for the websocket heartbeat
 		heartbeatTicker := time.NewTicker(time.Duration(c.conf.WsHeartbeatInterval) * time.Second)
-		// when the function finishes stop the ticker, stop the repl and close the websocket
+		// when the function finishes stop the read loop go routine, stop the ticker, stop the repl and close the websocket
 		defer func() {
 			stopReader <- 0
 			heartbeatTicker.Stop()
@@ -67,7 +68,11 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 					if err != nil {
 						switch err.(type) {
 						case *net.OpError:
+							// swallow OpError, which occurrs when the ReadDeadline is hit. This way
+							// the select loop keeps spinning instead of blocking on ws.Read indefinitely.
 						default:
+							// anything else stop the writer
+							logreport.Println(err)
 							stopWriter <- 0
 						}
 					} else {
@@ -85,6 +90,7 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 				// write to socket
 				ws.SetWriteDeadline(time.Now().Add(time.Duration(c.conf.WsWriteDeadline) * time.Second))
 				if _, err := ws.Write(out); err != nil {
+					logreport.Println(err)
 					return
 				}
 			case <-heartbeatTicker.C:
@@ -92,6 +98,7 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 				f := &repl.Frame{Type: repl.HEARBEAT}
 				ws.SetWriteDeadline(time.Now().Add(time.Duration(c.conf.WsWriteDeadline) * time.Second))
 				if _, err := ws.Write(f.JSON()); err != nil {
+					logreport.Println(err)
 					return
 				}
 			case <-stopWriter:
