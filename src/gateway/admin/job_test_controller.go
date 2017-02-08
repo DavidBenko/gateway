@@ -21,10 +21,11 @@ func RouteJobTest(controller *JobTestController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.Test),
+		"GET":  read(db, controller.Test),
+		"POST": read(db, controller.Test),
 	}
 	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path, handlers.MethodHandler(routes))
@@ -38,7 +39,7 @@ type JobTestController struct {
 type JobTestResult struct {
 	Log   string `json:"log"`
 	Time  int64  `json:"time"`
-	Error string `json:"error"`
+	Error string `json:"error,omitempty"`
 }
 
 type JobTestResponse struct {
