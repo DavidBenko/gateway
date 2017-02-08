@@ -73,3 +73,7 @@ func (c *BaseController) proxyEndpointID(r *http.Request) int64 {
 func (c *BaseController) collectionID(r *http.Request) int64 {
 	return collectionIDFromPath(r)
 }
+
+func (c *BaseController) environmentID(r *http.Request) int64 {
+	return environmentIDFromPath(r)
+}
