@@ -38,7 +38,7 @@ func RouteRepl(controller *ReplController,
 }
 
 func (c *ReplController) replHandler(ws *websocket.Conn) {
-	r := repl.NewRepl(core.VMCopy(c.accountID(ws.Request()), c.keyStore, c.remoteEndpointStore, c.preparer))
+	r := repl.NewRepl(core.VMCopy(c.accountID(ws.Request()), c.apiID(ws.Request()), c.environmentID(ws.Request()), c.keyStore, c.remoteEndpointStore, c.preparer, nil))
 
 	go func() {
 		stopReader := make(chan int, 1)
@@ -95,7 +95,6 @@ func (c *ReplController) replHandler(ws *websocket.Conn) {
 					return
 				}
 			case <-stopWriter:
-				stopReader <- 0
 				return
 			}
 		}
