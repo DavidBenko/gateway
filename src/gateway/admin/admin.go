@@ -75,7 +75,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	}
 
 	repl := &ReplController{BaseController: base}
-	RouteRepl(repl, "/repl/socket", authAdmin, configuration.Admin, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest)
+	RouteRepl(repl, "/apis/{apiID}/environments/{environmentID}/repl/socket", authAdmin, configuration.Admin, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest)
 
 	stream := &LogStreamController{base}
 	RouteLogStream(stream, "/logs/socket", authAdmin)
