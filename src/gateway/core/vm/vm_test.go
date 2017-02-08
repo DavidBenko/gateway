@@ -20,7 +20,7 @@ func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
 	k := &vm.KeyStore{}
 	e := &vm.RemoteEndpointStore{}
 
-	vm := core.VMCopy(1, k, e, nil)
+	vm := core.VMCopy(1, 1, 1, k, e, nil, nil)
 
 	for i, t := range []struct {
 		should      string
@@ -30,6 +30,10 @@ func (s *VMSuite) TestExtensionsIncluded(c *gc.C) {
 		should:      "include AP.Crypto",
 		get:         "AP.Crypto",
 		expectClass: "Object",
+	}, {
+		should:      "include AP.Crypto.rand",
+		get:         "AP.Crypto.rand",
+		expectClass: "Function",
 	}, {
 		should:      "include AP.Crypto.encrypt",
 		get:         "AP.Crypto.encrypt",

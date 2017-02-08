@@ -6,7 +6,7 @@ import (
 )
 
 type Smtp struct {
-	Config *smtp.Spec
+	Config *smtp.Spec `json:"config"`
 }
 
 func (s *Smtp) Validate() aperrors.Errors {

@@ -18,7 +18,7 @@ import (
 	"gateway/logreport"
 )
 
-const currentVersion = 22
+const currentVersion = 23
 
 type driverType string
 

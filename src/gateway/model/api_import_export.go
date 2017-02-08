@@ -231,6 +231,51 @@ func FindAPIForAccountIDForExport(db *apsql.DB, id, accountID int64) (*API, erro
 		pad.EnvironmentDataID = 0
 	}
 
+	customFunctionsIndexMap := make(map[int64]int)
+	customFunction := CustomFunction{
+		AccountID: accountID,
+		APIID:     id,
+	}
+	api.CustomFunctions, err = customFunction.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching custom functions", err)
+	}
+	for i, function := range api.CustomFunctions {
+		customFunctionsIndexMap[function.ID] = i + 1
+		function.APIID = 0
+		function.ID = 0
+	}
+
+	customFunctionFile := CustomFunctionFile{
+		AccountID: accountID,
+		APIID:     id,
+	}
+	api.CustomFunctionFiles, err = customFunctionFile.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching custom function files", err)
+	}
+	for _, file := range api.CustomFunctionFiles {
+		file.APIID = 0
+		file.ExportCustomFunctionIndex = customFunctionsIndexMap[file.CustomFunctionID]
+		file.CustomFunctionID = 0
+		file.ID = 0
+	}
+
+	customFunctionTest := CustomFunctionTest{
+		AccountID: accountID,
+		APIID:     id,
+	}
+	api.CustomFunctionTests, err = customFunctionTest.All(db)
+	if err != nil {
+		return nil, aperrors.NewWrapped("Fetching custom function tests", err)
+	}
+	for _, test := range api.CustomFunctionTests {
+		test.APIID = 0
+		test.ExportCustomFunctionIndex = customFunctionsIndexMap[test.CustomFunctionID]
+		test.CustomFunctionID = 0
+		test.ID = 0
+	}
+
 	return api, nil
 }
 
@@ -459,6 +504,49 @@ func (a *API) ImportV1(tx *apsql.Tx) (err error) {
 		err = pad.Insert(tx)
 		if err != nil {
 			return aperrors.NewWrapped("Inserting scratch pad", err)
+		}
+	}
+
+	customFunctionsIDMap := make(map[int]int64)
+	for index, function := range a.CustomFunctions {
+		function.AccountID = a.AccountID
+		function.UserID = a.UserID
+		function.APIID = a.ID
+		if vErr := function.Validate(false); !vErr.Empty() {
+			return fmt.Errorf("Unable to validate custom function: %v", vErr)
+		}
+		err = function.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting custom function", err)
+		}
+		customFunctionsIDMap[index+1] = function.ID
+	}
+
+	for _, file := range a.CustomFunctionFiles {
+		file.AccountID = a.AccountID
+		file.UserID = a.UserID
+		file.APIID = a.ID
+		file.CustomFunctionID = customFunctionsIDMap[file.ExportCustomFunctionIndex]
+		if vErr := file.Validate(true); !vErr.Empty() {
+			return fmt.Errorf("Unable to validate custom function file: %v", vErr)
+		}
+		err = file.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting custom function file", err)
+		}
+	}
+
+	for _, test := range a.CustomFunctionTests {
+		test.AccountID = a.AccountID
+		test.UserID = a.UserID
+		test.APIID = a.ID
+		test.CustomFunctionID = customFunctionsIDMap[test.ExportCustomFunctionIndex]
+		if vErr := test.Validate(true); !vErr.Empty() {
+			return fmt.Errorf("Unable to validate custom function test: %v", vErr)
+		}
+		err = test.Insert(tx)
+		if err != nil {
+			return aperrors.NewWrapped("Inserting custom function test", err)
 		}
 	}
 

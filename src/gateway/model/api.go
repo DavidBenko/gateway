@@ -42,6 +42,9 @@ type API struct {
 	JobTests              []*JobTest              `json:"job_tests,omitempty"`
 	ProxyEndpointChannels []*ProxyEndpointChannel `json:"proxy_endpoint_channels,omitempty"`
 	ScratchPads           []*ScratchPad           `json:"scratch_pads,omitempty"`
+	CustomFunctions       []*CustomFunction       `json:"custom_functions,omitempty"`
+	CustomFunctionFiles   []*CustomFunctionFile   `json:"custom_function_files,omitempty"`
+	CustomFunctionTests   []*CustomFunctionTest   `json:"custom_function_tests,omitempty"`
 	ExportVersion         int64                   `json:"export_version,omitempty"`
 }
 
