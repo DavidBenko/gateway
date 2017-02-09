@@ -126,7 +126,7 @@ docker_brute_pack_executables:
 
 docker_build_all_full: docker_build_prereqs docker_build_all docker_clean_bin
 
-docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7 docker_pack_executables
+docker_build_all: docker_build_linux_amd64 docker_build_linux_386 docker_build_windows_amd64 docker_build_windows_386 docker_build_armv5 docker_build_armv6 docker_build_armv7
 
 docker_run:
 	# Make sure docker_build_linux_amd64_full or docker_build_linux_amd64 has been run prior or there will be no binary to run within the container.
