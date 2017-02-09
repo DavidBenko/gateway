@@ -73,6 +73,10 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 			logreport.Fatal(err)
 		}
 	}
+
+	repl := &ReplController{BaseController: base}
+	RouteRepl(repl, "/apis/{apiID}/environments/{environmentID}/repl/socket", authAdmin, configuration.Admin, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest)
+
 	stream := &LogStreamController{base}
 	RouteLogStream(stream, "/logs/socket", authAdmin)
 	RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
@@ -176,6 +180,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
 	RoutePush(&PushController{matcher, c}, "/push", public, db, conf)
 	RouteMQTTProxy(&MQTTProxyController{base, configuration.Push}, "/mqtt", public, conf)
+
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {
