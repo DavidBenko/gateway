@@ -33,6 +33,8 @@ ENV ADMIN_BASIC_AUTH_USER "admin"
 ENV ADMIN_BASIC_AUTH_PASSWORD "admin"
 ENV WS_HEARTBEAT_INTERVAL 60
 ENV WS_WRITE_DEADLINE 10
+ENV WS_READ_DEADLINE 10
+ENV REPL_MAX_FRAME_SIZE 1024
 
 # PROXY CONFIG
 ENV PROXY_HOST 0.0.0.0
@@ -43,6 +45,8 @@ ENV PROXY_HTTP_TIMEOUT 60
 ENV DEFAULT_API_ACCESS_SCHEME "http://{{hosts.[0]}}:5000"
 ENV CACHE_APIS false
 ENV HEALTH_CHECK_PATH "/__gw-health-check"
+ENV KEY_CACHE_SIZE 0
+ENV REMOTE_ENDPOINT_CACHE_SIZE 0
 
 # LOCAL STORE CONFIG
 ENV STORE_TYPE boltdb
@@ -84,6 +88,8 @@ ENV SMTP_ENABLED true
 ENV SOAP_ENABLED true
 ENV JOBS_ENABLED true
 ENV REMOTE_ENDPOINT_SCRUB_DATA false
+ENV CUSTOM_FUNCTIONS_ENABLED false
+ENV KEYS_ENABLED true
 
 # PUSH CONFIG
 ENV ENABLE_PUSH_BROKER true
@@ -141,4 +147,6 @@ ENTRYPOINT ./gateway -server=$SERVER -db-migrate=$DB_MIGRATE -store-migrate=$STO
   -stripe-secret-key="$STRIPE_SECRET_KEY" -stripe-publishable-key="$STRIPE_PUBLISHABLE_KEY" -stripe-fallback-plan="$STRIPE_FALLBACK_PLAN" -stripe-migrate-accounts=$STRIPE_MIGRATE_ACCOUNTS \
   -enable-push-broker=$ENABLE_PUSH_BROKER -push-broker=$PUSH_BROKER_HOST -push-broker-pub-port=$PUSH_BROKER_PUB_PORT -push-broker-sub-port=$PUSH_BROKER_SUB_PORT -push-broker-transport=$PUSH_BROKER_TRANSPORT -push-connect-timeout=$PUSH_CONNECTION_TIMEOUT -push-mqtt-uri=$PUSH_MQTT_URI \
   -job-enable=$JOBS_EXECUTE -job-enable-os-env=$JOBS_ENABLE_OS_ENV -job-code-timeout=$JOBS_CODE_TIMEOUT -job-code-error-lines=$JOBS_NUM_ERR_LINES -remote-endpoint-job-enabled=$JOBS_ENABLED -remote-endpoint-scrub-data=$REMOTE_ENDPOINT_SCRUB_DATA \
-  -ws-heartbeat-interval=$WS_HEARTBEAT_INTERVAL -ws-write-deadline=$WS_WRITE_DEADLINE -admin-ui-path-prefix=$ADMIN_UI_PATH_PREFIX -stats-collect=$STATS_COLLECT -stats-migrate=$STATS_MIGRATE -stats-driver="$STATS_DRIVER" -stats-conn-string="$STATS_CONN_STRING" -stats-max-connections=$STATS_MAX_CONNECTIONS
+  -ws-heartbeat-interval=$WS_HEARTBEAT_INTERVAL -ws-write-deadline=$WS_WRITE_DEADLINE -admin-ui-path-prefix=$ADMIN_UI_PATH_PREFIX -stats-collect=$STATS_COLLECT -stats-migrate=$STATS_MIGRATE -stats-driver="$STATS_DRIVER" -stats-conn-string="$STATS_CONN_STRING" -stats-max-connections=$STATS_MAX_CONNECTIONS \
+  -ws-read-deadline=$WS_READ_DEADLINE -repl-maximum-frame-size=$REPL_MAX_FRAME_SIZE -remote-endpoint-custom-function-enabled=$CUSTOM_FUNCTIONS_ENABLED -proxy-key-cache-size=$KEY_CACHE_SIZE -proxy-remote-endpoint-cache-size=$REMOTE_ENDPOINT_CACHE_SIZE \
+  -remote-endpoint-key-enabled=$KEYS_ENABLED
