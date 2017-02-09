@@ -33,17 +33,18 @@ func init() {
 
 // User represents a user!
 type User struct {
-	AccountID               int64  `json:"-" db:"account_id"`
-	UserID                  int64  `json:"-"`
-	ID                      int64  `json:"id"`
-	Name                    string `json:"name"`
-	Email                   string `json:"email"`
-	Admin                   bool   `json:"admin"`
-	Token                   string `json:"token"`
-	Confirmed               bool   `json:"confirmed"`
-	NewPassword             string `json:"password"`
-	NewPasswordConfirmation string `json:"password_confirmation"`
-	HashedPassword          string `json:"-" db:"hashed_password"`
+	AccountID               int64            `json:"-" db:"account_id"`
+	UserID                  int64            `json:"-"`
+	ID                      int64            `json:"id"`
+	Name                    string           `json:"name"`
+	Email                   string           `json:"email"`
+	Admin                   bool             `json:"admin"`
+	Token                   string           `json:"token"`
+	Confirmed               bool             `json:"confirmed"`
+	NewPassword             string           `json:"password"`
+	NewPasswordConfirmation string           `json:"password_confirmation"`
+	HashedPassword          string           `json:"-" db:"hashed_password"`
+	LastLogin               apsql.NullString `json:"-" db:"last_login"`
 }
 
 // Validate validates the model.
@@ -61,6 +62,7 @@ func (u *User) Validate(isInsert bool) aperrors.Errors {
 	if u.NewPassword != "" && (u.NewPassword != u.NewPasswordConfirmation) {
 		errors.Add("password_confirmation", "must match password")
 	}
+
 	return errors
 }
 
@@ -96,7 +98,7 @@ func AllUsersForAccountID(db *apsql.DB, accountID int64) ([]*User, error) {
 func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, name, email, admin, confirmed FROM users
+		`SELECT id, name, email, admin, last_login, confirmed FROM users
 		 WHERE id = ? AND account_id = ?;`,
 		id, accountID)
 	return &user, err
@@ -106,7 +108,7 @@ func FindUserForAccountID(db *apsql.DB, id, accountID int64) (*User, error) {
 func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, name, email, admin, confirmed FROM users
+		`SELECT id, name, email, admin, confirmed, last_login FROM users
 		 WHERE account_id = ? ORDER BY id LIMIT 1;`,
 		accountID)
 	return &user, err
@@ -116,7 +118,7 @@ func FindFirstUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 func FindAdminUserForAccountID(db *apsql.DB, accountID int64) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, name, email, admin, confirmed FROM users
+		`SELECT id, name, email, admin, confirmed, last_login FROM users
 		 WHERE account_id = ? AND admin = ? ORDER BY id LIMIT 1;`,
 		accountID, true)
 	return &user, err
@@ -166,8 +168,8 @@ func DeleteUserForAccountID(tx *apsql.Tx, id, accountID, userID int64) error {
 func FindUserByEmail(db *apsql.DB, email string) (*User, error) {
 	user := User{}
 	err := db.Get(&user,
-		`SELECT id, account_id, name, email, admin, token, confirmed, hashed_password
-		 FROM users WHERE email = ?;`,
+		`SELECT id, account_id, name, email, admin, token, confirmed, hashed_password, 
+		 last_login FROM users WHERE email = ?;`,
 		strings.ToLower(email))
 	return &user, err
 }
@@ -287,6 +289,28 @@ func (u *User) Insert(tx *apsql.Tx) (err error) {
 	}
 
 	return tx.Notify("users", u.AccountID, u.UserID, 0, 0, u.ID, apsql.Insert)
+}
+
+// UpdateLastLogin updates the user to have a recent login timestamp.
+func UpdateLastLogin(db *apsql.DB, u *User) error {
+	var err error
+
+	err = db.DoInTransaction(func(tx *apsql.Tx) error {
+		var _err error
+		_err = tx.UpdateOne(
+			`UPDATE users
+      	      SET last_login = CURRENT_TIMESTAMP
+    	      WHERE id = ? AND account_id = ?;`,
+			u.ID, u.AccountID)
+
+		if _err != nil {
+			return _err
+		}
+
+		return tx.Notify("users", u.AccountID, u.UserID, 0, 0, u.ID, apsql.Update)
+	})
+
+	return err
 }
 
 // Update updates the user in the database.
