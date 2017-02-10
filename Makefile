@@ -78,51 +78,51 @@ docker_compile_only:
 	go build -ldflags="-s -w" -v -o ./build/gateway ./src/gateway/main.go
 
 docker_build_admin:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && make docker_admin"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && make docker_admin"
 
 docker_build_prereqs:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && make docker_compilation_prep"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && make docker_compilation_prep"
 
 docker_build_linux_amd64_full: docker_build_prereqs docker_build_linux_amd64 docker_pack_executables
 
 docker_build_linux_amd64:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-amd64"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-amd64"
 
 docker_build_linux_386_full: docker_build_prereqs docker_build_linux_386 docker_pack_executables
 
 docker_build_linux_386:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=386 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-386"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=386 CGO_ENABLED=1 CC=gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-386"
 
 docker_build_windows_amd64_full: docker_build_prereqs docker_build_windows_amd64 docker_pack_executables
 
 docker_build_windows_amd64:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=\"x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-amd64.exe"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=\"x86_64-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-amd64.exe"
 
 docker_build_windows_386_full: docker_build_prereqs docker_build_windows_386 docker_pack_executables
 
 docker_build_windows_386:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=\"i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-386.exe"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=\"i686-w64-mingw32-gcc -fno-stack-protector -D_FORTIFY_SOURCE=0 -lssp\" make docker_binary_release && mv ./build/gateway ./build/gateway-windows-386.exe"
 
 docker_build_armv5_full: docker_build_prereqs docker_build_armv5 docker_pack_executables
 
 docker_build_armv5:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv5"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv5"
 
 docker_build_armv6_full: docker_build_prereqs docker_build_armv6 docker_pack_executables
 
 docker_build_armv6:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv6"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv6"
 
 docker_build_armv7_full: docker_build_prereqs docker_build_armv7 docker_pack_executables
 
 docker_build_armv7:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv7"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1 CC=arm-linux-gnueabihf-gcc make docker_binary_release && mv ./build/gateway ./build/gateway-linux-armv7"
 
 docker_pack_executables:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && upx -9 ./build/gateway-*"
 
 docker_brute_pack_executables:
-	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.3.0 /bin/bash -c ". /root/.bashrc && upx --brute ./build/gateway-*"
+	docker run --rm -v $(PWD):/usr/src/justapis -w /usr/src/justapis -it nanoscale/gateway:compile-5.4.0 /bin/bash -c ". /root/.bashrc && upx --brute ./build/gateway-*"
 
 docker_build_all_full: docker_build_prereqs docker_build_all docker_clean_bin
 
@@ -294,7 +294,8 @@ vendor_get: vendor_clean
 	github.com/clbanning/mxj \
 	github.com/google/go-gcm \
 	github.com/edganiukov/fcm \
-	github.com/Microsoft/go-winio
+	github.com/Microsoft/go-winio \
+	github.com/Azure/go-ansiterm
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
