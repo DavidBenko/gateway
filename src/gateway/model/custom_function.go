@@ -48,8 +48,8 @@ func (c *CustomFunction) Validate(isInsert bool) aperrors.Errors {
 	if c.Memory < 8 {
 		errors.Add("memory", "minimum memory limit allowed is 8MB")
 	}
-	if c.CPUShares < 2 {
-		errors.Add("cpu_shares", "the minimum allowed cpu-shares is 2")
+	if c.CPUShares < 0 {
+		errors.Add("cpu_shares", "the minimum allowed cpu-shares is 0")
 	}
 	if c.Timeout < 0 || c.Timeout > 600 {
 		errors.Add("timeout", "timeout should be between 0 and 600 seconds")
