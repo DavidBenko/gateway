@@ -11,6 +11,8 @@ import (
 	"gateway/queue/mangos"
 )
 
+const LogTimeFormat = "2006/01/02 15:04:05"
+
 var (
 	TimeRegexp     = regexp.MustCompile("^([0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})[.]([0-9]{6})")
 	AccountRegexp  = regexp.MustCompile(".*\\[act ([0-9]{1,})\\].*")

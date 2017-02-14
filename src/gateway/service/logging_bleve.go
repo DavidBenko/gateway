@@ -15,8 +15,6 @@ import (
 	"github.com/blevesearch/bleve"
 )
 
-const LogTimeFormat = "2006/01/02 15:04:05"
-
 type BleveMessage struct {
 	Text     string    `json:"text"`
 	LogDate  time.Time `json:"logDate"`

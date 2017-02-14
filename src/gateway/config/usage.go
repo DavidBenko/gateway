@@ -154,6 +154,12 @@ var usageStrings = map[string]string{
 	"bleve-logging-file":         "The bleve file to store logs in",
 	"bleve-logging-delete-after": "How long in days to keep logs",
 
+	"postgres-logging-enable":          "Whether or not to enable the log database",
+	"postgres-logging-migrate":         "Whether or not to migrate the log database on startup",
+	"postgres-logging-conn-string":     "The database connection string for logs. See: db-conn-string",
+	"postgres-logging-max-connections": "The maximum number of connections to use",
+	"postgres-logging-delete-after":    "How long in days to keep logs",
+
 	"enable-broker":    "Run as messaging broker",
 	"broker":           "The address or name of the broker",
 	"broker-pub-port":  "The port of the broker pub",
