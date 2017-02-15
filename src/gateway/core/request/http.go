@@ -100,7 +100,7 @@ func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 	}
 	var err error
 	bodyReader := response.Body
-	if response.Header.Get("Content-Encoding") == "gzip" {
+	if response.ContentLength > 0 && response.Header.Get("Content-Encoding") == "gzip" {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
