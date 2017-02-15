@@ -24,21 +24,21 @@ type Configuration struct {
 	Server        bool   `flag:"server" default:"false"`
 	Jobs          bool   `flag:"jobs" default:"true"`
 
-	Airbrake       Airbrake
-	Database       Database
-	Proxy          ProxyServer
-	Job            BackgroundJob
-	Admin          ProxyAdmin
-	Elastic        ElasticLogging
-	Bleve          BleveLogging
-	Postgres       PostgresLogging
-	Soap           Soap
-	Store          Store
-	RemoteEndpoint RemoteEndpoint
-	SMTP           SMTP
-	Push           Push
-	Docker         Docker
-	Stats          Stats
+	Airbrake        Airbrake
+	Database        Database
+	Proxy           ProxyServer
+	Job             BackgroundJob
+	Admin           ProxyAdmin
+	Elastic         ElasticLogging
+	Bleve           BleveLogging
+	PostgresLogging PostgresLogging
+	Soap            Soap
+	Store           Store
+	RemoteEndpoint  RemoteEndpoint
+	SMTP            SMTP
+	Push            Push
+	Docker          Docker
+	Stats           Stats
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake

@@ -175,7 +175,7 @@ func main() {
 
 	service.ElasticLoggingService(conf)
 	service.BleveLoggingService(conf.Bleve)
-	service.PostgresLoggingService(conf.Postgres)
+	service.PostgresLoggingService(conf.PostgresLogging)
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
