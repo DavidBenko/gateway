@@ -290,8 +290,7 @@ describe "apis" do
           post '/apis', api: @api_json.merge(remote_endpoints: [bad_re])
           expect_status(400)
 
-          expect_json('error', 'json: cannot unmarshal object into Go value ' \
-                               'of type []*model.RemoteEndpointEnvironmentData')
+          expect_json('error', 'json: cannot unmarshal object into Go struct field RemoteEndpoint.environment_data of type []*model.RemoteEndpointEnvironmentData')
         end
 
         it 'fails to import an export with invalid shared components' do

@@ -1,6 +1,6 @@
 # nanoscale/gateway:compile
 # version 5.4.0
-FROM golang:1.7.5
+FROM golang:1.8.0
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 # Install dependencies
