@@ -22,6 +22,7 @@ import (
 
 	"github.com/blevesearch/bleve"
 	"github.com/gorilla/handlers"
+	"github.com/jmoiron/sqlx"
 	elasti "github.com/mattbaird/elastigo/lib"
 	"golang.org/x/net/websocket"
 )
@@ -237,6 +238,7 @@ func (c *LogStreamController) logHandler(ws *websocket.Conn) {
 }
 
 var Bleve bleve.Index
+var Postgres *sqlx.DB
 
 func RouteLogSearch(controller *LogSearchController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
@@ -269,6 +271,66 @@ func convertStringToTime(t string) time.Time {
 func convertTimeForElastic(t string) string {
 	tt := convertStringToTime(t)
 	return tt.Format("2006/01/02 15:04:05") + ".000000"
+}
+
+func (c *LogSearchController) PostgresSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
+	query, args, count := "SELECT text FROM logs WHERE account_id = $1", []interface{}{c.accountID(r)}, 2
+
+	if len(r.Form["start"]) == 1 {
+		query += fmt.Sprintf(" AND time > $%v", count)
+		start := convertStringToTime(r.Form["start"][0])
+		args = append(args, &start)
+		count++
+	}
+	if len(r.Form["end"]) == 1 {
+		query += fmt.Sprintf(" AND time < $%v", count)
+		end := convertStringToTime(r.Form["end"][0])
+		args = append(args, &end)
+		count++
+	}
+	if api := apiIDFromPath(r); api != -1 {
+		query += fmt.Sprintf(" AND api_id = $%v", count)
+		args = append(args, api)
+		count++
+	}
+	if endpoint := endpointIDFromPath(r); endpoint != -1 {
+		query += fmt.Sprintf(" AND endpoint_id = $%v", count)
+		args = append(args, endpoint)
+		count++
+	}
+	if timer := timerIDFromPath(r); timer != -1 {
+		query += fmt.Sprintf(" AND timer_id = $%v", count)
+		args = append(args, timer)
+		count++
+	}
+	if len(r.Form["query"]) == 1 {
+		query += fmt.Sprintf(" AND tsv @@ plainto_tsquery($%v)", count)
+		args = append(args, r.Form["query"][0])
+		count++
+	}
+	size := 100
+	if len(r.Form["limit"]) == 1 {
+		sz, err := strconv.Atoi(r.Form["limit"][0])
+		if err == nil {
+			size = sz
+		}
+	}
+	query += fmt.Sprintf(" ORDER BY time DESC LIMIT $%v;", count)
+	args = append(args, int64(size))
+
+	var lines []string
+	err := Postgres.Select(&lines, query, args...)
+	if err != nil {
+		httperr = aphttp.NewError(err, http.StatusBadRequest)
+		return
+	}
+
+	results = make([]LogSearchResult, len(lines))
+	for i, line := range lines {
+		results[i].Text = line
+	}
+
+	return
 }
 
 func (c *LogSearchController) ElasticSearch(r *http.Request) (results []LogSearchResult, httperr aphttp.Error) {
@@ -448,15 +510,21 @@ func (c *LogSearchController) Search(w http.ResponseWriter, r *http.Request, db 
 		}
 	}
 
-	if c.Url == "" {
+	if Postgres != nil {
 		var httperr aphttp.Error
-		results, httperr = c.BleveSearch(r)
+		results, httperr = c.PostgresSearch(r)
+		if httperr != nil {
+			return httperr
+		}
+	} else if c.Url != "" {
+		var httperr aphttp.Error
+		results, httperr = c.ElasticSearch(r)
 		if httperr != nil {
 			return httperr
 		}
 	} else {
 		var httperr aphttp.Error
-		results, httperr = c.ElasticSearch(r)
+		results, httperr = c.BleveSearch(r)
 		if httperr != nil {
 			return httperr
 		}

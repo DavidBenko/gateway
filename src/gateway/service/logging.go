@@ -2,77 +2,24 @@ package service
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/json"
-	"fmt"
 	"regexp"
-	"strconv"
-	"time"
 
 	"gateway/admin"
 	"gateway/config"
-	"gateway/errors/report"
 	"gateway/logreport"
 	"gateway/queue"
 	"gateway/queue/mangos"
-
-	"github.com/blevesearch/bleve"
-	elasti "github.com/mattbaird/elastigo/lib"
 )
 
-const (
-	MESSAGE_MAPPING = `{
-    "log": {
-      "properties": {
-        "logDate": {
-          "type": "date",
-          "format": "YYYY/MM/dd HH:mm:ss.SSSSSS"
-        }
-      }
-    }
-  }`
-	LOG_TIME_FORMAT = "2006/01/02 15:04:05"
-	TIME_REGEXP     = "^([0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})[.]([0-9]{6})"
-	ACCOUNT_REGEXP  = ".*\\[act ([0-9]{1,})\\].*"
-	API_REGEXP      = ".*\\[api ([0-9]{1,})\\].*"
-	ENDPOINT_REGEXP = ".*\\[end ([0-9]{1,})\\].*"
-	TIMER_REGEXP    = ".*\\[timer ([0-9]{1,})\\].*"
+const LogTimeFormat = "2006/01/02 15:04:05"
+
+var (
+	TimeRegexp     = regexp.MustCompile("^([0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})[.]([0-9]{6})")
+	AccountRegexp  = regexp.MustCompile(".*\\[act ([0-9]{1,})\\].*")
+	APIRegexp      = regexp.MustCompile(".*\\[api ([0-9]{1,})\\].*")
+	EndpointRegexp = regexp.MustCompile(".*\\[end ([0-9]{1,})\\].*")
+	TimerRegexp    = regexp.MustCompile(".*\\[timer ([0-9]{1,})\\].*")
 )
-
-type ElasticMessage struct {
-	Text     string `json:"text"`
-	LogDate  string `json:"logDate"`
-	Account  int    `json:"account"`
-	API      int    `json:"api"`
-	Endpoint int    `json:"endpoint"`
-	Timer    int    `json:"timer"`
-}
-
-func NewElasticMessage(message string) *ElasticMessage {
-	logDate := regexp.MustCompile(TIME_REGEXP).FindString(message)
-	if logDate == "" {
-		return nil
-	}
-
-	var properties [4]int
-	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP, TIMER_REGEXP} {
-		matches := regexp.MustCompile(re).FindStringSubmatch(message)
-		if len(matches) == 2 {
-			properties[i], _ = strconv.Atoi(matches[1])
-		} else {
-			properties[i] = -1
-		}
-	}
-
-	return &ElasticMessage{
-		Text:     message,
-		LogDate:  logDate,
-		Account:  properties[0],
-		API:      properties[1],
-		Endpoint: properties[2],
-		Timer:    properties[3],
-	}
-}
 
 func processLogs(logs <-chan []byte, add func(message string)) {
 	buffer := &bytes.Buffer{}
@@ -85,205 +32,6 @@ func processLogs(logs <-chan []byte, add func(message string)) {
 			}
 		}
 	}
-}
-
-func ElasticLoggingService(conf config.Configuration) {
-	if conf.Elastic.Url == "" {
-		return
-	}
-
-	logreport.Printf("%s Starting Elastic logging service", config.System)
-
-	go func() {
-		logs, unsubscribe := admin.Interceptor.Subscribe("ElasticLoggingService")
-		defer unsubscribe()
-
-		c := elasti.NewConn()
-		c.SetFromUrl(conf.Elastic.Url)
-
-		_, err := c.CreateIndex("gateway")
-		if err == nil {
-			err = c.PutMappingFromJSON("gateway", "log", []byte(MESSAGE_MAPPING))
-			if err != nil {
-				logreport.Fatal(err)
-			}
-		}
-		add := func(message string) {
-			elasticMessage := NewElasticMessage(message)
-			if elasticMessage == nil {
-				return
-			}
-			_, err = c.Index("gateway", "log", "", nil, elasticMessage)
-			if err != nil {
-				// print error to stdout, and then report directly to our error reporter.
-				// we don't want to log (or use logreport which both logs and reports)
-				// because we will potentially compound the problem which is being
-				// encountered
-				fmt.Printf("[elastic] %v\n", err)
-				report.Error(err, nil)
-			}
-		}
-		processLogs(logs, add)
-	}()
-
-	if !conf.Jobs {
-		return
-	}
-
-	deleteTicker := time.NewTicker(24 * time.Hour)
-	go func() {
-		for _ = range deleteTicker.C {
-			days := time.Duration(conf.Elastic.DeleteAfter)
-			end := time.Now().Add(-days*24*time.Hour).Format("2006/01/02 15:04:05") + ".000000"
-			c := elasti.NewConn()
-			c.SetFromUrl(conf.Elastic.Url)
-			query := map[string]interface{}{
-				"query": map[string]interface{}{
-					"range": map[string]interface{}{
-						"logDate": map[string]interface{}{
-							"lte": end,
-						},
-					},
-				},
-			}
-			jsonQuery, err := json.Marshal(query)
-			if err != nil {
-				logreport.Printf("[elastic-delete] %v", err)
-				continue
-			}
-			_, err = c.DeleteByQuery([]string{"gateway"}, []string{"log"}, nil, jsonQuery)
-			if err != nil {
-				logreport.Printf("[elastic-delete] %v", err)
-			}
-		}
-	}()
-}
-
-type BleveMessage struct {
-	Text     string    `json:"text"`
-	LogDate  time.Time `json:"logDate"`
-	Account  float64   `json:"account"`
-	API      float64   `json:"api"`
-	Endpoint float64   `json:"endpoint"`
-	Timer    float64   `json:"timer"`
-}
-
-func NewBleveMessage(message string) *BleveMessage {
-	logDate := regexp.MustCompile(TIME_REGEXP).FindStringSubmatch(message)
-	var date time.Time
-	if len(logDate) == 3 {
-		var err error
-		date, err = time.Parse(LOG_TIME_FORMAT, logDate[1])
-		if err != nil {
-			logreport.Fatal(err)
-		}
-		seconds, err := strconv.Atoi(logDate[2])
-		if err != nil {
-			logreport.Fatal(err)
-		}
-		date = date.Add(time.Duration(seconds) * time.Microsecond)
-	} else {
-		return nil
-	}
-	var properties [4]float64
-	for i, re := range []string{ACCOUNT_REGEXP, API_REGEXP, ENDPOINT_REGEXP, TIMER_REGEXP} {
-		matches := regexp.MustCompile(re).FindStringSubmatch(message)
-		if len(matches) == 2 {
-			val, _ := strconv.Atoi(matches[1])
-			properties[i] = float64(val)
-		} else {
-			properties[i] = float64(-1)
-		}
-	}
-
-	return &BleveMessage{
-		Text:     message,
-		LogDate:  date,
-		Account:  properties[0],
-		API:      properties[1],
-		Endpoint: properties[2],
-		Timer:    properties[3],
-	}
-}
-
-func (m *BleveMessage) Type() string {
-	return "message"
-}
-
-func (m *BleveMessage) Id() string {
-	data, err := json.Marshal(m)
-	if err != nil {
-		logreport.Fatal(err)
-	}
-	return fmt.Sprintf("%x", sha1.Sum(data))
-}
-
-func BleveLoggingService(conf config.BleveLogging) {
-	if conf.File == "" {
-		return
-	}
-
-	logreport.Printf("%s Starting Bleve logging service", config.System)
-
-	mapping := bleve.NewIndexMapping()
-	index, err := bleve.New(conf.File, mapping)
-	if err != nil {
-		index, err = bleve.Open(conf.File)
-		if err != nil {
-			logreport.Fatal(err)
-		}
-	}
-	admin.Bleve = index
-
-	indexer := make(chan *BleveMessage, 8192)
-	go func() {
-		for bleveMessage := range indexer {
-			err := index.Index(bleveMessage.Id(), bleveMessage)
-			if err != nil {
-				logreport.Printf("[bleve] %v", err)
-			}
-		}
-	}()
-
-	go func() {
-		logs, unsubscribe := admin.Interceptor.Subscribe("BleveLoggingService")
-		defer unsubscribe()
-
-		add := func(message string) {
-			bleveMessage := NewBleveMessage(message)
-			if bleveMessage == nil {
-				return
-			}
-			indexer <- bleveMessage
-		}
-		processLogs(logs, add)
-	}()
-
-	deleteTicker := time.NewTicker(24 * time.Hour)
-	go func() {
-		for _ = range deleteTicker.C {
-			days := time.Duration(conf.DeleteAfter)
-			end := time.Now().Add(-days * 24 * time.Hour).Format("2006-01-02T15:04:05Z")
-			for {
-				query := bleve.NewDateRangeQuery(nil, &end)
-				query.SetField("logDate")
-				search := bleve.NewSearchRequest(query)
-				search.Size = 1024
-				searchResults, err := index.Search(search)
-				if err != nil {
-					logreport.Printf("[bleve-delete] %v", err)
-				}
-				if len(searchResults.Hits) == 0 {
-					break
-				}
-				batch := index.NewBatch()
-				for _, hit := range searchResults.Hits {
-					batch.Delete(hit.ID)
-				}
-				index.Batch(batch)
-			}
-		}
-	}()
 }
 
 func LogPublishingService(conf config.ProxyAdmin) {
