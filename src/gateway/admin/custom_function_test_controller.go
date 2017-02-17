@@ -18,10 +18,11 @@ func RouteCustomFunctionTest(controller *CustomFunctionTestController, path stri
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.Test),
+		"GET":  read(db, controller.Test),
+		"POST": read(db, controller.Test),
 	}
 	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path, handlers.MethodHandler(routes))
@@ -36,6 +37,7 @@ type CustomFunctionTestResult struct {
 	Log        string `json:"log"`
 	Time       int64  `json:"time"`
 	StatusCode int64  `json:"status_code"`
+	Error      string `json:"error,omitempty"`
 }
 
 func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Request, db *apsql.DB) aphttp.Error {
@@ -60,8 +62,9 @@ func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Reque
 
 	start := time.Now()
 	runOutput, err := model.ExecuteCustomFunction(db, accountID, apiID, customFunctionID, "", input, false)
+	var customFunctionErr string
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		customFunctionErr = err.Error()
 	}
 	elapsed := (time.Since(start).Nanoseconds() + +5e5) / 1e6
 	lines, output := runOutput.Parts()
@@ -73,6 +76,7 @@ func (c *CustomFunctionTestController) Test(w http.ResponseWriter, r *http.Reque
 			Log:        strings.Join(lines, "\n"),
 			Time:       elapsed,
 			StatusCode: int64(runOutput.StatusCode),
+			Error:      customFunctionErr,
 		},
 	}
 
