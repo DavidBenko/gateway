@@ -31,6 +31,7 @@ func init() {
 	RegisterHelper("each", eachHelper)
 	RegisterHelper("log", logHelper)
 	RegisterHelper("lookup", lookupHelper)
+	RegisterHelper("equal", equalHelper)
 }
 
 // RegisterHelper registers a global helper. That helper will be available to all templates.
@@ -116,7 +117,7 @@ func (options *Options) ValueStr(name string) string {
 
 // Ctx returns current evaluation context.
 func (options *Options) Ctx() interface{} {
-	return options.eval.curCtx()
+	return options.eval.curCtx().Interface()
 }
 
 //
@@ -146,9 +147,9 @@ func (options *Options) Hash() map[string]interface{} {
 func (options *Options) Param(pos int) interface{} {
 	if len(options.params) > pos {
 		return options.params[pos]
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 // ParamStr returns string representation of parameter at given position.
@@ -368,4 +369,14 @@ func logHelper(message string) interface{} {
 // #lookup helper
 func lookupHelper(obj interface{}, field string, options *Options) interface{} {
 	return Str(options.Eval(obj, field))
+}
+
+// #equal helper
+// Ref: https://github.com/aymerick/raymond/issues/7
+func equalHelper(a interface{}, b interface{}, options *Options) interface{} {
+	if Str(a) == Str(b) {
+		return options.Fn()
+	}
+
+	return ""
 }

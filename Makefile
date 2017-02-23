@@ -62,7 +62,7 @@ debug: vet assets generate
 	dlv exec ./bin/gateway -- -config=./test/gateway.conf -db-migrate
 
 package: vet admin assets generate
-	go build -o ./build/gateway ./src/gateway/main.go
+	go build -race -o ./build/gateway ./src/gateway/main.go
 
 release: vet admin assets generate
 	go build -ldflags="-s -w" -o ./build/gateway ./src/gateway/main.go
@@ -295,7 +295,8 @@ vendor_get: vendor_clean
 	github.com/google/go-gcm \
 	github.com/edganiukov/fcm \
 	github.com/Microsoft/go-winio \
-	github.com/Azure/go-ansiterm
+	github.com/Azure/go-ansiterm \
+	github.com/aymerick/raymond
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
