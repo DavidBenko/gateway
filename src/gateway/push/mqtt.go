@@ -160,6 +160,8 @@ func SetupMQTT(db *apsql.DB, conf config.Push, execute ExecuteMQTT) {
 					push.Channel.APIID, push.Channel.AccountID)
 				if err != nil {
 					logreport.Printf("[mqtt] %v", err)
+					// MYSTERY: db doesn't return remote endpoint when it should (can't replicate)
+					continue
 				}
 				context := &Context{
 					RemoteEndpoint:       endpoint,
