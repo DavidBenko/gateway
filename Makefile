@@ -52,7 +52,7 @@ build_integration_images:
 	docker build -t anypresence/justapis-ldap test/ldap
 
 build_race: vet assets generate
-	go build -race -o ./bin/gateway ./src/gateway/main.go
+	go build -o ./bin/gateway ./src/gateway/main.go
 
 build_tail:
 	go build -o ./bin/tail ./src/tail/main.go
@@ -295,7 +295,8 @@ vendor_get: vendor_clean
 	github.com/google/go-gcm \
 	github.com/edganiukov/fcm \
 	github.com/Microsoft/go-winio \
-	github.com/Azure/go-ansiterm
+	github.com/Azure/go-ansiterm \
+	github.com/aymerick/raymond
 
 vendor_update: vendor_get
 	rm -rf `find ./_vendor/src -type d -name .git` \
