@@ -21,10 +21,11 @@ func RouteJobTest(controller *JobTestController, path string,
 	router aphttp.Router, db *apsql.DB, conf config.ProxyAdmin) {
 
 	routes := map[string]http.Handler{
-		"GET": read(db, controller.Test),
+		"GET":  read(db, controller.Test),
+		"POST": read(db, controller.Test),
 	}
 	if conf.CORSEnabled {
-		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "OPTIONS"})
+		routes["OPTIONS"] = aphttp.CORSOptionsHandler([]string{"GET", "POST", "OPTIONS"})
 	}
 
 	router.Handle(path, handlers.MethodHandler(routes))
@@ -36,8 +37,9 @@ type JobTestController struct {
 }
 
 type JobTestResult struct {
-	Log  string `json:"log"`
-	Time int64  `json:"time"`
+	Log   string `json:"log"`
+	Time  int64  `json:"time"`
+	Error string `json:"error,omitempty"`
 }
 
 type JobTestResponse struct {
@@ -82,14 +84,16 @@ func (c *JobTestController) Test(w http.ResponseWriter, r *http.Request, db *aps
 
 	start := time.Now()
 	err = c.ExecuteJob(endpoint.ID, endpoint.AccountID, endpoint.APIID, logPrint, logPrefix, string(parametersJSON))
+	var jobError string
 	if err != nil {
-		return aphttp.NewError(err, http.StatusBadRequest)
+		jobError = err.Error()
 	}
 	elapsed := (time.Since(start).Nanoseconds() + +5e5) / 1e6
 	result := JobTestResponse{
 		JobTestResult{
-			Log:  logs.String(),
-			Time: elapsed,
+			Log:   logs.String(),
+			Time:  elapsed,
+			Error: jobError,
 		},
 	}
 

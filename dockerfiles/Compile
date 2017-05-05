@@ -1,6 +1,6 @@
 # nanoscale/gateway:compile
-# version 5.3.0
-FROM golang:1.7.4
+# version 5.4.0
+FROM golang:1.8.0
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 # Install dependencies
@@ -10,8 +10,9 @@ RUN echo "deb http://emdebian.org/tools/debian/ jessie main" >> /etc/apt/sources
     dpkg --add-architecture i386 && \
     apt-get clean && apt-get -y update && apt-get -y upgrade && \
     curl -sL https://deb.nodesource.com/setup_4.x | bash - && \
-    apt-get -y --force-yes install build-essential zlib1g-dev libssl-dev openjdk-8-jre-headless openjdk-8-jdk openssl upx ruby ruby-dev nodejs \
+    apt-get -y --force-yes install build-essential zlib1g-dev libssl-dev openssl ruby ruby-dev nodejs \
     gcc-mingw-w64 libc6-dev-i386 gcc-multilib rpm libstdc++6:i386 libgcc1:i386 zlib1g:i386 libncurses5:i386 && \
+    apt-get -y --force-yes install -t jessie-backports openjdk-8-jre-headless openjdk-8-jdk ca-certificates-java && \
     apt-get -y --force-yes install crossbuild-essential-armhf && \
     npm -g install bower && echo '{ "allow_root": true }' > /root/.bowerrc && \
     gem install bundler --no-rdoc --no-ri && \

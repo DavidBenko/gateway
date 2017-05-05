@@ -48,3 +48,7 @@ console.log = function() {
   }
   log(data);
 }
+
+prettify = function(o) {
+  return "\n" + JSON.stringify(o, null, "   ") + "\n"
+}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"gateway/logreport"
@@ -18,6 +19,26 @@ import (
 )
 
 var errCodeTimeout = errors.New("JavaScript took too long to execute")
+
+// DataSource is a source/cache specifically for the VM to use.
+type DataSource interface {
+	// Get should find a cache value according to some criteria.
+	Get(interface{}) (interface{}, bool)
+}
+
+type VMError struct {
+	Error string `json:"error"`
+}
+
+func OttoErrorObject(vm *otto.Otto, message string) otto.Value {
+	vmerr := &VMError{Error: message}
+	result, err := json.Marshal(vmerr)
+	if err != nil {
+		logreport.Println(err)
+		return otto.UndefinedValue()
+	}
+	return ToOttoObjectValue(vm, string(result))
+}
 
 type VMConfig interface {
 	GetEnableOSEnv() bool
@@ -33,6 +54,7 @@ type CoreVM struct {
 	LogPrefix               string
 	Log                     bytes.Buffer
 	ProxiedRequestsDuration time.Duration
+	PauseTimeout            uint64
 	timeout                 int64
 }
 
@@ -82,12 +104,6 @@ func (c *CoreVM) InitCoreVM(
 
 // Run runs the given script, preventing infinite loops and very slow JS
 func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
-	codeTimeout := int64(0)
-	if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
-		codeTimeout = c.GetCodeTimeout()
-	} else {
-		codeTimeout = c.timeout
-	}
 	defer func() {
 		if caught := recover(); caught != nil {
 			if caught == errCodeTimeout {
@@ -99,11 +115,25 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 	}()
 
 	if c.Otto.Interrupt == nil {
+		codeTimeout := int64(0)
+		if c.timeout < 1 || c.timeout > c.GetCodeTimeout() {
+			codeTimeout = c.GetCodeTimeout()
+		} else {
+			codeTimeout = c.timeout
+		}
+
 		timeoutChannel := make(chan func(), 1)
 		c.Otto.Interrupt = timeoutChannel
 
 		go func() {
-			time.Sleep(time.Duration(codeTimeout) * time.Second)
+			timeout := time.Duration(codeTimeout) * time.Second / time.Millisecond
+			for timeout > 0 {
+				time.Sleep(time.Millisecond)
+				if atomic.LoadUint64(&c.PauseTimeout) == 1 {
+					continue
+				}
+				timeout--
+			}
 			timeoutChannel <- func() { panic(errCodeTimeout) }
 		}()
 	}
@@ -119,7 +149,7 @@ func (c *CoreVM) Run(script interface{}) (value otto.Value, err error) {
 func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, err error) {
 	if s, ok := script.(string); ok {
 		wrapped, stopper := WrapJSComponent(c, s)
-		value, err = c.Otto.Run(wrapped)
+		value, err = c.Run(wrapped)
 		if err != nil {
 			return value, stop, &jsError{err, script, c.GetNumErrorLines()}
 		}
@@ -134,7 +164,7 @@ func (c *CoreVM) RunWithStop(script interface{}) (value otto.Value, stop bool, e
 func WrapJSComponent(c *CoreVM, script string) (string, func() (bool, error)) {
 	stopVal := "8a52973428f63bb0135a3abf535fec0f15b4c8eda1e9a2f1431f0a1f759babd3"
 	resultVar := "__exec_result"
-	wrapped := fmt.Sprintf("var stop = '%s'; var %s = (function() {%s})();", stopVal, resultVar, script)
+	wrapped := fmt.Sprintf("var stop = '%s'; var %s = (function() {\n%s\n})();", stopVal, resultVar, script)
 
 	fn := func() (bool, error) {
 		v, err := c.Get(resultVar)
@@ -217,11 +247,25 @@ func osEnvironmentScript() string {
 // is the second function argument, etc.
 func GetArgument(call otto.FunctionCall, index int) (interface{}, error) {
 	arg := call.Argument(index)
-	// otto.Value is equivalent to undefined in javascript
-	undefined := otto.Value{}
+	undefined := otto.UndefinedValue()
 	if arg == undefined {
 		return nil, errors.New("undefined argument")
 	}
 
 	return arg.Export()
+}
+
+func ToOttoObjectValue(vm *otto.Otto, s string) otto.Value {
+	obj, err := vm.Object(fmt.Sprintf("(%s)", s))
+
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	result, err := vm.ToValue(obj)
+	if err != nil {
+		logreport.Print(err)
+		return otto.UndefinedValue()
+	}
+	return result
 }

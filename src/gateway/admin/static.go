@@ -24,7 +24,8 @@ import (
 var pathRegex = regexp.MustCompile(`API_BASE_PATH_PLACEHOLDER`)
 var slashPathRegex = regexp.MustCompile(`/API_BASE_PATH_PLACEHOLDER`)
 var brokerHostRegex = regexp.MustCompile(`BROKER_PLACEHOLDER`)
-var versionRegex = regexp.MustCompile(`VERSION`)
+var versionRegex = regexp.MustCompile(`%22VERSION`)
+var showVersionRegex = regexp.MustCompile(`SHOW_VERSION`)
 var commitRegex = regexp.MustCompile(`COMMIT`)
 var devModeRegex = regexp.MustCompile(`DEV_MODE`)
 var goosRegex = regexp.MustCompile(`GO_OS`)
@@ -119,13 +120,11 @@ func serveIndex(w http.ResponseWriter, r *http.Request, conf config.ProxyAdmin) 
 
 			interpolatedValues := map[*regexp.Regexp]string{}
 
-			if conf.ShowVersion {
-				interpolatedValues[versionRegex] = version.Name()
-				interpolatedValues[commitRegex] = version.Commit()
-			} else {
-				interpolatedValues[versionRegex] = ""
-				interpolatedValues[commitRegex] = ""
-			}
+			// Version output
+			interpolatedValues[showVersionRegex] = fmt.Sprintf("%t", conf.ShowVersion)
+			interpolatedValues[versionRegex] = fmt.Sprintf("%%22%s", version.Name())
+			interpolatedValues[commitRegex] = version.Commit()
+
 			interpolatedValues[devModeRegex] = fmt.Sprintf("%t", conf.DevMode)
 			interpolatedValues[goosRegex] = runtime.GOOS
 			interpolatedValues[remoteEndpointTypesEnabledRegex] = remoteEndpointTypes()

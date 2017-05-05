@@ -7,6 +7,7 @@ import (
 	"gateway/config"
 	"gateway/core"
 	"gateway/core/vm"
+	"gateway/core/vm/advanced"
 	"gateway/logreport"
 	"gateway/model"
 	"gateway/sql"
@@ -40,14 +41,17 @@ func NewVM(
 	proxyEndpoint *model.ProxyEndpoint,
 	libraries []*model.Library,
 	timeout int64,
-	keyStore *core.KeyStore,
+	keyStore vm.DataSource,
+	endpointStore vm.DataSource,
+	prepare advanced.RequestPreparer,
 ) (*ProxyVM, error) {
 	vm := &ProxyVM{
 		w:  w,
 		r:  r,
 		db: db,
 	}
-	vm.InitCoreVM(core.VMCopy(proxyEndpoint.AccountID, keyStore), logPrint, logPrefix, &conf, proxyEndpoint, libraries, timeout)
+	vm.InitCoreVM(core.VMCopy(proxyEndpoint.AccountID, proxyEndpoint.APIID, proxyEndpoint.EnvironmentID, keyStore, endpointStore, prepare, &vm.PauseTimeout),
+		logPrint, logPrefix, &conf, proxyEndpoint, libraries, timeout)
 
 	if err := vm.setupSessionStore(proxyEndpoint.Environment); err != nil {
 		return nil, err

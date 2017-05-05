@@ -42,6 +42,15 @@ func NewSmtpRequest(pool *smtp.SmtpPool, endpoint *model.RemoteEndpoint, data *j
 
 	request.updateWith(endpointData)
 
+	if endpoint.SelectedEnvironmentData != nil {
+		endpointData := &SmtpRequest{}
+		if err := json.Unmarshal(*endpoint.SelectedEnvironmentData, endpointData); err != nil {
+			return nil, err
+		}
+		request.updateWith(endpointData)
+
+	}
+
 	mailer, err := pool.Connection(request.Config)
 
 	if err != nil {

@@ -175,6 +175,7 @@ func main() {
 
 	service.ElasticLoggingService(conf)
 	service.BleveLoggingService(conf.Bleve)
+	service.PostgresLoggingService(conf.PostgresLogging)
 	service.LogPublishingService(conf.Admin)
 	service.SessionDeletionService(conf, db)
 	service.PushDeletionService(conf, db)
@@ -191,7 +192,7 @@ func main() {
 	}
 
 	// Configure Docker
-	if conf.RemoteEndpoint.DockerEnabled {
+	if conf.RemoteEndpoint.DockerEnabled || conf.RemoteEndpoint.CustomFunctionEnabled {
 		logreport.Printf("%s Configuring Docker remote endpoint support...", config.System)
 		err = docker.ConfigureDockerClient(conf.Docker)
 		if err != nil {

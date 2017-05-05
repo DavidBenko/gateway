@@ -334,13 +334,13 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		givenConfig: "sqls-badConfigType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: ` +
-			`json: cannot unmarshal number into Go value of type sql.SQLServerSpec`,
+			`json: cannot unmarshal number into Go struct field SQLServer.config of type sql.SQLServerSpec`,
 	}, {
 		should:      "(SQLS) fail with a bad max idle type",
 		givenConfig: "sqls-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeSQLServer,
 		expectError: `bad JSON for SQL Server config: ` +
-			`json: cannot unmarshal string into Go value of type int`,
+			`json: cannot unmarshal string into Go struct field SQLServer.maxOpenConn of type int`,
 	}, {
 		should:      "(MySQL) work with a simple config",
 		givenConfig: "mysql-simple",
@@ -364,13 +364,13 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		givenConfig: "mysql-badConfigType",
 		givenType:   model.RemoteEndpointTypeMySQL,
 		expectError: `bad JSON for MySQL config: ` +
-			`json: cannot unmarshal number into Go value of type sql.MySQLSpec`,
+			`json: cannot unmarshal number into Go struct field MySQL.config of type sql.MySQLSpec`,
 	}, {
 		should:      "(MySQL) fail with a bad max idle type",
 		givenConfig: "mysql-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypeMySQL,
 		expectError: `bad JSON for MySQL config: ` +
-			`json: cannot unmarshal string into Go value of type int`,
+			`json: cannot unmarshal string into Go struct field MySQL.maxOpenConn of type int`,
 	}, {
 		should:      "(PSQL) work with a simple config",
 		givenConfig: "pq-simple",
@@ -396,13 +396,13 @@ func (s *ModelSuite) TestDBConfig(c *gc.C) {
 		givenConfig: "pq-badConfigType",
 		givenType:   model.RemoteEndpointTypePostgres,
 		expectError: `bad JSON for Postgres config: ` +
-			`json: cannot unmarshal number into Go value of type sql.PostgresSpec`,
+			`json: cannot unmarshal number into Go struct field Postgres.config of type sql.PostgresSpec`,
 	}, {
 		should:      "(PSQL) fail with a bad max idle type",
 		givenConfig: "pq-badMaxIdleType",
 		givenType:   model.RemoteEndpointTypePostgres,
 		expectError: `bad JSON for Postgres config: ` +
-			`json: cannot unmarshal string into Go value of type int`,
+			`json: cannot unmarshal string into Go struct field Postgres.maxOpenConn of type int`,
 	}, {
 		should:      "(Hana) work with a simple config",
 		givenConfig: "hana-simple",

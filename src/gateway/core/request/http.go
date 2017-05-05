@@ -100,7 +100,7 @@ func ParseResponse(response *http.Response) (*HTTPResponse, error) {
 	}
 	var err error
 	bodyReader := response.Body
-	if response.Header.Get("Content-Encoding") == "gzip" {
+	if response.ContentLength > 0 && response.Header.Get("Content-Encoding") == "gzip" {
 		bodyReader, err = gzip.NewReader(bodyReader)
 		if err != nil {
 			return nil, err
@@ -127,7 +127,7 @@ func (r *HTTPResponse) Log() string {
 	return fmt.Sprintf("(%d)", r.StatusCode)
 }
 
-func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
+func NewHTTPRequest(client *http.Client, insecureClient *http.Client, endpoint *model.RemoteEndpoint, data *json.RawMessage) (Request, error) {
 	request := &HTTPRequest{}
 	if err := json.Unmarshal(*data, request); err != nil {
 		return nil, err
@@ -150,7 +150,11 @@ func NewHTTPRequest(client *http.Client, endpoint *model.RemoteEndpoint, data *j
 		return nil, errors.New("no client defined")
 	}
 
-	request.client = client
+	if request.SkipSslVerification {
+		request.client = insecureClient
+	} else {
+		request.client = client
+	}
 
 	if len(request.URL) == 0 {
 		return nil, errors.New("url must not be empty")
@@ -184,4 +188,5 @@ func (r *HTTPRequest) updateWith(endpointData *HTTPRequest) {
 		}
 		r.Headers[name] = value
 	}
+	r.SkipSslVerification = endpointData.SkipSslVerification
 }

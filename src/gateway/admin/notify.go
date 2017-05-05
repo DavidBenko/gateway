@@ -6,8 +6,9 @@ import (
 	"gateway/model"
 	apsql "gateway/sql"
 	"gateway/store"
-	"golang.org/x/net/websocket"
 	"time"
+
+	"golang.org/x/net/websocket"
 )
 
 const (
@@ -49,6 +50,9 @@ var RESOURCE_MAP = map[string]string{
 	"timers":                    "timer",
 	"job_tests":                 "job-test",
 	"proxy_endpoint_channels":   "proxy-endpoint-channel",
+	"custom_functions":          "custom-function",
+	"custom_function_files":     "custom-function-file",
+	"custom_function_tests":     "custom-function-test",
 }
 
 var ACTION_MAP = [...]string{

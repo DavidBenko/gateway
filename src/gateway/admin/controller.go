@@ -32,6 +32,9 @@ import (
 //go:generate ./controller.rb --model Timer --reflect
 //go:generate ./controller.rb --model JobTest --reflect
 //go:generate ./controller.rb --model ProxyEndpointChannel --json Channel --reflect
+//go:generate ./controller.rb --model CustomFunction --reflect --after-insert-hook
+//go:generate ./controller.rb --model CustomFunctionFile --json File --reflect
+//go:generate ./controller.rb --model CustomFunctionTest --json Test --reflect
 
 // ResourceController defines what we expect a controller to do to route
 // a RESTful resource
@@ -69,4 +72,8 @@ func (c *BaseController) proxyEndpointID(r *http.Request) int64 {
 
 func (c *BaseController) collectionID(r *http.Request) int64 {
 	return collectionIDFromPath(r)
+}
+
+func (c *BaseController) environmentID(r *http.Request) int64 {
+	return environmentIDFromPath(r)
 }

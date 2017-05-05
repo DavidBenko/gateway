@@ -24,20 +24,21 @@ type Configuration struct {
 	Server        bool   `flag:"server" default:"false"`
 	Jobs          bool   `flag:"jobs" default:"true"`
 
-	Airbrake       Airbrake
-	Database       Database
-	Proxy          ProxyServer
-	Job            BackgroundJob
-	Admin          ProxyAdmin
-	Elastic        ElasticLogging
-	Bleve          BleveLogging
-	Soap           Soap
-	Store          Store
-	RemoteEndpoint RemoteEndpoint
-	SMTP           SMTP
-	Push           Push
-	Docker         Docker
-	Stats          Stats
+	Airbrake        Airbrake
+	Database        Database
+	Proxy           ProxyServer
+	Job             BackgroundJob
+	Admin           ProxyAdmin
+	Elastic         ElasticLogging
+	Bleve           BleveLogging
+	PostgresLogging PostgresLogging
+	Soap            Soap
+	Store           Store
+	RemoteEndpoint  RemoteEndpoint
+	SMTP            SMTP
+	Push            Push
+	Docker          Docker
+	Stats           Stats
 }
 
 // Airbrake specifies configuration for error reporting with Airbrake
@@ -112,6 +113,9 @@ type ProxyServer struct {
 	NumErrorLines int64 `flag:"proxy-code-error-lines" default:"2"`
 
 	HealthCheckPath string `flag:"proxy-health-check-path" default:"/__gw-health-check"`
+
+	KeyCacheSize            int64 `flag:"proxy-key-cache-size" default:"0"`
+	RemoteEndpointCacheSize int64 `flag:"proxy-remote-endpoint-cache-size" default:"0"`
 }
 
 // BackgroundJob specifies configuration options that apply to jobs.
@@ -125,23 +129,24 @@ type BackgroundJob struct {
 
 // RemoteEndpoint specifies which types of remote endpionts are available
 type RemoteEndpoint struct {
-	HTTPEnabled       bool `flag:"remote-endpoint-http-enabled" default:"true"`
-	SQLServerEnabled  bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
-	MySQLEnabled      bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
-	PostgreSQLEnabled bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
-	MongoDBEnabled    bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
-	StoreEnabled      bool `flag:"remote-endpoint-store-enabled" default:"true"`
-	LDAPEnabled       bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
-	HanaEnabled       bool `flag:"remote-endpoint-hana-enabled" default:"true"`
-	PushEnabled       bool `flag:"remote-endpoint-push-enabled" default:"true"`
-	RedisEnabled      bool `flag:"remote-endpoint-redis-enabled" default:"true"`
-	SMTPEnabled       bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
-	JobEnabled        bool `flag:"remote-endpoint-job-enabled" default:"true"`
-	ScriptEnabled     bool `flag:"remote-endpoint-script-enabled" default:"false"`
-	SoapEnabled       bool `flag:"remote-endpoint-soap-enabled" default:"false"`
-	DockerEnabled     bool `flag:"remote-endpoint-docker-enabled" default:"false"`
-	KeyEnabled        bool `flag:"remote-endpoint-key-enabled" default:"true"`
-	ScrubData         bool `flag:"remote-endpoint-scrub-data"     default:"false"`
+	HTTPEnabled           bool `flag:"remote-endpoint-http-enabled" default:"true"`
+	SQLServerEnabled      bool `flag:"remote-endpoint-sqlserver-enabled" default:"true"`
+	MySQLEnabled          bool `flag:"remote-endpoint-mysql-enabled" default:"true"`
+	PostgreSQLEnabled     bool `flag:"remote-endpoint-postgresql-enabled" default:"true"`
+	MongoDBEnabled        bool `flag:"remote-endpoint-mongodb-enabled" default:"true"`
+	StoreEnabled          bool `flag:"remote-endpoint-store-enabled" default:"true"`
+	LDAPEnabled           bool `flag:"remote-endpoint-ldap-enabled" default:"true"`
+	HanaEnabled           bool `flag:"remote-endpoint-hana-enabled" default:"true"`
+	PushEnabled           bool `flag:"remote-endpoint-push-enabled" default:"true"`
+	RedisEnabled          bool `flag:"remote-endpoint-redis-enabled" default:"true"`
+	SMTPEnabled           bool `flag:"remote-endpoint-smtp-enabled" default:"true"`
+	JobEnabled            bool `flag:"remote-endpoint-job-enabled" default:"true"`
+	ScriptEnabled         bool `flag:"remote-endpoint-script-enabled" default:"false"`
+	SoapEnabled           bool `flag:"remote-endpoint-soap-enabled" default:"false"`
+	DockerEnabled         bool `flag:"remote-endpoint-docker-enabled" default:"false"`
+	KeyEnabled            bool `flag:"remote-endpoint-key-enabled" default:"true"`
+	CustomFunctionEnabled bool `flag:"remote-endpoint-custom-function-enabled" default:"false"`
+	ScrubData             bool `flag:"remote-endpoint-scrub-data"     default:"false"`
 }
 
 // ProxyAdmin specifies configuration options that apply to the admin section
@@ -198,6 +203,9 @@ type ProxyAdmin struct {
 	APIHost             string `flag:"admin-api-host"        default:""`
 	WsHeartbeatInterval int64  `flag:"ws-heartbeat-interval" default:"60"`
 	WsWriteDeadline     int64  `flag:"ws-write-deadline" default:"10"`
+	WsReadDeadline      int64  `flag:"ws-read-deadline" default:"10"`
+
+	ReplMaximumFrameSize int64 `flag:"repl-maximum-frame-size" default:"1024"`
 }
 
 type ElasticLogging struct {
@@ -208,6 +216,14 @@ type ElasticLogging struct {
 type BleveLogging struct {
 	File        string `flag:"bleve-logging-file" default:"logs.bleve"`
 	DeleteAfter int64  `flag:"bleve-logging-delete-after" default:"30"`
+}
+
+type PostgresLogging struct {
+	Enable           bool   `flag:"postgres-logging-enable" default:"false"`
+	Migrate          bool   `flag:"postgres-logging-migrate" default:"false"`
+	ConnectionString string `flag:"postgres-logging-conn-string" default:"dbname=gateway_logs sslmode=disable"`
+	MaxConnections   int64  `flag:"postgres-logging-max-connections" default:"50"`
+	DeleteAfter      int64  `flag:"postgres-logging-delete-after" default:"30"`
 }
 
 type SMTP struct {

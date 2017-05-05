@@ -73,6 +73,10 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 			logreport.Fatal(err)
 		}
 	}
+
+	repl := &ReplController{BaseController: base}
+	RouteRepl(repl, "/apis/{apiID}/environments/{environmentID}/repl/socket", authAdmin, configuration.Admin, c.VMKeyStore, c.VMRemoteEndpointStore, c.PrepareRequest)
+
 	stream := &LogStreamController{base}
 	RouteLogStream(stream, "/logs/socket", authAdmin)
 	RouteLogStream(stream, "/apis/{apiID}/logs/socket", authAdmin)
@@ -140,6 +144,16 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteResource(&SharedComponentsController{BaseController: base}, "/apis/{apiID}/shared_components", authAdmin, db, conf)
 	RouteResource(&TimersController{BaseController: base}, "/timers", authAdmin, db, conf)
 
+	if configuration.RemoteEndpoint.CustomFunctionEnabled {
+		customFunctionTestController := &CustomFunctionTestController{base}
+		RouteCustomFunctionTest(customFunctionTestController, "/apis/{apiID}/custom_functions/{customFunctionID}/tests/{testID}/test", authAdmin, db, conf)
+
+		RouteResource(&CustomFunctionsController{BaseController: base}, "/apis/{apiID}/custom_functions", authAdmin, db, conf)
+		RouteResource(&CustomFunctionFilesController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/files", authAdmin, db, conf)
+		RouteResource(&CustomFunctionTestsController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/tests", authAdmin, db, conf)
+		RouteCustomFunctionBuild(&CustomFunctionBuildController{BaseController: base}, "/apis/{apiID}/custom_functions/{customFunctionID}/build", authAdmin, db, conf)
+	}
+
 	RouteStoreResource(&StoreCollectionsController{base, s}, "/store_collections", authAdmin, conf)
 	RouteStoreResource(&StoreObjectsController{base, s}, "/store_collections/{collectionID}/store_objects", authAdmin, conf)
 
@@ -166,6 +180,7 @@ func Setup(router *mux.Router, db *sql.DB, s store.Store, configuration config.C
 	RouteSwagger(&SwaggerController{matcher}, "/swagger.json", public, db, conf)
 	RoutePush(&PushController{matcher, c}, "/push", public, db, conf)
 	RouteMQTTProxy(&MQTTProxyController{base, configuration.Push}, "/mqtt", public, conf)
+
 }
 
 func subrouter(router *mux.Router, config config.ProxyAdmin) *mux.Router {

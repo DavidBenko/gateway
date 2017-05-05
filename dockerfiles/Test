@@ -1,6 +1,6 @@
 # nanoscale/gateway:test
-# version 5.2.1
-FROM nanoscale/gateway:compile-5.2.1
+# version 5.4.0
+FROM nanoscale/gateway:compile-5.4.0
 MAINTAINER Jeff Bozek, jeff@nanoscale.io
 
 RUN apt-get install -y apt-transport-https ca-certificates && \
